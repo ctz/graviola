@@ -1,0 +1,7 @@
+File = { SOI ~ (Statement ~ ("\r\n" | "\n"))* ~ EOI }
+Statement = { SingleLineComment | Include | Define | Directive | "" }
+SingleLineComment = { "//" ~ (!"\n" ~ ANY)* }
+Include = { "#include" ~ ("\"" ~ (!"\"" ~ ANY)* ~ "\"" ) }
+Define = { "blorp" }
+Directive = { ( ".intel_syntax" ~ "noprefix" ) }
+WHITESPACE = _{ " " | "\t" }
