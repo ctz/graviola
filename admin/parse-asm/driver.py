@@ -192,7 +192,7 @@ def tokens_to_single_glued_string(tokens):
 
 
 def tokens_to_quoted_asm(tokens):
-    return ", ".join(tokens_to_quoted_spans(tokens))
+    return " ".join(tokens_to_quoted_spans(tokens))
 
 
 def tokens_to_args(tokens):

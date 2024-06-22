@@ -21,21 +21,68 @@ class Driver(Dispatcher):
         self.rust_macros = {}
         self.parameter_map = []
         self.clobbers = set()
+        self.labels = {}
+        self.labels_defined = set()
         self.start()
 
     def start(self):
         print(
             """
-/// "comma concat": takes a sequence of expressions,
-/// and feeds them into concat!() to form a single string
-macro_rules! CC {
+/// takes a sequence of expressions, and feeds them into
+/// concat!() to form a single string
+///
+/// named after perl's q operator. lol.
+macro_rules! Q {
     ($($e:expr)*) => {
         concat!($($e ,)*)
     };
 }
+
+/// Label macro, which just resolves to the id as a string,
+/// but keeps the name close to it in the code.
+macro_rules! Label {
+    ($name:literal, $id:literal) => {
+        stringify!($id)
+    };
+
+    ($name:literal, $id:literal, After) => {
+        stringify!($id f)
+    };
+
+    ($name:literal, $id:literal, Before) => {
+        stringify!($id b)
+    }
+}
         """,
             file=self.output,
         )
+
+    def find_label(self, label, defn=False):
+        """
+        Returns an ordinal "local label" for the name `label`
+
+        Returns (ordinal, defined_before).
+
+        `defined_before` is true if the label is already defined.
+        """
+        if defn:
+            self.labels_defined.add(label)
+
+        id = self.labels.get(label, None)
+        if id is not None:
+            return id, label in self.labels_defined
+
+        # workaround warning that numeric labels must not solely
+        # consist of '1' and '0' characters. unhinged!
+        next_id = max(self.labels.values()) + 1 if self.labels else 1
+        while len(str(next_id).replace("1", "").replace("0", "")) == 0:
+            next_id += 1
+
+        self.labels[label] = next_id
+        return next_id, label in self.labels_defined
+
+    def looks_like_label(self, label):
+        return label.startswith("curve25519_")
 
     def register_rust_macro(self, name, value, params=None):
         self.rust_macros[name] = (value, params)
@@ -48,6 +95,12 @@ macro_rules! CC {
                     yield unquote("%s!()" % t)
                 elif t in params:
                     yield unquote("$" + t)
+                elif t in self.labels or self.looks_like_label(t):
+                    id, before = self.find_label(t)
+                    yield unquote(
+                        'Label!("%s", %d, %s)'
+                        % (t, id, "Before" if before else "After")
+                    )
                 else:
                     yield t
 
@@ -67,13 +120,13 @@ macro_rules! CC {
         if name == "curve25519_x25519":
             self.parameter_map = [
                 ("inout", "rdi", "res.as_mut_ptr() => _"),
-                ("inout", "rsi", "scalar.as_mut_ptr() => _"),
-                ("inout", "rdx", "point.as_mut_ptr() => _"),
+                ("inout", "rsi", "scalar.as_ptr() => _"),
+                ("inout", "rdx", "point.as_ptr() => _"),
             ]
 
             print(
                 """
-            pub fn curve25519_x25519(res: &mut [u8; 32], scalar: &mut [u8; 32], point: &mut [u8; 32]) {
+            pub fn curve25519_x25519(res: &mut [u8; 32], scalar: &[u8; 32], point: &[u8; 32]) {
                 unsafe { core::arch::asm!(
             """,
                 file=self.output,
@@ -92,7 +145,7 @@ macro_rules! CC {
             self.register_rust_macro(tokens[0], value)
             value = self.expand_rust_macros_in_macro_decl(*value)
             print(
-                """macro_rules! %s { () => { CC!(%s) } }""" % (tokens[0], value),
+                """macro_rules! %s { () => { Q!(%s) } }""" % (tokens[0], value),
                 file=self.output,
             )
         else:
@@ -102,7 +155,7 @@ macro_rules! CC {
 
             params = ["$%s:expr" % p for p in params]
             print(
-                """macro_rules! %s { (%s) => { CC!(%s) } }"""
+                """macro_rules! %s { (%s) => { Q!(%s) } }"""
                 % (name, ", ".join(params), value),
                 file=self.output,
             )
@@ -118,10 +171,12 @@ macro_rules! CC {
         self.visit_operands(operands)
 
         operands = self.expand_rust_macros_in_asm(operands)
-        parts = ['"    %-10s"' % opcode]
         if operands:
+            parts = ['"    %-10s"' % opcode]
             parts.append(operands)
-        print(", ".join(parts) + ",", file=self.output)
+            print("Q!(" + (" ".join(parts)) + "),", file=self.output)
+        else:
+            print("    %-10s" % opcode, file=self.output)
 
     def visit_operands(self, operands):
         for t in tokenise(operands):
@@ -132,7 +187,8 @@ macro_rules! CC {
     def on_label(self, contexts, label):
         if "WINDOWS_ABI" in contexts:
             return
-        print('"    %s:",' % label, file=self.output)
+        id, _ = self.find_label(label, defn=True)
+        print('Q!(Label!("%s", %d) ":"),' % (label, id), file=self.output)
 
     def on_macro(self, name, params):
         assert name in self.rust_macros
@@ -153,6 +209,7 @@ macro_rules! CC {
 
         self.clobbers = []
         self.parameter_map = []
+        self.labels = {}
 
         print("    )}", file=self.output)
 
@@ -165,7 +222,9 @@ macro_rules! CC {
         subprocess.check_call(["rustfmt", filename])
 
 
-with open("curve25519_x25519.S") as input, open("c.rs", "w") as output:
+with open("curve25519_x25519.S") as input, open(
+    "../curve25519/src/low/x86_64.rs", "w"
+) as output:
     d = Driver(output, Architecture_amd64)
     parse_file(input, d)
     d.finish_file()
