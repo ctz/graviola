@@ -8,6 +8,7 @@ from driver import (
     tokens_to_macro_fn,
     tokens_to_quoted_asm,
     tokens_to_single_glued_string,
+    tokens_to_single_glued_string_lines,
     tokens_to_args,
     unquote,
 )
@@ -104,10 +105,15 @@ macro_rules! Label {
                 else:
                     yield t
 
-    def expand_rust_macros_in_macro_decl(self, *values, params={}):
-        return tokens_to_single_glued_string(
-            self.expand_rust_macros(*values, params=params)
-        )
+    def expand_rust_macros_in_macro_decl(self, *values, indent=0, params={}):
+        if indent == 0:
+            return tokens_to_single_glued_string(
+                self.expand_rust_macros(*values, params=params)
+            )
+        else:
+            return tokens_to_single_glued_string_lines(
+                self.expand_rust_macros(*values, params=params), indent=indent
+            )
 
     def expand_rust_macros_in_asm(self, *values):
         return tokens_to_quoted_asm(self.expand_rust_macros(*values))
@@ -120,8 +126,8 @@ macro_rules! Label {
         if name == "curve25519_x25519":
             self.parameter_map = [
                 ("inout", "rdi", "res.as_mut_ptr() => _"),
-                ("inout", "rsi", "scalar.as_ptr() => _"),
-                ("inout", "rdx", "point.as_ptr() => _"),
+                ("in", "rsi", "scalar.as_ptr()"),
+                ("in", "rdx", "point.as_ptr()"),
             ]
 
             print(
@@ -143,7 +149,7 @@ macro_rules! Label {
         if len(tokens) == 1:
             assert len(value) == 1
             self.register_rust_macro(tokens[0], value)
-            value = self.expand_rust_macros_in_macro_decl(*value)
+            value = self.expand_rust_macros_in_macro_decl(*value, indent=0)
             print(
                 """macro_rules! %s { () => { Q!(%s) } }""" % (tokens[0], value),
                 file=self.output,
@@ -151,11 +157,17 @@ macro_rules! Label {
         else:
             name, params = tokens_to_macro_fn(tokens)
             self.register_rust_macro(name, value, params)
-            value = self.expand_rust_macros_in_macro_decl(*value, params=params)
+            value = self.expand_rust_macros_in_macro_decl(
+                *value, params=params, indent=8
+            )
 
             params = ["$%s:expr" % p for p in params]
             print(
-                """macro_rules! %s { (%s) => { Q!(%s) } }"""
+                """macro_rules! %s {
+    (%s) => { Q!(
+%s
+    )}
+}"""
                 % (name, ", ".join(params), value),
                 file=self.output,
             )
@@ -170,6 +182,7 @@ macro_rules! Label {
 
         self.visit_operands(operands)
 
+        # TODO: need to visit_operands() in macro expansions
         operands = self.expand_rust_macros_in_asm(operands)
         if operands:
             parts = ['"    %-10s"' % opcode]
@@ -222,8 +235,15 @@ macro_rules! Label {
         subprocess.check_call(["rustfmt", filename])
 
 
-with open("curve25519_x25519.S") as input, open(
-    "../curve25519/src/low/x86_64.rs", "w"
+with open("../../s2n-bignum/x86/curve25519/curve25519_x25519.S") as input, open(
+    "../curve25519/src/low/x86_64/curve25519_x25519.rs", "w"
+) as output:
+    d = Driver(output, Architecture_amd64)
+    parse_file(input, d)
+    d.finish_file()
+
+with open("../../s2n-bignum/x86/curve25519/curve25519_x25519base.S") as input, open(
+    "../curve25519/src/low/x86_64/curve25519_x25519base.rs", "w"
 ) as output:
     d = Driver(output, Architecture_amd64)
     parse_file(input, d)

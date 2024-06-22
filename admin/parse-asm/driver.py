@@ -38,7 +38,7 @@ class Architecture_amd64(Architecture):
 
     @staticmethod
     def lookup_register(reg):
-        for c in "ax bx cs dx si di ip".split():
+        for c in "ax bx cx dx si di ip".split():
             if reg in [c, "e" + c, "r" + c]:
                 return "r" + c
 
@@ -189,6 +189,34 @@ def tokens_to_quoted_spans(tokens):
 
 def tokens_to_single_glued_string(tokens):
     return " ".join(tokens_to_quoted_spans(tokens))
+
+
+def tokens_to_single_glued_string_lines(tokens, indent):
+    tokens = list(tokens)
+    if ";" in tokens:
+        # if we have semicolons, assume they can be used
+        # to improve formatting: they should terminate lines
+        return _tokens_to_single_glued_string_semicolon_lines(tokens, indent)
+
+    lines = []
+    for span in tokens_to_quoted_spans(tokens):
+        lines.append((" " * indent) + span)
+    return "\n".join(lines)
+
+
+def _tokens_to_single_glued_string_semicolon_lines(tokens, indent):
+    lines = []
+    collect = []
+    for span in tokens_to_quoted_spans(tokens):
+        if span.endswith(';"'):
+            collect.append(span)
+            lines.append((" " * indent) + " ".join(collect))
+            collect = []
+        else:
+            collect.append(span)
+    if collect:
+        lines.append((" " * indent) + " ".join(collect))
+    return "\n".join(lines)
 
 
 def tokens_to_quoted_asm(tokens):
