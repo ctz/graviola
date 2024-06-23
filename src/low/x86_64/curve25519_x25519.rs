@@ -2222,17 +2222,17 @@ pub fn curve25519_x25519(res: &mut [u8; 32], scalar: &[u8; 32], point: &[u8; 32]
         inout("rdi") res.as_mut_ptr() => _,
         in("rsi") scalar.as_ptr(),
         in("rdx") point.as_ptr(),
-            // clobbers
-            out("r10") _,
-            out("r11") _,
-            out("r12") _,
-            out("r13") _,
-            out("r14") _,
-            out("r15") _,
-            out("r8") _,
-            out("r9") _,
-            out("rax") _,
-            out("rcx") _,
+        // clobbers
+        out("r10") _,
+        out("r11") _,
+        out("r12") _,
+        out("r13") _,
+        out("r14") _,
+        out("r15") _,
+        out("r8") _,
+        out("r9") _,
+        out("rax") _,
+        out("rcx") _,
             )
     }
 }

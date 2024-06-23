@@ -13,6 +13,29 @@ from driver import (
     unquote,
 )
 
+class ConstantArray:
+    def __init__(self, name):
+        self.name = name
+        self.type = None
+        self.items = []
+        self.lines = []
+
+    def add_comment(self, comment):
+        self.lines.append('// ' + comment)
+
+    def add_vertical_whitespace(self):
+        self.lines.append('')
+
+    def add_item(self, value):
+        self.lines.append(value + ',')
+        self.items.append(value)
+
+    def set_type(self, type):
+        if self.type is not None and self.type != type:
+            raise ValueError('type varied within constant array')
+
+        self.type = type
+
 
 class Driver(Dispatcher):
     def __init__(self, output, architecture):
@@ -24,6 +47,8 @@ class Driver(Dispatcher):
         self.clobbers = set()
         self.labels = {}
         self.labels_defined = set()
+        self.constant_syms = set()
+        self.current_constant_array = None
         self.start()
 
     def start(self):
@@ -57,6 +82,9 @@ macro_rules! Label {
         """,
             file=self.output,
         )
+
+    def add_const_symbol(self, sym):
+        self.constant_syms.add(sym)
 
     def find_label(self, label, defn=False):
         """
@@ -96,6 +124,8 @@ macro_rules! Label {
                     yield unquote("%s!()" % t)
                 elif t in params:
                     yield unquote("$" + t)
+                elif t in self.constant_syms:
+                    yield "{" + t + "}"
                 elif t in self.labels or self.looks_like_label(t):
                     id, before = self.find_label(t)
                     yield unquote(
@@ -137,11 +167,30 @@ macro_rules! Label {
             """,
                 file=self.output,
             )
+        elif name == 'curve25519_x25519base':
+            self.parameter_map = [
+                ('inout', 'rdi', "res.as_mut_ptr() => _"),
+                ("in", "rsi", "scalar.as_ptr()"),
+            ]
+
+            print(
+                """
+            pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32]) {
+                unsafe { core::arch::asm!(
+            """,
+                file=self.output,
+            )
 
     def on_comment(self, comment):
+        if self.current_constant_array:
+            return self.current_constant_array.add_comment(comment.rstrip())
+
         print("// " + comment.rstrip(), file=self.output)
 
     def on_vertical_whitespace(self):
+        if self.current_constant_array:
+            return self.current_constant_array.add_vertical_whitespace()
+
         print("", file=self.output)
 
     def on_define(self, name, *value):
@@ -200,6 +249,11 @@ macro_rules! Label {
     def on_label(self, contexts, label):
         if "WINDOWS_ABI" in contexts:
             return
+        if label in self.constant_syms:
+            self.finish_constant_array()
+            self.start_constant_array(label)
+            return
+
         id, _ = self.find_label(label, defn=True)
         print('Q!(Label!("%s", %d) ":"),' % (label, id), file=self.output)
 
@@ -208,26 +262,57 @@ macro_rules! Label {
         value = self.expand_rust_macros_in_macro_call(params)
         print("%s!(%s)," % (name, value), file=self.output)
 
+    def on_const(self, contexts, type, value):
+        self.emit_constant_item(type, value)
+
+    def start_constant_array(self, name):
+        self.current_constant_array = ConstantArray(name)
+
+    def emit_constant_item(self, type, value):
+        self.current_constant_array.set_type(type)
+        self.current_constant_array.add_item(value)
+
+    def finish_constant_array(self):
+        if self.current_constant_array:
+            ca = self.current_constant_array
+            self.current_constant_array = None
+
+            rust_type = {
+                '.quad': 'u64',
+            }[ca.type]
+
+            print('static %s: [%s; %d] = [' % (ca.name, rust_type, len(ca.items)), file=self.output)
+            for line in ca.lines:
+                print('    %s' % line, file=self.output)
+            print('];', file=self.output)
+            print('', file=self.output)
+
     def finish_function(self):
         for dir, reg, param in self.parameter_map:
             print('%s("%s") %s,' % (dir, reg, param), file=self.output)
 
-        print("    // clobbers", file=self.output)
+        if self.constant_syms:
+            for c in self.constant_syms:
+                print('%s = sym %s,' % (c, c), file=self.output)
+
+
+        print("// clobbers", file=self.output)
         for c in sorted(self.clobbers):
             if c in [x[1] for x in self.parameter_map]:
                 continue
             if c in self.arch.ignore_clobber:
                 continue
-            print('    out("%s") _,' % c, file=self.output)
+            print('out("%s") _,' % c, file=self.output)
 
         self.clobbers = []
         self.parameter_map = []
         self.labels = {}
 
         print("    )}", file=self.output)
+        print("}", file=self.output)
 
     def finish_file(self):
-        print("}", file=self.output)
+        self.finish_constant_array()
 
         filename = self.output.name
         self.output.close()
@@ -246,5 +331,8 @@ with open("../../s2n-bignum/x86/curve25519/curve25519_x25519base.S") as input, o
     "../curve25519/src/low/x86_64/curve25519_x25519base.rs", "w"
 ) as output:
     d = Driver(output, Architecture_amd64)
+    d.add_const_symbol('curve25519_x25519base_edwards25519_0g')
+    d.add_const_symbol('curve25519_x25519base_edwards25519_8g')
+    d.add_const_symbol('curve25519_x25519base_edwards25519_gtable')
     parse_file(input, d)
     d.finish_file()

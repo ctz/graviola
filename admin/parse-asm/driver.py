@@ -34,7 +34,7 @@ class Architecture_amd64(Architecture):
     x86	xmm[0-31]	ymm[0-31], zmm[0-31]
     """
 
-    ignore_clobber = set("rbx rsp rbp".split())
+    ignore_clobber = set("rbx rsp rbp rip".split())
 
     @staticmethod
     def lookup_register(reg):

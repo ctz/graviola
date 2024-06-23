@@ -31,4 +31,13 @@ mod tests {
             b"\x95\xcb\xde\x94\x76\xe8\x90\x7d\x7a\xad\xe4\x5c\xb4\xb8\x73\xf8\x8b\x59\x5a\x68\x79\x9f\xa1\x52\xe6\xf8\xf7\x64\x7a\xac\x79\x57"
         );
     }
+
+
+    #[test]
+    fn base() {
+        let scalar = [1u8; 32];
+        let mut res = [0u8; 32];
+        curve25519_x25519base(&mut res, &scalar);
+        println!("{:x?}", &res[..]);
+    }
 }
