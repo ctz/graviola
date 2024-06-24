@@ -2284,9 +2284,9 @@ pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32]) {
         Q!("    pop       " "rbp"),
         Q!("    pop       " "rbx"),
         inout("rdi") res.as_mut_ptr() => _,
-        in("rsi") scalar.as_ptr(),
-        curve25519_x25519base_edwards25519_8g = sym curve25519_x25519base_edwards25519_8g,
+        inout("rsi") scalar.as_ptr() => _,
         curve25519_x25519base_edwards25519_0g = sym curve25519_x25519base_edwards25519_0g,
+        curve25519_x25519base_edwards25519_8g = sym curve25519_x25519base_edwards25519_8g,
         curve25519_x25519base_edwards25519_gtable = sym curve25519_x25519base_edwards25519_gtable,
         // clobbers
         out("r10") _,

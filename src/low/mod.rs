@@ -2,7 +2,9 @@
 mod x86_64;
 
 #[cfg(target_arch = "x86_64")]
-pub use x86_64::{curve25519_x25519::curve25519_x25519, curve25519_x25519base::curve25519_x25519base};
+pub use x86_64::{
+    curve25519_x25519::curve25519_x25519, curve25519_x25519base::curve25519_x25519base,
+};
 
 #[cfg(test)]
 mod tests {
@@ -32,12 +34,57 @@ mod tests {
         );
     }
 
+    #[test]
+    fn rfc7748_3() {
+        let mut k = [0u8; 32];
+        k[0] = 9;
+        let mut res = [0u8; 32];
+
+        // After one iteration: 422c8e7a6227d7bca1350b3e2bb7279f7897b87bb6854b783c60e80311ae3079
+        curve25519_x25519base(&mut res, &k);
+        assert_eq!(
+            &res[..],
+            b"\x42\x2c\x8e\x7a\x62\x27\xd7\xbc\xa1\x35\x0b\x3e\x2b\xb7\x27\x9f\x78\x97\xb8\x7b\xb6\x85\x4b\x78\x3c\x60\xe8\x03\x11\xae\x30\x79",
+        );
+
+        // After 1,000 iterations: 684cf59ba83309552800ef566f2f4d3c1c3887c49360e3875f2eb94d99532c51
+        let mut u = [0u8; 32];
+        u.copy_from_slice(&k);
+        k.copy_from_slice(&res);
+
+        for _ in 1..1000 {
+            curve25519_x25519(&mut res, &k, &u);
+            u.copy_from_slice(&k);
+            k.copy_from_slice(&res);
+        }
+
+        assert_eq!(
+            &k[..],
+            b"\x68\x4c\xf5\x9b\xa8\x33\x09\x55\x28\x00\xef\x56\x6f\x2f\x4d\x3c\x1c\x38\x87\xc4\x93\x60\xe3\x87\x5f\x2e\xb9\x4d\x99\x53\x2c\x51"
+        );
+
+        // After 1,000,000 iterations: 7c3911e0ab2586fd864497297e575e6f3bc601c0883c30df5f4dd2d24f665424
+        for _ in 1000..1000_000 {
+            curve25519_x25519(&mut res, &k, &u);
+            u.copy_from_slice(&k);
+            k.copy_from_slice(&res);
+        }
+
+        assert_eq!(
+            &k[..],
+            b"\x7c\x39\x11\xe0\xab\x25\x86\xfd\x86\x44\x97\x29\x7e\x57\x5e\x6f\x3b\xc6\x01\xc0\x88\x3c\x30\xdf\x5f\x4d\xd2\xd2\x4f\x66\x54\x24",
+        );
+    }
 
     #[test]
-    fn base() {
+    fn base_mul() {
         let scalar = [1u8; 32];
         let mut res = [0u8; 32];
         curve25519_x25519base(&mut res, &scalar);
-        println!("{:x?}", &res[..]);
+        // generated manually with cryptography.io
+        assert_eq!(
+            &res[..],
+            b"\xa4\xe0\x92\x92\xb6\x51\xc2\x78\xb9\x77\x2c\x56\x9f\x5f\xa9\xbb\x13\xd9\x06\xb4\x6a\xb6\x8c\x9d\xf9\xdc\x2b\x44\x09\xf8\xa2\x09",
+        );
     }
 }

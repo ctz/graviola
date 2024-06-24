@@ -156,8 +156,8 @@ macro_rules! Label {
         if name == "curve25519_x25519":
             self.parameter_map = [
                 ("inout", "rdi", "res.as_mut_ptr() => _"),
-                ("in", "rsi", "scalar.as_ptr()"),
-                ("in", "rdx", "point.as_ptr()"),
+                ("inout", "rsi", "scalar.as_ptr() => _"),
+                ("inout", "rdx", "point.as_ptr() => _"),
             ]
 
             print(
@@ -170,7 +170,7 @@ macro_rules! Label {
         elif name == 'curve25519_x25519base':
             self.parameter_map = [
                 ('inout', 'rdi', "res.as_mut_ptr() => _"),
-                ("in", "rsi", "scalar.as_ptr()"),
+                ("inout", "rsi", "scalar.as_ptr() => _"),
             ]
 
             print(
@@ -292,7 +292,7 @@ macro_rules! Label {
             print('%s("%s") %s,' % (dir, reg, param), file=self.output)
 
         if self.constant_syms:
-            for c in self.constant_syms:
+            for c in sorted(self.constant_syms):
                 print('%s = sym %s,' % (c, c), file=self.output)
 
 

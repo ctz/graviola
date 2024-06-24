@@ -2220,8 +2220,8 @@ pub fn curve25519_x25519(res: &mut [u8; 32], scalar: &[u8; 32], point: &[u8; 32]
         Q!("    pop       " "rbx"),
 
         inout("rdi") res.as_mut_ptr() => _,
-        in("rsi") scalar.as_ptr(),
-        in("rdx") point.as_ptr(),
+        inout("rsi") scalar.as_ptr() => _,
+        inout("rdx") point.as_ptr() => _,
         // clobbers
         out("r10") _,
         out("r11") _,
