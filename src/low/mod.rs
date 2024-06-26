@@ -1,3 +1,5 @@
+mod macros;
+
 #[cfg(target_arch = "x86_64")]
 mod x86_64;
 
@@ -63,17 +65,19 @@ mod tests {
             b"\x68\x4c\xf5\x9b\xa8\x33\x09\x55\x28\x00\xef\x56\x6f\x2f\x4d\x3c\x1c\x38\x87\xc4\x93\x60\xe3\x87\x5f\x2e\xb9\x4d\x99\x53\x2c\x51"
         );
 
-        // After 1,000,000 iterations: 7c3911e0ab2586fd864497297e575e6f3bc601c0883c30df5f4dd2d24f665424
-        for _ in 1000..1000_000 {
-            curve25519_x25519(&mut res, &k, &u);
-            u.copy_from_slice(&k);
-            k.copy_from_slice(&res);
-        }
+        if option_env!("SLOW_TESTS").is_some() {
+            // After 1,000,000 iterations: 7c3911e0ab2586fd864497297e575e6f3bc601c0883c30df5f4dd2d24f665424
+            for _ in 1000..1000_000 {
+                curve25519_x25519(&mut res, &k, &u);
+                u.copy_from_slice(&k);
+                k.copy_from_slice(&res);
+            }
 
-        assert_eq!(
-            &k[..],
-            b"\x7c\x39\x11\xe0\xab\x25\x86\xfd\x86\x44\x97\x29\x7e\x57\x5e\x6f\x3b\xc6\x01\xc0\x88\x3c\x30\xdf\x5f\x4d\xd2\xd2\x4f\x66\x54\x24",
-        );
+            assert_eq!(
+                &k[..],
+                b"\x7c\x39\x11\xe0\xab\x25\x86\xfd\x86\x44\x97\x29\x7e\x57\x5e\x6f\x3b\xc6\x01\xc0\x88\x3c\x30\xdf\x5f\x4d\xd2\xd2\x4f\x66\x54\x24",
+            );
+        }
     }
 
     #[test]

@@ -1,28 +1,5 @@
-/// takes a sequence of expressions, and feeds them into
-/// concat!() to form a single string
-///
-/// named after perl's q operator. lol.
-macro_rules! Q {
-    ($($e:expr)*) => {
-        concat!($($e ,)*)
-    };
-}
-
-/// Label macro, which just resolves to the id as a string,
-/// but keeps the name close to it in the code.
-macro_rules! Label {
-    ($name:literal, $id:literal) => {
-        stringify!($id)
-    };
-
-    ($name:literal, $id:literal, After) => {
-        stringify!($id f)
-    };
-
-    ($name:literal, $id:literal, Before) => {
-        stringify!($id b)
-    }
-}
+#![allow(non_upper_case_globals, unused_macros)]
+use crate::low::macros::{Label, Q};
 
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
