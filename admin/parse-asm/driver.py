@@ -61,6 +61,44 @@ class Architecture_amd64(Architecture):
                 return "zmm" + n
 
 
+class Architecture_aarch64(Architecture):
+    """
+    AArch64	reg	x[0-30]	r
+    AArch64	vreg	v[0-31]	w
+    AArch64	vreg_low16	v[0-15]	x
+    AArch64	preg	p[0-15], ffr	Only clobbers
+    ARM (ARM/Thumb2)	reg	r[0-12], r14	r
+    ARM (Thumb1)	reg	r[0-7]	r
+    ARM	sreg	s[0-31]	t
+    ARM	sreg_low16	s[0-15]	x
+    ARM	dreg	d[0-31]	w
+    ARM	dreg_low16	d[0-15]	t
+    ARM	dreg_low8	d[0-8]	x
+    ARM	qreg	q[0-15]	w
+    ARM	qreg_low8	q[0-7]	t
+    ARM	qreg_low4	q[0-3]	x
+    """
+
+    ignore_clobber = set(["x19", "x29"])
+
+    @staticmethod
+    def lookup_register(reg):
+        for n in range(31):
+            n = str(n)
+            if reg in ["r" + n, "x" + n, "w" + n]:
+                return "x" + n
+
+        for n in range(32):
+            n = str(n)
+            if reg in ["v" + n, "q" + n, "d" + n, "s" + n, "h" + n]:
+                return "v" + n
+
+        for n in range(16):
+            n = str(n)
+            if reg == "p" + n:
+                return reg
+
+
 class Dispatcher:
     def __call__(self, ty, *args):
         func = getattr(self, "on_" + ty.lower())
@@ -70,6 +108,9 @@ class Dispatcher:
         pass
 
     def on_vertical_whitespace(self):
+        pass
+
+    def on_align(self, contexts, alignment):
         pass
 
     def on_define(self, name, *value):
@@ -117,7 +158,10 @@ def tokenise(s):
         run = None
         run_type = None
 
+        letters = string.ascii_letters
         symbol = string.ascii_letters + string.digits + "_"
+        register_open = symbol + ".["
+        register_close = register_open + "]"
         hex = string.hexdigits
         numbers = string.digits
 
@@ -126,6 +170,19 @@ def tokenise(s):
                 run_type = hex
                 run = run + x
                 continue
+
+            if run_type == letters and x not in run_type and x in symbol:
+                run_type = symbol
+
+            if (
+                run_type in (letters, symbol)
+                and x not in run_type
+                and x in register_open
+            ):
+                run_type = register_open
+
+            if run_type == register_open and x not in run_type and x in register_close:
+                run_type = register_close
 
             if run_type is not None and x not in run_type:
                 yield run
@@ -139,7 +196,7 @@ def tokenise(s):
             if x in string.whitespace:
                 continue
 
-            if x in "()[]+*/-,;":
+            if x in "()[]+*/-,;#.!":
                 yield x
                 continue
 
@@ -148,9 +205,9 @@ def tokenise(s):
                 run_type = numbers
                 continue
 
-            if x in symbol:
+            if x in letters:
                 run = x
-                run_type = symbol
+                run_type = letters
                 continue
 
             print("UNHANDLED tokenise " + x)
@@ -202,7 +259,7 @@ def tokens_to_quoted_spans(tokens):
             collected.append(cur)
             yield '"' + "".join(collected) + '"'
             collected = []
-        elif cur in "[(":
+        elif cur in "[(.":
             collected.append(cur)
         else:
             collected.append(cur)
@@ -535,3 +592,18 @@ if __name__ == "__main__":
     ]
     assert tokenise("add 0x1, 0x1234") == ["add", "0x1", ",", "0x1234"]
     print(tokenise("QWORD PTR [rsp+12*NUMSIZE+8]"))
+
+    tt = tokenise('mov     v9.d[0], xzr')
+    print(repr(tt))
+    assert tokens_to_quoted_asm(tt) == '"mov v9.d[0], xzr"'
+
+    tt = tokenise('add     v22.2s, v2.2s, v3.2s')
+    print(repr(tt))
+    assert tokens_to_quoted_asm(tt) == '"add v22.2s, v2.2s, v3.2s"'
+
+    assert tokens_to_quoted_asm(tokenise('b.ne    curve25519_x25519_invloop')) == '"b.ne curve25519_x25519_invloop"'
+    assert tokens_to_quoted_asm(tokenise('mov    [P0+0x18], r11')) == '"mov [P0 + 0x18], r11"'
+
+    print(repr(tokenise('stp     x2, x3, [xn+16]')))
+
+    assert tokenise('x0, x1, [xn]') == ['x0', ',', 'x1', ',', '[', 'xn', ']']
