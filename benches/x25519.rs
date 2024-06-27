@@ -5,6 +5,23 @@ const PUBLIC_KEY: &[u8; 32] = b"\xe6\xdb\x68\x67\x58\x30\x30\xdb\x35\x94\xc1\xa4
 fn x25519(c: &mut Criterion) {
     let mut group = c.benchmark_group("x25519-ecdh");
 
+    group.bench_function("openssl", |b| {
+        b.iter(|| {
+            use openssl::derive::Deriver;
+            use openssl::pkey::{Id, PKey};
+
+            let priv_key = PKey::generate_x25519().unwrap();
+            black_box(priv_key.raw_public_key().unwrap());
+
+            let peer = PKey::public_key_from_raw_bytes(PUBLIC_KEY, Id::X25519).unwrap();
+            let mut deriver = Deriver::new(&priv_key).unwrap();
+            deriver.set_peer(&peer).unwrap();
+            let mut secret = [0u8; 32];
+            deriver.derive(&mut secret).unwrap();
+            black_box(secret);
+        });
+    });
+
     group.bench_function("ring", |b| {
         use ring::{agreement, rand};
         let rng = rand::SystemRandom::new();
