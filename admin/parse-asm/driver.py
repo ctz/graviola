@@ -338,6 +338,7 @@ class RustDriver(Dispatcher):
         self.expected_function_name = None
         self.parameter_map = []
         self.rust_decl = None
+        self.return_value = None
         self.clobbers = set()
         self.labels = {}
         self.labels_defined = set()
@@ -350,10 +351,11 @@ class RustDriver(Dispatcher):
     def set_label_prefix(self, label_prefix):
         self.label_prefix = label_prefix
 
-    def emit_rust_function(self, name, parameter_map, rust_decl):
+    def emit_rust_function(self, name, parameter_map, rust_decl, return_value=None):
         self.expected_function_name = name
         self.parameter_map = parameter_map
         self.rust_decl = rust_decl
+        self.return_value = return_value
 
     def start(self):
         print(
@@ -445,12 +447,18 @@ use crate::low::macros::{Q, Label};
     def on_function(self, contexts, name):
         assert contexts == []
         if name == self.expected_function_name:
+            locals = ""
+            if self.return_value:
+                rtype, rname, _ = self.return_value
+                locals = "let %s: %s;" % (rname, rtype)
+
             print(
                 """
             %s {
+                %s
                 unsafe { core::arch::asm!(
             """
-                % self.rust_decl,
+                % (self.rust_decl, locals),
                 file=self.output,
             )
 
@@ -609,7 +617,12 @@ use crate::low::macros::{Q, Label};
         self.parameter_map = []
         self.labels = {}
 
-        print("    )}", file=self.output)
+        print("    )};", file=self.output)
+
+        if self.return_value:
+            _, rname, rexpr = self.return_value
+            print("    %s" % rexpr, file=self.output)
+
         print("}", file=self.output)
 
     def finish_file(self):

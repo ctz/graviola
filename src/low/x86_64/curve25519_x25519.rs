@@ -2211,5 +2211,5 @@ pub fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[u64; 4]
         out("rax") _,
         out("rcx") _,
             )
-    }
+    };
 }
