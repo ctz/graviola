@@ -5,6 +5,7 @@ const PUBLIC_KEY: &[u8; 32] = b"\xe6\xdb\x68\x67\x58\x30\x30\xdb\x35\x94\xc1\xa4
 fn x25519(c: &mut Criterion) {
     let mut group = c.benchmark_group("x25519-ecdh");
 
+    #[cfg(feature = "__bench_openssl")]
     group.bench_function("openssl", |b| {
         b.iter(|| {
             use openssl::derive::Deriver;
