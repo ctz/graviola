@@ -377,7 +377,7 @@ macro_rules! double_twice4 {
     )}
 }
 
-pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32]) {
+pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 

@@ -61,19 +61,14 @@ fn x25519(c: &mut Criterion) {
     });
 
     group.bench_function("this", |b| {
-        use aws_lc_rs::rand::{SecureRandom, SystemRandom};
-        let rng = SystemRandom::new();
-
         b.iter(|| {
-            let mut our_private_key = [0u8; 32];
-            rng.fill(&mut our_private_key).unwrap();
-            let mut our_public_key = [0u8; 32];
-            curve25519::curve25519_x25519base(&mut our_public_key, &our_private_key);
+            let our_private_key = curve25519::PrivateKey::generate(&mut rand_core::OsRng).unwrap();
+            let our_public_key = our_private_key.public_key();
             black_box(our_public_key);
 
-            let mut res = [0u8; 32];
-            curve25519::curve25519_x25519(&mut res, PUBLIC_KEY, &our_private_key);
-            black_box(res);
+            let peer = curve25519::PublicKey::from_array(PUBLIC_KEY);
+            let secret = our_private_key.diffie_hellman(&peer);
+            black_box(secret);
         })
     });
 }

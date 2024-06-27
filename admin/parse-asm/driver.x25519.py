@@ -18,7 +18,7 @@ if __name__ == "__main__":
                 ("inout", "rsi", "scalar.as_ptr() => _"),
                 ("inout", "rdx", "point.as_ptr() => _"),
             ],
-            rust_decl="pub fn curve25519_x25519(res: &mut [u8; 32], scalar: &[u8; 32], point: &[u8; 32])",
+            rust_decl="pub fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[u64; 4])",
         )
         parse_file(input, d)
         d.finish_file()
@@ -37,7 +37,7 @@ if __name__ == "__main__":
                 ("inout", "rdi", "res.as_mut_ptr() => _"),
                 ("inout", "rsi", "scalar.as_ptr() => _"),
             ],
-            rust_decl="pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32])",
+            rust_decl="pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4])",
         )
         parse_file(input, d)
         d.finish_file()
@@ -54,7 +54,7 @@ if __name__ == "__main__":
                 ("inout", "x1", "scalar.as_ptr() => _"),
                 ("inout", "x2", "point.as_ptr() => _"),
             ],
-            rust_decl="pub fn curve25519_x25519(res: &mut [u8; 32], scalar: &[u8; 32], point: &[u8; 32])",
+            rust_decl="pub fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[u64; 4])",
         )
         parse_file(input, d)
         d.finish_file()
@@ -75,7 +75,7 @@ if __name__ == "__main__":
                 ("inout", "x0", "res.as_mut_ptr() => _"),
                 ("inout", "x1", "scalar.as_ptr() => _"),
             ],
-            rust_decl="pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32])",
+            rust_decl="pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4])",
         )
         parse_file(input, d)
         d.finish_file()

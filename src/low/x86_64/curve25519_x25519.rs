@@ -626,7 +626,7 @@ macro_rules! mux_4 {
     )}
 }
 
-pub fn curve25519_x25519(res: &mut [u8; 32], scalar: &[u8; 32], point: &[u8; 32]) {
+pub fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 

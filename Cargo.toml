@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+rand_core = "0.6"
 
 [profile.release]
 debug = "full"
