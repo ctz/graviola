@@ -10,6 +10,15 @@ class Architecture:
     # that should be ignored when calculating clobbers
     ignore_clobber = set()
 
+    # constant references must be page aligned, because on aarch64
+    # single-insn address loads have limited span at byte resolution
+    # (but much wider at page resolution). this prevents relocation
+    # errors in larger programs (where the emitted function is
+    # >1MB away from the rodata section)
+    #
+    # this also converts `adr` insns of such references into `adrp`
+    constant_references_must_be_page_aligned = False
+
     # canonicalise register names, by returning a better name
     # for `reg`.
     #
@@ -80,6 +89,8 @@ class Architecture_aarch64(Architecture):
     """
 
     ignore_clobber = set(["x19", "x29"])
+
+    constant_references_must_be_page_aligned = True
 
     @staticmethod
     def lookup_register(reg):
@@ -332,6 +343,7 @@ class RustDriver(Dispatcher):
         self.labels_defined = set()
         self.constant_syms = set()
         self.current_constant_array = None
+        self.emitted_page_aligned_types = set()
         self.label_prefix = None
         self.start()
 
@@ -388,6 +400,12 @@ use crate::low::macros::{Q, Label};
 
     def register_rust_macro(self, name, value, params=None):
         self.rust_macros[name] = (value, params)
+
+    def contains_constant_ref(self, *values):
+        for v in values:
+            for t in tokenise(v):
+                if t in self.constant_syms:
+                    return True
 
     def expand_rust_macros(self, *values, params={}):
         for v in values:
@@ -487,8 +505,16 @@ use crate::low::macros::{Q, Label};
         self.visit_operands(operands)
 
         # TODO: need to visit_operands() in macro expansions
+        contains_constant_ref = self.contains_constant_ref(operands)
         operands = self.expand_rust_macros_in_asm(operands)
         if operands:
+            if (
+                contains_constant_ref
+                and self.arch.constant_references_must_be_page_aligned
+                and opcode == "adr"
+            ):
+                opcode = "adrp"
+
             parts = ['"    %-10s"' % opcode]
             parts.append(operands)
             print("Q!(" + (" ".join(parts)) + "),", file=self.output)
@@ -536,13 +562,31 @@ use crate::low::macros::{Q, Label};
                 ".quad": "u64",
             }[ca.type]
 
+            array_type = "[%s; %d]" % (rust_type, len(ca.items))
+            if self.arch.constant_references_must_be_page_aligned:
+                rust_type = "PageAligned%sArray%d" % (rust_type, len(ca.items))
+                value_start = rust_type + "("
+                value_end = ")"
+
+                if rust_type not in self.emitted_page_aligned_types:
+                    print("#[allow(dead_code)]", file=self.output)
+                    print("#[repr(align(4096))]", file=self.output)
+                    print(
+                        "struct %s(%s);\n" % (rust_type, array_type), file=self.output
+                    )
+                    self.emitted_page_aligned_types.add(rust_type)
+            else:
+                rust_type = array_type
+                value_start = ""
+                value_end = ""
+
             print(
-                "static %s: [%s; %d] = [" % (ca.name, rust_type, len(ca.items)),
+                "static %s: %s = %s[" % (ca.name, rust_type, value_start),
                 file=self.output,
             )
             for line in ca.lines:
                 print("    %s" % line, file=self.output)
-            print("];", file=self.output)
+            print("]%s;" % value_end, file=self.output)
             print("", file=self.output)
 
     def finish_function(self):
@@ -593,17 +637,23 @@ if __name__ == "__main__":
     assert tokenise("add 0x1, 0x1234") == ["add", "0x1", ",", "0x1234"]
     print(tokenise("QWORD PTR [rsp+12*NUMSIZE+8]"))
 
-    tt = tokenise('mov     v9.d[0], xzr')
+    tt = tokenise("mov     v9.d[0], xzr")
     print(repr(tt))
     assert tokens_to_quoted_asm(tt) == '"mov v9.d[0], xzr"'
 
-    tt = tokenise('add     v22.2s, v2.2s, v3.2s')
+    tt = tokenise("add     v22.2s, v2.2s, v3.2s")
     print(repr(tt))
     assert tokens_to_quoted_asm(tt) == '"add v22.2s, v2.2s, v3.2s"'
 
-    assert tokens_to_quoted_asm(tokenise('b.ne    curve25519_x25519_invloop')) == '"b.ne curve25519_x25519_invloop"'
-    assert tokens_to_quoted_asm(tokenise('mov    [P0+0x18], r11')) == '"mov [P0 + 0x18], r11"'
+    assert (
+        tokens_to_quoted_asm(tokenise("b.ne    curve25519_x25519_invloop"))
+        == '"b.ne curve25519_x25519_invloop"'
+    )
+    assert (
+        tokens_to_quoted_asm(tokenise("mov    [P0+0x18], r11"))
+        == '"mov [P0 + 0x18], r11"'
+    )
 
-    print(repr(tokenise('stp     x2, x3, [xn+16]')))
+    print(repr(tokenise("stp     x2, x3, [xn+16]")))
 
-    assert tokenise('x0, x1, [xn]') == ['x0', ',', 'x1', ',', '[', 'xn', ']']
+    assert tokenise("x0, x1, [xn]") == ["x0", ",", "x1", ",", "[", "xn", "]"]
