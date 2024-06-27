@@ -413,7 +413,13 @@ use crate::low::macros::{Q, Label};
         for v in values:
             for t in tokenise(v):
                 if t in self.rust_macros:
-                    assert self.rust_macros[t][1] == None
+                    macro_value, macro_args = self.rust_macros[t]
+                    for vv in macro_value:
+                        self.visit_operands(vv)
+                    # this code path is for macro expansions that don't
+                    # "look like function calls", macros mentioned like that
+                    # must not have any arguments
+                    assert macro_args == None
                     yield unquote("%s!()" % t)
                 elif t in params:
                     yield unquote("$" + t)
@@ -512,7 +518,6 @@ use crate::low::macros::{Q, Label};
 
         self.visit_operands(operands)
 
-        # TODO: need to visit_operands() in macro expansions
         contains_constant_ref = self.contains_constant_ref(operands)
         operands = self.expand_rust_macros_in_asm(operands)
         if operands:
