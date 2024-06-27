@@ -8,7 +8,7 @@ use crate::low::macros::{Label, Q};
 // The x25519 function for curve25519 on base element 9
 // Input scalar[4]; output res[4]
 //
-// extern void curve25519_x25519base
+// extern void curve25519_x25519base_alt
 //   (uint64_t res[static 4],uint64_t scalar[static 4]);
 //
 // Given a scalar n, returns the X coordinate of n * G where G = (9,...) is
@@ -98,191 +98,111 @@ macro_rules! t5 { () => { Q!("sp, # (13 * " NUMSIZE!() ")") } }
 
 macro_rules! NSPACE { () => { Q!("(14 * " NUMSIZE!() ")") } }
 
-// Macro wrapping up the basic field operation bignum_mul_p25519, only
+// Macro wrapping up the basic field operation bignum_mul_p25519_alt, only
 // trivially different from a pure function call to that subroutine.
 
 macro_rules! mul_p25519 {
     ($P0:expr, $P1:expr, $P2:expr) => { Q!(
         "ldp x3, x4, [" $P1 "];"
-        "ldp x5, x6, [" $P2 "];"
-        "umull x7, w3, w5;"
-        "lsr x0, x3, # 32;"
-        "umull x15, w0, w5;"
-        "lsr x16, x5, # 32;"
-        "umull x8, w16, w0;"
-        "umull x16, w3, w16;"
-        "adds x7, x7, x15, lsl # 32;"
-        "lsr x15, x15, # 32;"
-        "adc x8, x8, x15;"
-        "adds x7, x7, x16, lsl # 32;"
-        "lsr x16, x16, # 32;"
-        "adc x8, x8, x16;"
-        "mul x9, x4, x6;"
-        "umulh x10, x4, x6;"
-        "subs x4, x4, x3;"
-        "cneg x4, x4, cc;"
-        "csetm x16, cc;"
-        "adds x9, x9, x8;"
-        "adc x10, x10, xzr;"
-        "subs x3, x5, x6;"
-        "cneg x3, x3, cc;"
-        "cinv x16, x16, cc;"
-        "mul x15, x4, x3;"
-        "umulh x3, x4, x3;"
-        "adds x8, x7, x9;"
-        "adcs x9, x9, x10;"
-        "adc x10, x10, xzr;"
-        "cmn x16, # 0x1;"
-        "eor x15, x15, x16;"
-        "adcs x8, x15, x8;"
-        "eor x3, x3, x16;"
-        "adcs x9, x3, x9;"
-        "adc x10, x10, x16;"
-        "ldp x3, x4, [" $P1 "+ 16];"
-        "ldp x5, x6, [" $P2 "+ 16];"
-        "umull x11, w3, w5;"
-        "lsr x0, x3, # 32;"
-        "umull x15, w0, w5;"
-        "lsr x16, x5, # 32;"
-        "umull x12, w16, w0;"
-        "umull x16, w3, w16;"
-        "adds x11, x11, x15, lsl # 32;"
-        "lsr x15, x15, # 32;"
-        "adc x12, x12, x15;"
-        "adds x11, x11, x16, lsl # 32;"
-        "lsr x16, x16, # 32;"
-        "adc x12, x12, x16;"
-        "mul x13, x4, x6;"
-        "umulh x14, x4, x6;"
-        "subs x4, x4, x3;"
-        "cneg x4, x4, cc;"
-        "csetm x16, cc;"
-        "adds x13, x13, x12;"
-        "adc x14, x14, xzr;"
-        "subs x3, x5, x6;"
-        "cneg x3, x3, cc;"
-        "cinv x16, x16, cc;"
-        "mul x15, x4, x3;"
-        "umulh x3, x4, x3;"
-        "adds x12, x11, x13;"
-        "adcs x13, x13, x14;"
-        "adc x14, x14, xzr;"
-        "cmn x16, # 0x1;"
-        "eor x15, x15, x16;"
-        "adcs x12, x15, x12;"
-        "eor x3, x3, x16;"
-        "adcs x13, x3, x13;"
-        "adc x14, x14, x16;"
-        "ldp x3, x4, [" $P1 "+ 16];"
-        "ldp x15, x16, [" $P1 "];"
-        "subs x3, x3, x15;"
-        "sbcs x4, x4, x16;"
-        "csetm x16, cc;"
-        "ldp x15, x0, [" $P2 "];"
-        "subs x5, x15, x5;"
-        "sbcs x6, x0, x6;"
-        "csetm x0, cc;"
-        "eor x3, x3, x16;"
-        "subs x3, x3, x16;"
-        "eor x4, x4, x16;"
-        "sbc x4, x4, x16;"
-        "eor x5, x5, x0;"
-        "subs x5, x5, x0;"
-        "eor x6, x6, x0;"
-        "sbc x6, x6, x0;"
-        "eor x16, x0, x16;"
-        "adds x11, x11, x9;"
-        "adcs x12, x12, x10;"
-        "adcs x13, x13, xzr;"
-        "adc x14, x14, xzr;"
-        "mul x2, x3, x5;"
-        "umulh x0, x3, x5;"
-        "mul x15, x4, x6;"
-        "umulh x1, x4, x6;"
-        "subs x4, x4, x3;"
-        "cneg x4, x4, cc;"
-        "csetm x9, cc;"
-        "adds x15, x15, x0;"
-        "adc x1, x1, xzr;"
-        "subs x6, x5, x6;"
-        "cneg x6, x6, cc;"
-        "cinv x9, x9, cc;"
-        "mul x5, x4, x6;"
-        "umulh x6, x4, x6;"
-        "adds x0, x2, x15;"
-        "adcs x15, x15, x1;"
-        "adc x1, x1, xzr;"
-        "cmn x9, # 0x1;"
-        "eor x5, x5, x9;"
-        "adcs x0, x5, x0;"
-        "eor x6, x6, x9;"
-        "adcs x15, x6, x15;"
-        "adc x1, x1, x9;"
-        "adds x9, x11, x7;"
-        "adcs x10, x12, x8;"
-        "adcs x11, x13, x11;"
-        "adcs x12, x14, x12;"
-        "adcs x13, x13, xzr;"
-        "adc x14, x14, xzr;"
-        "cmn x16, # 0x1;"
-        "eor x2, x2, x16;"
-        "adcs x9, x2, x9;"
-        "eor x0, x0, x16;"
-        "adcs x10, x0, x10;"
-        "eor x15, x15, x16;"
-        "adcs x11, x15, x11;"
-        "eor x1, x1, x16;"
-        "adcs x12, x1, x12;"
-        "adcs x13, x13, x16;"
-        "adc x14, x14, x16;"
-        "mov x3, # 0x26;"
-        "umull x4, w11, w3;"
-        "add x4, x4, w7, uxtw;"
-        "lsr x7, x7, # 32;"
-        "lsr x11, x11, # 32;"
-        "umaddl x11, w11, w3, x7;"
-        "mov x7, x4;"
-        "umull x4, w12, w3;"
-        "add x4, x4, w8, uxtw;"
-        "lsr x8, x8, # 32;"
-        "lsr x12, x12, # 32;"
-        "umaddl x12, w12, w3, x8;"
-        "mov x8, x4;"
-        "umull x4, w13, w3;"
-        "add x4, x4, w9, uxtw;"
-        "lsr x9, x9, # 32;"
-        "lsr x13, x13, # 32;"
-        "umaddl x13, w13, w3, x9;"
-        "mov x9, x4;"
-        "umull x4, w14, w3;"
-        "add x4, x4, w10, uxtw;"
-        "lsr x10, x10, # 32;"
-        "lsr x14, x14, # 32;"
-        "umaddl x14, w14, w3, x10;"
-        "mov x10, x4;"
-        "lsr x0, x14, # 31;"
-        "mov x5, # 0x13;"
-        "umaddl x5, w5, w0, x5;"
-        "add x7, x7, x5;"
-        "adds x7, x7, x11, lsl # 32;"
-        "extr x3, x12, x11, # 32;"
-        "adcs x8, x8, x3;"
-        "extr x3, x13, x12, # 32;"
-        "adcs x9, x9, x3;"
-        "extr x3, x14, x13, # 32;"
-        "lsl x5, x0, # 63;"
-        "eor x10, x10, x5;"
-        "adc x10, x10, x3;"
-        "mov x3, # 0x13;"
-        "tst x10, # 0x8000000000000000;"
-        "csel x3, x3, xzr, pl;"
-        "subs x7, x7, x3;"
-        "sbcs x8, x8, xzr;"
-        "sbcs x9, x9, xzr;"
-        "sbc x10, x10, xzr;"
-        "and x10, x10, # 0x7fffffffffffffff;"
-        "stp x7, x8, [" $P0 "];"
-        "stp x9, x10, [" $P0 "+ 16]"
+        "ldp x7, x8, [" $P2 "];"
+        "mul x12, x3, x7;"
+        "umulh x13, x3, x7;"
+        "mul x11, x3, x8;"
+        "umulh x14, x3, x8;"
+        "adds x13, x13, x11;"
+        "ldp x9, x10, [" $P2 "+ 16];"
+        "mul x11, x3, x9;"
+        "umulh x15, x3, x9;"
+        "adcs x14, x14, x11;"
+        "mul x11, x3, x10;"
+        "umulh x16, x3, x10;"
+        "adcs x15, x15, x11;"
+        "adc x16, x16, xzr;"
+        "ldp x5, x6, [" $P1 "+ 16];"
+        "mul x11, x4, x7;"
+        "adds x13, x13, x11;"
+        "mul x11, x4, x8;"
+        "adcs x14, x14, x11;"
+        "mul x11, x4, x9;"
+        "adcs x15, x15, x11;"
+        "mul x11, x4, x10;"
+        "adcs x16, x16, x11;"
+        "umulh x3, x4, x10;"
+        "adc x3, x3, xzr;"
+        "umulh x11, x4, x7;"
+        "adds x14, x14, x11;"
+        "umulh x11, x4, x8;"
+        "adcs x15, x15, x11;"
+        "umulh x11, x4, x9;"
+        "adcs x16, x16, x11;"
+        "adc x3, x3, xzr;"
+        "mul x11, x5, x7;"
+        "adds x14, x14, x11;"
+        "mul x11, x5, x8;"
+        "adcs x15, x15, x11;"
+        "mul x11, x5, x9;"
+        "adcs x16, x16, x11;"
+        "mul x11, x5, x10;"
+        "adcs x3, x3, x11;"
+        "umulh x4, x5, x10;"
+        "adc x4, x4, xzr;"
+        "umulh x11, x5, x7;"
+        "adds x15, x15, x11;"
+        "umulh x11, x5, x8;"
+        "adcs x16, x16, x11;"
+        "umulh x11, x5, x9;"
+        "adcs x3, x3, x11;"
+        "adc x4, x4, xzr;"
+        "mul x11, x6, x7;"
+        "adds x15, x15, x11;"
+        "mul x11, x6, x8;"
+        "adcs x16, x16, x11;"
+        "mul x11, x6, x9;"
+        "adcs x3, x3, x11;"
+        "mul x11, x6, x10;"
+        "adcs x4, x4, x11;"
+        "umulh x5, x6, x10;"
+        "adc x5, x5, xzr;"
+        "umulh x11, x6, x7;"
+        "adds x16, x16, x11;"
+        "umulh x11, x6, x8;"
+        "adcs x3, x3, x11;"
+        "umulh x11, x6, x9;"
+        "adcs x4, x4, x11;"
+        "adc x5, x5, xzr;"
+        "mov x7, # 0x26;"
+        "mul x11, x7, x16;"
+        "umulh x9, x7, x16;"
+        "adds x12, x12, x11;"
+        "mul x11, x7, x3;"
+        "umulh x3, x7, x3;"
+        "adcs x13, x13, x11;"
+        "mul x11, x7, x4;"
+        "umulh x4, x7, x4;"
+        "adcs x14, x14, x11;"
+        "mul x11, x7, x5;"
+        "umulh x5, x7, x5;"
+        "adcs x15, x15, x11;"
+        "cset x16, cs;"
+        "adds x15, x15, x4;"
+        "adc x16, x16, x5;"
+        "cmn x15, x15;"
+        "orr x15, x15, # 0x8000000000000000;"
+        "adc x8, x16, x16;"
+        "mov x7, # 0x13;"
+        "madd x11, x7, x8, x7;"
+        "adds x12, x12, x11;"
+        "adcs x13, x13, x9;"
+        "adcs x14, x14, x3;"
+        "adcs x15, x15, xzr;"
+        "csel x7, x7, xzr, cc;"
+        "subs x12, x12, x7;"
+        "sbcs x13, x13, xzr;"
+        "sbcs x14, x14, xzr;"
+        "sbc x15, x15, xzr;"
+        "and x15, x15, # 0x7fffffffffffffff;"
+        "stp x12, x13, [" $P0 "];"
+        "stp x14, x15, [" $P0 "+ 16]"
     )}
 }
 
@@ -292,177 +212,99 @@ macro_rules! mul_p25519 {
 macro_rules! mul_4 {
     ($P0:expr, $P1:expr, $P2:expr) => { Q!(
         "ldp x3, x4, [" $P1 "];"
-        "ldp x5, x6, [" $P2 "];"
-        "umull x7, w3, w5;"
-        "lsr x0, x3, # 32;"
-        "umull x15, w0, w5;"
-        "lsr x16, x5, # 32;"
-        "umull x8, w16, w0;"
-        "umull x16, w3, w16;"
-        "adds x7, x7, x15, lsl # 32;"
-        "lsr x15, x15, # 32;"
-        "adc x8, x8, x15;"
-        "adds x7, x7, x16, lsl # 32;"
-        "lsr x16, x16, # 32;"
-        "adc x8, x8, x16;"
-        "mul x9, x4, x6;"
-        "umulh x10, x4, x6;"
-        "subs x4, x4, x3;"
-        "cneg x4, x4, cc;"
-        "csetm x16, cc;"
-        "adds x9, x9, x8;"
-        "adc x10, x10, xzr;"
-        "subs x3, x5, x6;"
-        "cneg x3, x3, cc;"
-        "cinv x16, x16, cc;"
-        "mul x15, x4, x3;"
-        "umulh x3, x4, x3;"
-        "adds x8, x7, x9;"
-        "adcs x9, x9, x10;"
-        "adc x10, x10, xzr;"
-        "cmn x16, # 0x1;"
-        "eor x15, x15, x16;"
-        "adcs x8, x15, x8;"
-        "eor x3, x3, x16;"
-        "adcs x9, x3, x9;"
-        "adc x10, x10, x16;"
-        "ldp x3, x4, [" $P1 "+ 16];"
-        "ldp x5, x6, [" $P2 "+ 16];"
-        "umull x11, w3, w5;"
-        "lsr x0, x3, # 32;"
-        "umull x15, w0, w5;"
-        "lsr x16, x5, # 32;"
-        "umull x12, w16, w0;"
-        "umull x16, w3, w16;"
-        "adds x11, x11, x15, lsl # 32;"
-        "lsr x15, x15, # 32;"
-        "adc x12, x12, x15;"
-        "adds x11, x11, x16, lsl # 32;"
-        "lsr x16, x16, # 32;"
-        "adc x12, x12, x16;"
-        "mul x13, x4, x6;"
-        "umulh x14, x4, x6;"
-        "subs x4, x4, x3;"
-        "cneg x4, x4, cc;"
-        "csetm x16, cc;"
-        "adds x13, x13, x12;"
-        "adc x14, x14, xzr;"
-        "subs x3, x5, x6;"
-        "cneg x3, x3, cc;"
-        "cinv x16, x16, cc;"
-        "mul x15, x4, x3;"
-        "umulh x3, x4, x3;"
-        "adds x12, x11, x13;"
-        "adcs x13, x13, x14;"
-        "adc x14, x14, xzr;"
-        "cmn x16, # 0x1;"
-        "eor x15, x15, x16;"
-        "adcs x12, x15, x12;"
-        "eor x3, x3, x16;"
-        "adcs x13, x3, x13;"
-        "adc x14, x14, x16;"
-        "ldp x3, x4, [" $P1 "+ 16];"
-        "ldp x15, x16, [" $P1 "];"
-        "subs x3, x3, x15;"
-        "sbcs x4, x4, x16;"
-        "csetm x16, cc;"
-        "ldp x15, x0, [" $P2 "];"
-        "subs x5, x15, x5;"
-        "sbcs x6, x0, x6;"
-        "csetm x0, cc;"
-        "eor x3, x3, x16;"
-        "subs x3, x3, x16;"
-        "eor x4, x4, x16;"
-        "sbc x4, x4, x16;"
-        "eor x5, x5, x0;"
-        "subs x5, x5, x0;"
-        "eor x6, x6, x0;"
-        "sbc x6, x6, x0;"
-        "eor x16, x0, x16;"
-        "adds x11, x11, x9;"
-        "adcs x12, x12, x10;"
-        "adcs x13, x13, xzr;"
-        "adc x14, x14, xzr;"
-        "mul x2, x3, x5;"
-        "umulh x0, x3, x5;"
-        "mul x15, x4, x6;"
-        "umulh x1, x4, x6;"
-        "subs x4, x4, x3;"
-        "cneg x4, x4, cc;"
-        "csetm x9, cc;"
-        "adds x15, x15, x0;"
-        "adc x1, x1, xzr;"
-        "subs x6, x5, x6;"
-        "cneg x6, x6, cc;"
-        "cinv x9, x9, cc;"
-        "mul x5, x4, x6;"
-        "umulh x6, x4, x6;"
-        "adds x0, x2, x15;"
-        "adcs x15, x15, x1;"
-        "adc x1, x1, xzr;"
-        "cmn x9, # 0x1;"
-        "eor x5, x5, x9;"
-        "adcs x0, x5, x0;"
-        "eor x6, x6, x9;"
-        "adcs x15, x6, x15;"
-        "adc x1, x1, x9;"
-        "adds x9, x11, x7;"
-        "adcs x10, x12, x8;"
-        "adcs x11, x13, x11;"
-        "adcs x12, x14, x12;"
-        "adcs x13, x13, xzr;"
-        "adc x14, x14, xzr;"
-        "cmn x16, # 0x1;"
-        "eor x2, x2, x16;"
-        "adcs x9, x2, x9;"
-        "eor x0, x0, x16;"
-        "adcs x10, x0, x10;"
-        "eor x15, x15, x16;"
-        "adcs x11, x15, x11;"
-        "eor x1, x1, x16;"
-        "adcs x12, x1, x12;"
-        "adcs x13, x13, x16;"
-        "adc x14, x14, x16;"
-        "mov x3, # 0x26;"
-        "umull x4, w11, w3;"
-        "add x4, x4, w7, uxtw;"
-        "lsr x7, x7, # 32;"
-        "lsr x11, x11, # 32;"
-        "umaddl x11, w11, w3, x7;"
-        "mov x7, x4;"
-        "umull x4, w12, w3;"
-        "add x4, x4, w8, uxtw;"
-        "lsr x8, x8, # 32;"
-        "lsr x12, x12, # 32;"
-        "umaddl x12, w12, w3, x8;"
-        "mov x8, x4;"
-        "umull x4, w13, w3;"
-        "add x4, x4, w9, uxtw;"
-        "lsr x9, x9, # 32;"
-        "lsr x13, x13, # 32;"
-        "umaddl x13, w13, w3, x9;"
-        "mov x9, x4;"
-        "umull x4, w14, w3;"
-        "add x4, x4, w10, uxtw;"
-        "lsr x10, x10, # 32;"
-        "lsr x14, x14, # 32;"
-        "umaddl x14, w14, w3, x10;"
-        "mov x10, x4;"
-        "lsr x0, x14, # 31;"
-        "mov x5, # 0x13;"
-        "umull x5, w5, w0;"
-        "add x7, x7, x5;"
-        "adds x7, x7, x11, lsl # 32;"
-        "extr x3, x12, x11, # 32;"
-        "adcs x8, x8, x3;"
-        "extr x3, x13, x12, # 32;"
-        "adcs x9, x9, x3;"
-        "extr x3, x14, x13, # 32;"
-        "lsl x5, x0, # 63;"
-        "eor x10, x10, x5;"
-        "adc x10, x10, x3;"
-        "stp x7, x8, [" $P0 "];"
-        "stp x9, x10, [" $P0 "+ 16]"
+        "ldp x7, x8, [" $P2 "];"
+        "mul x12, x3, x7;"
+        "umulh x13, x3, x7;"
+        "mul x11, x3, x8;"
+        "umulh x14, x3, x8;"
+        "adds x13, x13, x11;"
+        "ldp x9, x10, [" $P2 "+ 16];"
+        "mul x11, x3, x9;"
+        "umulh x15, x3, x9;"
+        "adcs x14, x14, x11;"
+        "mul x11, x3, x10;"
+        "umulh x16, x3, x10;"
+        "adcs x15, x15, x11;"
+        "adc x16, x16, xzr;"
+        "ldp x5, x6, [" $P1 "+ 16];"
+        "mul x11, x4, x7;"
+        "adds x13, x13, x11;"
+        "mul x11, x4, x8;"
+        "adcs x14, x14, x11;"
+        "mul x11, x4, x9;"
+        "adcs x15, x15, x11;"
+        "mul x11, x4, x10;"
+        "adcs x16, x16, x11;"
+        "umulh x3, x4, x10;"
+        "adc x3, x3, xzr;"
+        "umulh x11, x4, x7;"
+        "adds x14, x14, x11;"
+        "umulh x11, x4, x8;"
+        "adcs x15, x15, x11;"
+        "umulh x11, x4, x9;"
+        "adcs x16, x16, x11;"
+        "adc x3, x3, xzr;"
+        "mul x11, x5, x7;"
+        "adds x14, x14, x11;"
+        "mul x11, x5, x8;"
+        "adcs x15, x15, x11;"
+        "mul x11, x5, x9;"
+        "adcs x16, x16, x11;"
+        "mul x11, x5, x10;"
+        "adcs x3, x3, x11;"
+        "umulh x4, x5, x10;"
+        "adc x4, x4, xzr;"
+        "umulh x11, x5, x7;"
+        "adds x15, x15, x11;"
+        "umulh x11, x5, x8;"
+        "adcs x16, x16, x11;"
+        "umulh x11, x5, x9;"
+        "adcs x3, x3, x11;"
+        "adc x4, x4, xzr;"
+        "mul x11, x6, x7;"
+        "adds x15, x15, x11;"
+        "mul x11, x6, x8;"
+        "adcs x16, x16, x11;"
+        "mul x11, x6, x9;"
+        "adcs x3, x3, x11;"
+        "mul x11, x6, x10;"
+        "adcs x4, x4, x11;"
+        "umulh x5, x6, x10;"
+        "adc x5, x5, xzr;"
+        "umulh x11, x6, x7;"
+        "adds x16, x16, x11;"
+        "umulh x11, x6, x8;"
+        "adcs x3, x3, x11;"
+        "umulh x11, x6, x9;"
+        "adcs x4, x4, x11;"
+        "adc x5, x5, xzr;"
+        "mov x7, # 0x26;"
+        "mul x11, x7, x16;"
+        "umulh x9, x7, x16;"
+        "adds x12, x12, x11;"
+        "mul x11, x7, x3;"
+        "umulh x3, x7, x3;"
+        "adcs x13, x13, x11;"
+        "mul x11, x7, x4;"
+        "umulh x4, x7, x4;"
+        "adcs x14, x14, x11;"
+        "mul x11, x7, x5;"
+        "umulh x5, x7, x5;"
+        "adcs x15, x15, x11;"
+        "cset x16, cs;"
+        "adds x15, x15, x4;"
+        "adc x16, x16, x5;"
+        "cmn x15, x15;"
+        "bic x15, x15, # 0x8000000000000000;"
+        "adc x8, x16, x16;"
+        "mov x7, # 0x13;"
+        "mul x11, x7, x8;"
+        "adds x12, x12, x11;"
+        "adcs x13, x13, x9;"
+        "adcs x14, x14, x3;"
+        "adc x15, x15, xzr;"
+        "stp x12, x13, [" $P0 "];"
+        "stp x14, x15, [" $P0 "+ 16]"
     )}
 }
 
@@ -577,8 +419,8 @@ pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32]) {
         Q!("    ldr       " "x0, [" scalar!() "]"),
         Q!("    ands      " "xzr, x0, # 8"),
 
-        Q!("    adrp      " "x10, {curve25519_x25519base_edwards25519_0g}"),
-        Q!("    adrp      " "x11, {curve25519_x25519base_edwards25519_8g}"),
+        Q!("    adrp      " "x10, {curve25519_x25519base_alt_edwards25519_0g}"),
+        Q!("    adrp      " "x11, {curve25519_x25519base_alt_edwards25519_8g}"),
         Q!("    ldp       " "x0, x1, [x10]"),
         Q!("    ldp       " "x2, x3, [x11]"),
         Q!("    csel      " "x0, x0, x2, eq"),
@@ -634,12 +476,12 @@ pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32]) {
         // l >= 9 case cannot arise on the last iteration.
 
         Q!("    mov       " i!() ", 4"),
-        Q!("    adrp      " tab!() ", {curve25519_x25519base_edwards25519_gtable}"),
+        Q!("    adrp      " tab!() ", {curve25519_x25519base_alt_edwards25519_gtable}"),
         Q!("    mov       " bias!() ", xzr"),
 
         // Start of the main loop, repeated 63 times for i = 4, 8, ..., 252
 
-        Q!(Label!("curve25519_x25519base_scalarloop", 2) ":"),
+        Q!(Label!("curve25519_x25519base_alt_scalarloop", 2) ":"),
 
         // Look at the next 4-bit field "bf", adding the previous bias as well.
         // Choose the table index "ix" as bf when bf <= 8 and 16 - bf for bf >= 9,
@@ -898,7 +740,7 @@ pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32]) {
 
         // Extended-projective and precomputed mixed addition.
         // This is effectively the same as calling the standalone
-        // function edwards25519_pepadd(acc,acc,tabent), but we
+        // function edwards25519_pepadd_alt(acc,acc,tabent), but we
         // only retain slightly weaker normalization < 2 * p_25519
         // throughout the inner loop, so the computation is
         // slightly different, and faster overall.
@@ -922,7 +764,7 @@ pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32]) {
 
         Q!("    add       " i!() ", " i!() ", 4"),
         Q!("    cmp       " i!() ", 256"),
-        Q!("    bcc       " Label!("curve25519_x25519base_scalarloop", 2, Before)),
+        Q!("    bcc       " Label!("curve25519_x25519base_alt_scalarloop", 2, Before)),
 
         // Now we need to translate from Edwards curve edwards25519 back
         // to the Montgomery form curve25519. The mapping in the affine
@@ -1012,8 +854,8 @@ pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32]) {
         Q!("    stp       " "x12, x13, [sp, # 112]"),
         Q!("    mov       " "x21, # 0xa"),
         Q!("    mov       " "x22, # 0x1"),
-        Q!("    b         " Label!("curve25519_x25519base_invmidloop", 3, After)),
-        Q!(Label!("curve25519_x25519base_invloop", 4) ":"),
+        Q!("    b         " Label!("curve25519_x25519base_alt_invmidloop", 3, After)),
+        Q!(Label!("curve25519_x25519base_alt_invloop", 4) ":"),
         Q!("    cmp       " "x10, xzr"),
         Q!("    csetm     " "x14, mi"),
         Q!("    cneg      " "x10, x10, mi"),
@@ -1280,7 +1122,7 @@ pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32]) {
         Q!("    adc       " "x2, x2, x5"),
         Q!("    stp       " "x0, x1, [sp, # 96]"),
         Q!("    stp       " "x3, x2, [sp, # 112]"),
-        Q!(Label!("curve25519_x25519base_invmidloop", 3) ":"),
+        Q!(Label!("curve25519_x25519base_alt_invmidloop", 3) ":"),
         Q!("    mov       " "x1, x22"),
         Q!("    ldr       " "x2, [sp]"),
         Q!("    ldr       " "x3, [sp, # 32]"),
@@ -1891,7 +1733,7 @@ pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32]) {
         Q!("    msub      " "x13, x15, x17, x5"),
         Q!("    mov       " "x22, x1"),
         Q!("    subs      " "x21, x21, # 0x1"),
-        Q!("    b.ne      " Label!("curve25519_x25519base_invloop", 4, Before)),
+        Q!("    b.ne      " Label!("curve25519_x25519base_alt_invloop", 4, Before)),
         Q!("    ldr       " "x0, [sp]"),
         Q!("    ldr       " "x1, [sp, # 32]"),
         Q!("    mul       " "x0, x0, x10"),
@@ -2011,9 +1853,9 @@ pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32]) {
 
         inout("x0") res.as_mut_ptr() => _,
         inout("x1") scalar.as_ptr() => _,
-        curve25519_x25519base_edwards25519_0g = sym curve25519_x25519base_edwards25519_0g,
-        curve25519_x25519base_edwards25519_8g = sym curve25519_x25519base_edwards25519_8g,
-        curve25519_x25519base_edwards25519_gtable = sym curve25519_x25519base_edwards25519_gtable,
+        curve25519_x25519base_alt_edwards25519_0g = sym curve25519_x25519base_alt_edwards25519_0g,
+        curve25519_x25519base_alt_edwards25519_8g = sym curve25519_x25519base_alt_edwards25519_8g,
+        curve25519_x25519base_alt_edwards25519_gtable = sym curve25519_x25519base_alt_edwards25519_gtable,
         // clobbers
         out("x10") _,
         out("x11") _,
@@ -2055,7 +1897,7 @@ pub fn curve25519_x25519base(res: &mut [u8; 32], scalar: &[u8; 32]) {
 #[repr(align(4096))]
 struct PageAlignedu64Array12([u64; 12]);
 
-static curve25519_x25519base_edwards25519_0g: PageAlignedu64Array12 = PageAlignedu64Array12([
+static curve25519_x25519base_alt_edwards25519_0g: PageAlignedu64Array12 = PageAlignedu64Array12([
     0x251037f7cf4e861d,
     0x10ede0fb19fb128f,
     0x96c033b175f5e2c8,
@@ -2070,7 +1912,7 @@ static curve25519_x25519base_edwards25519_0g: PageAlignedu64Array12 = PageAligne
     0x1253c19e53dbe1bc,
 ]);
 
-static curve25519_x25519base_edwards25519_8g: PageAlignedu64Array12 = PageAlignedu64Array12([
+static curve25519_x25519base_alt_edwards25519_8g: PageAlignedu64Array12 = PageAlignedu64Array12([
     0x331d086e0d9abcaa,
     0x1e23c96d311a10c9,
     0x96d0f95e58c13478,
@@ -2091,7 +1933,7 @@ static curve25519_x25519base_edwards25519_8g: PageAlignedu64Array12 = PageAligne
 #[repr(align(4096))]
 struct PageAlignedu64Array6048([u64; 6048]);
 
-static curve25519_x25519base_edwards25519_gtable: PageAlignedu64Array6048 =
+static curve25519_x25519base_alt_edwards25519_gtable: PageAlignedu64Array6048 =
     PageAlignedu64Array6048([
         // 2^4 * 1 * G
         0x7ec851ca553e2df3,
