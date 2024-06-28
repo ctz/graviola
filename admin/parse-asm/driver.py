@@ -316,8 +316,9 @@ def tokens_to_quoted_asm(tokens):
     return " ".join(tokens_to_quoted_spans(tokens))
 
 
-def tokens_to_args(tokens):
+def tokens_to_arg(tokens):
     def gen(tokens):
+        tokens = list(tokens)
         for t in tokens:
             if isinstance(t, unquote):
                 yield t.v
@@ -326,7 +327,11 @@ def tokens_to_args(tokens):
             else:
                 yield '"' + t + '"'
 
-    return ", ".join(gen(tokens))
+    g = list(gen(tokens))
+    if len(g) == 1:
+        return g[0]
+    else:
+        return "Q!(" + (" ".join(g)) + ")"
 
 
 class RustDriver(Dispatcher):
@@ -448,7 +453,11 @@ use crate::low::macros::{Q, Label};
         return tokens_to_quoted_asm(self.expand_rust_macros(*values))
 
     def expand_rust_macros_in_macro_call(self, *values):
-        return tokens_to_args(self.expand_rust_macros(*values))
+        assert len(values) == 1
+        value = values[0]
+        args = value.split(",")
+        args = [a.strip() for a in args]
+        return ", ".join(tokens_to_arg(self.expand_rust_macros(a)) for a in args)
 
     def on_function(self, contexts, name):
         assert contexts == []

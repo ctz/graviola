@@ -1,18 +1,19 @@
+use super::util::Array64x4;
 use crate::low;
 
 pub struct PrivateKey(Array64x4);
 
 impl PrivateKey {
     pub fn try_from_slice(b: &[u8]) -> Result<PrivateKey, ()> {
-        Array64x4::try_from(b).map(PrivateKey)
+        Array64x4::from_le_bytes(b).map(PrivateKey).ok_or(())
     }
 
     pub fn from_array(b: &[u8; 32]) -> PrivateKey {
-        PrivateKey(Array64x4::from(b))
+        PrivateKey(Array64x4::from_le(b))
     }
 
     pub fn as_bytes(&self) -> [u8; 32] {
-        self.0.as_bytes()
+        self.0.as_le_bytes()
     }
 
     /// Generate a new key using the given `rng`.
@@ -34,7 +35,7 @@ impl PrivateKey {
     pub fn diffie_hellman(&self, peer: &PublicKey) -> SharedSecret {
         let mut res = [0u64; 4];
         low::curve25519_x25519(&mut res, &self.0 .0, &peer.0 .0);
-        SharedSecret(Array64x4(res).as_bytes())
+        SharedSecret(Array64x4(res).as_le_bytes())
     }
 }
 
@@ -42,64 +43,19 @@ pub struct PublicKey(Array64x4);
 
 impl PublicKey {
     pub fn try_from_slice(b: &[u8]) -> Result<PublicKey, ()> {
-        Array64x4::try_from(b).map(PublicKey)
+        Array64x4::from_le_bytes(b).map(PublicKey).ok_or(())
     }
 
     pub fn from_array(b: &[u8; 32]) -> PublicKey {
-        PublicKey(Array64x4::from(b))
+        PublicKey(Array64x4::from_le(b))
     }
 
     pub fn as_bytes(&self) -> [u8; 32] {
-        self.0.as_bytes()
+        self.0.as_le_bytes()
     }
 }
 
 pub struct SharedSecret(pub [u8; 32]);
-
-struct Array64x4([u64; 4]);
-
-impl Array64x4 {
-    fn as_bytes(&self) -> [u8; 32] {
-        let a = self.0[0].to_le_bytes();
-        let b = self.0[1].to_le_bytes();
-        let c = self.0[2].to_le_bytes();
-        let d = self.0[3].to_le_bytes();
-
-        let mut r = [0u8; 32];
-        r[0..8].copy_from_slice(&a);
-        r[8..16].copy_from_slice(&b);
-        r[16..24].copy_from_slice(&c);
-        r[24..32].copy_from_slice(&d);
-        r
-    }
-}
-
-impl TryFrom<&[u8]> for Array64x4 {
-    type Error = ();
-
-    fn try_from(v: &[u8]) -> Result<Self, Self::Error> {
-        if v.len() != 32 {
-            return Err(());
-        }
-
-        let a = v[0..8].try_into().unwrap();
-        let b = v[8..16].try_into().unwrap();
-        let c = v[16..24].try_into().unwrap();
-        let d = v[24..32].try_into().unwrap();
-        Ok(Self([
-            u64::from_le_bytes(a),
-            u64::from_le_bytes(b),
-            u64::from_le_bytes(c),
-            u64::from_le_bytes(d),
-        ]))
-    }
-}
-
-impl From<&[u8; 32]> for Array64x4 {
-    fn from(v: &[u8; 32]) -> Self {
-        Self::try_from(&v[..]).unwrap()
-    }
-}
 
 #[cfg(test)]
 mod tests {
