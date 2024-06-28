@@ -80,11 +80,12 @@ fn x25519(c: &mut Criterion) {
 
     group.bench_function("this", |b| {
         b.iter(|| {
-            let our_private_key = curve25519::PrivateKey::generate(&mut rand_core::OsRng).unwrap();
+            let our_private_key =
+                curve25519::x25519::PrivateKey::generate(&mut rand_core::OsRng).unwrap();
             let our_public_key = our_private_key.public_key();
             black_box(our_public_key);
 
-            let peer = curve25519::PublicKey::from_array(PUBLIC_KEY);
+            let peer = curve25519::x25519::PublicKey::from_array(PUBLIC_KEY);
             let secret = our_private_key.diffie_hellman(&peer);
             black_box(secret);
         })
