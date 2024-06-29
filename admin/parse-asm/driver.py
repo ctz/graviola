@@ -164,6 +164,11 @@ class ConstantArray:
         self.type = type
 
 
+def is_comment(s):
+    s = s.strip()
+    return s.startswith("/*") and s.endswith("*/")
+
+
 def tokenise(s):
     def tokenise_gen(s):
         run = None
@@ -175,6 +180,10 @@ def tokenise(s):
         register_close = register_open + "]"
         hex = string.hexdigits
         numbers = string.digits
+
+        if is_comment(s):
+            yield s
+            return
 
         for x in s:
             if x == "x" and run == "0" and run_type == numbers:
@@ -350,11 +359,11 @@ class RustDriver(Dispatcher):
         self.constant_syms = set()
         self.current_constant_array = None
         self.emitted_page_aligned_types = set()
-        self.label_prefix = None
+        self.label_prefixes = []
         self.start()
 
-    def set_label_prefix(self, label_prefix):
-        self.label_prefix = label_prefix
+    def set_label_prefix(self, *label_prefix):
+        self.label_prefixes = label_prefix
 
     def emit_rust_function(self, name, parameter_map, rust_decl, return_value=None):
         self.expected_function_name = name
@@ -403,7 +412,7 @@ use crate::low::macros::{Q, Label};
         return next_id, label in self.labels_defined
 
     def looks_like_label(self, label):
-        return label.startswith(self.label_prefix)
+        return any(label.startswith(p) for p in self.label_prefixes)
 
     def register_rust_macro(self, name, value, params=None):
         self.rust_macros[name] = (value, params)
@@ -426,6 +435,8 @@ use crate::low::macros::{Q, Label};
                     # must not have any arguments
                     assert macro_args == None
                     yield unquote("%s!()" % t)
+                elif is_comment(t):
+                    yield unquote(t)
                 elif t in params:
                     yield unquote("$" + t)
                 elif t in self.constant_syms:
@@ -562,6 +573,9 @@ use crate::low::macros::{Q, Label};
 
     def on_macro(self, name, params):
         assert name in self.rust_macros
+        macro_value, _macro_args = self.rust_macros[name]
+        for vv in macro_value:
+            self.visit_operands(vv)
         value = self.expand_rust_macros_in_macro_call(params)
         print("%s!(%s)," % (name, value), file=self.output)
 

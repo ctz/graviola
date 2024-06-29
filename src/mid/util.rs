@@ -33,9 +33,51 @@ impl Array64x4 {
         ])
     }
 
+    pub fn as_be_bytes(&self) -> [u8; 32] {
+        let a = self.0[0].to_be_bytes();
+        let b = self.0[1].to_be_bytes();
+        let c = self.0[2].to_be_bytes();
+        let d = self.0[3].to_be_bytes();
+
+        let mut r = [0u8; 32];
+        r[0..8].copy_from_slice(&d);
+        r[8..16].copy_from_slice(&c);
+        r[16..24].copy_from_slice(&b);
+        r[24..32].copy_from_slice(&a);
+        r
+    }
+
     pub fn from_be_bytes(bytes: &[u8]) -> Option<Array64x4> {
         let as_array: [u8; 32] = bytes.try_into().ok()?;
         Some(Self::from_be(&as_array))
+    }
+
+    pub fn from_be_bytes_any_size(mut bytes: &[u8]) -> Option<Array64x4> {
+        let mut r = Array64x4([0; 4]);
+
+        // remove leading zeroes
+        while bytes.len() > 1 && bytes[0] == 0 {
+            bytes = &bytes[1..];
+        }
+
+        if bytes.len() > 32 {
+            return None;
+        }
+
+        let mut word = 0;
+        let mut shift = 0;
+
+        for val in bytes.iter().rev() {
+            r.0[word] |= (*val as u64) << shift;
+
+            shift += 8;
+            if shift == 64 {
+                word += 1;
+                shift = 0;
+            }
+        }
+
+        Some(r)
     }
 
     pub fn from_be(v: &[u8; 32]) -> Array64x4 {

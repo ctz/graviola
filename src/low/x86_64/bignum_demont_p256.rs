@@ -111,6 +111,8 @@ pub fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         out("r11") _,
         out("r8") _,
         out("r9") _,
+        out("rax") _,
+        out("rcx") _,
         out("rdx") _,
             )
     };
