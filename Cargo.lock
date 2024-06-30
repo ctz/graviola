@@ -347,6 +347,7 @@ dependencies = [
  "proptest",
  "rand_core",
  "ring",
+ "sha2",
  "x25519-dalek",
 ]
 
