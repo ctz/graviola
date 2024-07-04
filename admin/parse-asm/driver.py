@@ -377,6 +377,7 @@ class RustDriver(Dispatcher):
 #![allow(
     non_upper_case_globals,
     unused_macros,
+    unused_imports,
 )]
 use crate::low::macros::{Q, Label};
 

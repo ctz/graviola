@@ -7,6 +7,32 @@ const PUBLIC_KEY: &[u8; 65] = b"\x04\
 fn ecdh(c: &mut Criterion) {
     let mut group = c.benchmark_group("p256-ecdh");
 
+    #[cfg(feature = "__bench_openssl")]
+    group.bench_function("openssl", |b| {
+        use openssl::bn::BigNumContext;
+        use openssl::derive::Deriver;
+        use openssl::ec::{EcGroup, EcKey, EcPoint};
+        use openssl::nid::Nid;
+        use openssl::pkey::PKey;
+
+        let curve = EcGroup::from_curve_name(Nid::X9_62_PRIME256V1).unwrap();
+        let mut bn_ctx = BigNumContext::new().unwrap();
+
+        b.iter(|| {
+            let priv_key = PKey::ec_gen("prime256v1").unwrap();
+            black_box(priv_key.public_key_to_der().unwrap());
+
+            let point = EcPoint::from_bytes(&curve, PUBLIC_KEY, &mut bn_ctx).unwrap();
+            let ec_key = EcKey::from_public_key(&curve, &point).unwrap();
+            let peer = PKey::from_ec_key(ec_key).unwrap();
+            let mut deriver = Deriver::new(&priv_key).unwrap();
+            deriver.set_peer(&peer).unwrap();
+            let mut secret = [0u8; 32];
+            deriver.derive(&mut secret).unwrap();
+            black_box(secret);
+        });
+    });
+
     group.bench_function("ring", |b| {
         use ring::{agreement, rand};
         let rng = rand::SystemRandom::new();
@@ -81,6 +107,16 @@ fn ecdh(c: &mut Criterion) {
 
 fn keygen(c: &mut Criterion) {
     let mut group = c.benchmark_group("p256-keygen");
+
+    #[cfg(feature = "__bench_openssl")]
+    group.bench_function("openssl", |b| {
+        use openssl::pkey::PKey;
+
+        b.iter(|| {
+            let priv_key = PKey::ec_gen("prime256v1").unwrap();
+            black_box(priv_key.public_key_to_der().unwrap());
+        });
+    });
 
     group.bench_function("ring", |b| {
         use ring::{agreement, rand};

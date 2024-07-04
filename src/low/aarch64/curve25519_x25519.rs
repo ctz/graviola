@@ -1,4 +1,4 @@
-#![allow(non_upper_case_globals, unused_macros)]
+#![allow(non_upper_case_globals, unused_macros, unused_imports)]
 use crate::low::macros::{Label, Q};
 
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
@@ -1729,6 +1729,10 @@ pub fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[u64; 4]
         inout("x1") scalar.as_ptr() => _,
         inout("x2") point.as_ptr() => _,
         // clobbers
+        out("p0") _,
+        out("p1") _,
+        out("p2") _,
+        out("p3") _,
         out("x10") _,
         out("x11") _,
         out("x12") _,

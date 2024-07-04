@@ -1,8 +1,4 @@
 #![allow(clippy::result_unit_err, dead_code)]
-#![feature(test)]
-
-#[allow(unused_extern_crates)]
-extern crate test;
 
 mod low;
 mod mid;

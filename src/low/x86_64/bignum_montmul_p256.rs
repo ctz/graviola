@@ -1,4 +1,4 @@
-#![allow(non_upper_case_globals, unused_macros)]
+#![allow(non_upper_case_globals, unused_macros, unused_imports)]
 use crate::low::macros::{Label, Q};
 
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
