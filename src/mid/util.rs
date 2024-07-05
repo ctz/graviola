@@ -52,28 +52,39 @@ impl Array64x4 {
         Some(Self::from_be(&as_array))
     }
 
-    pub fn from_be_bytes_any_size(mut bytes: &[u8]) -> Option<Array64x4> {
-        let mut r = Array64x4([0; 4]);
-
-        // remove leading zeroes
-        while bytes.len() > 1 && bytes[0] == 0 {
-            bytes = &bytes[1..];
+    /// This should avoid looking at values of `bytes` that
+    /// comprise the value.
+    pub fn from_be_bytes_any_size(bytes: &[u8]) -> Option<Array64x4> {
+        // short circuit for correct lengths
+        if let Ok(array) = bytes.try_into() {
+            return Some(Self::from_be(array));
         }
 
-        if bytes.len() > 32 {
-            return None;
-        }
-
+        // shift in bytes, starting with the LSB
         let mut word = 0;
         let mut shift = 0;
+        let mut leading_bytes = false;
+
+        let mut r = Array64x4([0; 4]);
 
         for val in bytes.iter().rev() {
+            if leading_bytes {
+                if *val != 0 {
+                    return None;
+                }
+                continue;
+            }
+
             r.0[word] |= (*val as u64) << shift;
 
             shift += 8;
             if shift == 64 {
                 word += 1;
                 shift = 0;
+            }
+
+            if word == 4 {
+                leading_bytes = true;
             }
         }
 

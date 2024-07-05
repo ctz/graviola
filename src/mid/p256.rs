@@ -7,7 +7,7 @@ mod precomp;
 #[cfg(test)]
 mod tests;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum EcError {
     WrongLength,
     NotUncompressed,
@@ -46,19 +46,7 @@ pub struct PrivateKey {
 
 impl PrivateKey {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, EcError> {
-        let full = Scalar(
-            Array64x4::from_be_bytes_any_size(bytes)
-                .ok_or(EcError::WrongLength)?
-                .0,
-        );
-
-        let reduced = full.reduce_mod_n();
-
-        if !reduced.private_eq(&full) {
-            return Err(EcError::OutOfRange);
-        }
-
-        Ok(PrivateKey { scalar: reduced })
+        Scalar::from_bytes_checked(bytes).map(|scalar| PrivateKey { scalar })
     }
 
     pub fn public_key(&self) -> Result<PublicKey, EcError> {
@@ -121,8 +109,8 @@ impl AffineMontPoint {
         let y = &bytes[33..65];
 
         let point = AffineMontPoint::from_xy(
-            FieldElement(Array64x4::from_be_bytes(x).unwrap().0).to_mont(),
-            FieldElement(Array64x4::from_be_bytes(y).unwrap().0).to_mont(),
+            FieldElement(Array64x4::from_be_bytes(x).unwrap().0).as_mont(),
+            FieldElement(Array64x4::from_be_bytes(y).unwrap().0).as_mont(),
         );
 
         if !point.on_curve() {
@@ -186,7 +174,7 @@ impl AffineMontPoint {
             j.double_inplace();
         }
 
-        result.to_affine()
+        result.into_affine()
     }
 
     fn multiply_window4(
@@ -203,7 +191,7 @@ impl AffineMontPoint {
             result.add_inplace(&JacobianMontPoint::lookup(precomp, val));
         }
 
-        result.to_affine()
+        result.into_affine()
     }
 
     fn multiply_window8(
@@ -223,7 +211,7 @@ impl AffineMontPoint {
             result.add_inplace(&JacobianMontPoint::lookup(precomp, val));
         }
 
-        result.to_affine()
+        result.into_affine()
     }
 
     fn multiply_wnaf_5(
@@ -247,7 +235,7 @@ impl AffineMontPoint {
             }
         }
 
-        result.to_affine()
+        result.into_affine()
     }
 
     fn multiply_wnaf_7(
@@ -277,7 +265,7 @@ impl AffineMontPoint {
             index += 1;
         }
 
-        result.to_affine()
+        result.into_affine()
     }
 
     fn maybe_negate_y(&mut self, sign: u8) {
@@ -361,7 +349,7 @@ impl AffineMontPoint {
             // storage.  therefore row[0] is 1G << shift.
             let mut first = JacobianMontPoint::from_affine(self);
             first.double_inplace_n(window * 7);
-            row[0] = first.to_affine();
+            row[0] = first.into_affine();
 
             for r in 1..64 {
                 row[r] = row[0].multiply(&Scalar([(r + 1) as u64, 0, 0, 0]));
@@ -491,15 +479,15 @@ impl JacobianMontPoint {
     }
     */
 
-    fn to_affine(&self) -> AffineMontPoint {
+    fn into_affine(self) -> AffineMontPoint {
         // recover (x, y) from (x / z ^ 2, x / z ^ 3, z)
         let z2 = self.z().mont_sqr();
         let z3 = self.z().mont_mul(&z2);
 
         // inversion calculated outside montgomery domain
         // (benchmarked vs addition chain in montgomery)
-        let z2_inv = z2.demont().inv().to_mont();
-        let z3_inv = z3.demont().inv().to_mont();
+        let z2_inv = z2.demont().inv().as_mont();
+        let z3_inv = z3.demont().inv().as_mont();
 
         let x = self.x().mont_mul(&z2_inv);
         let y = self.y().mont_mul(&z3_inv);
@@ -722,7 +710,7 @@ impl FieldElement {
     }
 
     /// Add a montgomery factor
-    fn to_mont(&self) -> Self {
+    fn as_mont(&self) -> Self {
         let mut r = Self::default();
         low::bignum_tomont_p256(&mut r.0, &self.0);
         r
@@ -752,9 +740,53 @@ impl FieldElement {
 struct Scalar([u64; 4]);
 
 impl Scalar {
+    /// Create a scalar from the given slice, which can be any size.
+    ///
+    /// If it is larger than 32 bytes, the leading bytes must be
+    /// zero (this is deemed a non-secret property).
+    ///
+    /// This returns an error if the scalar is zero or larger than
+    /// the curve order.
+    ///
+    /// Prefer to use `from_array_checked` if you always have 32 bytes.
+    pub fn from_bytes_checked(bytes: &[u8]) -> Result<Self, EcError> {
+        let full = Self(
+            Array64x4::from_be_bytes_any_size(bytes)
+                .ok_or(EcError::WrongLength)?
+                .0,
+        );
+
+        full.into_range_check()
+    }
+
+    /// Create a scalar from the given array.
+    ///
+    /// This returns an error if the scalar is zero or larger than
+    /// the curve order.
+    pub fn from_array_checked(array: &[u8; 32]) -> Result<Self, EcError> {
+        let full = Self(Array64x4::from_be(array).0);
+
+        full.into_range_check()
+    }
+
+    fn into_range_check(self) -> Result<Self, EcError> {
+        let reduced = self.reduce_mod_n();
+
+        if !reduced.private_eq(&self) || self.is_zero() {
+            Err(EcError::OutOfRange)
+        } else {
+            Ok(self)
+        }
+    }
+
     #[cfg(test)]
     fn small_u64(v: u64) -> Self {
         Scalar([v, 0, 0, 0])
+    }
+
+    /// Private test for zero
+    fn is_zero(&self) -> bool {
+        self.private_eq(&Scalar::default())
     }
 
     /// Private equality
@@ -1109,8 +1141,8 @@ fn point_double() {
     println!("p = {:x?}", p);
     p.double_inplace();
     println!("p2 = {:x?}", p);
-    println!("p2 aff = {:x?}", p.to_affine());
-    println!("enc = {:x?}", p.to_affine().as_bytes_uncompressed());
+    println!("p2 aff = {:x?}", p.into_affine());
+    println!("enc = {:x?}", p.into_affine().as_bytes_uncompressed());
 }
 
 #[test]
@@ -1189,13 +1221,30 @@ fn test_booth_recoded_w7() {
 }
 
 #[test]
-fn curve_field_elements_to_mont() {
-    println!("G.x = {:x?}", CURVE_GENERATOR.x().to_mont());
-    println!("G.y = {:x?}", CURVE_GENERATOR.y().to_mont());
-    println!("a = {:x?}", CURVE_A.to_mont());
-    println!("b = {:x?}", CURVE_B.to_mont());
-    println!("R = {:x?}", FieldElement::one().to_mont());
-    println!("R * R = {:x?}", FieldElement::one().to_mont().to_mont());
+fn private_key_in_range() {
+    assert_eq!(
+        PrivateKey::from_bytes(&[0u8; 32]).unwrap_err(),
+        EcError::OutOfRange
+    );
+
+    // order rejected
+    assert_eq!(PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x51").unwrap_err(), EcError::OutOfRange);
+
+    // order + 1 rejected
+    assert_eq!(PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x52").unwrap_err(), EcError::OutOfRange);
+
+    // order - 1 is ok
+    PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x50").unwrap();
+}
+
+#[test]
+fn curve_field_elements_as_mont() {
+    println!("G.x = {:x?}", CURVE_GENERATOR.x().as_mont());
+    println!("G.y = {:x?}", CURVE_GENERATOR.y().as_mont());
+    println!("a = {:x?}", CURVE_A.as_mont());
+    println!("b = {:x?}", CURVE_B.as_mont());
+    println!("R = {:x?}", FieldElement::one().as_mont());
+    println!("R * R = {:x?}", FieldElement::one().as_mont().as_mont());
 }
 
 #[test]
@@ -1215,7 +1264,7 @@ fn base_point_precomp_4() {
         let expect = CURVE_GENERATOR.multiply(&Scalar::small_u64(i as u64));
         assert_eq!(
             expect.as_bytes_uncompressed(),
-            precomp[i].to_affine().as_bytes_uncompressed(),
+            precomp[i].into_affine().as_bytes_uncompressed(),
         );
     }
     println!("];");
@@ -1238,7 +1287,7 @@ fn base_point_precomp_8() {
         let expect = CURVE_GENERATOR.multiply(&Scalar::small_u64(i as u64));
         assert_eq!(
             expect.as_bytes_uncompressed(),
-            precomp[i].to_affine().as_bytes_uncompressed(),
+            precomp[i].into_affine().as_bytes_uncompressed(),
         );
     }
     println!("];");
@@ -1297,8 +1346,8 @@ fn bench_inv(b: &mut test::Bencher) {
     ]);
     b.iter(|| {
         let z2 = z.mont_sqr();
-        let _z2_inv = test::black_box(z2.demont().inv().to_mont());
-        let _z3_inv = test::black_box(z2.mont_mul(&z).demont().inv().to_mont());
+        let _z2_inv = test::black_box(z2.demont().inv().as_mont());
+        let _z3_inv = test::black_box(z2.mont_mul(&z).demont().inv().as_mont());
     });
 }
 */
