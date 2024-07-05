@@ -1,7 +1,6 @@
 use super::util::Array64x4;
 use crate::low;
 use core::fmt;
-use core::mem;
 
 mod precomp;
 #[cfg(test)]
@@ -163,7 +162,7 @@ impl AffineMontPoint {
         r
     }
 
-    fn multiply(&self, scalar: &Scalar) -> Self {
+    fn slow_multiply(&self, scalar: &Scalar) -> Self {
         let mut result = JacobianMontPoint::infinity();
 
         let mut j = JacobianMontPoint::from_affine(self);
@@ -172,35 +171,6 @@ impl AffineMontPoint {
         for bit in scalar.bits() {
             result.add_inplace(&JacobianMontPoint::select(&zero, &j, bit));
             j = j.double();
-        }
-
-        result.into_affine()
-    }
-
-    fn multiply_window4(&self, scalar: &Scalar, precomp: &[JacobianMontPoint; 16]) -> Self {
-        let mut result = JacobianMontPoint::infinity();
-
-        for (first, val) in scalar.rev_bits().chunks(4) {
-            if !first {
-                result.double_inplace_n(4);
-            }
-            result.add_inplace(&JacobianMontPoint::lookup(precomp, val));
-        }
-
-        result.into_affine()
-    }
-
-    fn multiply_window8(&self, scalar: &Scalar, precomp: &[JacobianMontPoint; 256]) -> Self {
-        let mut result = JacobianMontPoint::infinity();
-
-        let mut first = true;
-        for val in scalar.rev_bytes() {
-            if first {
-                first = false;
-            } else {
-                result.double_inplace_n(8);
-            }
-            result.add_inplace(&JacobianMontPoint::lookup(precomp, val));
         }
 
         result.into_affine()
@@ -260,57 +230,7 @@ impl AffineMontPoint {
     }
 
     fn base_multiply(scalar: &Scalar) -> Self {
-        //CURVE_GENERATOR.multiply_window4(scalar, &precomp::CURVE_GENERATOR_PRECOMP_4)
-        //CURVE_GENERATOR.multiply_window8(scalar, &precomp::CURVE_GENERATOR_PRECOMP_8)
         CURVE_GENERATOR.multiply_wnaf_7(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_7)
-    }
-
-    fn public_precomp4(&self) -> [JacobianMontPoint; 16] {
-        let mut j = JacobianMontPoint::from_affine(self);
-        let inf = JacobianMontPoint::infinity();
-
-        let mut r = [JacobianMontPoint::zero(); 16];
-
-        // first compute the power two terms
-        for i in 0..4 {
-            r[1 << i] = inf.add(&j);
-            j = j.double();
-        }
-
-        for i in (3..16).step_by(2) {
-            r[i] = r[2].add(&r[i - 2]);
-        }
-
-        for i in [6, 10, 12, 14] {
-            r[i] = r[2].add(&r[i - 2]);
-        }
-
-        r
-    }
-
-    fn public_precomp8(&self) -> [JacobianMontPoint; 256] {
-        let mut j = JacobianMontPoint::from_affine(self);
-        let inf = JacobianMontPoint::infinity();
-
-        let mut r = [JacobianMontPoint::zero(); 256];
-
-        // first compute the power two terms
-        for i in 0..8 {
-            r[1 << i] = inf.add(&j);
-            j = j.double();
-        }
-
-        for i in (3..256).step_by(2) {
-            r[i] = r[2].add(&r[i - 2]);
-        }
-
-        for i in (2usize..256).step_by(2) {
-            if i.next_power_of_two() != i {
-                r[i] = r[2].add(&r[i - 2]);
-            }
-        }
-
-        r
     }
 
     /// Precomputes wNAF form (with 𝑤=6) for the point `self`
@@ -322,7 +242,8 @@ impl AffineMontPoint {
     ///
     /// This should not be used at runtime, since (for brevity) it
     /// does excessive point representation conversions, and recomputes
-    /// items in a given row several times (compare `public_precomp4`).
+    /// items in a given row several times (compare `public_precomp_wnaf_5`).
+    #[allow(dead_code)]
     fn public_precomp_wnaf_7_slow(&self) -> [[Self; 64]; 37] {
         let mut r = [[Self::default(); 64]; 37];
 
@@ -336,7 +257,7 @@ impl AffineMontPoint {
             row[0] = first.into_affine();
 
             for r in 1..64 {
-                row[r] = row[0].multiply(&Scalar([(r + 1) as u64, 0, 0, 0]));
+                row[r] = row[0].slow_multiply(&Scalar([(r + 1) as u64, 0, 0, 0]));
             }
         }
 
@@ -549,111 +470,16 @@ impl JacobianMontPoint {
 struct FieldElement([u64; 4]);
 
 impl FieldElement {
-    fn zero() -> Self {
-        Self::default()
-    }
-
-    fn one() -> Self {
-        Self::small_u64(1)
-    }
-
-    fn small_u64(v: u64) -> Self {
-        let mut r = Self::default();
-        r.0[0] = v;
-        r
-    }
-
     fn inv(&self) -> Self {
         let mut r = Self::default();
         low::bignum_inv_p256(&mut r.0, &self.0);
         r
     }
 
-    fn mont_inv(&self) -> Self {
-        // See https://github.com/mmcloughlin/addchain/blob/master/doc/results.md#nist-p-256-field-inversion
-        // _10     = 2*1
-        // _11     = 1 + _10
-        // _1100   = _11 << 2
-        // _1111   = _11 + _1100
-        // _111100 = _1111 << 2
-        // _111111 = _11 + _111100
-        // x12     = _111111 << 6 + _111111
-        // x24     = x12 << 12 + x12
-        // x30     = x24 << 6 + _111111
-        // x32     = x30 << 2 + _11
-        // i232    = ((x32 << 32 + 1) << 128 + x32) << 32
-        // return    ((x32 + i232) << 30 + x30) << 2
-
-        // 	p256Sqr(z, in, 1)
-        // 	p256Mul(z, in, z)
-        // 	p256Sqr(z, z, 1)
-        // 	p256Mul(z, in, z)
-        let z = self.mont_sqr();
-        let z = self.mont_mul(&z);
-        let z = z.mont_sqr();
-        let z = self.mont_mul(&z);
-
-        // 	p256Sqr(t0, z, 3)
-        // 	p256Mul(t0, z, t0)
-        // 	p256Sqr(t1, t0, 6)
-        // 	p256Mul(t0, t0, t1)
-        let t0 = z.mont_sqr_n(3);
-        let t0 = z.mont_mul(&t0);
-        let t1 = t0.mont_sqr_n(6);
-        let t0 = t0.mont_mul(&t1);
-
-        // 	p256Sqr(t0, t0, 3)
-        // 	p256Mul(z, z, t0)
-        // 	p256Sqr(t0, z, 1)
-        // 	p256Mul(t0, in, t0)
-        let t0 = t0.mont_sqr_n(3);
-        let z = z.mont_mul(&t0);
-        let t0 = z.mont_sqr();
-        let t0 = self.mont_mul(&t0);
-
-        // 	p256Sqr(t1, t0, 16)
-        // 	p256Mul(t0, t0, t1)
-        // 	p256Sqr(t0, t0, 15)
-        // 	p256Mul(z, z, t0)
-        let t1 = t0.mont_sqr_n(16);
-        let t0 = t0.mont_mul(&t1);
-        let t0 = t0.mont_sqr_n(15);
-        let z = z.mont_mul(&t0);
-
-        // 	p256Sqr(t0, t0, 17)
-        // 	p256Mul(t0, in, t0)
-        // 	p256Sqr(t0, t0, 143)
-        // 	p256Mul(t0, z, t0)
-        let t0 = t0.mont_sqr_n(17);
-        let t0 = self.mont_mul(&t0);
-        let t0 = t0.mont_sqr_n(143);
-        let t0 = z.mont_mul(&t0);
-
-        // 	p256Sqr(t0, t0, 47)
-        // 	p256Mul(z, z, t0)
-        // 	p256Sqr(z, z, 2)
-        // 	p256Mul(out, in, z)
-        let t0 = t0.mont_sqr_n(47);
-        let z = z.mont_mul(&t0);
-        let z = z.mont_sqr_n(2);
-        self.mont_mul(&z)
-    }
-
     /// Montgomery squaring mod p256
     fn mont_sqr(&self) -> Self {
         let mut r = Self::default();
         low::bignum_montsqr_p256(&mut r.0, &self.0);
-        r
-    }
-
-    /// Montgomery repeated squaring mod p256
-    fn mont_sqr_n(&self, n: usize) -> Self {
-        let mut r = Self::default();
-        let mut input = *self;
-        for _ in 0..n {
-            low::bignum_montsqr_p256(&mut r.0, &input.0);
-            input = r;
-        }
         r
     }
 
@@ -779,23 +605,6 @@ impl Scalar {
         }
     }
 
-    /// Iterator of the bits of the element, highest first
-    fn rev_bits(&self) -> RevBits<'_> {
-        RevBits {
-            scalar: self,
-            word: 3,
-            bit: 64,
-        }
-    }
-
-    /// Iterator of the bytes of the element, highest first
-    fn rev_bytes(&self) -> RevBytes<'_> {
-        RevBytes {
-            scalar: self,
-            byte: 32,
-        }
-    }
-
     /// Iterator of 37 * 7-bit elements, MSB first, sign bit is separate
     fn booth_recoded_w7(&self) -> BoothRecodeW7 {
         BoothRecodeW7::new(self)
@@ -830,87 +639,6 @@ impl Iterator for Bits<'_> {
         }
 
         Some(v as u8)
-    }
-}
-
-struct RevBits<'a> {
-    scalar: &'a Scalar,
-    word: usize,
-    bit: usize,
-}
-
-impl<'a> RevBits<'a> {
-    fn chunks(self, nbits: u8) -> Chunks<'a> {
-        debug_assert!(256usize % (nbits as usize) == 0);
-        Chunks {
-            bits: self,
-            nbits,
-            first: true,
-        }
-    }
-}
-
-impl Iterator for RevBits<'_> {
-    type Item = u8;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.word == 0 && self.bit == 0 {
-            return None;
-        }
-
-        if self.bit == 0 {
-            self.word -= 1;
-            self.bit = 64;
-        }
-
-        self.bit -= 1;
-        let v = (self.scalar.0[self.word] >> self.bit) & 1;
-
-        Some(v as u8)
-    }
-}
-
-struct Chunks<'a> {
-    bits: RevBits<'a>,
-    nbits: u8,
-    first: bool,
-}
-
-impl Iterator for Chunks<'_> {
-    type Item = (bool, u8);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        let mut val = 0;
-
-        for _ in 0..self.nbits {
-            val <<= 1;
-            let bit = self.bits.next()?;
-            val |= bit;
-        }
-
-        let first = mem::take(&mut self.first);
-        Some((first, val))
-    }
-}
-
-struct RevBytes<'a> {
-    scalar: &'a Scalar,
-    byte: usize,
-}
-
-impl Iterator for RevBytes<'_> {
-    type Item = u8;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.byte == 0 {
-            return None;
-        }
-
-        self.byte -= 1;
-
-        let word = self.byte >> 3;
-        let shift = (self.byte & 7) * 8;
-        Some((self.scalar.0[word] >> shift) as u8)
     }
 }
 
@@ -1074,7 +802,7 @@ fn generator_on_curve() {
 #[test]
 fn generate_key_1() {
     let scalar = Scalar::small_u64(1);
-    let r = CURVE_GENERATOR.multiply(&scalar);
+    let r = CURVE_GENERATOR.slow_multiply(&scalar);
     println!("raw {:x?}", r);
     println!("fmt {:x?}", r.as_bytes_uncompressed());
 }
@@ -1092,7 +820,7 @@ fn point_double() {
 #[test]
 fn generate_key_2() {
     let scalar = Scalar::small_u64(2);
-    let r = CURVE_GENERATOR.multiply(&scalar);
+    let r = CURVE_GENERATOR.slow_multiply(&scalar);
     println!("raw {:x?}", r);
     println!("fmt {:x?}", r.as_bytes_uncompressed());
 }
@@ -1104,7 +832,7 @@ fn generate_key_3() {
     println!("raw {:x?}", r);
     println!("fmt {:x?}", r.as_bytes_uncompressed());
 
-    let u = CURVE_GENERATOR.multiply(&scalar);
+    let u = CURVE_GENERATOR.slow_multiply(&scalar);
     println!("raw {:x?}", u);
     println!("fmt {:x?}", u.as_bytes_uncompressed());
 }
@@ -1116,7 +844,7 @@ fn generate_key_99999999() {
     println!("raw {:x?}", r);
     println!("fmt {:x?}", r.as_bytes_uncompressed());
 
-    let u = CURVE_GENERATOR.multiply(&scalar);
+    let u = CURVE_GENERATOR.slow_multiply(&scalar);
     println!("raw {:x?}", u);
     println!("fmt {:x?}", u.as_bytes_uncompressed());
 }
@@ -1130,30 +858,6 @@ fn generate_key_known_answer() {
     println!("pub = {:x?}", public.as_bytes_uncompressed());
     assert_eq!(&public.as_bytes_uncompressed(),
                b"\x04\xcb\x8a\x14\x1c\xd7\xe4\x07\xaf\x69\xa5\x01\x88\xe9\x1c\xe5\x5d\xcc\xfd\x33\x48\xda\xba\x4a\x9c\x46\x64\x33\x2e\x95\x59\xb6\x81\x44\xfc\x1a\x61\xd8\x41\xe4\xdb\x80\x1b\x33\x51\x20\x12\x1d\x0b\xa4\x84\xb3\xc9\x53\xb3\x1d\x35\x1d\x7f\xa2\x13\x97\xd1\x25\x47");
-}
-
-#[test]
-fn test_rev_bits() {
-    let mut s = Scalar::small_u64(1);
-    s.0[3] = 0x55 << 56;
-    for b in s.rev_bits() {
-        println!("{b:x}");
-    }
-
-    println!("chunks:");
-    for (first, b) in s.rev_bits().chunks(4) {
-        println!("{first} {b:x}");
-    }
-}
-
-#[test]
-fn test_rev_bytes() {
-    let mut s = Scalar::small_u64(0x44332211);
-    s.0[3] = 0x55 << 56;
-
-    for b in s.rev_bytes() {
-        println!("{b:x}");
-    }
 }
 
 #[test]
@@ -1200,54 +904,9 @@ fn curve_field_elements_as_mont() {
     println!("G.y = {:x?}", CURVE_GENERATOR.y().as_mont());
     println!("a = {:x?}", CURVE_A.as_mont());
     println!("b = {:x?}", CURVE_B.as_mont());
-    println!("R = {:x?}", FieldElement::one().as_mont());
-    println!("R * R = {:x?}", FieldElement::one().as_mont().as_mont());
-}
-
-#[test]
-fn base_point_precomp_4() {
-    let precomp = CURVE_GENERATOR.public_precomp4();
-
-    println!("pub(super) static CURVE_GENERATOR_PRECOMP_4: [JacobianMontPoint; 16] = [");
-    for i in 0..16 {
-        println!("    // {}G", i);
-        println!("    JacobianMontPoint {{ xyz: [");
-        for j in 0..12 {
-            println!("0x{:016x}, ", precomp[i].xyz[j]);
-        }
-        println!("    ]}},");
-
-        // cross-check
-        let expect = CURVE_GENERATOR.multiply(&Scalar::small_u64(i as u64));
-        assert_eq!(
-            expect.as_bytes_uncompressed(),
-            precomp[i].into_affine().as_bytes_uncompressed(),
-        );
-    }
-    println!("];");
-}
-
-#[test]
-fn base_point_precomp_8() {
-    let precomp = CURVE_GENERATOR.public_precomp8();
-
-    println!("pub(super) static CURVE_GENERATOR_PRECOMP_8: [JacobianMontPoint; 256] = [");
-    for i in 0..256 {
-        println!("    // {}G", i);
-        println!("    JacobianMontPoint {{ xyz: [");
-        for j in 0..12 {
-            println!("0x{:016x}, ", precomp[i].xyz[j]);
-        }
-        println!("    ]}},");
-
-        // cross-check
-        let expect = CURVE_GENERATOR.multiply(&Scalar::small_u64(i as u64));
-        assert_eq!(
-            expect.as_bytes_uncompressed(),
-            precomp[i].into_affine().as_bytes_uncompressed(),
-        );
-    }
-    println!("];");
+    let one = FieldElement([1, 0, 0, 0]);
+    println!("R = {:x?}", one.as_mont());
+    println!("R * R = {:x?}", one.as_mont().as_mont());
 }
 
 #[test]
@@ -1270,8 +929,7 @@ fn base_point_precomp_wnaf_7() {
     println!("];");
 
     println!("");
-    // "The pre-computed (fixed) tables require slightly more than 150KB"
-    println!("table size is {} bytes", mem::size_of_val(&precomp));
+    println!("table size is {} bytes", size_of_val(&precomp));
 }
 
 /*
