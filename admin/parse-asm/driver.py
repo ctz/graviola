@@ -1,8 +1,9 @@
 import string
 from functools import reduce
 import subprocess
+from io import StringIO
 
-from parse import Type
+from parse import Type, tokenise, is_comment
 
 
 class Architecture:
@@ -164,80 +165,6 @@ class ConstantArray:
         self.type = type
 
 
-def is_comment(s):
-    s = s.strip()
-    return s.startswith("/*") and s.endswith("*/")
-
-
-def tokenise(s):
-    def tokenise_gen(s):
-        run = None
-        run_type = None
-
-        letters = string.ascii_letters
-        symbol = string.ascii_letters + string.digits + "_"
-        register_open = symbol + ".["
-        register_close = register_open + "]"
-        hex = string.hexdigits
-        numbers = string.digits
-
-        if is_comment(s):
-            yield s
-            return
-
-        for x in s:
-            if x == "x" and run == "0" and run_type == numbers:
-                run_type = hex
-                run = run + x
-                continue
-
-            if run_type == letters and x not in run_type and x in symbol:
-                run_type = symbol
-
-            if (
-                run_type in (letters, symbol)
-                and x not in run_type
-                and x in register_open
-            ):
-                run_type = register_open
-
-            if run_type == register_open and x not in run_type and x in register_close:
-                run_type = register_close
-
-            if run_type is not None and x not in run_type:
-                yield run
-                run = None
-                run_type = None
-
-            if run_type is not None and x in run_type:
-                run = run + x
-                continue
-
-            if x in string.whitespace:
-                continue
-
-            if x in "()[]+*/-,;#.!":
-                yield x
-                continue
-
-            if x in numbers:
-                run = x
-                run_type = numbers
-                continue
-
-            if x in letters:
-                run = x
-                run_type = letters
-                continue
-
-            print("UNHANDLED tokenise " + x)
-
-        if run_type is not None:
-            yield run
-
-    return list(tokenise_gen(s))
-
-
 def tokens_to_macro_fn(tokens):
     tokens = list(tokens)
 
@@ -337,10 +264,22 @@ def tokens_to_arg(tokens):
                 yield '"' + t + '"'
 
     g = list(gen(tokens))
+    if len(g) == 0:
+        return ""
     if len(g) == 1:
         return g[0]
     else:
         return "Q!(" + (" ".join(g)) + ")"
+
+
+class FunctionState:
+    def __init__(self, old_output):
+        self.old_output = old_output
+        self.macros_inside_function = StringIO()
+        self.spool = StringIO()
+
+    def output(self):
+        return self.spool
 
 
 class RustDriver(Dispatcher):
@@ -359,6 +298,7 @@ class RustDriver(Dispatcher):
         self.constant_syms = set()
         self.current_constant_array = None
         self.emitted_page_aligned_types = set()
+        self.function_state = None
         self.label_prefixes = []
         self.start()
 
@@ -427,7 +367,9 @@ use crate::low::macros::{Q, Label};
     def expand_rust_macros(self, *values, params={}):
         for v in values:
             for t in tokenise(v):
-                if t in self.rust_macros:
+                if t in params:
+                    yield unquote("$" + t)
+                elif t in self.rust_macros:
                     macro_value, macro_args = self.rust_macros[t]
                     for vv in macro_value:
                         self.visit_operands(vv)
@@ -438,8 +380,6 @@ use crate::low::macros::{Q, Label};
                     yield unquote("%s!()" % t)
                 elif is_comment(t):
                     yield unquote(t)
-                elif t in params:
-                    yield unquote("$" + t)
                 elif t in self.constant_syms:
                     yield "{" + t + "}"
                 elif t in self.labels or self.looks_like_label(t):
@@ -474,6 +414,9 @@ use crate::low::macros::{Q, Label};
     def on_function(self, contexts, name):
         assert contexts == []
         if name == self.expected_function_name:
+            self.function_state = FunctionState(self.output)
+            self.output = self.function_state.output()
+
             locals = ""
             if self.return_value:
                 rtype, rname, _ = self.return_value
@@ -502,6 +445,12 @@ use crate::low::macros::{Q, Label};
         print("", file=self.output)
 
     def on_define(self, name, *value):
+        if self.function_state:
+            f = self.function_state.macros_inside_function
+            print("// <macro definition %s hoisted upwards>" % name, file=self.output)
+        else:
+            f = self.output
+
         tokens = tokenise(name)
         if len(tokens) == 1:
             assert len(value) == 1
@@ -509,7 +458,7 @@ use crate::low::macros::{Q, Label};
             value = self.expand_rust_macros_in_macro_decl(*value, indent=0)
             print(
                 """macro_rules! %s { () => { Q!(%s) } }""" % (tokens[0], value),
-                file=self.output,
+                file=f,
             )
         else:
             name, params = tokens_to_macro_fn(tokens)
@@ -526,7 +475,7 @@ use crate::low::macros::{Q, Label};
     )}
 }"""
                 % (name, ", ".join(params), value),
-                file=self.output,
+                file=f,
             )
 
     def on_asm(self, contexts, opcode, operands):
@@ -654,6 +603,13 @@ use crate::low::macros::{Q, Label};
 
         print("}", file=self.output)
 
+        # finally, restore original output and emit macros before
+        # function body
+        self.output = self.function_state.old_output
+        self.output.write(self.function_state.macros_inside_function.getvalue())
+        self.output.write(self.function_state.output().getvalue())
+        self.function_state = None
+
     def finish_file(self):
         self.finish_constant_array()
 
@@ -661,6 +617,7 @@ use crate::low::macros::{Q, Label};
         self.output.close()
 
         subprocess.check_call(["rustfmt", filename])
+        print('GENERATED', filename)
 
 
 if __name__ == "__main__":
@@ -699,3 +656,11 @@ if __name__ == "__main__":
     print(repr(tokenise("stp     x2, x3, [xn+16]")))
 
     assert tokenise("x0, x1, [xn]") == ["x0", ",", "x1", ",", "[", "xn", "]"]
+    assert tokenise("ldr x0, /* inside comment */ 5") == [
+        "ldr",
+        "x0",
+        ",",
+        "/* inside comment */",
+        "5",
+    ]
+    print(tokenise("movbig( n0, #0xf3b9, #0xcac2, #0xfc63, #0x2551)"))
