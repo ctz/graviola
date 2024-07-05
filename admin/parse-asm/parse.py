@@ -22,6 +22,7 @@ class Type(enum.StrEnum):
     FUNCTION = enum.auto()
     ALIGN = enum.auto()
     LABEL = enum.auto()
+    EOF = enum.auto()
 
 
 def parse_file(f, visit):
@@ -124,6 +125,8 @@ def parse_file(f, visit):
             visit(Type.ALIGN, contexts, "4")
         else:
             raise ValueError("UNHANDLED line " + repr(l))
+
+    visit(Type.EOF)
 
 
 def is_comment(s):

@@ -30,6 +30,44 @@ impl PublicKey {
             point,
         }
     }
+
+    pub fn x_scalar(&self) -> Scalar {
+        self.point.x_scalar()
+    }
+
+    pub fn raw_ecdsa_verify(&self, r: &Scalar, s: &Scalar, e: &Scalar) -> Result<(), Error> {
+        // 4. Compute: u1 = e s^-1 mod n and u2 = r s^−1 mod n
+        let s_inv = s.inv().as_mont();
+        let u1 = s_inv.mont_mul(&e.as_mont()).demont();
+        let u2 = s_inv.mont_mul(&r.as_mont()).demont();
+
+        // 5. Compute: R = (xR, yR) = u1 G + u2 QU
+        //  If R = O, output "invalid" and stop.
+        let lhs = JacobianMontPoint::base_multiply(&u1);
+        let rhs = JacobianMontPoint::multiply_wnaf_5(&u2, &self.precomp_wnaf_5);
+
+        // nb. if lhs == rhs, then we need a doubling rather than addition
+        // (even complete point addition formula is only defined for P != Q)
+        let point = if lhs.public_eq(&rhs) {
+            lhs.double()
+        } else {
+            JacobianMontPoint::add(&lhs, &rhs)
+        };
+
+        if point.public_is_infinity() {
+            return Err(Error::BadSignature);
+        }
+
+        // 6. Convert the field element xR to an integer xR using the conversion routine specified in Section 2.3.9.
+        // 7. Set v = xR mod n.
+        let v = point.x_scalar();
+
+        // 8. Compare v and r — if v = r, output "valid", and if v != r, output "invalid".
+        match v.public_eq(r) {
+            true => Ok(()),
+            false => Err(Error::BadSignature),
+        }
+    }
 }
 
 pub struct PrivateKey {
@@ -41,11 +79,11 @@ impl PrivateKey {
         Scalar::from_bytes_checked(bytes).map(|scalar| Self { scalar })
     }
 
-    pub fn public_key(&self) -> Result<PublicKey, Error> {
-        let point = AffineMontPoint::base_multiply(&self.scalar);
+    pub fn public_key(&self) -> PublicKey {
+        let point = JacobianMontPoint::base_multiply(&self.scalar).as_affine();
         match point.on_curve() {
-            true => Ok(PublicKey::from_affine(point)),
-            false => Err(Error::NotOnCurve),
+            true => PublicKey::from_affine(point),
+            false => panic!("internal fault"),
         }
     }
 
@@ -62,13 +100,24 @@ impl PrivateKey {
     }
 
     pub fn diffie_hellman(&self, peer: &PublicKey) -> Result<SharedSecret, Error> {
-        let result = peer
-            .point
-            .multiply_wnaf_5(&self.scalar, &peer.precomp_wnaf_5);
+        let result =
+            JacobianMontPoint::multiply_wnaf_5(&self.scalar, &peer.precomp_wnaf_5).as_affine();
         match result.on_curve() {
             true => Ok(SharedSecret(Array64x4(result.x().demont().0).as_be_bytes())),
             false => Err(Error::NotOnCurve),
         }
+    }
+
+    pub fn raw_ecdsa_sign(&self, k: &Self, e: &Scalar, r: &Scalar) -> Scalar {
+        // this is (e + r * d) / k
+        let lhs_mont = self
+            .scalar
+            .as_mont()
+            .mont_mul(&r.as_mont())
+            .demont()
+            .add(e)
+            .as_mont();
+        k.scalar.inv().mont_mul(&lhs_mont)
     }
 }
 
@@ -112,6 +161,11 @@ impl AffineMontPoint {
         Ok(point)
     }
 
+    fn x_scalar(&self) -> Scalar {
+        let bytes = self.as_bytes_uncompressed();
+        Scalar::from_bytes_reduced(&bytes[1..33]).unwrap()
+    }
+
     fn from_xy(x: FieldElement, y: FieldElement) -> Self {
         let mut r = Self::default();
         r.xy[0..4].copy_from_slice(&x.0[..]);
@@ -149,7 +203,6 @@ impl AffineMontPoint {
     fn as_bytes_uncompressed(&self) -> [u8; 65] {
         let mut r = [0u8; 65];
         r[0] = 0x04;
-
         r[1..33].copy_from_slice(&Array64x4(self.x().demont().0).as_be_bytes());
         r[33..65].copy_from_slice(&Array64x4(self.y().demont().0).as_be_bytes());
         r
@@ -166,53 +219,7 @@ impl AffineMontPoint {
             j = j.double();
         }
 
-        result.into_affine()
-    }
-
-    fn multiply_wnaf_5(&self, scalar: &Scalar, precomp: &[JacobianMontPoint; 16]) -> Self {
-        let mut terms = scalar.reversed_booth_recoded_w5();
-
-        let (digit, _, _) = terms.next().unwrap();
-        let mut result = JacobianMontPoint::lookup_w5(precomp, digit);
-        result.double_inplace_n(5);
-
-        for (digit, sign, last) in terms {
-            let mut tmp = JacobianMontPoint::lookup_w5(precomp, digit);
-            tmp.maybe_negate_y(sign);
-            result.add_inplace(&tmp);
-
-            if !last {
-                result.double_inplace_n(5);
-            }
-        }
-
-        result.into_affine()
-    }
-
-    fn multiply_wnaf_7(&self, scalar: &Scalar, precomp: &[[Self; 64]; 37]) -> Self {
-        let mut terms = scalar.booth_recoded_w7();
-        // unwrap: number of terms is constant
-        let (digit, sign) = terms.next().unwrap();
-        let mut tmp = Self::lookup_w7(&precomp[0], digit);
-        tmp.maybe_negate_y(sign);
-
-        let mut result = JacobianMontPoint::from_affine(&tmp);
-        result.set_z(&FieldElement::select(
-            &FieldElement::default(),
-            &CURVE_ONE_MONT,
-            digit,
-        ));
-
-        let mut index = 1;
-        for (digit, sign) in terms {
-            let mut tmp = Self::lookup_w7(&precomp[index], digit);
-            tmp.maybe_negate_y(sign);
-
-            result.add_inplace_affine(&tmp);
-            index += 1;
-        }
-
-        result.into_affine()
+        result.as_affine()
     }
 
     fn maybe_negate_y(&mut self, sign: u8) {
@@ -220,10 +227,6 @@ impl AffineMontPoint {
         let neg_y = y.negate_mod_p();
         let result = FieldElement::select(&y, &neg_y, sign);
         self.xy[4..8].copy_from_slice(&result.0);
-    }
-
-    fn base_multiply(scalar: &Scalar) -> Self {
-        CURVE_GENERATOR.multiply_wnaf_7(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_7)
     }
 
     /// Precomputes wNAF form (with 𝑤=6) for the point `self`
@@ -247,7 +250,7 @@ impl AffineMontPoint {
             // storage.  therefore row[0] is 1G << shift.
             let mut first = JacobianMontPoint::from_affine(self);
             first.double_inplace_n(window * 7);
-            row[0] = first.into_affine();
+            row[0] = first.as_affine();
 
             for r in 1..64 {
                 row[r] = row[0].slow_multiply(&Scalar([(r + 1) as u64, 0, 0, 0]));
@@ -340,6 +343,10 @@ impl JacobianMontPoint {
         }
     }
 
+    fn public_is_infinity(&self) -> bool {
+        self.z().public_eq(&FieldElement::default())
+    }
+
     fn zero() -> Self {
         Self { xyz: [0; 12] }
     }
@@ -360,6 +367,56 @@ impl JacobianMontPoint {
         self.xyz[8..12].copy_from_slice(&fe.0);
     }
 
+    fn base_multiply(scalar: &Scalar) -> Self {
+        Self::multiply_wnaf_7(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_7)
+    }
+
+    fn multiply_wnaf_7(scalar: &Scalar, precomp: &[[AffineMontPoint; 64]; 37]) -> Self {
+        let mut terms = scalar.booth_recoded_w7();
+        // unwrap: number of terms is constant
+        let (digit, sign) = terms.next().unwrap();
+        let mut tmp = AffineMontPoint::lookup_w7(&precomp[0], digit);
+        tmp.maybe_negate_y(sign);
+
+        let mut result = Self::from_affine(&tmp);
+        result.set_z(&FieldElement::select(
+            &FieldElement::default(),
+            &CURVE_ONE_MONT,
+            digit,
+        ));
+
+        let mut index = 1;
+        for (digit, sign) in terms {
+            let mut tmp = AffineMontPoint::lookup_w7(&precomp[index], digit);
+            tmp.maybe_negate_y(sign);
+
+            result.add_inplace_affine(&tmp);
+            index += 1;
+        }
+
+        result
+    }
+
+    fn multiply_wnaf_5(scalar: &Scalar, precomp: &[Self; 16]) -> Self {
+        let mut terms = scalar.reversed_booth_recoded_w5();
+
+        let (digit, _, _) = terms.next().unwrap();
+        let mut result = Self::lookup_w5(precomp, digit);
+        result.double_inplace_n(5);
+
+        for (digit, sign, last) in terms {
+            let mut tmp = Self::lookup_w5(precomp, digit);
+            tmp.maybe_negate_y(sign);
+            result.add_inplace(&tmp);
+
+            if !last {
+                result.double_inplace_n(5);
+            }
+        }
+
+        result
+    }
+
     fn from_affine(p: &AffineMontPoint) -> Self {
         let mut xyz: [u64; 12] = Default::default();
         xyz[..8].copy_from_slice(&p.xy);
@@ -367,7 +424,7 @@ impl JacobianMontPoint {
         Self { xyz }
     }
 
-    fn into_affine(self) -> AffineMontPoint {
+    fn as_affine(&self) -> AffineMontPoint {
         // recover (x, y) from (x / z ^ 2, x / z ^ 3, z)
         let z2 = self.z().mont_sqr();
         let z3 = self.z().mont_mul(&z2);
@@ -381,6 +438,30 @@ impl JacobianMontPoint {
         let y = self.y().mont_mul(&z3_inv);
 
         AffineMontPoint::from_xy(x, y)
+    }
+
+    fn public_eq(&self, other: &Self) -> bool {
+        // we can't compare these directly, because they could be
+        // the same point but with different z factors.  instead,
+        // convert one to affine, and then bring it back into
+        // jacobian using other's z factors.
+        let a = self.as_affine();
+
+        let b_z2 = other.z().mont_sqr();
+        let b_z3 = other.z().mont_mul(&b_z2);
+
+        let a_x_b_z2 = a.x().mont_mul(&b_z2);
+        let a_y_b_z3 = a.y().mont_mul(&b_z3);
+
+        a_x_b_z2.public_eq(&other.x()) && a_y_b_z3.public_eq(&other.y())
+    }
+
+    fn x_scalar(&self) -> Scalar {
+        // this is a faster version of `as_affine().x_scalar()`
+        let z2 = self.z().mont_sqr();
+        let z2_inv = z2.demont().inv().as_mont();
+        let x = self.x().mont_mul(&z2_inv).demont();
+        Scalar::from_bytes_reduced(&Array64x4(x.0).as_be_bytes()).unwrap()
     }
 
     #[must_use]
@@ -525,7 +606,7 @@ impl FieldElement {
 }
 
 #[derive(Default)]
-struct Scalar([u64; 4]);
+pub struct Scalar([u64; 4]);
 
 impl Scalar {
     /// Create a scalar from the given slice, which can be any size.
@@ -557,6 +638,15 @@ impl Scalar {
         full.into_range_check()
     }
 
+    pub fn from_bytes_reduced(bytes: &[u8]) -> Result<Self, Error> {
+        Ok(Self(
+            Array64x4::from_be_bytes_any_size(bytes)
+                .ok_or(Error::WrongLength)?
+                .0,
+        )
+        .reduce_mod_n())
+    }
+
     fn into_range_check(self) -> Result<Self, Error> {
         let reduced = self.reduce_mod_n();
 
@@ -567,13 +657,17 @@ impl Scalar {
         }
     }
 
+    pub fn as_bytes(&self) -> [u8; 32] {
+        Array64x4(self.0).as_be_bytes()
+    }
+
     #[cfg(test)]
     fn small_u64(v: u64) -> Self {
         Scalar([v, 0, 0, 0])
     }
 
     /// Private test for zero
-    fn is_zero(&self) -> bool {
+    pub fn is_zero(&self) -> bool {
         self.private_eq(&Self::default())
     }
 
@@ -582,10 +676,62 @@ impl Scalar {
         low::bignum_eq(&self.0, &other.0)
     }
 
+    /// Public equality
+    fn public_eq(&self, other: &Self) -> bool {
+        low::bignum_eq(&self.0, &other.0)
+    }
+
     /// Reduce mod n (curve order)
     fn reduce_mod_n(&self) -> Self {
         let mut r = Self::default();
         low::bignum_mod_n256(&mut r.0, &self.0);
+        r
+    }
+
+    /// Remove one montgomery factor mod n
+    fn demont(&self) -> Self {
+        let mut r = Self::default();
+        low::bignum_demont(&mut r.0, &self.0, &CURVE_ORDER);
+        r
+    }
+
+    /// Add a montgomery factor mod n
+    fn as_mont(&self) -> Self {
+        let mut r = Self::default();
+        low::bignum_montmul(&mut r.0, &self.0, &CURVE_ORDER_MM, &CURVE_ORDER);
+        r
+    }
+
+    /// Return 2^512 mod n, ie MM mod n
+    fn montifier() -> Self {
+        let mut r = Self::default();
+        let mut tmp = Self::default();
+        low::bignum_montifier(&mut r.0, &CURVE_ORDER, &mut tmp.0);
+        r
+    }
+
+    /// Montgomery multiplication mod n
+    ///
+    /// Assumes `self` and `other` are in montgomery domain.
+    /// Result is in montgomery domain.
+    fn mont_mul(&self, other: &Self) -> Self {
+        let mut r = Self::default();
+        low::bignum_montmul(&mut r.0, &self.0, &other.0, &CURVE_ORDER);
+        r
+    }
+
+    /// Find the multiplicative inverse of `self` mod n
+    fn inv(&self) -> Self {
+        let mut r = Self::default();
+        let mut temp = [0u64; 4 * 3];
+        low::bignum_modinv(&mut r.0, &self.0, &CURVE_ORDER, &mut temp);
+        r
+    }
+
+    /// Add `self` + `other` mod n
+    fn add(&self, other: &Self) -> Self {
+        let mut r = Self::default();
+        low::bignum_modadd(&mut r.0, &self.0, &other.0, &CURVE_ORDER);
         r
     }
 
@@ -772,6 +918,20 @@ const CURVE_ONE_MONT: FieldElement = FieldElement([
     0x0000_0000_ffff_fffe,
 ]);
 
+const CURVE_ORDER: [u64; 4] = [
+    0xf3b9_cac2_fc63_2551,
+    0xbce6_faad_a717_9e84,
+    0xffff_ffff_ffff_ffff,
+    0xffff_ffff_0000_0000,
+];
+
+const CURVE_ORDER_MM: [u64; 4] = [
+    0x83244c95be79eea2,
+    0x4699799c49bd6fa6,
+    0x2845b2392b6bec59,
+    0x66e12d94f3d95620,
+];
+
 const CURVE_GENERATOR: AffineMontPoint = AffineMontPoint {
     xy: [
         0x79e7_30d4_18a9_143c,
@@ -806,8 +966,8 @@ fn point_double() {
     println!("p = {:x?}", p);
     p = p.double();
     println!("p2 = {:x?}", p);
-    println!("p2 aff = {:x?}", p.into_affine());
-    println!("enc = {:x?}", p.into_affine().as_bytes_uncompressed());
+    println!("p2 aff = {:x?}", p.as_affine());
+    println!("enc = {:x?}", p.as_affine().as_bytes_uncompressed());
 }
 
 #[test]
@@ -821,7 +981,7 @@ fn generate_key_2() {
 #[test]
 fn generate_key_3() {
     let scalar = Scalar::small_u64(3);
-    let r = AffineMontPoint::base_multiply(&scalar);
+    let r = JacobianMontPoint::base_multiply(&scalar).as_affine();
     println!("raw {:x?}", r);
     println!("fmt {:x?}", r.as_bytes_uncompressed());
 
@@ -833,7 +993,7 @@ fn generate_key_3() {
 #[test]
 fn generate_key_99999999() {
     let scalar = Scalar::small_u64(99999999);
-    let r = AffineMontPoint::base_multiply(&scalar);
+    let r = JacobianMontPoint::base_multiply(&scalar).as_affine();
     println!("raw {:x?}", r);
     println!("fmt {:x?}", r.as_bytes_uncompressed());
 
@@ -847,10 +1007,21 @@ fn generate_key_known_answer() {
     let bytes = b"\x1F\x55\x45\x23\x08\x50\x8C\x6B\x24\x37\x0F\x22\x1E\xF1\xB3\xF9\x54\x46\xBE\x4F\x8A\x4B\x42\x8A\x5B\x51\xB7\x10\xC2\x68\x4C\x03";
     let private = PrivateKey::from_bytes(bytes).unwrap();
     println!("priv = {:x?}", private);
-    let public = private.public_key().unwrap();
+    let public = private.public_key();
     println!("pub = {:x?}", public.as_bytes_uncompressed());
     assert_eq!(&public.as_bytes_uncompressed(),
                b"\x04\xcb\x8a\x14\x1c\xd7\xe4\x07\xaf\x69\xa5\x01\x88\xe9\x1c\xe5\x5d\xcc\xfd\x33\x48\xda\xba\x4a\x9c\x46\x64\x33\x2e\x95\x59\xb6\x81\x44\xfc\x1a\x61\xd8\x41\xe4\xdb\x80\x1b\x33\x51\x20\x12\x1d\x0b\xa4\x84\xb3\xc9\x53\xb3\x1d\x35\x1d\x7f\xa2\x13\x97\xd1\x25\x47");
+}
+
+#[test]
+fn test_raw_ecdsa_sign() {
+    let private = PrivateKey::from_bytes(b"\xd1\xf6\xbc\xcc\x3e\x5a\x40\x1b\xcc\x2c\x21\xbe\x34\x90\xed\x38\xde\xf4\x93\x7f\x78\x06\x03\xf5\x2b\x23\xb9\xa6\xfa\x9c\xf6\x0e").unwrap();
+    let k = PrivateKey::from_bytes(b"\xe7\x95\x37\xa1\xd7\x55\x45\x1f\x8c\x3c\xbf\xf7\x84\xea\x5c\x1c\xdf\xe1\x6b\x1d\x13\xe7\xbf\xbb\x04\xd7\xfd\x90\x57\xee\xee\xf7").unwrap();
+    let e = Scalar::from_bytes_checked(b"\x2c\xf2\x4d\xba\x5f\xb0\xa3\x0e\x26\xe8\x3b\x2a\xc5\xb9\xe2\x9e\x1b\x16\x1e\x5c\x1f\xa7\x42\x5e\x73\x04\x33\x62\x93\x8b\x98\x24").unwrap();
+    let r = Scalar::from_bytes_checked(b"\x78\xee\x34\xc8\xb6\x52\x29\x54\x96\x19\x79\x45\x2e\x6e\x0c\xe0\x68\x5d\x40\x42\x38\x41\xef\xeb\x06\xfe\x3e\x3f\xf7\xb6\x5d\xf5").unwrap();
+    let s = private.raw_ecdsa_sign(&k, &e, &r);
+    assert_eq!(format!("{:02x?}", s.as_bytes()),
+               "[5b, c9, 8e, 7d, 28, 74, d0, 9d, e8, fb, da, 22, 34, 83, 24, 4f, a1, ba, a2, 6a, 71, 91, 4e, 8e, d4, 8f, 88, b8, 2d, 17, 0b, 4b]");
 }
 
 #[test]
@@ -900,6 +1071,8 @@ fn curve_field_elements_as_mont() {
     let one = FieldElement([1, 0, 0, 0]);
     println!("R = {:x?}", one.as_mont());
     println!("R * R = {:x?}", one.as_mont().as_mont());
+
+    println!("montify n = {:016x?}", Scalar::montifier().0);
 }
 
 #[test]

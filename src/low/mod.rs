@@ -9,8 +9,10 @@ mod x86_64;
 #[cfg(target_arch = "x86_64")]
 pub use x86_64::{
     bignum_add_p256::bignum_add_p256, bignum_copy_row_from_table::bignum_copy_row_from_table,
-    bignum_demont_p256::bignum_demont_p256, bignum_eq::bignum_eq, bignum_inv_p256::bignum_inv_p256,
-    bignum_mod_n256::bignum_mod_n256, bignum_montmul_p256::bignum_montmul_p256,
+    bignum_demont::bignum_demont, bignum_demont_p256::bignum_demont_p256, bignum_eq::bignum_eq,
+    bignum_inv_p256::bignum_inv_p256, bignum_mod_n256::bignum_mod_n256,
+    bignum_modadd::bignum_modadd, bignum_modinv::bignum_modinv, bignum_montifier::bignum_montifier,
+    bignum_montmul::bignum_montmul, bignum_montmul_p256::bignum_montmul_p256,
     bignum_montsqr_p256::bignum_montsqr_p256, bignum_mux::bignum_mux,
     bignum_neg_p256::bignum_neg_p256, bignum_tomont_p256::bignum_tomont_p256,
     curve25519_x25519::curve25519_x25519, curve25519_x25519base::curve25519_x25519base,

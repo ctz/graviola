@@ -32,7 +32,7 @@ mod mid;
 /// High-level APIs.
 ///
 /// Examples: key encodings, high-level constructions.
-//mod high;
+mod high;
 
 /// Errors.  Common to all layers.
 mod error;
@@ -45,6 +45,14 @@ pub mod x25519 {
 
 pub mod p256 {
     pub use super::mid::p256::{PrivateKey, PublicKey, SharedSecret};
+}
+
+pub mod ecdsa {
+    pub use super::high::ecdsa::{SigningKey, VerifyingKey};
+}
+
+pub mod ec {
+    pub use super::high::curve::{Curve, P256};
 }
 
 pub use error::Error;

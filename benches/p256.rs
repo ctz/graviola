@@ -95,7 +95,7 @@ fn ecdh(c: &mut Criterion) {
         b.iter(|| {
             let our_private_key =
                 curve25519::p256::PrivateKey::generate(&mut rand_core::OsRng).unwrap();
-            let our_public_key = our_private_key.public_key().unwrap();
+            let our_public_key = our_private_key.public_key();
             black_box(our_public_key);
 
             let peer = curve25519::p256::PublicKey::from_x962_uncompressed(PUBLIC_KEY).unwrap();
@@ -153,10 +153,117 @@ fn keygen(c: &mut Criterion) {
         b.iter(|| {
             let our_private_key =
                 curve25519::p256::PrivateKey::generate(&mut rand_core::OsRng).unwrap();
-            black_box(our_private_key.public_key().unwrap());
+            black_box(our_private_key.public_key());
         })
     });
 }
 
-criterion_group!(benches, ecdh, keygen);
+fn ecdsa_verify(c: &mut Criterion) {
+    let mut group = c.benchmark_group("p256-ecdsa-verify");
+
+    let public_key = b"\x04\
+\x29\x27\xb1\x05\x12\xba\xe3\xed\xdc\xfe\x46\x78\x28\x12\x8b\xad\x29\x03\x26\x99\x19\xf7\x08\x60\x69\xc8\xc4\xdf\x6c\x73\x28\x38\
+\xc7\x78\x79\x64\xea\xac\x00\xe5\x92\x1f\xb1\x49\x8a\x60\xf4\x60\x67\x66\xb3\xd9\x68\x50\x01\x55\x8d\x1a\x97\x4e\x73\x41\x51\x3e";
+    let message = b"\x31\x32\x33\x34\x30\x30";
+    let hash = b"\xbb\x5a\x52\xf4\x2f\x9c\x92\x61\xed\x43\x61\xf5\x94\x22\xa1\xe3\x00\x36\xe7\xc3\x2b\x27\x0c\x88\x07\xa4\x19\xfe\xca\x60\x50\x23";
+    let signature = b"\x2b\xa3\xa8\xbe\x6b\x94\xd5\xec\x80\xa6\xd9\xd1\x19\x0a\x43\x6e\xff\xe5\x0d\x85\xa1\xee\xe8\x59\xb8\xcc\x6a\xf9\xbd\x5c\x2e\x18\x4c\xd6\x0b\x85\x5d\x44\x2f\x5b\x3c\x7b\x11\xeb\x6c\x4e\x0a\xe7\x52\x5f\xe7\x10\xfa\xb9\xaa\x7c\x77\xa6\x7f\x79\xe6\xfa\xdd\x76";
+
+    group.bench_function("ring", |b| {
+        let public_key = ring::signature::UnparsedPublicKey::new(
+            &ring::signature::ECDSA_P256_SHA256_FIXED,
+            public_key,
+        );
+
+        b.iter(|| {
+            public_key.verify(message, signature).unwrap();
+        })
+    });
+
+    group.bench_function("aws-lc-rs", |b| {
+        let public_key = aws_lc_rs::signature::UnparsedPublicKey::new(
+            &aws_lc_rs::signature::ECDSA_P256_SHA256_FIXED,
+            public_key,
+        );
+
+        b.iter(|| {
+            public_key.verify(message, signature).unwrap();
+        })
+    });
+
+    group.bench_function("this", |b| {
+        let public_key =
+            curve25519::ecdsa::VerifyingKey::<curve25519::ec::P256>::from_x962_uncompressed(
+                public_key,
+            )
+            .unwrap();
+
+        b.iter(|| {
+            public_key.verify(hash, signature).unwrap();
+        })
+    });
+}
+
+fn ecdsa_sign(c: &mut Criterion) {
+    let mut group = c.benchmark_group("p256-ecdsa-sign");
+    let message = b"\x31\x32\x33\x34\x30\x30";
+    let hash = b"\xbb\x5a\x52\xf4\x2f\x9c\x92\x61\xed\x43\x61\xf5\x94\x22\xa1\xe3\x00\x36\xe7\xc3\x2b\x27\x0c\x88\x07\xa4\x19\xfe\xca\x60\x50\x23";
+
+    group.bench_function("ring", |b| {
+        use ring::{rand, signature};
+        let rng = rand::SystemRandom::new();
+
+        let private_key = signature::EcdsaKeyPair::generate_pkcs8(
+            &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
+            &rng,
+        )
+        .unwrap();
+        let private_key = signature::EcdsaKeyPair::from_pkcs8(
+            &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
+            private_key.as_ref(),
+            &rng,
+        )
+        .unwrap();
+
+        b.iter(|| {
+            black_box(private_key.sign(&rng, message).unwrap());
+        })
+    });
+
+    group.bench_function("aws-lc-rs", |b| {
+        use aws_lc_rs::{rand, signature};
+        let rng = rand::SystemRandom::new();
+
+        let private_key = signature::EcdsaKeyPair::generate_pkcs8(
+            &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
+            &rng,
+        )
+        .unwrap();
+        let private_key = signature::EcdsaKeyPair::from_pkcs8(
+            &signature::ECDSA_P256_SHA256_FIXED_SIGNING,
+            private_key.as_ref(),
+        )
+        .unwrap();
+
+        b.iter(|| {
+            black_box(private_key.sign(&rng, message).unwrap());
+        })
+    });
+
+    group.bench_function("this", |b| {
+        use curve25519::ec::{Curve, P256};
+        let private_key = P256::generate_random_key(&mut rand_core::OsRng).unwrap();
+        let signing_key = curve25519::ecdsa::SigningKey::<P256> { private_key };
+
+        b.iter(|| {
+            let mut signature = [0u8; 64];
+            black_box(
+                signing_key
+                    .sign(hash, &mut rand_core::OsRng, &mut signature)
+                    .unwrap(),
+            );
+        });
+    });
+}
+
+criterion_group!(benches, ecdh, keygen, ecdsa_verify, ecdsa_sign);
 criterion_main!(benches);

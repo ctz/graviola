@@ -2,6 +2,7 @@ import string
 from functools import reduce
 import subprocess
 from io import StringIO
+import copy
 
 from parse import Type, tokenise, is_comment
 
@@ -139,6 +140,57 @@ class Dispatcher:
 
     def on_label(self, contexts, label):
         print("!!! UNHANDLED: on_label(", contexts, ",", label, ")")
+
+    def on_const(self, contexts, type, value):
+        print("!!! UNHANDLED: on_const(", contexts, ",", type, ",", value, ")")
+
+    def on_eof(self):
+        pass
+
+
+class QuietDispatcher(Dispatcher):
+    def on_define(self, name, *value):
+        pass
+
+    def on_function(self, contexts, name):
+        pass
+
+    def on_asm(self, contexts, opcode, operands):
+        pass
+
+    def on_macro(self, name, operands):
+        pass
+
+    def on_label(self, contexts, label):
+        pass
+
+    def on_const(self, contexts, type, value):
+        pass
+
+
+class Collector:
+    def __init__(self):
+        self.events = []
+
+    def __call__(self, ty, *args):
+        self.events.append(copy.deepcopy((ty, args)))
+
+    def replay(self, other):
+        for ty, args in self.events:
+            other(ty, *args)
+
+
+class LabelCollector(QuietDispatcher):
+    def __init__(self):
+        self.labels = set()
+
+    def on_label(self, contexts, label):
+        if label in self.labels:
+            print("duplicate label", label)
+        self.labels.add(label)
+
+    def get_labels(self):
+        return set(self.labels)
 
 
 class ConstantArray:
@@ -282,9 +334,39 @@ class FunctionState:
         return self.spool
 
 
-class RustDriver(Dispatcher):
+class RustDriver:
     def __init__(self, output, architecture):
         super(RustDriver, self).__init__()
+        self.collector = Collector()
+        self.label_pass = LabelCollector()
+        self.formatter = RustFormatter(output, architecture)
+
+    def emit_rust_function(self, name, parameter_map, rust_decl, return_value=None):
+        self.formatter.emit_rust_function(
+            name, parameter_map, rust_decl, return_value=return_value
+        )
+
+    def add_const_symbol(self, sym):
+        self.formatter.add_const_symbol(sym)
+
+    def __call__(self, ty, *args):
+        self.collector(ty, *args)
+
+        if ty == Type.EOF:
+            self.finish()
+
+    def finish(self):
+        # we do a pass to determine which labels are defined,
+        # because otherwise it is hard to know which tokens
+        # refer to a later label
+        self.collector.replay(self.label_pass)
+        self.formatter.expected_labels = self.label_pass.get_labels()
+        self.collector.replay(self.formatter)
+
+
+class RustFormatter(Dispatcher):
+    def __init__(self, output, architecture):
+        super(RustFormatter, self).__init__()
         self.output = output
         self.arch = architecture
         self.rust_macros = {}
@@ -299,11 +381,8 @@ class RustDriver(Dispatcher):
         self.current_constant_array = None
         self.emitted_page_aligned_types = set()
         self.function_state = None
-        self.label_prefixes = []
+        self.expected_labels = []
         self.start()
-
-    def set_label_prefix(self, *label_prefix):
-        self.label_prefixes = label_prefix
 
     def emit_rust_function(self, name, parameter_map, rust_decl, return_value=None):
         self.expected_function_name = name
@@ -353,7 +432,7 @@ use crate::low::macros::{Q, Label};
         return next_id, label in self.labels_defined
 
     def looks_like_label(self, label):
-        return any(label.startswith(p) for p in self.label_prefixes)
+        return label in self.expected_labels
 
     def register_rust_macro(self, name, value, params=None):
         self.rust_macros[name] = (value, params)
@@ -591,7 +670,7 @@ use crate::low::macros::{Q, Label};
                 continue
             print('out("%s") _,' % c, file=self.output)
 
-        self.clobbers = []
+        self.clobbers = set()
         self.parameter_map = []
         self.labels = {}
 
@@ -610,14 +689,14 @@ use crate::low::macros::{Q, Label};
         self.output.write(self.function_state.output().getvalue())
         self.function_state = None
 
-    def finish_file(self):
+    def on_eof(self):
         self.finish_constant_array()
 
         filename = self.output.name
         self.output.close()
 
         subprocess.check_call(["rustfmt", filename])
-        print('GENERATED', filename)
+        print("GENERATED", filename)
 
 
 if __name__ == "__main__":

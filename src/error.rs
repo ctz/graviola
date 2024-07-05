@@ -15,4 +15,7 @@ pub enum Error {
 
     /// A random number generator returned an error or fixed values.
     RngFailed,
+
+    /// Presented signature is invalid.
+    BadSignature,
 }
