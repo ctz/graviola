@@ -1,5 +1,5 @@
-//#![allow(clippy::result_unit_err, dead_code)]
-//#![forbid(unused_must_use)]
+#![allow(clippy::result_unit_err)]
+#![forbid(unused_must_use)]
 #![warn(
     clippy::alloc_instead_of_core,
     clippy::clone_on_ref_ptr,
@@ -13,11 +13,26 @@
     unused_extern_crates,
     unused_qualifications
 )]
-// development: remove these
+// XXX: development: remove these
 #![allow(missing_docs, unreachable_pub)]
 
+/// Low level operations.
+///
+/// `unsafe` is allowed only here.
+///
+/// Examples: elliptic curve field operations,
+/// bignum arithmetic.
 mod low;
+
+/// Mid-level APIs.
+///
+/// Examples: elliptic curve group operations.
 mod mid;
+
+/// High-level APIs.
+///
+/// Examples: key encodings, high-level constructions.
+//mod high;
 
 // vvv Public API
 

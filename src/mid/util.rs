@@ -15,12 +15,12 @@ impl Array64x4 {
         r
     }
 
-    pub fn from_le_bytes(bytes: &[u8]) -> Option<Array64x4> {
+    pub fn from_le_bytes(bytes: &[u8]) -> Option<Self> {
         let as_array: [u8; 32] = bytes.try_into().ok()?;
         Some(Self::from_le(&as_array))
     }
 
-    pub fn from_le(v: &[u8; 32]) -> Array64x4 {
+    pub fn from_le(v: &[u8; 32]) -> Self {
         let a = v[0..8].try_into().unwrap();
         let b = v[8..16].try_into().unwrap();
         let c = v[16..24].try_into().unwrap();
@@ -47,14 +47,14 @@ impl Array64x4 {
         r
     }
 
-    pub fn from_be_bytes(bytes: &[u8]) -> Option<Array64x4> {
+    pub fn from_be_bytes(bytes: &[u8]) -> Option<Self> {
         let as_array: [u8; 32] = bytes.try_into().ok()?;
         Some(Self::from_be(&as_array))
     }
 
     /// This should avoid looking at values of `bytes` that
     /// comprise the value.
-    pub fn from_be_bytes_any_size(bytes: &[u8]) -> Option<Array64x4> {
+    pub fn from_be_bytes_any_size(bytes: &[u8]) -> Option<Self> {
         // short circuit for correct lengths
         if let Ok(array) = bytes.try_into() {
             return Some(Self::from_be(array));
@@ -65,7 +65,7 @@ impl Array64x4 {
         let mut shift = 0;
         let mut leading_bytes = false;
 
-        let mut r = Array64x4([0; 4]);
+        let mut r = Self([0; 4]);
 
         for val in bytes.iter().rev() {
             if leading_bytes {
@@ -91,7 +91,7 @@ impl Array64x4 {
         Some(r)
     }
 
-    pub fn from_be(v: &[u8; 32]) -> Array64x4 {
+    pub fn from_be(v: &[u8; 32]) -> Self {
         let a = v[0..8].try_into().unwrap();
         let b = v[8..16].try_into().unwrap();
         let c = v[16..24].try_into().unwrap();

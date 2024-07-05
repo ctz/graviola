@@ -25,7 +25,7 @@ pub struct PublicKey {
 impl PublicKey {
     pub fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, EcError> {
         let point = AffineMontPoint::from_x962_uncompressed(bytes)?;
-        Ok(PublicKey::from_affine(point))
+        Ok(Self::from_affine(point))
     }
 
     pub fn as_bytes_uncompressed(&self) -> [u8; 65] {
@@ -46,7 +46,7 @@ pub struct PrivateKey {
 
 impl PrivateKey {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, EcError> {
-        Scalar::from_bytes_checked(bytes).map(|scalar| PrivateKey { scalar })
+        Scalar::from_bytes_checked(bytes).map(|scalar| Self { scalar })
     }
 
     pub fn public_key(&self) -> Result<PublicKey, EcError> {
@@ -57,11 +57,11 @@ impl PrivateKey {
         }
     }
 
-    pub fn generate(rng: &mut dyn rand_core::RngCore) -> Result<Self, EcError> {
+    pub fn generate(rng: &mut dyn rand_core::CryptoRngCore) -> Result<Self, EcError> {
         for _ in 0..64 {
             let mut r = [0u8; 32];
             rng.try_fill_bytes(&mut r).map_err(|_| EcError::RngFailed)?;
-            if let Ok(p) = PrivateKey::from_bytes(&r) {
+            if let Ok(p) = Self::from_bytes(&r) {
                 return Ok(p);
             }
         }
@@ -81,7 +81,7 @@ impl PrivateKey {
 }
 
 impl fmt::Debug for PrivateKey {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PrivateKey").finish_non_exhaustive()
     }
 }
@@ -108,7 +108,7 @@ impl AffineMontPoint {
         let x = &bytes[1..33];
         let y = &bytes[33..65];
 
-        let point = AffineMontPoint::from_xy(
+        let point = Self::from_xy(
             FieldElement(Array64x4::from_be_bytes(x).unwrap().0).as_mont(),
             FieldElement(Array64x4::from_be_bytes(y).unwrap().0).as_mont(),
         );
@@ -163,7 +163,7 @@ impl AffineMontPoint {
         r
     }
 
-    fn multiply(&self, scalar: &Scalar) -> AffineMontPoint {
+    fn multiply(&self, scalar: &Scalar) -> Self {
         let mut result = JacobianMontPoint::infinity();
 
         let mut j = JacobianMontPoint::from_affine(self);
@@ -171,17 +171,13 @@ impl AffineMontPoint {
 
         for bit in scalar.bits() {
             result.add_inplace(&JacobianMontPoint::select(&zero, &j, bit));
-            j.double_inplace();
+            j = j.double();
         }
 
         result.into_affine()
     }
 
-    fn multiply_window4(
-        &self,
-        scalar: &Scalar,
-        precomp: &[JacobianMontPoint; 16],
-    ) -> AffineMontPoint {
+    fn multiply_window4(&self, scalar: &Scalar, precomp: &[JacobianMontPoint; 16]) -> Self {
         let mut result = JacobianMontPoint::infinity();
 
         for (first, val) in scalar.rev_bits().chunks(4) {
@@ -194,11 +190,7 @@ impl AffineMontPoint {
         result.into_affine()
     }
 
-    fn multiply_window8(
-        &self,
-        scalar: &Scalar,
-        precomp: &[JacobianMontPoint; 256],
-    ) -> AffineMontPoint {
+    fn multiply_window8(&self, scalar: &Scalar, precomp: &[JacobianMontPoint; 256]) -> Self {
         let mut result = JacobianMontPoint::infinity();
 
         let mut first = true;
@@ -214,11 +206,7 @@ impl AffineMontPoint {
         result.into_affine()
     }
 
-    fn multiply_wnaf_5(
-        &self,
-        scalar: &Scalar,
-        precomp: &[JacobianMontPoint; 16],
-    ) -> AffineMontPoint {
+    fn multiply_wnaf_5(&self, scalar: &Scalar, precomp: &[JacobianMontPoint; 16]) -> Self {
         let mut terms = scalar.reversed_booth_recoded_w5();
 
         let (digit, _, _) = terms.next().unwrap();
@@ -238,15 +226,11 @@ impl AffineMontPoint {
         result.into_affine()
     }
 
-    fn multiply_wnaf_7(
-        &self,
-        scalar: &Scalar,
-        precomp: &[[AffineMontPoint; 64]; 37],
-    ) -> AffineMontPoint {
+    fn multiply_wnaf_7(&self, scalar: &Scalar, precomp: &[[Self; 64]; 37]) -> Self {
         let mut terms = scalar.booth_recoded_w7();
         // unwrap: number of terms is constant
         let (digit, sign) = terms.next().unwrap();
-        let mut tmp = AffineMontPoint::lookup_w7(&precomp[0], digit);
+        let mut tmp = Self::lookup_w7(&precomp[0], digit);
         tmp.maybe_negate_y(sign);
 
         let mut result = JacobianMontPoint::from_affine(&tmp);
@@ -258,7 +242,7 @@ impl AffineMontPoint {
 
         let mut index = 1;
         for (digit, sign) in terms {
-            let mut tmp = AffineMontPoint::lookup_w7(&precomp[index], digit);
+            let mut tmp = Self::lookup_w7(&precomp[index], digit);
             tmp.maybe_negate_y(sign);
 
             result.add_inplace_affine(&tmp);
@@ -275,7 +259,7 @@ impl AffineMontPoint {
         self.xy[4..8].copy_from_slice(&result.0);
     }
 
-    fn base_multiply(scalar: &Scalar) -> AffineMontPoint {
+    fn base_multiply(scalar: &Scalar) -> Self {
         //CURVE_GENERATOR.multiply_window4(scalar, &precomp::CURVE_GENERATOR_PRECOMP_4)
         //CURVE_GENERATOR.multiply_window8(scalar, &precomp::CURVE_GENERATOR_PRECOMP_8)
         CURVE_GENERATOR.multiply_wnaf_7(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_7)
@@ -290,7 +274,7 @@ impl AffineMontPoint {
         // first compute the power two terms
         for i in 0..4 {
             r[1 << i] = inf.add(&j);
-            j.double_inplace();
+            j = j.double();
         }
 
         for i in (3..16).step_by(2) {
@@ -313,7 +297,7 @@ impl AffineMontPoint {
         // first compute the power two terms
         for i in 0..8 {
             r[1 << i] = inf.add(&j);
-            j.double_inplace();
+            j = j.double();
         }
 
         for i in (3..256).step_by(2) {
@@ -339,8 +323,8 @@ impl AffineMontPoint {
     /// This should not be used at runtime, since (for brevity) it
     /// does excessive point representation conversions, and recomputes
     /// items in a given row several times (compare `public_precomp4`).
-    fn public_precomp_wnaf_7_slow(&self) -> [[AffineMontPoint; 64]; 37] {
-        let mut r = [[AffineMontPoint::default(); 64]; 37];
+    fn public_precomp_wnaf_7_slow(&self) -> [[Self; 64]; 37] {
+        let mut r = [[Self::default(); 64]; 37];
 
         for window in 0..((256 + 6) / 7) {
             let row = &mut r[window];
@@ -391,18 +375,18 @@ impl AffineMontPoint {
     }
 
     /// Returns table[i - 1] if index > 1, or else AffineMontPoint::default()
-    fn lookup_w7(table: &[AffineMontPoint; 64], index: u8) -> Self {
-        let zero = AffineMontPoint::default();
+    fn lookup_w7(table: &[Self; 64], index: u8) -> Self {
+        let zero = Self::default();
         const MASK6: u8 = (1 << 6) - 1;
         // assumption: wrapping_sub is branch-free
         let index0 = index.wrapping_sub(1) & MASK6;
-        let table_point = AffineMontPoint::lookup(table, index0);
+        let table_point = Self::lookup(table, index0);
         Self::select(&zero, &table_point, index)
     }
 
     /// Return points[index], but visit every item of `points` along the way
-    fn lookup(points: &[AffineMontPoint], index: u8) -> AffineMontPoint {
-        let mut r = AffineMontPoint::default();
+    fn lookup(points: &[Self], index: u8) -> Self {
+        let mut r = Self::default();
         low::bignum_copy_row_from_table(
             &mut r.xy[..],
             &points[0].xy[..],
@@ -413,8 +397,8 @@ impl AffineMontPoint {
         r
     }
 
-    fn select(p0: &AffineMontPoint, p1: &AffineMontPoint, select: u8) -> Self {
-        let mut r = AffineMontPoint::default();
+    fn select(p0: &Self, p1: &Self, select: u8) -> Self {
+        let mut r = Self::default();
         let select = select as u64;
         low::bignum_mux(select, &mut r.xy[..], &p1.xy[..], &p0.xy[..]);
         r
@@ -469,16 +453,6 @@ impl JacobianMontPoint {
         Self { xyz }
     }
 
-    /*
-    fn to_affine_x(&self) -> FieldElement {
-        // recover (x, _) from (x / z ^ 2, x / z ^ 3, z)
-        let zi = self.z().inv();
-        debug_assert!(!zi.public_eq(&FieldElement::default()));
-
-
-    }
-    */
-
     fn into_affine(self) -> AffineMontPoint {
         // recover (x, y) from (x / z ^ 2, x / z ^ 3, z)
         let z2 = self.z().mont_sqr();
@@ -502,11 +476,6 @@ impl JacobianMontPoint {
         tmp
     }
 
-    fn double_inplace(&mut self) {
-        let tmp = *self;
-        low::p256_montjdouble(&mut self.xyz, &tmp.xyz);
-    }
-
     fn double_inplace_n(&mut self, n: usize) {
         for _ in 0..n {
             let tmp = *self;
@@ -514,14 +483,14 @@ impl JacobianMontPoint {
         }
     }
 
-    fn add_inplace(&mut self, p: &JacobianMontPoint) {
-        let mut r = JacobianMontPoint::infinity();
+    fn add_inplace(&mut self, p: &Self) {
+        let mut r = Self::infinity();
         low::p256_montjadd(&mut r.xyz, &self.xyz, &p.xyz);
         *self = r;
     }
 
     fn add_inplace_affine(&mut self, p: &AffineMontPoint) {
-        let mut r = JacobianMontPoint::infinity();
+        let mut r = Self::infinity();
         low::p256_montjmixadd(&mut r.xyz, &self.xyz, &p.xy);
         // XXX: annoyingly, p256_montjmixadd does not handle point at infinity correctly,
         // so do it here
@@ -529,16 +498,16 @@ impl JacobianMontPoint {
     }
 
     #[must_use]
-    fn add(&self, p: &JacobianMontPoint) -> JacobianMontPoint {
-        let mut r = JacobianMontPoint::infinity();
+    fn add(&self, p: &Self) -> Self {
+        let mut r = Self::infinity();
         low::p256_montjadd(&mut r.xyz, &self.xyz, &p.xyz);
         r
     }
 
     /// Return p0 if select == 0, p1 otherwise
     #[must_use]
-    fn select(p0: &JacobianMontPoint, p1: &JacobianMontPoint, select: u8) -> JacobianMontPoint {
-        let mut r = JacobianMontPoint::zero();
+    fn select(p0: &Self, p1: &Self, select: u8) -> Self {
+        let mut r = Self::zero();
         let select = select as u64;
         low::bignum_mux(select, &mut r.xyz[..], &p1.xyz[..], &p0.xyz[..]);
         r
@@ -546,8 +515,8 @@ impl JacobianMontPoint {
 
     /// Return points[index], but visit every item of `points` along the way
     #[must_use]
-    fn lookup(points: &[JacobianMontPoint], index: u8) -> JacobianMontPoint {
-        let mut r = JacobianMontPoint::zero();
+    fn lookup(points: &[Self], index: u8) -> Self {
+        let mut r = Self::zero();
         low::bignum_copy_row_from_table(
             &mut r.xyz[..],
             &points[0].xyz[..],
@@ -558,9 +527,9 @@ impl JacobianMontPoint {
         r
     }
 
-    /// Returns table[i - 1] if index > 1, or else JacobianMontPoint::infinity()
-    fn lookup_w5(table: &[JacobianMontPoint; 16], index: u8) -> Self {
-        let zero = JacobianMontPoint::infinity();
+    /// Returns table[i - 1] if index > 1, or else infinity
+    fn lookup_w5(table: &[Self; 16], index: u8) -> Self {
+        let zero = Self::infinity();
         const MASK4: u8 = (1 << 4) - 1;
         // assumption: wrapping_sub is branch-free
         let index0 = index.wrapping_sub(1) & MASK4;
@@ -689,14 +658,14 @@ impl FieldElement {
     }
 
     /// Addition mod p256
-    fn add(&self, other: &FieldElement) -> Self {
+    fn add(&self, other: &Self) -> Self {
         let mut r = Self::default();
         low::bignum_add_p256(&mut r.0, &self.0, &other.0);
         r
     }
 
     /// Montgomery multiplication mod p256
-    fn mont_mul(&self, other: &FieldElement) -> Self {
+    fn mont_mul(&self, other: &Self) -> Self {
         let mut r = Self::default();
         low::bignum_montmul_p256(&mut r.0, &self.0, &other.0);
         r
@@ -723,13 +692,13 @@ impl FieldElement {
     }
 
     /// Public equality
-    fn public_eq(&self, other: &FieldElement) -> bool {
+    fn public_eq(&self, other: &Self) -> bool {
         self.0 == other.0
     }
 
     /// Return p0 if select == 0, p1 otherwise
-    fn select(p0: &FieldElement, p1: &FieldElement, select: u8) -> Self {
-        let mut r = FieldElement::default();
+    fn select(p0: &Self, p1: &Self, select: u8) -> Self {
+        let mut r = Self::default();
         let select = select as u64;
         low::bignum_mux(select, &mut r.0[..], &p1.0[..], &p0.0[..]);
         r
@@ -786,7 +755,7 @@ impl Scalar {
 
     /// Private test for zero
     fn is_zero(&self) -> bool {
-        self.private_eq(&Scalar::default())
+        self.private_eq(&Self::default())
     }
 
     /// Private equality
@@ -802,7 +771,7 @@ impl Scalar {
     }
 
     /// Iterator of the bits of the element, lowest first
-    fn bits(&self) -> Bits {
+    fn bits(&self) -> Bits<'_> {
         Bits {
             scalar: self,
             word: 0,
@@ -811,7 +780,7 @@ impl Scalar {
     }
 
     /// Iterator of the bits of the element, highest first
-    fn rev_bits(&self) -> RevBits {
+    fn rev_bits(&self) -> RevBits<'_> {
         RevBits {
             scalar: self,
             word: 3,
@@ -820,7 +789,7 @@ impl Scalar {
     }
 
     /// Iterator of the bytes of the element, highest first
-    fn rev_bytes(&self) -> RevBytes {
+    fn rev_bytes(&self) -> RevBytes<'_> {
         RevBytes {
             scalar: self,
             byte: 32,
@@ -1061,50 +1030,25 @@ impl Iterator for BoothRecodeW5 {
     }
 }
 
-const CURVE_A: FieldElement = FieldElement([
-    0xffff_ffff_ffff_fffc,
-    0x0000_0000_ffff_ffff,
-    0x0000_0000_0000_0000,
-    0xffff_ffff_0000_0001,
-]);
-const CURVE_B: FieldElement = FieldElement([
-    0x3bce_3c3e_27d2_604b,
-    0x651d_06b0_cc53_b0f6,
-    0xb3eb_bd55_7698_86bc,
-    0x5ac6_35d8_aa3a_93e7,
-]);
-/*
-const CURVE_P: FieldElement = FieldElement([
-    0xffff_ffff_0000_0001,
-    0x0000_0000_0000_0000,
-    0x0000_0000_ffff_ffff,
-    0xffff_ffff_ffff_ffff,
-]);
-*/
-
 const CURVE_A_MONT: FieldElement = FieldElement([
     0xffff_ffff_ffff_fffc,
     0x0000_0003_ffff_ffff,
     0x0000_0000_0000_0000,
     0xffff_fffc_0000_0004,
 ]);
+
 const CURVE_B_MONT: FieldElement = FieldElement([
     0xd89c_df62_29c4_bddf,
     0xacf0_05cd_7884_3090,
     0xe5a2_20ab_f721_2ed6,
     0xdc30_061d_0487_4834,
 ]);
+
 const CURVE_ONE_MONT: FieldElement = FieldElement([
     0x0000_0000_0000_0001,
     0xffff_ffff_0000_0000,
     0xffff_ffff_ffff_ffff,
     0x0000_0000_ffff_fffe,
-]);
-const CURVE_RR: FieldElement = FieldElement([
-    0x0000_0000_0000_0003,
-    0xffff_fffb_ffff_ffff,
-    0xffff_ffff_ffff_fffe,
-    0x0000_0004_ffff_fffd,
 ]);
 
 const CURVE_GENERATOR: AffineMontPoint = AffineMontPoint {
@@ -1139,7 +1083,7 @@ fn generate_key_1() {
 fn point_double() {
     let mut p = JacobianMontPoint::from_affine(&CURVE_GENERATOR);
     println!("p = {:x?}", p);
-    p.double_inplace();
+    p = p.double();
     println!("p2 = {:x?}", p);
     println!("p2 aff = {:x?}", p.into_affine());
     println!("enc = {:x?}", p.into_affine().as_bytes_uncompressed());
@@ -1239,6 +1183,19 @@ fn private_key_in_range() {
 
 #[test]
 fn curve_field_elements_as_mont() {
+    const CURVE_A: FieldElement = FieldElement([
+        0xffff_ffff_ffff_fffc,
+        0x0000_0000_ffff_ffff,
+        0x0000_0000_0000_0000,
+        0xffff_ffff_0000_0001,
+    ]);
+    const CURVE_B: FieldElement = FieldElement([
+        0x3bce_3c3e_27d2_604b,
+        0x651d_06b0_cc53_b0f6,
+        0xb3eb_bd55_7698_86bc,
+        0x5ac6_35d8_aa3a_93e7,
+    ]);
+
     println!("G.x = {:x?}", CURVE_GENERATOR.x().as_mont());
     println!("G.y = {:x?}", CURVE_GENERATOR.y().as_mont());
     println!("a = {:x?}", CURVE_A.as_mont());

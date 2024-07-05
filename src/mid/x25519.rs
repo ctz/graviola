@@ -4,12 +4,12 @@ use crate::low;
 pub struct PrivateKey(Array64x4);
 
 impl PrivateKey {
-    pub fn try_from_slice(b: &[u8]) -> Result<PrivateKey, ()> {
-        Array64x4::from_le_bytes(b).map(PrivateKey).ok_or(())
+    pub fn try_from_slice(b: &[u8]) -> Result<Self, ()> {
+        Array64x4::from_le_bytes(b).map(Self).ok_or(())
     }
 
-    pub fn from_array(b: &[u8; 32]) -> PrivateKey {
-        PrivateKey(Array64x4::from_le(b))
+    pub fn from_array(b: &[u8; 32]) -> Self {
+        Self(Array64x4::from_le(b))
     }
 
     pub fn as_bytes(&self) -> [u8; 32] {
@@ -19,10 +19,10 @@ impl PrivateKey {
     /// Generate a new key using the given `rng`.
     ///
     /// Fails only if the `rng` fails.
-    pub fn generate(rng: &mut dyn rand_core::RngCore) -> Result<PrivateKey, ()> {
+    pub fn generate(rng: &mut dyn rand_core::CryptoRngCore) -> Result<Self, ()> {
         let mut r = [0u8; 32];
         rng.try_fill_bytes(&mut r).map_err(|_| ())?;
-        Ok(PrivateKey::from_array(&r))
+        Ok(Self::from_array(&r))
     }
 
     /// Compute the associated public key.
@@ -42,12 +42,12 @@ impl PrivateKey {
 pub struct PublicKey(Array64x4);
 
 impl PublicKey {
-    pub fn try_from_slice(b: &[u8]) -> Result<PublicKey, ()> {
-        Array64x4::from_le_bytes(b).map(PublicKey).ok_or(())
+    pub fn try_from_slice(b: &[u8]) -> Result<Self, ()> {
+        Array64x4::from_le_bytes(b).map(Self).ok_or(())
     }
 
-    pub fn from_array(b: &[u8; 32]) -> PublicKey {
-        PublicKey(Array64x4::from_le(b))
+    pub fn from_array(b: &[u8; 32]) -> Self {
+        Self(Array64x4::from_le(b))
     }
 
     pub fn as_bytes(&self) -> [u8; 32] {
