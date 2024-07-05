@@ -1,19 +1,12 @@
 use super::util::Array64x4;
 use crate::low;
+use crate::Error;
+
 use core::fmt;
 
 mod precomp;
 #[cfg(test)]
 mod tests;
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum EcError {
-    WrongLength,
-    NotUncompressed,
-    NotOnCurve,
-    OutOfRange,
-    RngFailed,
-}
 
 #[derive(Clone, Debug)]
 pub struct PublicKey {
@@ -22,7 +15,7 @@ pub struct PublicKey {
 }
 
 impl PublicKey {
-    pub fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, EcError> {
+    pub fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         let point = AffineMontPoint::from_x962_uncompressed(bytes)?;
         Ok(Self::from_affine(point))
     }
@@ -44,37 +37,37 @@ pub struct PrivateKey {
 }
 
 impl PrivateKey {
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, EcError> {
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         Scalar::from_bytes_checked(bytes).map(|scalar| Self { scalar })
     }
 
-    pub fn public_key(&self) -> Result<PublicKey, EcError> {
+    pub fn public_key(&self) -> Result<PublicKey, Error> {
         let point = AffineMontPoint::base_multiply(&self.scalar);
         match point.on_curve() {
             true => Ok(PublicKey::from_affine(point)),
-            false => Err(EcError::NotOnCurve),
+            false => Err(Error::NotOnCurve),
         }
     }
 
-    pub fn generate(rng: &mut dyn rand_core::CryptoRngCore) -> Result<Self, EcError> {
+    pub fn generate(rng: &mut dyn rand_core::CryptoRngCore) -> Result<Self, Error> {
         for _ in 0..64 {
             let mut r = [0u8; 32];
-            rng.try_fill_bytes(&mut r).map_err(|_| EcError::RngFailed)?;
+            rng.try_fill_bytes(&mut r).map_err(|_| Error::RngFailed)?;
             if let Ok(p) = Self::from_bytes(&r) {
                 return Ok(p);
             }
         }
 
-        Err(EcError::RngFailed)
+        Err(Error::RngFailed)
     }
 
-    pub fn diffie_hellman(&self, peer: &PublicKey) -> Result<SharedSecret, EcError> {
+    pub fn diffie_hellman(&self, peer: &PublicKey) -> Result<SharedSecret, Error> {
         let result = peer
             .point
             .multiply_wnaf_5(&self.scalar, &peer.precomp_wnaf_5);
         match result.on_curve() {
             true => Ok(SharedSecret(Array64x4(result.x().demont().0).as_be_bytes())),
-            false => Err(EcError::NotOnCurve),
+            false => Err(Error::NotOnCurve),
         }
     }
 }
@@ -93,15 +86,15 @@ struct AffineMontPoint {
 }
 
 impl AffineMontPoint {
-    fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, EcError> {
+    fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         match bytes.first() {
             Some(&0x04) => (),
-            Some(_) => return Err(EcError::NotUncompressed),
-            None => return Err(EcError::WrongLength),
+            Some(_) => return Err(Error::NotUncompressed),
+            None => return Err(Error::WrongLength),
         }
 
         if bytes.len() != 1 + 64 {
-            return Err(EcError::WrongLength);
+            return Err(Error::WrongLength);
         }
 
         let x = &bytes[1..33];
@@ -113,7 +106,7 @@ impl AffineMontPoint {
         );
 
         if !point.on_curve() {
-            return Err(EcError::NotOnCurve);
+            return Err(Error::NotOnCurve);
         }
 
         Ok(point)
@@ -544,10 +537,10 @@ impl Scalar {
     /// the curve order.
     ///
     /// Prefer to use `from_array_checked` if you always have 32 bytes.
-    pub fn from_bytes_checked(bytes: &[u8]) -> Result<Self, EcError> {
+    pub fn from_bytes_checked(bytes: &[u8]) -> Result<Self, Error> {
         let full = Self(
             Array64x4::from_be_bytes_any_size(bytes)
-                .ok_or(EcError::WrongLength)?
+                .ok_or(Error::WrongLength)?
                 .0,
         );
 
@@ -558,17 +551,17 @@ impl Scalar {
     ///
     /// This returns an error if the scalar is zero or larger than
     /// the curve order.
-    pub fn from_array_checked(array: &[u8; 32]) -> Result<Self, EcError> {
+    pub fn from_array_checked(array: &[u8; 32]) -> Result<Self, Error> {
         let full = Self(Array64x4::from_be(array).0);
 
         full.into_range_check()
     }
 
-    fn into_range_check(self) -> Result<Self, EcError> {
+    fn into_range_check(self) -> Result<Self, Error> {
         let reduced = self.reduce_mod_n();
 
         if !reduced.private_eq(&self) || self.is_zero() {
-            Err(EcError::OutOfRange)
+            Err(Error::OutOfRange)
         } else {
             Ok(self)
         }
@@ -872,14 +865,14 @@ fn test_booth_recoded_w7() {
 fn private_key_in_range() {
     assert_eq!(
         PrivateKey::from_bytes(&[0u8; 32]).unwrap_err(),
-        EcError::OutOfRange
+        Error::OutOfRange
     );
 
     // order rejected
-    assert_eq!(PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x51").unwrap_err(), EcError::OutOfRange);
+    assert_eq!(PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x51").unwrap_err(), Error::OutOfRange);
 
     // order + 1 rejected
-    assert_eq!(PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x52").unwrap_err(), EcError::OutOfRange);
+    assert_eq!(PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x52").unwrap_err(), Error::OutOfRange);
 
     // order - 1 is ok
     PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x50").unwrap();

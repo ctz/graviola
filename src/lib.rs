@@ -34,6 +34,9 @@ mod mid;
 /// Examples: key encodings, high-level constructions.
 //mod high;
 
+/// Errors.  Common to all layers.
+mod error;
+
 // vvv Public API
 
 pub mod x25519 {
@@ -43,3 +46,5 @@ pub mod x25519 {
 pub mod p256 {
     pub use super::mid::p256::{PrivateKey, PublicKey, SharedSecret};
 }
+
+pub use error::Error;
