@@ -34,3 +34,6 @@ pub use aarch64::{
     p256_montjadd::p256_montjadd, p256_montjdouble::p256_montjdouble,
     p256_montjmixadd::p256_montjmixadd,
 };
+
+mod generic;
+pub use generic::sha256::sha256_compress_blocks;

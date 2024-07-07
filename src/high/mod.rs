@@ -1,3 +1,5 @@
+#![deny(unsafe_code)]
+
 pub mod curve;
 pub mod ecdsa;
 

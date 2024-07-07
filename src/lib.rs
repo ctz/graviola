@@ -55,4 +55,8 @@ pub mod ec {
     pub use super::high::curve::{Curve, P256};
 }
 
+pub mod sha2 {
+    pub use super::mid::sha2::Sha256Context;
+}
+
 pub use error::Error;
