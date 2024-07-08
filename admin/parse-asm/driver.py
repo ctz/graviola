@@ -360,13 +360,19 @@ class RustDriver:
     def discard_rust_function(self, function):
         self.formatter.discard_rust_function(function)
 
-    def emit_rust_function(self, name, parameter_map, rust_decl, return_value=None):
+    def emit_rust_function(
+        self, name, parameter_map, rust_decl, return_value=None, allow_inline=True
+    ):
         self.formatter.emit_rust_function(
-            name, parameter_map, rust_decl, return_value=return_value
+            name,
+            parameter_map,
+            rust_decl,
+            return_value=return_value,
+            allow_inline=allow_inline,
         )
 
-    def add_const_symbol(self, sym):
-        self.formatter.add_const_symbol(sym)
+    def add_const_symbol(self, sym, align=None):
+        self.formatter.add_const_symbol(sym, align=align)
 
     def set_att_syntax(self, att_syntax):
         self.formatter.set_att_syntax(att_syntax)
@@ -394,6 +400,7 @@ class RustFormatter(Dispatcher):
         self.rust_macros = {}
         self.expected_functions = {}
         self.constant_syms = set()
+        self.constant_sym_alignment = {}
         self.current_constant_array = None
         self.emitted_page_aligned_types = set()
         self.function_state = None
@@ -404,8 +411,15 @@ class RustFormatter(Dispatcher):
     def discard_rust_function(self, function):
         self.expected_functions[function] = None
 
-    def emit_rust_function(self, name, parameter_map, rust_decl, return_value=None):
-        self.expected_functions[name] = (parameter_map, rust_decl, return_value)
+    def emit_rust_function(
+        self, name, parameter_map, rust_decl, return_value=None, allow_inline=True
+    ):
+        self.expected_functions[name] = (
+            parameter_map,
+            rust_decl,
+            return_value,
+            allow_inline,
+        )
 
     def set_att_syntax(self, att_syntax):
         self.att_syntax = att_syntax
@@ -424,8 +438,9 @@ use crate::low::macros::{Q, Label};
             file=self.output,
         )
 
-    def add_const_symbol(self, sym):
+    def add_const_symbol(self, sym, align=None):
         self.constant_syms.add(sym)
+        self.constant_sym_alignment[sym] = align
 
     def find_label(self, label, defn=False):
         """
@@ -529,7 +544,7 @@ use crate::low::macros::{Q, Label};
             if defn is None:
                 self.function_state.skip = True
             else:
-                parameter_map, rust_decl, return_value = defn
+                parameter_map, rust_decl, return_value, allow_inline = defn
                 self.function_state.parameter_map = parameter_map
                 self.function_state.rust_decl = rust_decl
                 self.function_state.return_value = return_value
@@ -540,9 +555,13 @@ use crate::low::macros::{Q, Label};
                     rtype, rname, _ = self.function_state.return_value
                     locals = "let %s: %s;" % (rname, rtype)
 
+                print("", file=self.output)
+
+                if not allow_inline:
+                    print("#[inline(never)]", file=self.output)
+
                 print(
-                    """
-                %s {
+                    """%s {
                     %s
                     unsafe { core::arch::asm!(
                 """
@@ -676,14 +695,24 @@ use crate::low::macros::{Q, Label};
             }[ca.type]
 
             array_type = "[%s; %d]" % (rust_type, len(ca.items))
-            if self.arch.constant_references_must_be_page_aligned:
-                rust_type = "PageAligned%sArray%d" % (rust_type, len(ca.items))
+            if (
+                self.arch.constant_references_must_be_page_aligned
+                or self.constant_sym_alignment[ca.name]
+            ):
+                if self.constant_sym_alignment[ca.name]:
+                    alignment = self.constant_sym_alignment[ca.name]
+                    how = "B" + str(alignment)
+                else:
+                    alignment = 4096
+                    how = "Page"
+
+                rust_type = "%sAligned%sArray%d" % (how, rust_type, len(ca.items))
                 value_start = rust_type + "("
                 value_end = ")"
 
                 if rust_type not in self.emitted_page_aligned_types:
                     print("#[allow(dead_code)]", file=self.output)
-                    print("#[repr(align(4096))]", file=self.output)
+                    print("#[repr(align(%d))]" % alignment, file=self.output)
                     print(
                         "struct %s(%s);\n" % (rust_type, array_type), file=self.output
                     )
