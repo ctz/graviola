@@ -47,9 +47,9 @@ macro_rules! muldiffn {
 
 macro_rules! montrede {
     ($d5:expr, $d4:expr, $d3:expr, $d2:expr, $d1:expr, $d0:expr, $t2:expr, $t1:expr, $t0:expr) => { Q!(
-        /* Let w = d0, the original word we use as offset; d0 gets recycled */ /* First let [t2;t1] = 2^32 * w                                     */ /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)      */ "lsl " $t1 ", " $d0 ", # 32;"
+        /* Let w = d0, the original word we use as offset; d0 gets recycled */ /* First let [t2;t1] = 2^32 * w                                     */ /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)      */ "lsl " $t1 ", " $d0 ", #32;"
         "subs " $t0 ", " $d0 ", " $t1 ";"
-        "lsr " $t2 ", " $d0 ", # 32;"
+        "lsr " $t2 ", " $d0 ", #32;"
         "sbc " $d0 ", " $d0 ", " $t2 ";"
         /* Hence basic [d4;d3;d2;d1] += (2^256 - 2^224 + 2^192 + 2^96) * w  */ "adds " $d1 ", " $d1 ", " $t1 ";"
         "adcs " $d2 ", " $d2 ", " $t2 ";"
@@ -69,9 +69,9 @@ macro_rules! montrede {
 
 macro_rules! montreds {
     ($d4:expr, $d3:expr, $d2:expr, $d1:expr, $d0:expr, $t2:expr, $t1:expr, $t0:expr) => { Q!(
-        /* Let w = d0, the original word we use as offset; d0 gets recycled      */ /* First let [t2;t1] = 2^32 * w                                          */ /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)           */ "lsl " $t1 ", " $d0 ", # 32;"
+        /* Let w = d0, the original word we use as offset; d0 gets recycled      */ /* First let [t2;t1] = 2^32 * w                                          */ /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)           */ "lsl " $t1 ", " $d0 ", #32;"
         "subs " $t0 ", " $d0 ", " $t1 ";"
-        "lsr " $t2 ", " $d0 ", # 32;"
+        "lsr " $t2 ", " $d0 ", #32;"
         "sbc " $d0 ", " $d0 ", " $t2 ";"
         /* Hence [d4;..;d1] := [d3;d2;d1;0] + (2^256 - 2^224 + 2^192 + 2^96) * w */ "adds " $d1 ", " $d1 ", " $t1 ";"
         "adcs " $d2 ", " $d2 ", " $t2 ";"
@@ -238,26 +238,26 @@ pub fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Load in all words of the input
 
         Q!("    ldp       " a0!() ", " a1!() ", [x1]"),
-        Q!("    ldp       " a2!() ", " a3!() ", [x1, # 16]"),
+        Q!("    ldp       " a2!() ", " a3!() ", [x1, #16]"),
 
         // Square the low half, getting a result in [s3;s2;s1;s0]
         // This uses 32x32->64 multiplications to reduce the number of UMULHs
 
         Q!("    umull     " s0!() ", " a0short!() ", " a0short!()),
-        Q!("    lsr       " d1!() ", " a0!() ", # 32"),
+        Q!("    lsr       " d1!() ", " a0!() ", #32"),
         Q!("    umull     " s1!() ", " d1short!() ", " d1short!()),
         Q!("    umull     " d1!() ", " a0short!() ", " d1short!()),
-        Q!("    adds      " s0!() ", " s0!() ", " d1!() ", lsl # 33"),
-        Q!("    lsr       " d1!() ", " d1!() ", # 31"),
+        Q!("    adds      " s0!() ", " s0!() ", " d1!() ", lsl #33"),
+        Q!("    lsr       " d1!() ", " d1!() ", #31"),
         Q!("    adc       " s1!() ", " s1!() ", " d1!()),
         Q!("    umull     " s2!() ", " a1short!() ", " a1short!()),
-        Q!("    lsr       " d1!() ", " a1!() ", # 32"),
+        Q!("    lsr       " d1!() ", " a1!() ", #32"),
         Q!("    umull     " s3!() ", " d1short!() ", " d1short!()),
         Q!("    umull     " d1!() ", " a1short!() ", " d1short!()),
         Q!("    mul       " d2!() ", " a0!() ", " a1!()),
         Q!("    umulh     " d3!() ", " a0!() ", " a1!()),
-        Q!("    adds      " s2!() ", " s2!() ", " d1!() ", lsl # 33"),
-        Q!("    lsr       " d1!() ", " d1!() ", # 31"),
+        Q!("    adds      " s2!() ", " s2!() ", " d1!() ", lsl #33"),
+        Q!("    lsr       " d1!() ", " d1!() ", #31"),
         Q!("    adc       " s3!() ", " s3!() ", " d1!()),
         Q!("    adds      " d2!() ", " d2!() ", " d2!()),
         Q!("    adcs      " d3!() ", " d3!() ", " d3!()),
@@ -291,7 +291,7 @@ pub fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         Q!("    adds      " c2!() ", " c2!() ", " d4!()),
         Q!("    adc       " c3!() ", " c3!() ", xzr"),
 
-        Q!("    adds      " "xzr, " d3!() ", # 1"),
+        Q!("    adds      " "xzr, " d3!() ", #1"),
         Q!("    adcs      " c1!() ", " c1!() ", " d1!()),
         Q!("    adcs      " c2!() ", " c2!() ", " d2!()),
         Q!("    adc       " c3!() ", " c3!() ", " d3!()),
@@ -367,7 +367,7 @@ pub fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Set CF (because of inversion) iff (0,p_256) <= (c,r3,r2,r1,r0)
 
         Q!("    mov       " t1!() ", #0x00000000ffffffff"),
-        Q!("    subs      " t0!() ", " r0!() ", # - 1"),
+        Q!("    subs      " t0!() ", " r0!() ", #-1"),
         Q!("    sbcs      " t1!() ", " r1!() ", " t1!()),
         Q!("    mov       " t3!() ", #0xffffffff00000001"),
         Q!("    sbcs      " t2!() ", " r2!() ", xzr"),
@@ -384,7 +384,7 @@ pub fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Store things back in place
 
         Q!("    stp       " r0!() ", " r1!() ", [x0]"),
-        Q!("    stp       " r2!() ", " r3!() ", [x0, # 16]"),
+        Q!("    stp       " r2!() ", " r3!() ", [x0, #16]"),
 
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.as_ptr() => _,

@@ -223,7 +223,7 @@ pub fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         // don't bother with Newton-Raphson, since this stupid simple loop doesn't
         // contribute much of the overall runtime at typical sizes.
 
-        Q!("    mov       " h!() ", [" t!() "+ 8 * " k!() "- 8]"),
+        Q!("    mov       " h!() ", [" t!() "+ 8 * " k!() "-8]"),
         Q!("    mov       " qshort!() ", 1"),
         Q!("    mov       " r!() ", " h!()),
         Q!("    neg       " r!()),
@@ -501,7 +501,7 @@ pub fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    mul       " b!()),
         Q!("    sub       " d!() ", " l!()),
         Q!("    add       " a!() ", " c!()),
-        Q!("    mov       " "[" t!() "+ 8 * " j!() "- 8], " a!()),
+        Q!("    mov       " "[" t!() "+ 8 * " j!() "-8], " a!()),
         Q!("    mov       " c!() ", " d!()),
         Q!("    inc       " j!()),
         Q!("    dec       " n!()),
@@ -509,7 +509,7 @@ pub fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!(Label!("amontend", 20) ":"),
         Q!("    adc       " h!() ", " c!()),
         Q!("    sbb       " l!() ", " l!()),
-        Q!("    mov       " "[" t!() "+ 8 * " k!() "- 8], " h!()),
+        Q!("    mov       " "[" t!() "+ 8 * " k!() "-8], " h!()),
 
         Q!("    xor       " j!() ", " j!()),
         Q!("    xor       " c!() ", " c!()),
@@ -552,14 +552,14 @@ pub fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    mul       " b!()),
         Q!("    sub       " d!() ", " l!()),
         Q!("    add       " a!() ", " c!()),
-        Q!("    mov       " "[" z!() "+ 8 * " j!() "- 8], " a!()),
+        Q!("    mov       " "[" z!() "+ 8 * " j!() "-8], " a!()),
         Q!("    mov       " c!() ", " d!()),
         Q!("    inc       " j!()),
         Q!("    dec       " n!()),
         Q!("    jnz       " Label!("montloop", 25, Before)),
         Q!(Label!("montend", 24) ":"),
         Q!("    adc       " c!() ", 0"),
-        Q!("    mov       " "[" z!() "+ 8 * " k!() "- 8], " c!()),
+        Q!("    mov       " "[" z!() "+ 8 * " k!() "-8], " c!()),
 
         Q!("    dec       " h!()),
         Q!("    jnz       " Label!("montouterloop", 23, Before)),

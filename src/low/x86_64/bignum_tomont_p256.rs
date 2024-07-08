@@ -166,7 +166,7 @@ pub fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Now do the subtraction (0,p_256-1) - (r8,r15,r14,r13,r12) to get the carry
 
-        Q!("    mov       " d!() ", - 2"),
+        Q!("    mov       " d!() ", -2"),
         Q!("    sub       " d!() ", r12"),
         Q!("    mov       " d!() ", " u!()),
         Q!("    sbb       " d!() ", r13"),

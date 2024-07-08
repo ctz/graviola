@@ -832,7 +832,7 @@ pub fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[u64; 4]
 
         Q!("    mov       " "[rsp + 0xc0], rdi"),
         Q!("    xor       " "eax, eax"),
-        Q!("    lea       " "rcx, [rax - 0x13]"),
+        Q!("    lea       " "rcx, [rax -0x13]"),
         Q!("    not       " "rax"),
         Q!("    mov       " "[rsp], rcx"),
         Q!("    mov       " "[rsp + 0x8], rax"),

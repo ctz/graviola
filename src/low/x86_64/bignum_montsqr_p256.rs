@@ -155,9 +155,9 @@ pub fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         Q!("    mov       " "ecx, 1"),
         Q!("    add       " "rcx, r12"),
-        Q!("    lea       " "rdx, [rdx - 1]"),
+        Q!("    lea       " "rdx, [rdx -1]"),
         Q!("    adc       " "rdx, r13"),
-        Q!("    lea       " "rbp, [rbp - 1]"),
+        Q!("    lea       " "rbp, [rbp -1]"),
         Q!("    mov       " "rax, rbp"),
         Q!("    adc       " "rbp, r14"),
         Q!("    mov       " "r11d, 0x00000000fffffffe"),

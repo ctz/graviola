@@ -27,9 +27,9 @@ use crate::low::macros::{Label, Q};
 
 macro_rules! montreds {
     ($d4:expr, $d3:expr, $d2:expr, $d1:expr, $d0:expr, $t2:expr, $t1:expr, $t0:expr) => { Q!(
-        /* Let w = d0, the original word we use as offset; d0 gets recycled      */ /* First let [t2;t1] = 2^32 * w                                          */ /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)           */ "lsl " $t1 ", " $d0 ", # 32;"
+        /* Let w = d0, the original word we use as offset; d0 gets recycled      */ /* First let [t2;t1] = 2^32 * w                                          */ /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)           */ "lsl " $t1 ", " $d0 ", #32;"
         "subs " $t0 ", " $d0 ", " $t1 ";"
-        "lsr " $t2 ", " $d0 ", # 32;"
+        "lsr " $t2 ", " $d0 ", #32;"
         "sbc " $d0 ", " $d0 ", " $t2 ";"
         /* Hence [d4;..;d1] := [d3;d2;d1;0] + (2^256 - 2^224 + 2^192 + 2^96) * w */ "adds " $d1 ", " $d1 ", " $t1 ";"
         "adcs " $d2 ", " $d2 ", " $t2 ";"
@@ -101,7 +101,7 @@ pub fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Set up an initial window with the input x and an extra leading zero
 
         Q!("    ldp       " d0!() ", " d1!() ", [" x!() "]"),
-        Q!("    ldp       " d2!() ", " d3!() ", [" x!() ", # 16]"),
+        Q!("    ldp       " d2!() ", " d3!() ", [" x!() ", #16]"),
 
         // Systematically scroll left doing 1-step reductions
 
@@ -116,7 +116,7 @@ pub fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Write back result
 
         Q!("    stp       " d0!() ", " d1!() ", [" z!() "]"),
-        Q!("    stp       " d2!() ", " d3!() ", [" z!() ", # 16]"),
+        Q!("    stp       " d2!() ", " d3!() ", [" z!() ", #16]"),
 
         inout("x0") z.as_mut_ptr() => _,
         in("x1") x.as_ptr(),

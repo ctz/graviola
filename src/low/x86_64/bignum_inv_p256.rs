@@ -1051,7 +1051,7 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         Q!("    xor       " "ecx, ecx"),
         Q!("    mov       " "edx, 0x00000000ffffffff"),
         Q!("    mov       " "rbx, rdx"),
-        Q!("    lea       " "rax, [rcx - 1]"),
+        Q!("    lea       " "rax, [rcx -1]"),
         Q!("    neg       " "rdx"),
         Q!("    mov       " "[rsp + " F!() "], rax"),
         Q!("    mov       " "[rsp + " F!() "+ 8], rbx"),
@@ -1071,7 +1071,7 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         Q!("    lea       " "rax, [rcx + 1]"),
         Q!("    add       " "rax, r8"),
-        Q!("    lea       " "rbx, [rdx - 1]"),
+        Q!("    lea       " "rbx, [rdx -1]"),
         Q!("    adc       " "rbx, r9"),
         Q!("    not       " "rcx"),
         Q!("    adc       " "rcx, r10"),
@@ -1590,8 +1590,8 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         Q!("    mov       " "eax, 1"),
         Q!("    mov       " "ebx, 0xffffffff"),
-        Q!("    lea       " "rcx, [rax - 2]"),
-        Q!("    lea       " "rdx, [rbx - 1]"),
+        Q!("    lea       " "rcx, [rax -2]"),
+        Q!("    lea       " "rdx, [rbx -1]"),
         Q!("    not       " "rbx"),
 
         Q!("    add       " "rax, r8"),

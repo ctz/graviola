@@ -58,11 +58,11 @@ pub fn bignum_mux(p: u64, z: &mut [u64], x_if_p: &[u64], y_if_not_p: &[u64]) {
         // We've set cc's from b once and for all and can now re-use "b" as a temporary
 
         Q!(Label!("loop", 3) ":"),
-        Q!("    sub       " k!() ", " k!() ", # 1"),
-        Q!("    ldr       " a!() ", [" x!() ", " k!() ", lsl # 3]"),
-        Q!("    ldr       " b!() ", [" y!() ", " k!() ", lsl # 3]"),
+        Q!("    sub       " k!() ", " k!() ", #1"),
+        Q!("    ldr       " a!() ", [" x!() ", " k!() ", lsl #3]"),
+        Q!("    ldr       " b!() ", [" y!() ", " k!() ", lsl #3]"),
         Q!("    csel      " a!() ", " a!() ", " b!() ", ne"),
-        Q!("    str       " a!() ", [" z!() ", " k!() ", lsl # 3]"),
+        Q!("    str       " a!() ", [" z!() ", " k!() ", lsl #3]"),
         Q!("    cbnz      " k!() ", " Label!("loop", 3, Before)),
 
         Q!(Label!("end", 2) ":"),

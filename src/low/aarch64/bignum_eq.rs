@@ -70,8 +70,8 @@ pub fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
         // Toploop for the case n > m
 
         Q!(Label!("nloop", 3) ":"),
-        Q!("    sub       " n!() ", " n!() ", # 1"),
-        Q!("    ldr       " a!() ", [" y!() ", " n!() ", lsl # 3]"),
+        Q!("    sub       " n!() ", " n!() ", #1"),
+        Q!("    ldr       " a!() ", [" y!() ", " n!() ", lsl #3]"),
         Q!("    orr       " c!() ", " c!() ", " a!()),
         Q!("    cmp       " m!() ", " n!()),
         Q!("    bne       " Label!("nloop", 3, Before)),
@@ -80,8 +80,8 @@ pub fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
         // Toploop for the case m > n (or n = m which enters at "mtest")
 
         Q!(Label!("mloop", 5) ":"),
-        Q!("    sub       " m!() ", " m!() ", # 1"),
-        Q!("    ldr       " a!() ", [" x!() ", " m!() ", lsl # 3]"),
+        Q!("    sub       " m!() ", " m!() ", #1"),
+        Q!("    ldr       " a!() ", [" x!() ", " m!() ", lsl #3]"),
         Q!("    orr       " c!() ", " c!() ", " a!()),
         Q!("    cmp       " m!() ", " n!()),
         Q!(Label!("mtest", 2) ":"),
@@ -93,9 +93,9 @@ pub fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
         Q!("    cbz       " m!() ", " Label!("end", 6, After)),
 
         Q!(Label!("loop", 7) ":"),
-        Q!("    sub       " m!() ", " m!() ", # 1"),
-        Q!("    ldr       " a!() ", [" x!() ", " m!() ", lsl # 3]"),
-        Q!("    ldr       " d!() ", [" y!() ", " m!() ", lsl # 3]"),
+        Q!("    sub       " m!() ", " m!() ", #1"),
+        Q!("    ldr       " a!() ", [" x!() ", " m!() ", lsl #3]"),
+        Q!("    ldr       " d!() ", [" y!() ", " m!() ", lsl #3]"),
         Q!("    eor       " a!() ", " a!() ", " d!()),
         Q!("    orr       " c!() ", " c!() ", " a!()),
         Q!("    cbnz      " m!() ", " Label!("loop", 7, Before)),

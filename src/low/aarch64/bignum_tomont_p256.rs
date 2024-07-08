@@ -23,14 +23,14 @@ use crate::low::macros::{Label, Q};
 macro_rules! modstep_p256 {
     ($d4:expr, $d3:expr, $d2:expr, $d1:expr, $d0:expr, $t1:expr, $t2:expr, $t3:expr) => { Q!(
         /* Writing the input as z = 2^256 * h + 2^192 * l + t = 2^192 * hl + t,  */ /* our quotient approximation is MIN ((hl + hl>>32 + 1)>>64) (2^64 - 1). */ "subs xzr, xzr, xzr;"
-        /* Set carry flag for +1 */ "extr " $t3 ", " $d4 ", " $d3 ", # 32;"
+        /* Set carry flag for +1 */ "extr " $t3 ", " $d4 ", " $d3 ", #32;"
         "adcs xzr, " $d3 ", " $t3 ";"
-        "lsr " $t3 ", " $d4 ", # 32;"
+        "lsr " $t3 ", " $d4 ", #32;"
         "adcs " $t3 ", " $d4 ", " $t3 ";"
         "csetm " $d0 ", cs;"
         "orr " $t3 ", " $t3 ", " $d0 ";"
-        /* First do [t2;t1] = 2^32 * q, which we use twice                       */ "lsl " $t1 ", " $t3 ", # 32;"
-        "lsr " $t2 ", " $t3 ", # 32;"
+        /* First do [t2;t1] = 2^32 * q, which we use twice                       */ "lsl " $t1 ", " $t3 ", #32;"
+        "lsr " $t2 ", " $t3 ", #32;"
         /* Add 2^224 * q to sum                                                  */ "adds " $d3 ", " $d3 ", " $t1 ";"
         "adc " $d4 ", " $d4 ", " $t2 ";"
         /* Accumulate [t2;t1;d0] = (2^96 - 1) * q                                */ "subs " $d0 ", xzr, " $t3 ";"
@@ -108,7 +108,7 @@ pub fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Load the input
 
         Q!("    ldp       " d0!() ", " d1!() ", [x1]"),
-        Q!("    ldp       " d2!() ", " d3!() ", [x1, # 16]"),
+        Q!("    ldp       " d2!() ", " d3!() ", [x1, #16]"),
 
         // Do an initial reduction to make sure this is < p_256, using just
         // a copy of the bignum_mod_p256_4 code. This is needed to set up the
@@ -136,7 +136,7 @@ pub fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Store the result and return
 
         Q!("    stp       " d1!() ", " d2!() ", [x0]"),
-        Q!("    stp       " d3!() ", " d4!() ", [x0, # 16]"),
+        Q!("    stp       " d3!() ", " d4!() ", [x0, #16]"),
 
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.as_ptr() => _,

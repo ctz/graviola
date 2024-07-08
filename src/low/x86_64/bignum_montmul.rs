@@ -260,7 +260,7 @@ pub fn bignum_montmul(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
         Q!("    mul       " d!()),
         Q!("    sub       " "rdx, " e!()),
         Q!("    add       " a!() ", " h!()),
-        Q!("    mov       " "[" z!() "+ 8 * " j!() "- 8], " a!()),
+        Q!("    mov       " "[" z!() "+ 8 * " j!() "-8], " a!()),
         Q!("    mov       " h!() ", rdx"),
         Q!("    inc       " j!()),
         Q!("    dec       " n!()),
@@ -270,7 +270,7 @@ pub fn bignum_montmul(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
         Q!("    adc       " h!() ", " c0!()),
         Q!("    adc       " c1!() ", 0"),
         Q!("    mov       " c0!() ", " c1!()),
-        Q!("    mov       " "[" z!() "+ 8 * " j!() "- 8], " h!()),
+        Q!("    mov       " "[" z!() "+ 8 * " j!() "-8], " h!()),
 
         // End of outer loop.
 

@@ -49,9 +49,9 @@ macro_rules! muldiffn {
 
 macro_rules! montreds {
     ($d4:expr, $d3:expr, $d2:expr, $d1:expr, $d0:expr, $t2:expr, $t1:expr, $t0:expr) => { Q!(
-        /* Let w = d0, the original word we use as offset; d0 gets recycled      */ /* First let [t2;t1] = 2^32 * w                                          */ /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)           */ "lsl " $t1 ", " $d0 ", # 32;"
+        /* Let w = d0, the original word we use as offset; d0 gets recycled      */ /* First let [t2;t1] = 2^32 * w                                          */ /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)           */ "lsl " $t1 ", " $d0 ", #32;"
         "subs " $t0 ", " $d0 ", " $t1 ";"
-        "lsr " $t2 ", " $d0 ", # 32;"
+        "lsr " $t2 ", " $d0 ", #32;"
         "sbc " $d0 ", " $d0 ", " $t2 ";"
         /* Hence [d4;..;d1] := [d3;d2;d1;0] + (2^256 - 2^224 + 2^192 + 2^96) * w */ "adds " $d1 ", " $d1 ", " $t1 ";"
         "adcs " $d2 ", " $d2 ", " $t2 ";"
@@ -191,9 +191,9 @@ pub fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         // Load in all words of both inputs
 
         Q!("    ldp       " a0!() ", " a1!() ", [x1]"),
-        Q!("    ldp       " a2!() ", " a3!() ", [x1, # 16]"),
+        Q!("    ldp       " a2!() ", " a3!() ", [x1, #16]"),
         Q!("    ldp       " b0!() ", " b1!() ", [x2]"),
-        Q!("    ldp       " b2!() ", " b3!() ", [x2, # 16]"),
+        Q!("    ldp       " b2!() ", " b3!() ", [x2, #16]"),
 
         // Multiply low halves with a 2x2->4 ADK multiplier as L = [s3;s2;s1;s0]
 
@@ -208,7 +208,7 @@ pub fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         Q!("    adcs      " s2!() ", " s2!() ", " t2!()),
         Q!("    adcs      " s3!() ", " s3!() ", xzr"),
         muldiffn!(t3!(), t2!(), t1!(), t0!(), a0!(), a1!(), b1!(), b0!()),
-        Q!("    adds      " "xzr, " t3!() ", # 1"),
+        Q!("    adds      " "xzr, " t3!() ", #1"),
         Q!("    adcs      " s1!() ", " s1!() ", " t1!()),
         Q!("    adcs      " s2!() ", " s2!() ", " t2!()),
         Q!("    adc       " s3!() ", " s3!() ", " t3!()),
@@ -223,7 +223,7 @@ pub fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         montreds!(s1!(), s0!(), s3!(), s2!(), s1!(), t1!(), t2!(), t3!()),
 
         Q!("    stp       " s2!() ", " s3!() ", [x0]"),
-        Q!("    stp       " s0!() ", " s1!() ", [x0, # 16]"),
+        Q!("    stp       " s0!() ", " s1!() ", [x0, #16]"),
 
         // Multiply high halves with a 2x2->4 ADK multiplier as H = [s3;s2;s1;s0]
 
@@ -238,7 +238,7 @@ pub fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         Q!("    adcs      " s2!() ", " s2!() ", " t2!()),
         Q!("    adcs      " s3!() ", " s3!() ", xzr"),
         muldiffn!(t3!(), t2!(), t1!(), t0!(), a2!(), a3!(), b3!(), b2!()),
-        Q!("    adds      " "xzr, " t3!() ", # 1"),
+        Q!("    adds      " "xzr, " t3!() ", #1"),
         Q!("    adcs      " s1!() ", " s1!() ", " t1!()),
         Q!("    adcs      " s2!() ", " s2!() ", " t2!()),
         Q!("    adc       " s3!() ", " s3!() ", " t3!()),
@@ -248,7 +248,7 @@ pub fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         Q!("    subs      " a0!() ", " a2!() ", " a0!()),
         Q!("    sbcs      " a1!() ", " a3!() ", " a1!()),
         Q!("    sbc       " a2!() ", xzr, xzr"),
-        Q!("    adds      " "xzr, " a2!() ", # 1"),
+        Q!("    adds      " "xzr, " a2!() ", #1"),
         Q!("    eor       " a0!() ", " a0!() ", " a2!()),
         Q!("    adcs      " a0!() ", " a0!() ", xzr"),
         Q!("    eor       " a1!() ", " a1!() ", " a2!()),
@@ -259,7 +259,7 @@ pub fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         Q!("    subs      " b0!() ", " b0!() ", " b2!()),
         Q!("    sbcs      " b1!() ", " b1!() ", " b3!()),
         Q!("    sbc       " b2!() ", xzr, xzr"),
-        Q!("    adds      " "xzr, " b2!() ", # 1"),
+        Q!("    adds      " "xzr, " b2!() ", #1"),
         Q!("    eor       " b0!() ", " b0!() ", " b2!()),
         Q!("    adcs      " b0!() ", " b0!() ", xzr"),
         Q!("    eor       " b1!() ", " b1!() ", " b2!()),
@@ -274,7 +274,7 @@ pub fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         Q!("    ldp       " t0!() ", " t3!() ", [x0]"),
         Q!("    adds      " t0!() ", " s0!() ", " t0!()),
         Q!("    adcs      " t3!() ", " s1!() ", " t3!()),
-        Q!("    ldp       " a2!() ", " b2!() ", [x0, # 16]"),
+        Q!("    ldp       " a2!() ", " b2!() ", [x0, #16]"),
         Q!("    adcs      " a2!() ", " s2!() ", " a2!()),
         Q!("    adcs      " b2!() ", " s3!() ", " b2!()),
         Q!("    adc       " s4!() ", xzr, xzr"),
@@ -292,7 +292,7 @@ pub fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         Q!("    adcs      " s2!() ", " s2!() ", " t2!()),
         Q!("    adcs      " s3!() ", " s3!() ", xzr"),
         muldiffn!(a1!(), t2!(), t1!(), a0!(), a0!(), a1!(), b1!(), b0!()),
-        Q!("    adds      " "xzr, " a1!() ", # 1"),
+        Q!("    adds      " "xzr, " a1!() ", #1"),
         Q!("    adcs      " s1!() ", " s1!() ", " t1!()),
         Q!("    adcs      " s2!() ", " s2!() ", " t2!()),
         Q!("    adc       " s3!() ", " s3!() ", " a1!()),
@@ -301,7 +301,7 @@ pub fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         // as [b3;a1;a0;s3;s2;s1;s0], adding in the H + L' term once with
         // zero offset as this signed value is created
 
-        Q!("    adds      " "xzr, " b3!() ", # 1"),
+        Q!("    adds      " "xzr, " b3!() ", #1"),
         Q!("    eor       " s0!() ", " s0!() ", " b3!()),
         Q!("    adcs      " s0!() ", " s0!() ", " t0!()),
         Q!("    eor       " s1!() ", " s1!() ", " b3!()),
@@ -348,13 +348,13 @@ pub fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         // <macro definition q hoisted upwards>
         // <macro definition c hoisted upwards>
 
-        Q!("    add       " q!() ", " h!() ", # 1"),
-        Q!("    lsl       " t1!() ", " q!() ", # 32"),
+        Q!("    add       " q!() ", " h!() ", #1"),
+        Q!("    lsl       " t1!() ", " q!() ", #32"),
 
         Q!("    adds      " d3!() ", " d3!() ", " t1!()),
         Q!("    adc       " h!() ", " h!() ", xzr"),
         Q!("    sub       " t0!() ", xzr, " q!()),
-        Q!("    sub       " t1!() ", " t1!() ", # 1"),
+        Q!("    sub       " t1!() ", " t1!() ", #1"),
         Q!("    subs      " d0!() ", " d0!() ", " t0!()),
         Q!("    sbcs      " d1!() ", " d1!() ", " t1!()),
         Q!("    sbcs      " d2!() ", " d2!() ", xzr"),
@@ -372,7 +372,7 @@ pub fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         // Finally store the result
 
         Q!("    stp       " d0!() ", " d1!() ", [x0]"),
-        Q!("    stp       " d2!() ", " d3!() ", [x0, # 16]"),
+        Q!("    stp       " d2!() ", " d3!() ", [x0, #16]"),
 
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.as_ptr() => _,

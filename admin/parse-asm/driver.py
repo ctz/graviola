@@ -144,6 +144,9 @@ class Dispatcher:
     def on_const(self, contexts, type, value):
         print("!!! UNHANDLED: on_const(", contexts, ",", type, ",", value, ")")
 
+    def on_directive(self, contexts, directive, *args):
+        print("!!! UNHANDLED on_directive(", contexts, ",", directive, ",", args, ")")
+
     def on_eof(self):
         pass
 
@@ -165,6 +168,12 @@ class QuietDispatcher(Dispatcher):
         pass
 
     def on_const(self, contexts, type, value):
+        pass
+
+    def on_directive(self, contexts, directive, *args):
+        pass
+
+    def on_eof(self):
         pass
 
 
@@ -329,6 +338,13 @@ class FunctionState:
         self.old_output = old_output
         self.macros_inside_function = StringIO()
         self.spool = StringIO()
+        self.skip = False
+        self.return_value = None
+        self.parameter_map = []
+        self.clobbers = set()
+        self.labels = {}
+        self.labels_defined = set()
+        self.referenced_constant_syms = set()
 
     def output(self):
         return self.spool
@@ -341,6 +357,9 @@ class RustDriver:
         self.label_pass = LabelCollector()
         self.formatter = RustFormatter(output, architecture)
 
+    def discard_rust_function(self, function):
+        self.formatter.discard_rust_function(function)
+
     def emit_rust_function(self, name, parameter_map, rust_decl, return_value=None):
         self.formatter.emit_rust_function(
             name, parameter_map, rust_decl, return_value=return_value
@@ -348,6 +367,9 @@ class RustDriver:
 
     def add_const_symbol(self, sym):
         self.formatter.add_const_symbol(sym)
+
+    def set_att_syntax(self, att_syntax):
+        self.formatter.set_att_syntax(att_syntax)
 
     def __call__(self, ty, *args):
         self.collector(ty, *args)
@@ -370,25 +392,23 @@ class RustFormatter(Dispatcher):
         self.output = output
         self.arch = architecture
         self.rust_macros = {}
-        self.expected_function_name = None
-        self.parameter_map = []
-        self.rust_decl = None
-        self.return_value = None
-        self.clobbers = set()
-        self.labels = {}
-        self.labels_defined = set()
+        self.expected_functions = {}
         self.constant_syms = set()
         self.current_constant_array = None
         self.emitted_page_aligned_types = set()
         self.function_state = None
         self.expected_labels = []
+        self.att_syntax = False
         self.start()
 
+    def discard_rust_function(self, function):
+        self.expected_functions[function] = None
+
     def emit_rust_function(self, name, parameter_map, rust_decl, return_value=None):
-        self.expected_function_name = name
-        self.parameter_map = parameter_map
-        self.rust_decl = rust_decl
-        self.return_value = return_value
+        self.expected_functions[name] = (parameter_map, rust_decl, return_value)
+
+    def set_att_syntax(self, att_syntax):
+        self.att_syntax = att_syntax
 
     def start(self):
         print(
@@ -415,21 +435,25 @@ use crate::low::macros::{Q, Label};
 
         `defined_before` is true if the label is already defined.
         """
-        if defn:
-            self.labels_defined.add(label)
+        func = self.function_state
+        if func is None:
+            return 0, True
 
-        id = self.labels.get(label, None)
+        if defn:
+            func.labels_defined.add(label)
+
+        id = func.labels.get(label, None)
         if id is not None:
-            return id, label in self.labels_defined
+            return id, label in func.labels_defined
 
         # workaround warning that numeric labels must not solely
         # consist of '1' and '0' characters. unhinged!
-        next_id = max(self.labels.values()) + 1 if self.labels else 1
+        next_id = max(func.labels.values()) + 1 if func.labels else 1
         while len(str(next_id).replace("1", "").replace("0", "")) == 0:
             next_id += 1
 
-        self.labels[label] = next_id
-        return next_id, label in self.labels_defined
+        func.labels[label] = next_id
+        return next_id, label in func.labels_defined
 
     def looks_like_label(self, label):
         return label in self.expected_labels
@@ -460,8 +484,12 @@ use crate::low::macros::{Q, Label};
                 elif is_comment(t):
                     yield unquote(t)
                 elif t in self.constant_syms:
+                    if self.function_state:
+                        self.function_state.referenced_constant_syms.add(t)
                     yield "{" + t + "}"
-                elif t in self.labels or self.looks_like_label(t):
+                elif (
+                    self.function_state and t in self.function_state.labels
+                ) or self.looks_like_label(t):
                     id, before = self.find_label(t)
                     yield unquote(
                         'Label!("%s", %d, %s)'
@@ -492,24 +520,35 @@ use crate::low::macros::{Q, Label};
 
     def on_function(self, contexts, name):
         assert contexts == []
-        if name == self.expected_function_name:
+        if name in self.expected_functions:
+            defn = self.expected_functions[name]
+
             self.function_state = FunctionState(self.output)
             self.output = self.function_state.output()
 
-            locals = ""
-            if self.return_value:
-                rtype, rname, _ = self.return_value
-                locals = "let %s: %s;" % (rname, rtype)
+            if defn is None:
+                self.function_state.skip = True
+            else:
+                parameter_map, rust_decl, return_value = defn
+                self.function_state.parameter_map = parameter_map
+                self.function_state.rust_decl = rust_decl
+                self.function_state.return_value = return_value
 
-            print(
+            if not self.function_state.skip:
+                locals = ""
+                if self.function_state.return_value:
+                    rtype, rname, _ = self.function_state.return_value
+                    locals = "let %s: %s;" % (rname, rtype)
+
+                print(
+                    """
+                %s {
+                    %s
+                    unsafe { core::arch::asm!(
                 """
-            %s {
-                %s
-                unsafe { core::arch::asm!(
-            """
-                % (self.rust_decl, locals),
-                file=self.output,
-            )
+                    % (self.function_state.rust_decl, locals),
+                    file=self.output,
+                )
 
     def on_comment(self, comment):
         if self.current_constant_array:
@@ -557,12 +596,17 @@ use crate::low::macros::{Q, Label};
                 file=f,
             )
 
+    def on_directive(self, contexts, directive, *args):
+        if directive == ".byte" and list(args) == ["0xf3,0xc3"]:
+            # this is "rep ret", obfuscated for some reason
+            return self.finish_function()
+
     def on_asm(self, contexts, opcode, operands):
         if "WINDOWS_ABI" in contexts:
             # No need for these as we leave function entry/return to rustc
             return
 
-        if opcode == "ret":
+        if opcode in ("ret", "retl"):
             return self.finish_function()
 
         self.visit_operands(operands)
@@ -577,21 +621,24 @@ use crate::low::macros::{Q, Label};
             ):
                 opcode = "adrp"
 
-            parts = ['"    %-10s"' % opcode]
-            parts.append(operands)
-            print("Q!(" + (" ".join(parts)) + "),", file=self.output)
-        else:
-            print("    %-10s" % opcode, file=self.output)
+        parts = ['"    %-10s"' % opcode]
+        parts.append(operands)
+        print("Q!(" + (" ".join(parts)) + "),", file=self.output)
 
     def visit_operands(self, operands):
         for t in tokenise(operands):
+            t = t.lstrip("%")
             actual_reg = self.arch.lookup_register(t)
-            if actual_reg:
-                self.clobbers.add(actual_reg)
+            if actual_reg and self.function_state:
+                self.function_state.clobbers.add(actual_reg)
 
     def on_label(self, contexts, label):
         if "WINDOWS_ABI" in contexts:
             return
+        if label in self.expected_functions:
+            self.on_function(contexts, label)
+            return
+
         if label in self.constant_syms:
             self.finish_constant_array()
             self.start_constant_array(label)
@@ -625,6 +672,7 @@ use crate::low::macros::{Q, Label};
 
             rust_type = {
                 ".quad": "u64",
+                ".long": "u32",
             }[ca.type]
 
             array_type = "[%s; %d]" % (rust_type, len(ca.items))
@@ -655,29 +703,28 @@ use crate::low::macros::{Q, Label};
             print("", file=self.output)
 
     def finish_function(self):
-        for dir, reg, param in self.parameter_map:
+        if self.function_state is None:
+            return
+
+        for dir, reg, param in self.function_state.parameter_map:
             print('%s("%s") %s,' % (dir, reg, param), file=self.output)
 
-        if self.constant_syms:
-            for c in sorted(self.constant_syms):
-                print("%s = sym %s," % (c, c), file=self.output)
+        for c in sorted(self.function_state.referenced_constant_syms):
+            print("%s = sym %s," % (c, c), file=self.output)
 
         print("// clobbers", file=self.output)
-        for c in sorted(self.clobbers):
-            if c in [x[1] for x in self.parameter_map]:
+        for c in sorted(self.function_state.clobbers):
+            if c in [x[1] for x in self.function_state.parameter_map]:
                 continue
             if c in self.arch.ignore_clobber:
                 continue
             print('out("%s") _,' % c, file=self.output)
-
-        self.clobbers = set()
-        self.parameter_map = []
-        self.labels = {}
-
+        if self.att_syntax:
+            print("options(att_syntax),", file=self.output)
         print("    )};", file=self.output)
 
-        if self.return_value:
-            _, rname, rexpr = self.return_value
+        if self.function_state.return_value:
+            _, rname, rexpr = self.function_state.return_value
             print("    %s" % rexpr, file=self.output)
 
         print("}", file=self.output)
@@ -685,8 +732,9 @@ use crate::low::macros::{Q, Label};
         # finally, restore original output and emit macros before
         # function body
         self.output = self.function_state.old_output
-        self.output.write(self.function_state.macros_inside_function.getvalue())
-        self.output.write(self.function_state.output().getvalue())
+        if not self.function_state.skip:
+            self.output.write(self.function_state.macros_inside_function.getvalue())
+            self.output.write(self.function_state.output().getvalue())
         self.function_state = None
 
     def on_eof(self):
@@ -723,6 +771,7 @@ if __name__ == "__main__":
     print(repr(tt))
     assert tokens_to_quoted_asm(tt) == '"add v22.2s, v2.2s, v3.2s"'
 
+    print(tokens_to_quoted_asm(tokenise("b.ne    curve25519_x25519_invloop")))
     assert (
         tokens_to_quoted_asm(tokenise("b.ne    curve25519_x25519_invloop"))
         == '"b.ne curve25519_x25519_invloop"'
@@ -743,3 +792,4 @@ if __name__ == "__main__":
         "5",
     ]
     print(tokenise("movbig( n0, #0xf3b9, #0xcac2, #0xfc63, #0x2551)"))
+    assert tokenise(".Lloop_ssse3:") == [".Lloop_ssse3", ":"]

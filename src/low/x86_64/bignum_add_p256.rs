@@ -96,7 +96,7 @@ pub fn bignum_add_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         // Now subtract 2^256 * c + [d3;d3;d1;d1] = x + y - p_256
         // The constants n1 and n3 in [n3; 0; n1; -1] = p_256 are saved for later
 
-        Q!("    sub       " d0!() ", - 1"),
+        Q!("    sub       " d0!() ", -1"),
         Q!("    mov       " n1short!() ", 0x00000000ffffffff"),
         Q!("    sbb       " d1!() ", " n1!()),
         Q!("    sbb       " d2!() ", 0"),

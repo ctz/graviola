@@ -64,7 +64,7 @@ pub fn bignum_neg_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Load the 4 digits of x
 
         Q!("    ldp       " d0!() ", " d1!() ", [" x!() "]"),
-        Q!("    ldp       " d2!() ", " d3!() ", [" x!() ", # 16]"),
+        Q!("    ldp       " d2!() ", " d3!() ", [" x!() ", #16]"),
 
         // Set a bitmask p for the input being nonzero, so that we avoid doing
         // -0 = p_256 and hence maintain strict modular reduction
@@ -87,7 +87,7 @@ pub fn bignum_neg_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Write back the result
 
         Q!("    stp       " d0!() ", " d1!() ", [" z!() "]"),
-        Q!("    stp       " d2!() ", " d3!() ", [" z!() ", # 16]"),
+        Q!("    stp       " d2!() ", " d3!() ", [" z!() ", #16]"),
 
         // Return
 

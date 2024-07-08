@@ -802,9 +802,9 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         Q!("    mov       " "[rsp + 56], rsi"),
         Q!("    mov       " "[rsp + 88], r11"),
 
-        Q!("    mov       " "rax, - 19"),
-        Q!("    mov       " "rbx, - 1"),
-        Q!("    mov       " "rcx, - 1"),
+        Q!("    mov       " "rax, -19"),
+        Q!("    mov       " "rbx, -1"),
+        Q!("    mov       " "rcx, -1"),
         Q!("    mov       " "rdx, 0x7fffffffffffffff"),
         Q!("    sub       " "rax, r12"),
         Q!("    sbb       " "rbx, r13"),
@@ -898,7 +898,7 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
 
         Q!("    mov       " "[rsp + 0xc0], rdi"),
         Q!("    xor       " "eax, eax"),
-        Q!("    lea       " "rcx, [rax - 0x13]"),
+        Q!("    lea       " "rcx, [rax -0x13]"),
         Q!("    not       " "rax"),
         Q!("    mov       " "[rsp], rcx"),
         Q!("    mov       " "[rsp + 0x8], rax"),

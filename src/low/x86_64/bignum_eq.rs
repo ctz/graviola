@@ -89,8 +89,8 @@ pub fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
         Q!("    jz        " Label!("end", 6, After)),
 
         Q!(Label!("loop", 7) ":"),
-        Q!("    mov       " d!() ", [" x!() "+ 8 * " m!() "- 8]"),
-        Q!("    xor       " d!() ", [" y!() "+ 8 * " m!() "- 8]"),
+        Q!("    mov       " d!() ", [" x!() "+ 8 * " m!() "-8]"),
+        Q!("    xor       " d!() ", [" y!() "+ 8 * " m!() "-8]"),
         Q!("    or        " c!() ", " d!()),
         Q!("    dec       " m!()),
         Q!("    jnz       " Label!("loop", 7, Before)),

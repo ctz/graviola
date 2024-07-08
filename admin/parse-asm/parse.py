@@ -5,11 +5,11 @@ import string
 
 MACRO = re.compile(r"^(?P<name>[a-z0-9_]+)\((?P<args>[a-z0-9_,\[\]\+\* \#]*)\);?$")
 ASM = re.compile(
-    r"^(?P<opcode>[a-z][a-z0-9\.]*) ?(?P<operands>[A-Za-z0-9_, \(\)\[\]\+\*\-~\t#\.!]*) ?;? ?(//(?P<comment>[A-Za-z0-9 =\/#\*\+\(\)^\.\<\>\-_:,\!\?\|])*)?$"
+    r"^(?P<opcode>[a-z][a-z0-9\.]*)\s?(?P<operands>[A-Za-z0-9_,\s\(\)\[\]\+\*\-~\t#\.!%$]*) ?;? ?(//(?P<comment>[A-Za-z0-9 =\/#\*\+\(\)^\.\<\>\-_:,\!\?\|])*)?$"
 )
 DECL = re.compile(r"S2N_BN_SYMBOL\((?P<name>[a-z0-9_]+)\):")
-CONST = re.compile(r"(?P<type>\.quad) +(?P<value>0x[0-9a-fA-F]+)")
-LABEL = re.compile(r"^(?P<name>[a-z0-9_]+):$")
+CONST = re.compile(r"\s?(?P<type>\.(quad|long))\s+(?P<value>((0x[0-9a-fA-F]+),?)+)")
+LABEL = re.compile(r"^(?P<name>(\.L)?[a-zA-Z0-9_]+):$")
 
 
 class Type(enum.StrEnum):
@@ -22,14 +22,35 @@ class Type(enum.StrEnum):
     FUNCTION = enum.auto()
     ALIGN = enum.auto()
     LABEL = enum.auto()
+    DIRECTIVE = enum.auto()
     EOF = enum.auto()
+
+
+def tidy_linewise(lines):
+    # multiline fixups prior to parsing
+
+    # remove cf-protection comment
+    if (
+        lines[-6] == '.section\t.note.gnu.property,"a",@note\n'
+        and lines[-5] == "\t.long\t4,2f-1f,5\n"
+        and lines[-4] == "\t.byte\t0x47,0x4E,0x55,0\n"
+        and lines[-3] == "1:\t.long\t0xc0000002,4,3\n"
+        and lines[-2] == ".align\t8\n"
+        and lines[-1] == "2:\n"
+    ):
+        lines = lines[:-6]
+
+    return lines
 
 
 def parse_file(f, visit):
     continuation = None
     contexts = []
 
-    for l in f.readlines():
+    lines = f.readlines()
+    lines = tidy_linewise(lines)
+
+    for l in lines:
         l = l.lstrip()
 
         if continuation:
@@ -120,9 +141,13 @@ def parse_file(f, visit):
             visit(Type.FUNCTION, contexts, m.group("name"))
         elif CONST.match(l):
             m = CONST.match(l)
-            visit(Type.CONST, contexts, m.group("type"), m.group("value"))
+            for v in m.group("value").split(","):
+                visit(Type.CONST, contexts, m.group("type"), v)
         elif l.startswith(".balign 4"):
             visit(Type.ALIGN, contexts, "4")
+        elif l.strip().startswith("."):
+            parts = [x.strip() for x in l.strip().split()]
+            visit(Type.DIRECTIVE, contexts, *parts)
         else:
             raise ValueError("UNHANDLED line " + repr(l))
 
@@ -136,95 +161,50 @@ def is_comment(s):
 
 def tokenise(s):
     def tokenise_gen(s):
-        run = None
-        run_type = None
+        symbol = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*")
+        register = re.compile(r"^%?[a-z]\.?[a-z0-9]+(\.[a-z]\[\d+\]|\.[a-z0-9]+)?")
+        label = re.compile(r"^\.?[a-zA-Z][a-zA-Z0-9_]+")
+        comment = re.compile(r"^/\*.*?\*/")
+        number = re.compile(r"^[\$#]?(-?0x[0-9a-fA-F]+|-?[0-9]+)")
+        operator = re.compile(r'^["\(\)\[\]\+\*/\-,;:#\.!]')
+        whitespace = re.compile(r"^\s+")
 
-        letters = string.ascii_letters
-        symbol = string.ascii_letters + string.digits + "_"
-        register_open = symbol + ".["
-        register_close = register_open + "]"
-        hex = string.hexdigits + "x"
-        numbers = string.digits
-        comment = []
+        while s:
+            longest_pat = None
+            longest_match = None
 
-        if is_comment(s):
-            yield s
-            return
+            for pat in (symbol, register, label, comment, number, operator, whitespace):
+                m = pat.match(s)
+                if m:
+                    if (longest_match is None) or (
+                        longest_match is not None and m.end() > longest_match.end()
+                    ):
+                        longest_pat = pat
+                        longest_match = m
 
-        i = 0
-        while i < len(s):
-            x = s[i]
-            next = s[i + 1] if i + 1 < len(s) else None
-            i += 1
-
-            if x == "/" and next == "*":
-                run = x
-                run_type = comment
+            if longest_match is not None:
+                # print('match', longest_pat, longest_match.group())
+                if longest_pat != whitespace:
+                    yield longest_match.group()
+                s = s[longest_match.end() :]
                 continue
 
-            if run_type == comment:
-                run = run + x
+            print("failed to match", repr(s))
+            raise ValueError()
 
-                if x == "*" and next == "/":
-                    run = run + next
-                    i += 1
-                    yield run
-                    run = None
-                    run_type = None
-                continue
+    x = list(tokenise_gen(s))
+    return x
 
-            if x == "#" and next == "0":
-                run_type = hex
-                run = x
-                continue
 
-            if x == "x" and run == "0" and run_type == numbers:
-                run_type = hex
-                run = run + x
-                continue
+def extract_header_comment(file):
+    comment_lines = []
 
-            if run_type == letters and x not in run_type and x in symbol:
-                run_type = symbol
+    for line in file.readlines():
+        if line.startswith("#!"):
+            continue
+        elif line.startswith("#"):
+            comment_lines.append(line.rstrip().lstrip("# "))
+        else:
+            break
 
-            if (
-                run_type in (letters, symbol)
-                and x not in run_type
-                and x in register_open
-            ):
-                run_type = register_open
-
-            if run_type == register_open and x not in run_type and x in register_close:
-                run_type = register_close
-
-            if run_type is not None and x not in run_type:
-                yield run
-                run = None
-                run_type = None
-
-            if run_type is not None and x in run_type:
-                run = run + x
-                continue
-
-            if x in string.whitespace:
-                continue
-
-            if x in "()[]+*/-,;#.!":
-                yield x
-                continue
-
-            if x in numbers:
-                run = x
-                run_type = numbers
-                continue
-
-            if x in letters:
-                run = x
-                run_type = letters
-                continue
-
-            print("UNHANDLED tokenise " + x)
-
-        if run_type is not None:
-            yield run
-
-    return list(tokenise_gen(s))
+    return comment_lines

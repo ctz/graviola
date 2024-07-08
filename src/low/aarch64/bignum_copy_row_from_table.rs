@@ -78,8 +78,8 @@ pub fn bignum_copy_row_from_table(
 
         Q!(Label!("bignum_copy_row_from_table_initzero", 3) ":"),
         Q!("    str       " "xzr, [x6]"),
-        Q!("    add       " "x6, x6, # 8"),
-        Q!("    subs      " i!() ", " i!() ", # 1"),
+        Q!("    add       " "x6, x6, #8"),
+        Q!("    subs      " i!() ", " i!() ", #1"),
         Q!("    bne       " Label!("bignum_copy_row_from_table_initzero", 3, Before)),
 
         Q!("    mov       " i!() ", xzr"),
@@ -101,13 +101,13 @@ pub fn bignum_copy_row_from_table(
         Q!("    orr       " "x11, x11, x10"),
         Q!("    str       " "x11, [x9]"),
 
-        Q!("    add       " "x8, x8, # 8"),
-        Q!("    add       " "x9, x9, # 8"),
-        Q!("    subs      " j!() ", " j!() ", # 1"),
+        Q!("    add       " "x8, x8, #8"),
+        Q!("    add       " "x9, x9, #8"),
+        Q!("    subs      " j!() ", " j!() ", #1"),
         Q!("    bne       " Label!("bignum_copy_row_from_table_innerloop", 5, Before)),
 
         Q!(Label!("bignum_copy_row_from_table_innerloop_done", 6) ":"),
-        Q!("    add       " i!() ", " i!() ", # 1"),
+        Q!("    add       " i!() ", " i!() ", #1"),
         Q!("    cmp       " i!() ", " height!()),
         Q!("    bne       " Label!("bignum_copy_row_from_table_outerloop", 4, Before)),
 

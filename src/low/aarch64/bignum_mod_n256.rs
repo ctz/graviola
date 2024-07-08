@@ -74,9 +74,9 @@ macro_rules! d3 {
 macro_rules! movbig {
     ($nn:expr, $n3:expr, $n2:expr, $n1:expr, $n0:expr) => { Q!(
         "movz " $nn ", " $n0 ";"
-        "movk " $nn ", " $n1 ", lsl # 16;"
-        "movk " $nn ", " $n2 ", lsl # 32;"
-        "movk " $nn ", " $n3 ", lsl # 48"
+        "movk " $nn ", " $n1 ", lsl #16;"
+        "movk " $nn ", " $n2 ", lsl #32;"
+        "movk " $nn ", " $n3 ", lsl #48"
     )}
 }
 
@@ -94,7 +94,7 @@ pub fn bignum_mod_n256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Load the input number
 
         Q!("    ldp       " d0!() ", " d1!() ", [" x!() "]"),
-        Q!("    ldp       " d2!() ", " d3!() ", [" x!() ", # 16]"),
+        Q!("    ldp       " d2!() ", " d3!() ", [" x!() ", #16]"),
 
         // Do the subtraction. Since word 2 of n_256 is all 1s, that can be
         // done by adding zero with carry, thanks to the inverted carry.
@@ -115,7 +115,7 @@ pub fn bignum_mod_n256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Store the end result
 
         Q!("    stp       " n0!() ", " n1!() ", [" z!() "]"),
-        Q!("    stp       " n2!() ", " n3!() ", [" z!() ", # 16]"),
+        Q!("    stp       " n2!() ", " n3!() ", [" z!() ", #16]"),
 
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.as_ptr() => _,

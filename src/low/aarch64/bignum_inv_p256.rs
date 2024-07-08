@@ -177,9 +177,9 @@ macro_rules! amontred {
         "adcs " $d3 ", " $d3 ", " $t2 ";"
         "mov " $t0 ", #0x1fffffffe0000000;"
         "adc " $d4 ", " $d4 ", " $t0 ";"
-        /* Let w = d0, the original word we use as offset; d0 gets recycled */ /* First let [t2;t1] = 2^32 * w                                     */ /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)      */ "lsl " $t1 ", " $d0 ", # 32;"
+        /* Let w = d0, the original word we use as offset; d0 gets recycled */ /* First let [t2;t1] = 2^32 * w                                     */ /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)      */ "lsl " $t1 ", " $d0 ", #32;"
         "subs " $t0 ", " $d0 ", " $t1 ";"
-        "lsr " $t2 ", " $d0 ", # 32;"
+        "lsr " $t2 ", " $d0 ", #32;"
         "sbc " $d0 ", " $d0 ", " $t2 ";"
         /* Hence basic [d4;d3;d2;d1] += (2^256 - 2^224 + 2^192 + 2^96) * w  */ "adds " $d1 ", " $d1 ", " $t1 ";"
         "adcs " $d2 ", " $d2 ", " $t2 ";"
@@ -220,7 +220,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -229,7 +229,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -238,7 +238,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -247,7 +247,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -256,7 +256,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -265,7 +265,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -274,7 +274,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -283,7 +283,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -292,7 +292,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -301,7 +301,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -310,7 +310,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -319,7 +319,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -328,7 +328,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -337,7 +337,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -346,7 +346,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -355,7 +355,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -364,7 +364,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -373,7 +373,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -382,7 +382,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -390,25 +390,25 @@ macro_rules! divstep59 {
         "csel x4, x5, x4, ge;"
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
-        "asr x5, x5, # 1;"
-        "add x8, x4, #0x100, lsl # 12;"
-        "sbfx x8, x8, # 21, # 21;"
+        "asr x5, x5, #1;"
+        "add x8, x4, #0x100, lsl #12;"
+        "sbfx x8, x8, #21, #21;"
         "mov x11, #0x100000;"
-        "add x11, x11, x11, lsl # 21;"
+        "add x11, x11, x11, lsl #21;"
         "add x9, x4, x11;"
-        "asr x9, x9, # 42;"
-        "add x10, x5, #0x100, lsl # 12;"
-        "sbfx x10, x10, # 21, # 21;"
+        "asr x9, x9, #42;"
+        "add x10, x5, #0x100, lsl #12;"
+        "sbfx x10, x10, #21, #21;"
         "add x11, x5, x11;"
-        "asr x11, x11, # 42;"
+        "asr x11, x11, #42;"
         "mul x6, x8, x2;"
         "mul x7, x9, x3;"
         "mul x2, x10, x2;"
         "mul x3, x11, x3;"
         "add x4, x6, x7;"
         "add x5, x2, x3;"
-        "asr x2, x4, # 20;"
-        "asr x3, x5, # 20;"
+        "asr x2, x4, #20;"
+        "asr x3, x5, #20;"
         "and x4, x2, #0xfffff;"
         "orr x4, x4, #0xfffffe0000000000;"
         "and x5, x3, #0xfffff;"
@@ -422,7 +422,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -431,7 +431,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -440,7 +440,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -449,7 +449,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -458,7 +458,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -467,7 +467,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -476,7 +476,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -485,7 +485,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -494,7 +494,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -503,7 +503,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -512,7 +512,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -521,7 +521,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -530,7 +530,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -539,7 +539,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -548,7 +548,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -557,7 +557,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -566,7 +566,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -575,7 +575,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -584,7 +584,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -592,25 +592,25 @@ macro_rules! divstep59 {
         "csel x4, x5, x4, ge;"
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
-        "asr x5, x5, # 1;"
-        "add x12, x4, #0x100, lsl # 12;"
-        "sbfx x12, x12, # 21, # 21;"
+        "asr x5, x5, #1;"
+        "add x12, x4, #0x100, lsl #12;"
+        "sbfx x12, x12, #21, #21;"
         "mov x15, #0x100000;"
-        "add x15, x15, x15, lsl # 21;"
+        "add x15, x15, x15, lsl #21;"
         "add x13, x4, x15;"
-        "asr x13, x13, # 42;"
-        "add x14, x5, #0x100, lsl # 12;"
-        "sbfx x14, x14, # 21, # 21;"
+        "asr x13, x13, #42;"
+        "add x14, x5, #0x100, lsl #12;"
+        "sbfx x14, x14, #21, #21;"
         "add x15, x5, x15;"
-        "asr x15, x15, # 42;"
+        "asr x15, x15, #42;"
         "mul x6, x12, x2;"
         "mul x7, x13, x3;"
         "mul x2, x14, x2;"
         "mul x3, x15, x3;"
         "add x4, x6, x7;"
         "add x5, x2, x3;"
-        "asr x2, x4, # 20;"
-        "asr x3, x5, # 20;"
+        "asr x2, x4, #20;"
+        "asr x3, x5, #20;"
         "and x4, x2, #0xfffff;"
         "orr x4, x4, #0xfffffe0000000000;"
         "and x5, x3, #0xfffff;"
@@ -624,7 +624,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -633,7 +633,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -642,7 +642,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -651,7 +651,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -660,7 +660,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -669,7 +669,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -678,7 +678,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -687,7 +687,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -696,7 +696,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -705,7 +705,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "mul x2, x12, x8;"
         "mul x3, x12, x9;"
         "mul x6, x14, x8;"
@@ -722,7 +722,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -731,7 +731,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -740,7 +740,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -749,7 +749,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -758,7 +758,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -767,7 +767,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -776,7 +776,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -785,7 +785,7 @@ macro_rules! divstep59 {
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
         "tst x5, #0x2;"
-        "asr x5, x5, # 1;"
+        "asr x5, x5, #1;"
         "csel x6, x4, xzr, ne;"
         "ccmp x1, xzr, #0x8, ne;"
         "cneg x1, x1, ge;"
@@ -793,17 +793,17 @@ macro_rules! divstep59 {
         "csel x4, x5, x4, ge;"
         "add x5, x5, x6;"
         "add x1, x1, #0x2;"
-        "asr x5, x5, # 1;"
-        "add x12, x4, #0x100, lsl # 12;"
-        "sbfx x12, x12, # 22, # 21;"
+        "asr x5, x5, #1;"
+        "add x12, x4, #0x100, lsl #12;"
+        "sbfx x12, x12, #22, #21;"
         "mov x15, #0x100000;"
-        "add x15, x15, x15, lsl # 21;"
+        "add x15, x15, x15, lsl #21;"
         "add x13, x4, x15;"
-        "asr x13, x13, # 43;"
-        "add x14, x5, #0x100, lsl # 12;"
-        "sbfx x14, x14, # 22, # 21;"
+        "asr x13, x13, #43;"
+        "add x14, x5, #0x100, lsl #12;"
+        "sbfx x14, x14, #22, #21;"
         "add x15, x5, x15;"
-        "asr x15, x15, # 43;"
+        "asr x15, x15, #43;"
         "mneg x2, x12, x8;"
         "mneg x3, x12, x9;"
         "mneg x4, x14, x8;"
@@ -820,9 +820,9 @@ macro_rules! divstep59 {
 macro_rules! movbig {
     ($nn:expr, $n3:expr, $n2:expr, $n1:expr, $n0:expr) => { Q!(
         "movz " $nn ", " $n0 ";"
-        "movk " $nn ", " $n1 ", lsl # 16;"
-        "movk " $nn ", " $n2 ", lsl # 32;"
-        "movk " $nn ", " $n3 ", lsl # 48"
+        "movk " $nn ", " $n1 ", lsl #16;"
+        "movk " $nn ", " $n2 ", lsl #32;"
+        "movk " $nn ", " $n3 ", lsl #48"
     )}
 }
 
@@ -833,9 +833,9 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Save registers and make room for temporaries
 
-        Q!("    stp       " "x19, x20, [sp, - 16] !"),
-        Q!("    stp       " "x21, x22, [sp, - 16] !"),
-        Q!("    stp       " "x23, x24, [sp, - 16] !"),
+        Q!("    stp       " "x19, x20, [sp, -16] !"),
+        Q!("    stp       " "x21, x22, [sp, -16] !"),
+        Q!("    stp       " "x23, x24, [sp, -16] !"),
         Q!("    sub       " "sp, sp, " NSPACE!()),
 
         // Save the return pointer for the end so we can overwrite x0 later
@@ -886,8 +886,8 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // portion is common to the special tenth iteration after a uniform
         // first 9.
 
-        Q!("    mov       " i!() ", # 10"),
-        Q!("    mov       " d!() ", # 1"),
+        Q!("    mov       " i!() ", #10"),
+        Q!("    mov       " d!() ", #1"),
         Q!("    b         " Label!("midloop", 2, After)),
 
         Q!(Label!("loop", 3) ":"),
@@ -967,7 +967,7 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         Q!("    umulh     " "x1, x1, " m01!()),
         Q!("    adds      " "x2, x2, x0"),
         Q!("    adc       " "x6, x6, x1"),
-        Q!("    extr      " "x4, x2, x4, # 59"),
+        Q!("    extr      " "x4, x2, x4, #59"),
         Q!("    str       " "x4, [" f!() "]"),
 
         Q!("    eor       " "x1, x7, " s10!()),
@@ -980,7 +980,7 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         Q!("    umulh     " "x1, x1, " m11!()),
         Q!("    adds      " "x3, x3, x0"),
         Q!("    adc       " "x4, x4, x1"),
-        Q!("    extr      " "x5, x3, x5, # 59"),
+        Q!("    extr      " "x5, x3, x5, #59"),
         Q!("    str       " "x5, [" g!() "]"),
 
         // Digit 2 of [f,g]
@@ -997,7 +997,7 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         Q!("    umulh     " "x1, x1, " m01!()),
         Q!("    adds      " "x6, x6, x0"),
         Q!("    adc       " "x5, x5, x1"),
-        Q!("    extr      " "x2, x6, x2, # 59"),
+        Q!("    extr      " "x2, x6, x2, #59"),
         Q!("    str       " "x2, [" f!() "+ " N!() "]"),
 
         Q!("    eor       " "x1, x7, " s10!()),
@@ -1010,7 +1010,7 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         Q!("    umulh     " "x1, x1, " m11!()),
         Q!("    adds      " "x4, x4, x0"),
         Q!("    adc       " "x2, x2, x1"),
-        Q!("    extr      " "x3, x4, x3, # 59"),
+        Q!("    extr      " "x3, x4, x3, #59"),
         Q!("    str       " "x3, [" g!() "+ " N!() "]"),
 
         // Digits 3 and 4 of [f,g]
@@ -1035,11 +1035,11 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         Q!("    umulh     " "x1, x1, " m01!()),
         Q!("    adds      " "x5, x5, x0"),
         Q!("    adc       " "x3, x3, x1"),
-        Q!("    extr      " "x6, x5, x6, # 59"),
+        Q!("    extr      " "x6, x5, x6, #59"),
         Q!("    str       " "x6, [" f!() "+ 2 * " N!() "]"),
-        Q!("    extr      " "x5, x3, x5, # 59"),
+        Q!("    extr      " "x5, x3, x5, #59"),
         Q!("    str       " "x5, [" f!() "+ 3 * " N!() "]"),
-        Q!("    asr       " "x3, x3, # 59"),
+        Q!("    asr       " "x3, x3, #59"),
         Q!("    str       " "x3, [" f!() "+ 4 * " N!() "]"),
 
         Q!("    eor       " "x1, x7, " s10!()),
@@ -1058,11 +1058,11 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         Q!("    umulh     " "x1, x1, " m11!()),
         Q!("    adds      " "x2, x2, x0"),
         Q!("    adc       " "x5, x5, x1"),
-        Q!("    extr      " "x4, x2, x4, # 59"),
+        Q!("    extr      " "x4, x2, x4, #59"),
         Q!("    str       " "x4, [" g!() "+ 2 * " N!() "]"),
-        Q!("    extr      " "x2, x5, x2, # 59"),
+        Q!("    extr      " "x2, x5, x2, #59"),
         Q!("    str       " "x2, [" g!() "+ 3 * " N!() "]"),
-        Q!("    asr       " "x5, x5, # 59"),
+        Q!("    asr       " "x5, x5, #59"),
         Q!("    str       " "x5, [" g!() "+ 4 * " N!() "]"),
 
         // Now the computation of the updated u and v values and their
@@ -1215,7 +1215,7 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Next iteration
 
-        Q!("    subs      " i!() ", " i!() ", # 1"),
+        Q!("    subs      " i!() ", " i!() ", #1"),
         Q!("    bne       " Label!("loop", 3, Before)),
 
         // The 10th and last iteration does not need anything except the
@@ -1231,7 +1231,7 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         Q!("    ldr       " "x1, [" g!() "]"),
         Q!("    mul       " "x0, x0, " m00!()),
         Q!("    madd      " "x1, x1, " m01!() ", x0"),
-        Q!("    asr       " "x0, x1, # 63"),
+        Q!("    asr       " "x0, x1, #63"),
 
         // Now separate out the matrix into sign-magnitude pairs
         // and adjust each one based on the sign of f.
@@ -1356,7 +1356,7 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Store it back to the final output
 
         Q!("    stp       " "x10, x11, [" res!() "]"),
-        Q!("    stp       " "x12, x13, [" res!() ", # 16]"),
+        Q!("    stp       " "x12, x13, [" res!() ", #16]"),
 
         // Restore stack and registers
 
