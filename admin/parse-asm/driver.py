@@ -619,6 +619,9 @@ use crate::low::macros::{Q, Label};
         if directive == ".byte" and list(args) == ["0xf3,0xc3"]:
             # this is "rep ret", obfuscated for some reason
             return self.finish_function()
+        elif directive == ".byte" and self.function_state:
+            # TODO: disassemble these for readability
+            self.on_asm(contexts, directive, *args)
 
     def on_asm(self, contexts, opcode, operands):
         if "WINDOWS_ABI" in contexts:
@@ -640,7 +643,7 @@ use crate::low::macros::{Q, Label};
             ):
                 opcode = "adrp"
 
-        parts = ['"    %-10s"' % opcode]
+        parts = ['"    %-15s "' % opcode]
         parts.append(operands)
         print("Q!(" + (" ".join(parts)) + "),", file=self.output)
 

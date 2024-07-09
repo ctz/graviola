@@ -19,3 +19,7 @@ pub(crate) mod curve25519_x25519base;
 pub(crate) mod p256_montjadd;
 pub(crate) mod p256_montjdouble;
 pub(crate) mod p256_montjmixadd;
+pub(crate) mod sha256;
+pub(crate) mod sha256_mux;
+pub(crate) mod sha512;
+pub(crate) mod sha512_mux;

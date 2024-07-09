@@ -56,7 +56,7 @@ pub mod ec {
 }
 
 pub mod sha2 {
-    pub use super::mid::sha2::Sha256Context;
+    pub use super::mid::sha2::{Sha256Context, Sha512Context};
 }
 
 pub use error::Error;

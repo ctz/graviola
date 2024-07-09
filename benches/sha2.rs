@@ -43,6 +43,12 @@ fn test_this_sha256(data: &[u8]) {
     black_box(ctx.finish());
 }
 
+fn test_this_sha512(data: &[u8]) {
+    let mut ctx = curve25519::sha2::Sha512Context::new();
+    ctx.update(data);
+    black_box(ctx.finish());
+}
+
 fn block_32(c: &mut Criterion) {
     let data = [0u8; 32];
 
@@ -57,6 +63,7 @@ fn block_32(c: &mut Criterion) {
     group.bench_function("ring", |b| b.iter(|| test_ring_sha512(&data)));
     group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha512(&data)));
     group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha512(&data)));
+    group.bench_function("this", |b| b.iter(|| test_this_sha512(&data)));
 }
 
 fn block_8k(c: &mut Criterion) {
@@ -73,6 +80,7 @@ fn block_8k(c: &mut Criterion) {
     group.bench_function("ring", |b| b.iter(|| test_ring_sha512(&data)));
     group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha512(&data)));
     group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha512(&data)));
+    group.bench_function("this", |b| b.iter(|| test_this_sha512(&data)));
 }
 
 fn block_1m(c: &mut Criterion) {
@@ -89,6 +97,7 @@ fn block_1m(c: &mut Criterion) {
     group.bench_function("ring", |b| b.iter(|| test_ring_sha512(&data)));
     group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha512(&data)));
     group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha512(&data)));
+    group.bench_function("this", |b| b.iter(|| test_this_sha512(&data)));
 }
 
 criterion_group!(benches, block_32, block_8k, block_1m);
