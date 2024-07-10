@@ -1,3 +1,4 @@
+#[derive(Clone)]
 pub struct Sha256Context {
     h: [u32; 8],
     blockwise: Blockwise<64>,
@@ -64,8 +65,10 @@ impl Sha256Context {
         }
     }
 
-    const BLOCK_SZ: usize = 64;
+    pub const BLOCK_SZ: usize = 64;
 }
+
+#[derive(Clone)]
 pub struct Sha512Context {
     h: [u64; 8],
     blockwise: Blockwise<128>,
@@ -138,7 +141,7 @@ impl Sha512Context {
         }
     }
 
-    const BLOCK_SZ: usize = 128;
+    pub const BLOCK_SZ: usize = 128;
 }
 
 static MD_PADDING: [u8; 128] = [
@@ -152,6 +155,7 @@ static MD_PADDING: [u8; 128] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
 
+#[derive(Clone)]
 struct Blockwise<const N: usize> {
     buffer: [u8; N],
     used: usize,
