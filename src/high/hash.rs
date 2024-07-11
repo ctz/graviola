@@ -1,6 +1,7 @@
 use crate::low::ct_equal;
-use crate::mid::sha2::{Sha256Context, Sha512Context};
+use crate::mid::sha2::{Sha256Context, Sha384Context, Sha512Context};
 
+use core::cmp;
 use core::ops::{Deref, DerefMut};
 
 #[derive(Clone, Debug)]
@@ -20,6 +21,17 @@ impl PartialEq for HashOutput {
             (Self::Sha512(s), Self::Sha512(o)) => ct_equal(s, o),
             _ => false,
         }
+    }
+}
+
+impl PartialEq<&[u8]> for HashOutput {
+    /// Constant-time equality, `other` may be truncated
+    fn eq(&self, other: &&[u8]) -> bool {
+        let other = *other;
+        assert!(!other.is_empty());
+        let ours = self.as_ref();
+        let size = cmp::min(ours.len(), other.len());
+        ct_equal(&ours[..size], other)
     }
 }
 
@@ -60,11 +72,6 @@ impl DerefMut for HashBlock {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.buf[..self.len]
     }
-}
-
-enum HashContextInner {
-    Sha256(Sha256Context),
-    Sha512(Sha512Context),
 }
 
 pub trait Hash {
@@ -109,5 +116,65 @@ impl HashContext for Sha256Context {
 
     fn finish(self) -> HashOutput {
         HashOutput::Sha256(self.finish())
+    }
+}
+
+pub struct Sha384;
+
+impl Hash for Sha384 {
+    type Context = Sha384Context;
+
+    fn new() -> Self::Context {
+        Sha384Context::new()
+    }
+
+    fn hash(bytes: &[u8]) -> HashOutput {
+        let mut ctx = Self::new();
+        ctx.update(bytes);
+        HashOutput::Sha384(ctx.finish())
+    }
+
+    fn zeroed_block() -> HashBlock {
+        HashBlock::new(Sha512Context::BLOCK_SZ)
+    }
+}
+
+impl HashContext for Sha384Context {
+    fn update(&mut self, bytes: &[u8]) {
+        self.update(bytes)
+    }
+
+    fn finish(self) -> HashOutput {
+        HashOutput::Sha384(self.finish())
+    }
+}
+
+pub struct Sha512;
+
+impl Hash for Sha512 {
+    type Context = Sha512Context;
+
+    fn new() -> Self::Context {
+        Sha512Context::new()
+    }
+
+    fn hash(bytes: &[u8]) -> HashOutput {
+        let mut ctx = Self::new();
+        ctx.update(bytes);
+        HashOutput::Sha512(ctx.finish())
+    }
+
+    fn zeroed_block() -> HashBlock {
+        HashBlock::new(Sha512Context::BLOCK_SZ)
+    }
+}
+
+impl HashContext for Sha512Context {
+    fn update(&mut self, bytes: &[u8]) {
+        self.update(bytes)
+    }
+
+    fn finish(self) -> HashOutput {
+        HashOutput::Sha512(self.finish())
     }
 }

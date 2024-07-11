@@ -1,4 +1,5 @@
 use super::hash::{Hash, HashContext, HashOutput};
+use crate::Error;
 
 #[derive(Clone)]
 struct Hmac<H: Hash> {
@@ -47,10 +48,21 @@ impl<H: Hash> Hmac<H> {
         self.outer.update(inner_output.as_ref());
         self.outer.finish()
     }
+
+    pub fn verify(self, expected_tag: &[u8]) -> Result<(), Error> {
+        let got = self.finish();
+        match got == expected_tag {
+            true => Ok(()),
+            false => Err(Error::BadSignature),
+        }
+    }
 }
 
 #[cfg(test)]
-mod tests {
+mod tests;
+
+#[cfg(test)]
+mod manual_tests {
     use super::*;
     use crate::high::hash::Sha256;
 

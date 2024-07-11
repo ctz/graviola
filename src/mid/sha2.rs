@@ -69,6 +69,41 @@ impl Sha256Context {
 }
 
 #[derive(Clone)]
+pub struct Sha384Context {
+    inner: Sha512Context,
+}
+
+impl Sha384Context {
+    pub const fn new() -> Self {
+        Self {
+            inner: Sha512Context {
+                h: [
+                    0xcbbb9d5dc1059ed8,
+                    0x629a292a367cd507,
+                    0x9159015a3070dd17,
+                    0x152fecd8f70e5939,
+                    0x67332667ffc00b31,
+                    0x8eb44a8768581511,
+                    0xdb0c2e0d64f98fa7,
+                    0x47b5481dbefa4fa4,
+                ],
+                blockwise: Blockwise::new(),
+                nblocks: 0,
+            },
+        }
+    }
+
+    pub fn update(&mut self, bytes: &[u8]) {
+        self.inner.update(bytes)
+    }
+
+    pub fn finish(self) -> [u8; 48] {
+        let inner = self.inner.finish();
+        inner[..48].try_into().unwrap()
+    }
+}
+
+#[derive(Clone)]
 pub struct Sha512Context {
     h: [u64; 8],
     blockwise: Blockwise<128>,
