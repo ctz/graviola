@@ -94,7 +94,7 @@ fn ecdh(c: &mut Criterion) {
     group.bench_function("this", |b| {
         b.iter(|| {
             let our_private_key =
-                curve25519::p256::PrivateKey::generate(&mut rand_core::OsRng).unwrap();
+                curve25519::p256::PrivateKey::generate(&mut curve25519::SystemRandom).unwrap();
             let our_public_key = our_private_key.public_key();
             black_box(our_public_key);
 
@@ -152,7 +152,7 @@ fn keygen(c: &mut Criterion) {
     group.bench_function("this", |b| {
         b.iter(|| {
             let our_private_key =
-                curve25519::p256::PrivateKey::generate(&mut rand_core::OsRng).unwrap();
+                curve25519::p256::PrivateKey::generate(&mut curve25519::SystemRandom).unwrap();
             black_box(our_private_key.public_key());
         })
     });
@@ -251,14 +251,14 @@ fn ecdsa_sign(c: &mut Criterion) {
 
     group.bench_function("this", |b| {
         use curve25519::ec::{Curve, P256};
-        let private_key = P256::generate_random_key(&mut rand_core::OsRng).unwrap();
+        let private_key = P256::generate_random_key(&mut curve25519::SystemRandom).unwrap();
         let signing_key = curve25519::ecdsa::SigningKey::<P256> { private_key };
 
         b.iter(|| {
             let mut signature = [0u8; 64];
             black_box(
                 signing_key
-                    .sign(hash, &mut rand_core::OsRng, &mut signature)
+                    .sign(hash, &mut curve25519::SystemRandom, &mut signature)
                     .unwrap(),
             );
         });

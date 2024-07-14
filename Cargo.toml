@@ -4,8 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rand_core = "0.6"
-cfg-if = "1"
+getrandom = "0.2"
 
 [profile.release]
 debug = "full"

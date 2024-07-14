@@ -341,8 +341,8 @@ name = "curve25519"
 version = "0.1.0"
 dependencies = [
  "aws-lc-rs",
- "cfg-if",
  "criterion",
+ "getrandom",
  "hex",
  "openssl",
  "p256",

@@ -1,14 +1,13 @@
 use crate::mid::p256;
 use crate::Error;
+use crate::RandomSource;
 
 pub trait Curve {
     type PrivateKey: PrivateKey<Self>;
     type PublicKey: PublicKey<Self>;
     type Scalar: Scalar<Self>;
 
-    fn generate_random_key(
-        rng: &mut dyn rand_core::CryptoRngCore,
-    ) -> Result<Self::PrivateKey, Error>;
+    fn generate_random_key(rng: &mut dyn RandomSource) -> Result<Self::PrivateKey, Error>;
 }
 
 pub trait PrivateKey<C: Curve + ?Sized> {
@@ -42,9 +41,7 @@ impl Curve for P256 {
     type PublicKey = p256::PublicKey;
     type Scalar = p256::Scalar;
 
-    fn generate_random_key(
-        rng: &mut dyn rand_core::CryptoRngCore,
-    ) -> Result<p256::PrivateKey, Error> {
+    fn generate_random_key(rng: &mut dyn RandomSource) -> Result<p256::PrivateKey, Error> {
         p256::PrivateKey::generate(rng)
     }
 }

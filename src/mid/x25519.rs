@@ -1,5 +1,6 @@
 use super::util::Array64x4;
 use crate::low;
+use crate::RandomSource;
 
 pub struct PrivateKey(Array64x4);
 
@@ -19,9 +20,9 @@ impl PrivateKey {
     /// Generate a new key using the given `rng`.
     ///
     /// Fails only if the `rng` fails.
-    pub fn generate(rng: &mut dyn rand_core::CryptoRngCore) -> Result<Self, ()> {
+    pub fn generate(rng: &mut dyn RandomSource) -> Result<Self, ()> {
         let mut r = [0u8; 32];
-        rng.try_fill_bytes(&mut r).map_err(|_| ())?;
+        rng.fill(&mut r).map_err(|_| ())?;
         Ok(Self::from_array(&r))
     }
 

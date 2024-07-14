@@ -60,3 +60,4 @@ pub mod sha2 {
 }
 
 pub use error::Error;
+pub use mid::rng::{RandomSource, SystemRandom};

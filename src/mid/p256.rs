@@ -1,6 +1,7 @@
 use super::util::Array64x4;
 use crate::low;
 use crate::Error;
+use crate::RandomSource;
 
 use core::fmt;
 
@@ -87,10 +88,10 @@ impl PrivateKey {
         }
     }
 
-    pub fn generate(rng: &mut dyn rand_core::CryptoRngCore) -> Result<Self, Error> {
+    pub fn generate(rng: &mut dyn RandomSource) -> Result<Self, Error> {
         for _ in 0..64 {
             let mut r = [0u8; 32];
-            rng.try_fill_bytes(&mut r).map_err(|_| Error::RngFailed)?;
+            rng.fill(&mut r)?;
             if let Ok(p) = Self::from_bytes(&r) {
                 return Ok(p);
             }

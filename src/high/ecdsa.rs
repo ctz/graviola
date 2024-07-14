@@ -1,5 +1,6 @@
 use super::curve::{Curve, PrivateKey, PublicKey, Scalar};
 use crate::Error;
+use crate::RandomSource;
 
 #[cfg(test)]
 mod tests;
@@ -12,7 +13,7 @@ impl<C: Curve> SigningKey<C> {
     pub fn sign(
         &self,
         hash: &[u8],
-        rng: &mut dyn rand_core::CryptoRngCore,
+        rng: &mut dyn RandomSource,
         signature: &mut [u8],
     ) -> Result<(), Error> {
         let output = signature
