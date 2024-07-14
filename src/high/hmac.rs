@@ -2,7 +2,7 @@ use super::hash::{Hash, HashContext, HashOutput};
 use crate::Error;
 
 #[derive(Clone)]
-struct Hmac<H: Hash> {
+pub struct Hmac<H: Hash> {
     inner: H::Context,
     outer: H::Context,
 }

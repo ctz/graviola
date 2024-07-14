@@ -4,6 +4,7 @@ pub mod curve;
 pub mod ecdsa;
 pub mod hash;
 pub mod hmac;
+pub mod hmac_drbg;
 
 #[cfg(test)]
 mod tests {

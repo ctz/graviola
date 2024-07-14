@@ -46,6 +46,17 @@ impl AsRef<[u8]> for HashOutput {
     }
 }
 
+impl AsMut<[u8]> for HashOutput {
+    fn as_mut(&mut self) -> &mut [u8] {
+        match self {
+            Self::Sha224(v) => v,
+            Self::Sha256(v) => v,
+            Self::Sha384(v) => v,
+            Self::Sha512(v) => v,
+        }
+    }
+}
+
 #[derive(Copy, Clone)]
 pub struct HashBlock {
     buf: [u8; 128],
@@ -82,6 +93,8 @@ pub trait Hash {
     fn hash(bytes: &[u8]) -> HashOutput;
 
     fn zeroed_block() -> HashBlock;
+
+    fn zeroed_output() -> HashOutput;
 }
 
 pub trait HashContext: Clone {
@@ -106,6 +119,10 @@ impl Hash for Sha256 {
 
     fn zeroed_block() -> HashBlock {
         HashBlock::new(Sha256Context::BLOCK_SZ)
+    }
+
+    fn zeroed_output() -> HashOutput {
+        HashOutput::Sha256([0u8; 32])
     }
 }
 
@@ -137,6 +154,10 @@ impl Hash for Sha384 {
     fn zeroed_block() -> HashBlock {
         HashBlock::new(Sha512Context::BLOCK_SZ)
     }
+
+    fn zeroed_output() -> HashOutput {
+        HashOutput::Sha384([0u8; 48])
+    }
 }
 
 impl HashContext for Sha384Context {
@@ -166,6 +187,10 @@ impl Hash for Sha512 {
 
     fn zeroed_block() -> HashBlock {
         HashBlock::new(Sha512Context::BLOCK_SZ)
+    }
+
+    fn zeroed_output() -> HashOutput {
+        HashOutput::Sha512([0u8; 64])
     }
 }
 
