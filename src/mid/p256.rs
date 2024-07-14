@@ -80,6 +80,10 @@ impl PrivateKey {
         Scalar::from_bytes_checked(bytes).map(|scalar| Self { scalar })
     }
 
+    pub fn as_bytes(&self) -> [u8; 32] {
+        self.scalar.as_bytes()
+    }
+
     pub fn public_key(&self) -> PublicKey {
         let point = JacobianMontPoint::base_multiply(&self.scalar).as_affine();
         match point.on_curve() {

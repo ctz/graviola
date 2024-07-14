@@ -11,6 +11,7 @@ pub trait Curve {
 }
 
 pub trait PrivateKey<C: Curve + ?Sized> {
+    fn encode<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error>;
     fn public_key(&self) -> C::PublicKey;
     fn raw_ecdsa_sign(&self, k: &Self, e: &C::Scalar, r: &C::Scalar) -> C::Scalar;
 }
@@ -34,6 +35,9 @@ pub trait Scalar<C: Curve + ?Sized> {
     fn write_bytes(&self, target: &mut [u8]);
 }
 
+// enough for P521
+pub const MAX_SCALAR_LEN: usize = 66;
+
 pub struct P256;
 
 impl Curve for P256 {
@@ -47,6 +51,15 @@ impl Curve for P256 {
 }
 
 impl PrivateKey<P256> for p256::PrivateKey {
+    fn encode<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error> {
+        if let Some(out) = out.get_mut(0..32) {
+            out.copy_from_slice(&self.as_bytes());
+            Ok(out)
+        } else {
+            Err(Error::OutOfRange)
+        }
+    }
+
     fn public_key(&self) -> p256::PublicKey {
         self.public_key()
     }

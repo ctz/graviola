@@ -251,6 +251,7 @@ fn ecdsa_sign(c: &mut Criterion) {
 
     group.bench_function("this", |b| {
         use curve25519::ec::{Curve, P256};
+        use curve25519::hash::Sha256;
         let private_key = P256::generate_random_key(&mut curve25519::SystemRandom).unwrap();
         let signing_key = curve25519::ecdsa::SigningKey::<P256> { private_key };
 
@@ -258,7 +259,7 @@ fn ecdsa_sign(c: &mut Criterion) {
             let mut signature = [0u8; 64];
             black_box(
                 signing_key
-                    .sign(hash, &mut curve25519::SystemRandom, &mut signature)
+                    .sign::<Sha256>(&[message], &mut signature)
                     .unwrap(),
             );
         });

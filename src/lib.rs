@@ -59,5 +59,9 @@ pub mod sha2 {
     pub use super::mid::sha2::{Sha256Context, Sha384Context, Sha512Context};
 }
 
+pub mod hash {
+    pub use super::high::hash::{Hash, HashContext, HashOutput, Sha256, Sha384, Sha512};
+}
+
 pub use error::Error;
 pub use mid::rng::{RandomSource, SystemRandom};

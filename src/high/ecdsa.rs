@@ -1,6 +1,7 @@
-use super::curve::{Curve, PrivateKey, PublicKey, Scalar};
+use super::curve::{Curve, PrivateKey, PublicKey, Scalar, MAX_SCALAR_LEN};
+use super::hash::{Hash, HashContext};
+use super::hmac_drbg::HmacDrbg;
 use crate::Error;
-use crate::RandomSource;
 
 #[cfg(test)]
 mod tests;
@@ -10,24 +11,30 @@ pub struct SigningKey<C: Curve> {
 }
 
 impl<C: Curve> SigningKey<C> {
-    pub fn sign(
-        &self,
-        hash: &[u8],
-        rng: &mut dyn RandomSource,
-        signature: &mut [u8],
-    ) -> Result<(), Error> {
+    pub fn sign<H: Hash>(&self, message: &[&[u8]], signature: &mut [u8]) -> Result<(), Error> {
         let output = signature
             .get_mut(..C::Scalar::LEN_BYTES * 2)
             .ok_or(Error::WrongLength)?;
 
+        let mut ctx = H::new();
+        for m in message {
+            ctx.update(m);
+        }
+        let hash = ctx.finish();
+
+        let mut encoded_private_key = [0u8; MAX_SCALAR_LEN];
+        let encoded_private_key = self.private_key.encode(&mut encoded_private_key)?;
+
+        let mut rng = HmacDrbg::<H>::new(&encoded_private_key, hash.as_ref());
+
         let (k, r) = loop {
-            let k = C::generate_random_key(rng)?;
+            let k = C::generate_random_key(&mut rng)?;
             let x = k.public_key().x_scalar();
             if !x.is_zero() {
                 break (k, x);
             }
         };
-        let e = hash_to_scalar::<C>(hash)?;
+        let e = hash_to_scalar::<C>(hash.as_ref())?;
         let s = self.private_key.raw_ecdsa_sign(&k, &e, &r);
 
         r.write_bytes(&mut output[..C::Scalar::LEN_BYTES]);
