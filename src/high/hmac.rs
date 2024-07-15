@@ -59,9 +59,6 @@ impl<H: Hash> Hmac<H> {
 }
 
 #[cfg(test)]
-mod tests;
-
-#[cfg(test)]
 mod manual_tests {
     use super::*;
     use crate::high::hash::Sha256;

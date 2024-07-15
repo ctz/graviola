@@ -88,7 +88,7 @@ impl<H: Hash> HmacDrbg<H> {
 
 impl<H: Hash> RandomSource for HmacDrbg<H> {
     fn fill(&mut self, out: &mut [u8]) -> Result<(), Error> {
-        let outlen = self.v.as_ref().len();
+        let hashlen = self.v.as_ref().len();
 
         // 1. If reseed_counter > reseed_interval, then
         //    return an indication that a reseed is required.
@@ -101,7 +101,7 @@ impl<H: Hash> RandomSource for HmacDrbg<H> {
 
         // 3. - 5. this is a different formulation, but
         // ends up with all `V` terms being written to `out`.
-        for chunk in out.chunks_mut(outlen) {
+        for chunk in out.chunks_mut(hashlen) {
             self.generate_block();
             chunk.copy_from_slice(&self.v.as_ref()[..chunk.len()]);
         }

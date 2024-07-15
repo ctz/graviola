@@ -15,3 +15,21 @@ impl RandomSource for SystemRandom {
         getrandom::getrandom(out).map_err(|_| Error::RngFailed)
     }
 }
+
+/// Random generation from a slice.
+///
+/// Returns an error once exhausted.  Intended only for testing.
+pub struct SliceRandomSource<'a>(pub &'a [u8]);
+
+impl RandomSource for SliceRandomSource<'_> {
+    fn fill(&mut self, out: &mut [u8]) -> Result<(), Error> {
+        if out.len() > self.0.len() {
+            return Err(Error::RngFailed);
+        }
+
+        let (chunk, rest) = self.0.split_at(out.len());
+        self.0 = rest;
+        out.copy_from_slice(chunk);
+        Ok(())
+    }
+}

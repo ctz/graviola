@@ -32,7 +32,7 @@ mod mid;
 /// High-level APIs.
 ///
 /// Examples: key encodings, high-level constructions.
-mod high;
+pub mod high;
 
 /// Errors.  Common to all layers.
 mod error;

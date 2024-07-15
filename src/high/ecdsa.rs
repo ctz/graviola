@@ -3,9 +3,6 @@ use super::hash::{Hash, HashContext};
 use super::hmac_drbg::HmacDrbg;
 use crate::Error;
 
-#[cfg(test)]
-mod tests;
-
 pub struct SigningKey<C: Curve> {
     pub private_key: C::PrivateKey,
 }
@@ -25,7 +22,10 @@ impl<C: Curve> SigningKey<C> {
         let mut encoded_private_key = [0u8; MAX_SCALAR_LEN];
         let encoded_private_key = self.private_key.encode(&mut encoded_private_key)?;
 
-        let mut rng = HmacDrbg::<H>::new(&encoded_private_key, hash.as_ref());
+        let e = hash_to_scalar::<C>(hash.as_ref())?;
+        let mut e_bytes = [0u8; MAX_SCALAR_LEN];
+        e.write_bytes(&mut e_bytes[..C::Scalar::LEN_BYTES]);
+        let mut rng = HmacDrbg::<H>::new(encoded_private_key, &e_bytes[..C::Scalar::LEN_BYTES]);
 
         let (k, r) = loop {
             let k = C::generate_random_key(&mut rng)?;
@@ -34,7 +34,6 @@ impl<C: Curve> SigningKey<C> {
                 break (k, x);
             }
         };
-        let e = hash_to_scalar::<C>(hash.as_ref())?;
         let s = self.private_key.raw_ecdsa_sign(&k, &e, &r);
 
         r.write_bytes(&mut output[..C::Scalar::LEN_BYTES]);
@@ -52,7 +51,7 @@ impl<C: Curve> VerifyingKey<C> {
         C::PublicKey::from_x962_uncompressed(encoded).map(|public_key| Self { public_key })
     }
 
-    pub fn verify(&self, hash: &[u8], signature: &[u8]) -> Result<(), Error> {
+    pub fn verify<H: Hash>(&self, message: &[&[u8]], signature: &[u8]) -> Result<(), Error> {
         if signature.len() != C::Scalar::LEN_BYTES * 2 {
             return Err(Error::WrongLength);
         }
@@ -64,10 +63,14 @@ impl<C: Curve> VerifyingKey<C> {
             .map_err(|_| Error::BadSignature)?;
 
         // 2. Use the hash function established during the setup procedure to compute the hash value:
-        // (done by caller)
+        let mut ctx = H::new();
+        for m in message {
+            ctx.update(m);
+        }
+        let hash = ctx.finish();
 
         // 3. Derive an integer e from H as follows: (...)
-        let e = hash_to_scalar::<C>(hash)?;
+        let e = hash_to_scalar::<C>(hash.as_ref())?;
 
         // 4. - 8. in `raw_ecdsa_verify`
         self.public_key.raw_ecdsa_verify(&r, &s, &e)
@@ -75,9 +78,12 @@ impl<C: Curve> VerifyingKey<C> {
 }
 
 fn hash_to_scalar<C: Curve>(hash: &[u8]) -> Result<C::Scalar, Error> {
-    if hash.len() > C::Scalar::LEN_BYTES {
-        todo!("reduction of |H| into scalar");
-    }
-
+    // TODO: drop this into C::Scalar for cases where a right shift
+    // is required.
+    let hash = if hash.len() > C::Scalar::LEN_BYTES {
+        &hash[..C::Scalar::LEN_BYTES]
+    } else {
+        hash
+    };
     Ok(C::Scalar::from_bytes_reduced(hash))
 }
