@@ -37,14 +37,14 @@ fn test_rc_sha512(data: &[u8]) {
     black_box(ctx.finalize());
 }
 
-fn test_this_sha256(data: &[u8]) {
-    let mut ctx = curve25519::sha2::Sha256Context::new();
+fn test_graviola_sha256(data: &[u8]) {
+    let mut ctx = graviola::sha2::Sha256Context::new();
     ctx.update(data);
     black_box(ctx.finish());
 }
 
-fn test_this_sha512(data: &[u8]) {
-    let mut ctx = curve25519::sha2::Sha512Context::new();
+fn test_graviola_sha512(data: &[u8]) {
+    let mut ctx = graviola::sha2::Sha512Context::new();
     ctx.update(data);
     black_box(ctx.finish());
 }
@@ -56,14 +56,14 @@ fn block_32(c: &mut Criterion) {
     group.bench_function("ring", |b| b.iter(|| test_ring_sha256(&data)));
     group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha256(&data)));
     group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha256(&data)));
-    group.bench_function("this", |b| b.iter(|| test_this_sha256(&data)));
+    group.bench_function("graviola", |b| b.iter(|| test_graviola_sha256(&data)));
     drop(group);
 
     let mut group = c.benchmark_group("sha512-32");
     group.bench_function("ring", |b| b.iter(|| test_ring_sha512(&data)));
     group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha512(&data)));
     group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha512(&data)));
-    group.bench_function("this", |b| b.iter(|| test_this_sha512(&data)));
+    group.bench_function("graviola", |b| b.iter(|| test_graviola_sha512(&data)));
 }
 
 fn block_8k(c: &mut Criterion) {
@@ -73,14 +73,14 @@ fn block_8k(c: &mut Criterion) {
     group.bench_function("ring", |b| b.iter(|| test_ring_sha256(&data)));
     group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha256(&data)));
     group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha256(&data)));
-    group.bench_function("this", |b| b.iter(|| test_this_sha256(&data)));
+    group.bench_function("graviola", |b| b.iter(|| test_graviola_sha256(&data)));
     drop(group);
 
     let mut group = c.benchmark_group("sha512-8k");
     group.bench_function("ring", |b| b.iter(|| test_ring_sha512(&data)));
     group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha512(&data)));
     group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha512(&data)));
-    group.bench_function("this", |b| b.iter(|| test_this_sha512(&data)));
+    group.bench_function("graviola", |b| b.iter(|| test_graviola_sha512(&data)));
 }
 
 fn block_1m(c: &mut Criterion) {
@@ -90,14 +90,14 @@ fn block_1m(c: &mut Criterion) {
     group.bench_function("ring", |b| b.iter(|| test_ring_sha256(&data)));
     group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha256(&data)));
     group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha256(&data)));
-    group.bench_function("this", |b| b.iter(|| test_this_sha256(&data)));
+    group.bench_function("graviola", |b| b.iter(|| test_graviola_sha256(&data)));
     drop(group);
 
     let mut group = c.benchmark_group("sha512-1m");
     group.bench_function("ring", |b| b.iter(|| test_ring_sha512(&data)));
     group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha512(&data)));
     group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha512(&data)));
-    group.bench_function("this", |b| b.iter(|| test_this_sha512(&data)));
+    group.bench_function("graviola", |b| b.iter(|| test_graviola_sha512(&data)));
 }
 
 criterion_group!(benches, block_32, block_8k, block_1m);

@@ -91,14 +91,14 @@ fn ecdh(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("this", |b| {
+    group.bench_function("graviola", |b| {
         b.iter(|| {
             let our_private_key =
-                curve25519::p256::PrivateKey::generate(&mut curve25519::SystemRandom).unwrap();
+                graviola::p256::PrivateKey::generate(&mut graviola::SystemRandom).unwrap();
             let our_public_key = our_private_key.public_key();
             black_box(our_public_key);
 
-            let peer = curve25519::p256::PublicKey::from_x962_uncompressed(PUBLIC_KEY).unwrap();
+            let peer = graviola::p256::PublicKey::from_x962_uncompressed(PUBLIC_KEY).unwrap();
             let secret = our_private_key.diffie_hellman(&peer).unwrap();
             black_box(secret);
         })
@@ -149,10 +149,10 @@ fn keygen(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("this", |b| {
+    group.bench_function("graviola", |b| {
         b.iter(|| {
             let our_private_key =
-                curve25519::p256::PrivateKey::generate(&mut curve25519::SystemRandom).unwrap();
+                graviola::p256::PrivateKey::generate(&mut graviola::SystemRandom).unwrap();
             black_box(our_private_key.public_key());
         })
     });
@@ -190,12 +190,10 @@ fn ecdsa_verify(c: &mut Criterion) {
         })
     });
 
-    group.bench_function("this", |b| {
+    group.bench_function("graviola", |b| {
         let public_key =
-            curve25519::ecdsa::VerifyingKey::<curve25519::ec::P256>::from_x962_uncompressed(
-                public_key,
-            )
-            .unwrap();
+            graviola::ecdsa::VerifyingKey::<graviola::ec::P256>::from_x962_uncompressed(public_key)
+                .unwrap();
 
         b.iter(|| {
             public_key.verify(hash, signature).unwrap();
@@ -249,11 +247,11 @@ fn ecdsa_sign(c: &mut Criterion) {
         })
     });
 
-    group.bench_function("this", |b| {
-        use curve25519::ec::{Curve, P256};
-        use curve25519::hash::Sha256;
-        let private_key = P256::generate_random_key(&mut curve25519::SystemRandom).unwrap();
-        let signing_key = curve25519::ecdsa::SigningKey::<P256> { private_key };
+    group.bench_function("graviola", |b| {
+        use graviola::ec::{Curve, P256};
+        use graviola::hash::Sha256;
+        let private_key = P256::generate_random_key(&mut graviola::SystemRandom).unwrap();
+        let signing_key = graviola::ecdsa::SigningKey::<P256> { private_key };
 
         b.iter(|| {
             let mut signature = [0u8; 64];

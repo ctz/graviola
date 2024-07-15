@@ -1,5 +1,5 @@
 [package]
-name = "curve25519"
+name = "graviola"
 version = "0.1.0"
 edition = "2021"
 

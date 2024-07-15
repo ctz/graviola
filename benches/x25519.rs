@@ -78,14 +78,14 @@ fn x25519(c: &mut Criterion) {
         });
     });
 
-    group.bench_function("this", |b| {
+    group.bench_function("graviola", |b| {
         b.iter(|| {
             let our_private_key =
-                curve25519::x25519::PrivateKey::generate(&mut curve25519::SystemRandom).unwrap();
+                graviola::x25519::PrivateKey::generate(&mut graviola::SystemRandom).unwrap();
             let our_public_key = our_private_key.public_key();
             black_box(our_public_key);
 
-            let peer = curve25519::x25519::PublicKey::from_array(PUBLIC_KEY);
+            let peer = graviola::x25519::PublicKey::from_array(PUBLIC_KEY);
             let secret = our_private_key.diffie_hellman(&peer);
             black_box(secret);
         })
