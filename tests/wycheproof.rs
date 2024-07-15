@@ -5,6 +5,7 @@ use graviola::ec::P256;
 use graviola::ecdsa::VerifyingKey;
 use graviola::high::hash::{Sha256, Sha384, Sha512};
 use graviola::high::hmac::Hmac;
+use graviola::p256;
 use graviola::Error;
 
 #[derive(Deserialize, Debug)]
@@ -39,7 +40,19 @@ struct Test {
     tag: Vec<u8>,
     #[serde(default, with = "hex::serde")]
     sig: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    private: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    public: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    shared: Vec<u8>,
     result: ExpectedResult,
+}
+
+impl Test {
+    fn has_flag(&self, s: &str) -> bool {
+        self.flags.contains(&s.to_string())
+    }
 }
 
 #[derive(Deserialize, Debug, Default)]
@@ -53,6 +66,7 @@ struct PublicKey {
 enum ExpectedResult {
     Valid,
     Invalid,
+    Acceptable,
 }
 
 #[test]
@@ -179,6 +193,42 @@ fn test_verify_ecdsa_p256_sha512() {
                 (ExpectedResult::Valid, Ok(())) => {}
                 (ExpectedResult::Invalid, Err(Error::BadSignature) | Err(Error::WrongLength)) => {}
                 _ => panic!("expected {:?} got {:?}", test.result, result),
+            }
+        }
+    }
+}
+
+#[test]
+fn test_ecdh_p256() {
+    let data_file =
+        File::open("thirdparty/wycheproof/testvectors_v1/ecdh_secp256r1_ecpoint_test.json")
+            .expect("failed to open data file");
+
+    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+
+    for group in tests.groups {
+        println!("group: {:?}", group.typ);
+
+        for test in group.tests {
+            println!("  test {:?}", test);
+
+            let private = p256::PrivateKey::from_bytes(&test.private).unwrap();
+            let result = p256::PublicKey::from_x962_uncompressed(&test.public)
+                .and_then(|pubkey| private.diffie_hellman(&pubkey));
+
+            // unsupported test cases
+            if test.has_flag("CompressedPublic") || test.has_flag("CompressedPoint") {
+                assert_eq!(result.err(), Some(Error::NotUncompressed));
+                continue;
+            }
+
+            match (test.result, &result) {
+                (ExpectedResult::Valid, Ok(shared)) => assert_eq!(&shared.0[..], &test.shared),
+                (ExpectedResult::Invalid, Err(Error::NotOnCurve))
+                    if test.has_flag("InvalidCurveAttack") => {}
+                (ExpectedResult::Invalid, Err(Error::WrongLength))
+                    if test.has_flag("InvalidEncoding") => {}
+                _ => panic!("expected {:?} got {:?}", test.result, result.err()),
             }
         }
     }

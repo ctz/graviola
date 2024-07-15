@@ -6,8 +6,6 @@ use crate::RandomSource;
 use core::fmt;
 
 mod precomp;
-#[cfg(test)]
-mod tests;
 
 #[derive(Clone, Debug)]
 pub struct PublicKey {
