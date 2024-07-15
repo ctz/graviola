@@ -6,6 +6,7 @@ use graviola::ecdsa::VerifyingKey;
 use graviola::high::hash::{Sha256, Sha384, Sha512};
 use graviola::high::hmac::Hmac;
 use graviola::p256;
+use graviola::x25519;
 use graviola::Error;
 
 #[derive(Deserialize, Debug)]
@@ -228,6 +229,32 @@ fn test_ecdh_p256() {
                     if test.has_flag("InvalidCurveAttack") => {}
                 (ExpectedResult::Invalid, Err(Error::WrongLength))
                     if test.has_flag("InvalidEncoding") => {}
+                _ => panic!("expected {:?} got {:?}", test.result, result.err()),
+            }
+        }
+    }
+}
+
+#[test]
+fn test_ecdh_x25519() {
+    let data_file = File::open("thirdparty/wycheproof/testvectors_v1/x25519_test.json")
+        .expect("failed to open data file");
+
+    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+
+    for group in tests.groups {
+        println!("group: {:?}", group.typ);
+
+        for test in group.tests {
+            println!("  test {:?}", test);
+
+            let private = x25519::PrivateKey::try_from_slice(&test.private).unwrap();
+            let result = x25519::PublicKey::try_from_slice(&test.public)
+                .and_then(|pubkey| Ok(private.diffie_hellman(&pubkey)));
+            match (test.result, &result) {
+                (ExpectedResult::Valid | ExpectedResult::Acceptable, Ok(shared)) => {
+                    assert_eq!(&shared.0[..], &test.shared)
+                }
                 _ => panic!("expected {:?} got {:?}", test.result, result.err()),
             }
         }
