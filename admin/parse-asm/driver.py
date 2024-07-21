@@ -216,8 +216,11 @@ class ConstantArray:
         self.lines.append("")
 
     def add_item(self, value):
-        self.lines.append(value + ",")
-        self.items.append(value)
+        for v in tokenise(value):
+            if v == ',':
+                continue
+            self.lines.append(v + ",")
+            self.items.append(v)
 
     def set_type(self, type):
         if self.type is not None and self.type != type:
@@ -345,10 +348,14 @@ class FunctionState:
         self.labels = {}
         self.labels_defined = set()
         self.referenced_constant_syms = set()
+        self.hoist = None
+        self.hoisting = False
 
     def output(self):
         return self.spool
 
+    def finishes_hoist(self, opcode, operands):
+        return self.hoisting and self.hoist[1] in operands
 
 class RustDriver:
     def __init__(self, output, architecture):
@@ -361,7 +368,7 @@ class RustDriver:
         self.formatter.discard_rust_function(function)
 
     def emit_rust_function(
-        self, name, parameter_map, rust_decl, return_value=None, allow_inline=True
+        self, name, parameter_map, rust_decl, return_value=None, allow_inline=True, hoist=None,
     ):
         self.formatter.emit_rust_function(
             name,
@@ -369,10 +376,11 @@ class RustDriver:
             rust_decl,
             return_value=return_value,
             allow_inline=allow_inline,
+            hoist=hoist,
         )
 
-    def add_const_symbol(self, sym, align=None):
-        self.formatter.add_const_symbol(sym, align=align)
+    def add_const_symbol(self, sym, rename=None, align=None):
+        self.formatter.add_const_symbol(sym, rename=rename, align=align)
 
     def set_att_syntax(self, att_syntax):
         self.formatter.set_att_syntax(att_syntax)
@@ -401,6 +409,7 @@ class RustFormatter(Dispatcher):
         self.expected_functions = {}
         self.constant_syms = set()
         self.constant_sym_alignment = {}
+        self.constant_sym_rename = {}
         self.current_constant_array = None
         self.emitted_page_aligned_types = set()
         self.function_state = None
@@ -412,13 +421,14 @@ class RustFormatter(Dispatcher):
         self.expected_functions[function] = None
 
     def emit_rust_function(
-        self, name, parameter_map, rust_decl, return_value=None, allow_inline=True
+        self, name, parameter_map, rust_decl, return_value=None, allow_inline=True, hoist=None,
     ):
         self.expected_functions[name] = (
             parameter_map,
             rust_decl,
             return_value,
             allow_inline,
+            hoist
         )
 
     def set_att_syntax(self, att_syntax):
@@ -438,9 +448,11 @@ use crate::low::macros::{Q, Label};
             file=self.output,
         )
 
-    def add_const_symbol(self, sym, align=None):
+    def add_const_symbol(self, sym, rename=None, align=None):
         self.constant_syms.add(sym)
-        self.constant_sym_alignment[sym] = align
+        name = rename if rename else sym
+        self.constant_sym_rename[sym] = name
+        self.constant_sym_alignment[name] = align
 
     def find_label(self, label, defn=False):
         """
@@ -499,6 +511,7 @@ use crate::low::macros::{Q, Label};
                 elif is_comment(t):
                     yield unquote(t)
                 elif t in self.constant_syms:
+                    t = self.constant_sym_rename[t]
                     if self.function_state:
                         self.function_state.referenced_constant_syms.add(t)
                     yield "{" + t + "}"
@@ -544,10 +557,11 @@ use crate::low::macros::{Q, Label};
             if defn is None:
                 self.function_state.skip = True
             else:
-                parameter_map, rust_decl, return_value, allow_inline = defn
+                parameter_map, rust_decl, return_value, allow_inline, hoist = defn
                 self.function_state.parameter_map = parameter_map
                 self.function_state.rust_decl = rust_decl
                 self.function_state.return_value = return_value
+                self.function_state.hoist = hoist
 
             if not self.function_state.skip:
                 locals = ""
@@ -622,6 +636,11 @@ use crate::low::macros::{Q, Label};
         elif directive == ".byte" and self.function_state:
             # TODO: disassemble these for readability
             self.on_asm(contexts, directive, *args)
+        elif directive == ".byte" and self.current_constant_array:
+            # avoid binary marker leaking into operational constants
+            if args and args[0].startswith('65,69,83,45,78,73,32,71,67,77,32,109'):
+                return
+            self.on_const(contexts, directive, *args)
 
     def on_asm(self, contexts, opcode, operands):
         if "WINDOWS_ABI" in contexts:
@@ -647,6 +666,9 @@ use crate::low::macros::{Q, Label};
         parts.append(operands)
         print("Q!(" + (" ".join(parts)) + "),", file=self.output)
 
+        if self.function_state and self.function_state.finishes_hoist(opcode, operands):
+            return self.finish_function()
+
     def visit_operands(self, operands):
         for t in tokenise(operands):
             t = t.lstrip("%")
@@ -663,7 +685,7 @@ use crate::low::macros::{Q, Label};
 
         if label in self.constant_syms:
             self.finish_constant_array()
-            self.start_constant_array(label)
+            self.start_constant_array(self.constant_sym_rename[label])
             return
 
         id, _ = self.find_label(label, defn=True)
@@ -693,6 +715,7 @@ use crate::low::macros::{Q, Label};
             self.current_constant_array = None
 
             rust_type = {
+                ".byte": "u8",
                 ".quad": "u64",
                 ".long": "u32",
             }[ca.type]
@@ -737,6 +760,17 @@ use crate::low::macros::{Q, Label};
     def finish_function(self):
         if self.function_state is None:
             return
+
+        if self.function_state.hoist and not self.function_state.hoisting:
+            start, fin = self.function_state.hoist
+            print('// hoisting in %s -> %s' % (start, fin), file=self.output)
+            self.expected_labels.add("finish")
+            self.on_asm([], "jmp", "finish")
+            self.function_state.hoisting = True
+            return
+        elif self.function_state.hoisting:
+            self.on_label([], 'finish')
+            self.function_state.hoisting = False
 
         for dir, reg, param in self.function_state.parameter_map:
             print('%s("%s") %s,' % (dir, reg, param), file=self.output)

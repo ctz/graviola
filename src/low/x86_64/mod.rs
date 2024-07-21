@@ -1,3 +1,4 @@
+pub(crate) mod aes;
 pub(crate) mod bignum_add_p256;
 pub(crate) mod bignum_copy_row_from_table;
 pub(crate) mod bignum_demont;
@@ -16,6 +17,7 @@ pub(crate) mod bignum_neg_p256;
 pub(crate) mod bignum_tomont_p256;
 pub(crate) mod curve25519_x25519;
 pub(crate) mod curve25519_x25519base;
+pub(crate) mod gf128;
 pub(crate) mod optimise_barrier;
 pub(crate) mod p256_montjadd;
 pub(crate) mod p256_montjdouble;

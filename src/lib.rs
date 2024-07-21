@@ -64,4 +64,5 @@ pub mod hash {
 }
 
 pub use error::Error;
+pub use mid::aes_gcm;
 pub use mid::rng::{RandomSource, SystemRandom};

@@ -1,3 +1,5 @@
+use crate::low::Blockwise;
+
 #[derive(Clone)]
 pub struct Sha256Context {
     h: [u32; 8],
@@ -189,52 +191,6 @@ static MD_PADDING: [u8; 128] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 ];
-
-#[derive(Clone)]
-struct Blockwise<const N: usize> {
-    buffer: [u8; N],
-    used: usize,
-}
-
-impl<const N: usize> Blockwise<N> {
-    const fn new() -> Self {
-        Self {
-            buffer: [0u8; N],
-            used: 0,
-        }
-    }
-
-    const fn used(&self) -> usize {
-        self.used
-    }
-
-    fn add_leading<'a>(&mut self, bytes: &'a [u8]) -> &'a [u8] {
-        if self.used == 0 {
-            return bytes;
-        }
-
-        let space = N - self.used;
-        let take = core::cmp::min(bytes.len(), space);
-        let (taken, returned) = bytes.split_at(take);
-        self.buffer[self.used..self.used + take].copy_from_slice(taken);
-        self.used += take;
-        returned
-    }
-
-    fn take(&mut self) -> Option<[u8; N]> {
-        if self.used == N {
-            self.used = 0;
-            Some(self.buffer)
-        } else {
-            None
-        }
-    }
-
-    fn add_trailing(&mut self, trailing: &[u8]) {
-        self.buffer[..trailing.len()].copy_from_slice(trailing);
-        self.used += trailing.len();
-    }
-}
 
 #[cfg(test)]
 mod tests {

@@ -161,7 +161,7 @@ def is_comment(s):
 
 def tokenise(s):
     def tokenise_gen(s):
-        symbol = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*")
+        symbol = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*")
         register = re.compile(r"^%?[a-z]\.?[a-z0-9]+(\.[a-z]\[\d+\]|\.[a-z0-9]+)?")
         label = re.compile(r"^\.?[a-zA-Z][a-zA-Z0-9_]+")
         comment = re.compile(r"^/\*.*?\*/")

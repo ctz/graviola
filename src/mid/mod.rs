@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+pub mod aes_gcm;
 pub mod p256;
 pub mod rng;
 pub mod sha2;

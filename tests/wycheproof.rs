@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use std::fs::File;
 
+use graviola::aes_gcm;
 use graviola::ec::P256;
 use graviola::ecdsa::VerifyingKey;
 use graviola::high::hash::{Sha256, Sha384, Sha512};
@@ -47,6 +48,12 @@ struct Test {
     public: Vec<u8>,
     #[serde(default, with = "hex::serde")]
     shared: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    ct: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    aad: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    iv: Vec<u8>,
     result: ExpectedResult,
 }
 
@@ -62,7 +69,7 @@ struct PublicKey {
     uncompressed: Vec<u8>,
 }
 
-#[derive(Copy, Clone, Deserialize, Debug)]
+#[derive(Copy, Clone, Deserialize, Debug, PartialEq)]
 #[serde(rename_all = "lowercase")]
 enum ExpectedResult {
     Valid,
@@ -256,6 +263,59 @@ fn test_ecdh_x25519() {
                     assert_eq!(&shared.0[..], &test.shared)
                 }
                 _ => panic!("expected {:?} got {:?}", test.result, result.err()),
+            }
+        }
+    }
+}
+
+#[test]
+fn test_aesgcm() {
+    let data_file = File::open("thirdparty/wycheproof/testvectors_v1/aes_gcm_test.json")
+        .expect("failed to open data file");
+
+    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+
+    for group in tests.groups {
+        println!("group: {:?}", group.typ);
+
+        for test in group.tests {
+            println!("  test {:?}", test);
+
+            if test.key.len() == 24 {
+                println!("    skipped (unsupported key len)");
+                continue;
+            }
+
+            let ctx = aes_gcm::AesGcm::new(&test.key);
+            let nonce = match test.iv.len() {
+                12 => test.iv.try_into().unwrap(),
+                _ => {
+                    println!("    skipped (unsupported nonce len)");
+                    continue;
+                }
+            };
+
+            // try decrypt
+            let mut msg = test.ct.clone();
+            let result = ctx.decrypt(&nonce, &test.aad, &mut msg, &test.tag);
+
+            match (test.result, &result) {
+                (ExpectedResult::Valid, Ok(())) => {
+                    assert_eq!(msg, test.msg);
+                }
+                (ExpectedResult::Invalid, Err(Error::DecryptFailed)) => {}
+                _ => panic!("expected {:?} got {:?}", test.result, result.err()),
+            }
+
+            // and encrypt
+            let mut ct = test.msg.clone();
+            let mut tag = [0u8; 16];
+
+            ctx.encrypt(&nonce, &test.aad, &mut ct, &mut tag);
+
+            if test.result == ExpectedResult::Valid {
+                assert_eq!(ct, test.ct);
+                assert_eq!(&tag, &test.tag[..]);
             }
         }
     }

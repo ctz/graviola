@@ -18,4 +18,7 @@ pub enum Error {
 
     /// Presented signature is invalid.
     BadSignature,
+
+    /// Presented AEAD tag/aad/ciphertext/nonce was wrong
+    DecryptFailed,
 }
