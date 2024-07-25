@@ -10,6 +10,7 @@ getrandom = "0.2"
 debug = "full"
 
 [dev-dependencies]
+aes-gcm = "0.10"
 aws-lc-rs = "1"
 criterion = "0.5"
 hex = { version = "0.4", features = ["serde"] }
@@ -38,4 +39,8 @@ harness = false
 
 [[bench]]
 name = "sha2"
+harness = false
+
+[[bench]]
+name = "aes_gcm"
 harness = false
