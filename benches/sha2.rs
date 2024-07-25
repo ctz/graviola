@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use sha2::Digest;
 
 fn test_ring_sha256(data: &[u8]) {
@@ -49,56 +49,69 @@ fn test_graviola_sha512(data: &[u8]) {
     black_box(ctx.finish());
 }
 
-fn block_32(c: &mut Criterion) {
-    let data = [0u8; 32];
+fn sha256(c: &mut Criterion) {
+    let mut group = c.benchmark_group("sha256");
+    for (size, size_name) in [
+        (32, "32B"),
+        (8192, "8KB"),
+        (65536, "64KB"),
+        (1048576, "1MB"),
+    ] {
+        let input = vec![0u8; size];
+        group.throughput(Throughput::Bytes(size as u64));
 
-    let mut group = c.benchmark_group("sha256-32");
-    group.bench_function("ring", |b| b.iter(|| test_ring_sha256(&data)));
-    group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha256(&data)));
-    group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha256(&data)));
-    group.bench_function("graviola", |b| b.iter(|| test_graviola_sha256(&data)));
-    drop(group);
-
-    let mut group = c.benchmark_group("sha512-32");
-    group.bench_function("ring", |b| b.iter(|| test_ring_sha512(&data)));
-    group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha512(&data)));
-    group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha512(&data)));
-    group.bench_function("graviola", |b| b.iter(|| test_graviola_sha512(&data)));
+        group.bench_with_input(BenchmarkId::new("ring", size_name), &input, |b, input| {
+            b.iter(|| test_ring_sha256(input))
+        });
+        group.bench_with_input(
+            BenchmarkId::new("aws-lc-rs", size_name),
+            &input,
+            |b, input| b.iter(|| test_aws_sha256(input)),
+        );
+        group.bench_with_input(
+            BenchmarkId::new("rustcrypto", size_name),
+            &input,
+            |b, input| b.iter(|| test_rc_sha256(input)),
+        );
+        group.bench_with_input(
+            BenchmarkId::new("graviola", size_name),
+            &input,
+            |b, input| b.iter(|| test_graviola_sha256(input)),
+        );
+    }
 }
 
-fn block_8k(c: &mut Criterion) {
-    let data = vec![0u8; 8192];
+fn sha512(c: &mut Criterion) {
+    let mut group = c.benchmark_group("sha512");
+    for (size, size_name) in [
+        (32, "32B"),
+        (8192, "8KB"),
+        (65536, "64KB"),
+        (1048576, "1MB"),
+    ] {
+        let input = vec![0u8; size];
+        group.throughput(Throughput::Bytes(size as u64));
 
-    let mut group = c.benchmark_group("sha256-8k");
-    group.bench_function("ring", |b| b.iter(|| test_ring_sha256(&data)));
-    group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha256(&data)));
-    group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha256(&data)));
-    group.bench_function("graviola", |b| b.iter(|| test_graviola_sha256(&data)));
-    drop(group);
-
-    let mut group = c.benchmark_group("sha512-8k");
-    group.bench_function("ring", |b| b.iter(|| test_ring_sha512(&data)));
-    group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha512(&data)));
-    group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha512(&data)));
-    group.bench_function("graviola", |b| b.iter(|| test_graviola_sha512(&data)));
+        group.bench_with_input(BenchmarkId::new("ring", size_name), &input, |b, input| {
+            b.iter(|| test_ring_sha512(input))
+        });
+        group.bench_with_input(
+            BenchmarkId::new("aws-lc-rs", size_name),
+            &input,
+            |b, input| b.iter(|| test_aws_sha512(input)),
+        );
+        group.bench_with_input(
+            BenchmarkId::new("rustcrypto", size_name),
+            &input,
+            |b, input| b.iter(|| test_rc_sha512(input)),
+        );
+        group.bench_with_input(
+            BenchmarkId::new("graviola", size_name),
+            &input,
+            |b, input| b.iter(|| test_graviola_sha512(input)),
+        );
+    }
 }
 
-fn block_1m(c: &mut Criterion) {
-    let data = vec![0u8; 1024 * 1024];
-
-    let mut group = c.benchmark_group("sha256-1m");
-    group.bench_function("ring", |b| b.iter(|| test_ring_sha256(&data)));
-    group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha256(&data)));
-    group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha256(&data)));
-    group.bench_function("graviola", |b| b.iter(|| test_graviola_sha256(&data)));
-    drop(group);
-
-    let mut group = c.benchmark_group("sha512-1m");
-    group.bench_function("ring", |b| b.iter(|| test_ring_sha512(&data)));
-    group.bench_function("aws-lc-rs", |b| b.iter(|| test_aws_sha512(&data)));
-    group.bench_function("rustcrypto", |b| b.iter(|| test_rc_sha512(&data)));
-    group.bench_function("graviola", |b| b.iter(|| test_graviola_sha512(&data)));
-}
-
-criterion_group!(benches, block_32, block_8k, block_1m);
+criterion_group!(benches, sha256, sha512);
 criterion_main!(benches);

@@ -1,4 +1,4 @@
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
 
 const PUBLIC_KEY: &[u8; 65] = b"\x04\
 \x62\xd5\xbd\x33\x72\xaf\x75\xfe\x85\xa0\x40\x71\x5d\x0f\x50\x24\x28\xe0\x70\x46\x86\x8b\x0b\xfd\xfa\x61\xd7\x31\xaf\xe4\x4f\x26\
@@ -6,6 +6,7 @@ const PUBLIC_KEY: &[u8; 65] = b"\x04\
 
 fn ecdh(c: &mut Criterion) {
     let mut group = c.benchmark_group("p256-ecdh");
+    group.throughput(Throughput::Elements(1));
 
     #[cfg(feature = "__bench_openssl")]
     group.bench_function("openssl", |b| {
@@ -107,6 +108,7 @@ fn ecdh(c: &mut Criterion) {
 
 fn keygen(c: &mut Criterion) {
     let mut group = c.benchmark_group("p256-keygen");
+    group.throughput(Throughput::Elements(1));
 
     #[cfg(feature = "__bench_openssl")]
     group.bench_function("openssl", |b| {
@@ -160,6 +162,7 @@ fn keygen(c: &mut Criterion) {
 
 fn ecdsa_verify(c: &mut Criterion) {
     let mut group = c.benchmark_group("p256-ecdsa-verify");
+    group.throughput(Throughput::Elements(1));
 
     let public_key = b"\x04\
 \x29\x27\xb1\x05\x12\xba\xe3\xed\xdc\xfe\x46\x78\x28\x12\x8b\xad\x29\x03\x26\x99\x19\xf7\x08\x60\x69\xc8\xc4\xdf\x6c\x73\x28\x38\
@@ -189,6 +192,17 @@ fn ecdsa_verify(c: &mut Criterion) {
         })
     });
 
+    group.bench_function("rustcrypto", |b| {
+        use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
+        let verifying_key = VerifyingKey::from_sec1_bytes(public_key).unwrap();
+
+        b.iter(|| {
+            verifying_key
+                .verify(message, &Signature::from_slice(signature).unwrap())
+                .unwrap();
+        });
+    });
+
     group.bench_function("graviola", |b| {
         use graviola::hash::Sha256;
         let public_key =
@@ -203,6 +217,7 @@ fn ecdsa_verify(c: &mut Criterion) {
 
 fn ecdsa_sign(c: &mut Criterion) {
     let mut group = c.benchmark_group("p256-ecdsa-sign");
+    group.throughput(Throughput::Elements(1));
     let message = b"\x31\x32\x33\x34\x30\x30";
 
     group.bench_function("ring", |b| {
@@ -244,6 +259,16 @@ fn ecdsa_sign(c: &mut Criterion) {
         b.iter(|| {
             black_box(private_key.sign(&rng, message).unwrap());
         })
+    });
+
+    group.bench_function("rustcrypto", |b| {
+        use p256::ecdsa::{signature::Signer, Signature, SigningKey};
+        let signing_key = SigningKey::random(&mut rand_core::OsRng);
+
+        b.iter(|| {
+            let _sig: Signature = signing_key.sign(message);
+            black_box(_sig);
+        });
     });
 
     group.bench_function("graviola", |b| {
