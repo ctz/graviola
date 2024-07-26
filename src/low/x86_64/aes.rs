@@ -2,60 +2,97 @@
 // - https://iacr.org/archive/fse2009/56650054/56650054.pdf (or)
 // - https://www.intel.com/content/dam/doc/white-paper/advanced-encryption-standard-new-instructions-set-paper.pdf
 
-use crate::low::generic::aes::{AesKey, AES_MAX_ROUNDS};
+use core::arch::x86_64::*;
 
-use std::arch::x86_64::*;
-
-/// Does AES key expansion.
-///
-/// `key` must be 16 or 32 bytes in length (AES-192 not supported).
-pub(crate) fn aes_expand_key(key: &[u8]) -> AesKey {
-    let rounds = match key.len() {
-        16 => 10,
-        32 => 14,
-        _ => unreachable!(),
-    };
-
-    let mut round_keys = [0u32; 4 * (AES_MAX_ROUNDS + 1)];
-
-    // First words are just the key
-    for (i, word) in key.chunks(4).enumerate() {
-        round_keys[i] = u32::from_le_bytes(word.try_into().unwrap());
-    }
-
-    match rounds {
-        10 => {
-            let (key, rk) = round_keys.split_at_mut(4);
-            unsafe {
-                aes128_expand(key, rk);
-            }
-        }
-        14 => {
-            let (key, rk) = round_keys.split_at_mut(8);
-            unsafe {
-                aes256_expand(key, rk);
-            }
-        }
-        _ => unreachable!(),
-    };
-
-    AesKey { round_keys, rounds }
+pub(crate) enum AesKey {
+    Aes128(AesKey128),
+    Aes256(AesKey256),
 }
 
 impl AesKey {
+    /// Creates an AesKey.
+    ///
+    /// `key` must be 16 or 32 bytes in length (AES-192 not supported).
+    pub(crate) fn new(key: &[u8]) -> Self {
+        match key.len() {
+            16 => Self::Aes128(AesKey128::new(key.try_into().unwrap())),
+            32 => Self::Aes256(AesKey256::new(key.try_into().unwrap())),
+            24 => panic!("aes-192 not supported"),
+            _ => panic!("invalid aes key size"),
+        }
+    }
+
     pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
         debug_assert_eq!(inout.len(), 16);
 
-        match self.rounds {
-            10 => unsafe { aes128_block(&self.round_keys, inout) },
-            14 => unsafe { aes256_block(&self.round_keys, inout) },
-            _ => unreachable!(),
+        match self {
+            Self::Aes128(a128) => a128.encrypt_block(inout),
+            Self::Aes256(a256) => a256.encrypt_block(inout),
         }
+    }
+
+    pub(crate) fn round_keys(&self) -> (__m128i, &[__m128i], __m128i) {
+        match self {
+            Self::Aes128(a128) => (
+                a128.round_keys[0],
+                &a128.round_keys[1..10],
+                a128.round_keys[10],
+            ),
+            Self::Aes256(a256) => (
+                a256.round_keys[0],
+                &a256.round_keys[1..14],
+                a256.round_keys[14],
+            ),
+        }
+    }
+}
+
+pub(crate) struct AesKey128 {
+    round_keys: [__m128i; 10 + 1],
+}
+
+impl AesKey128 {
+    pub(crate) fn new(key: &[u8; 16]) -> Self {
+        let mut round_keys = [zero(); (10 + 1)];
+
+        unsafe {
+            aes128_expand(key, &mut round_keys);
+        }
+
+        Self { round_keys }
+    }
+
+    pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
+        unsafe { aes128_block(&self.round_keys, inout) }
+    }
+}
+
+fn zero() -> __m128i {
+    unsafe { _mm_setzero_si128() }
+}
+
+pub(crate) struct AesKey256 {
+    round_keys: [__m128i; 14 + 1],
+}
+
+impl AesKey256 {
+    pub(crate) fn new(key: &[u8; 32]) -> Self {
+        let mut round_keys = [zero(); 14 + 1];
+
+        unsafe {
+            aes256_expand(key, &mut round_keys);
+        }
+
+        Self { round_keys }
+    }
+
+    pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
+        unsafe { aes256_block(&self.round_keys, inout) }
     }
 }
 
 macro_rules! expand_128 {
-    ($rcon:literal, $t1:ident, $out:ident) => {
+    ($rcon:literal, $t1:ident, $out:expr) => {
         // with [X3, _, X1,  _] = t1
         // t2 := [RotWord (SubWord (X3)) XOR RCON, SubWord (X3),
         //        RotWord (SubWord (X1)) XOR RCON, SubWord (X1)]
@@ -75,32 +112,31 @@ macro_rules! expand_128 {
 
         $t1 = _mm_xor_si128($t1, t2);
 
-        _mm_store_si128($out.as_mut_ptr() as *mut _, $t1);
-        let (_, rest) = $out.split_at_mut(4);
-        $out = rest;
+        $out = $t1;
     };
 }
 
 #[target_feature(enable = "aes")]
-unsafe fn aes128_expand(key: &[u32], mut out: &mut [u32]) {
+unsafe fn aes128_expand(key: &[u8; 16], out: &mut [__m128i; 11]) {
     unsafe {
         let mut t1 = _mm_lddqu_si128(key.as_ptr() as *const _);
+        out[0] = t1;
 
-        expand_128!(0x01, t1, out);
-        expand_128!(0x02, t1, out);
-        expand_128!(0x04, t1, out);
-        expand_128!(0x08, t1, out);
-        expand_128!(0x10, t1, out);
-        expand_128!(0x20, t1, out);
-        expand_128!(0x40, t1, out);
-        expand_128!(0x80, t1, out);
-        expand_128!(0x1b, t1, out);
-        expand_128!(0x36, t1, out);
+        expand_128!(0x01, t1, out[1]);
+        expand_128!(0x02, t1, out[2]);
+        expand_128!(0x04, t1, out[3]);
+        expand_128!(0x08, t1, out[4]);
+        expand_128!(0x10, t1, out[5]);
+        expand_128!(0x20, t1, out[6]);
+        expand_128!(0x40, t1, out[7]);
+        expand_128!(0x80, t1, out[8]);
+        expand_128!(0x1b, t1, out[9]);
+        expand_128!(0x36, t1, out[10]);
     }
 }
 
 macro_rules! expand_256 {
-    (Odd, $rcon:literal, $t1:ident, $t3:ident, $out:ident) => {
+    (Odd, $rcon:literal, $t1:ident, $t3:ident, $out:expr) => {
         let t2 = _mm_aeskeygenassist_si128($t3, $rcon);
         let t2 = _mm_shuffle_epi32(t2, 0b11_11_11_11);
 
@@ -115,11 +151,9 @@ macro_rules! expand_256 {
 
         $t1 = _mm_xor_si128($t1, t2);
 
-        _mm_store_si128($out.as_mut_ptr() as *mut _, $t1);
-        let (_, rest) = $out.split_at_mut(4);
-        $out = rest;
+        $out = $t1;
     };
-    (Even, $t1:ident, $t3:ident, $out:ident) => {
+    (Even, $t1:ident, $t3:ident, $out:expr) => {
         let t4 = _mm_aeskeygenassist_si128($t1, 0);
         let t2 = _mm_shuffle_epi32(t4, 0b10_10_10_10); // choose SubWord(X3) term
 
@@ -133,129 +167,69 @@ macro_rules! expand_256 {
         $t3 = _mm_xor_si128($t3, t4);
         $t3 = _mm_xor_si128($t3, t2);
 
-        _mm_store_si128($out.as_mut_ptr() as *mut _, $t3);
-        let (_, rest) = $out.split_at_mut(4);
-        $out = rest;
+        $out = $t3;
     };
 }
 
 #[target_feature(enable = "aes")]
-unsafe fn aes256_expand(key: &[u32], mut out: &mut [u32]) {
+unsafe fn aes256_expand(key: &[u8; 32], out: &mut [__m128i; 15]) {
     let mut t1 = _mm_lddqu_si128(key.as_ptr() as *const _);
-    let mut t3 = _mm_lddqu_si128(key[4..].as_ptr() as *const _);
+    let mut t3 = _mm_lddqu_si128(key[16..].as_ptr() as *const _);
+    out[0] = t1;
+    out[1] = t3;
 
     // nb. 'odd' rounds in units of Nk have an rcon term (equivalent
     // to all rounds of 128-bit key expansion), 'even' rounds do not
-    expand_256!(Odd, 0x01, t1, t3, out);
-    expand_256!(Even, t1, t3, out);
-    expand_256!(Odd, 0x02, t1, t3, out);
-    expand_256!(Even, t1, t3, out);
-    expand_256!(Odd, 0x04, t1, t3, out);
-    expand_256!(Even, t1, t3, out);
-    expand_256!(Odd, 0x08, t1, t3, out);
-    expand_256!(Even, t1, t3, out);
-    expand_256!(Odd, 0x10, t1, t3, out);
-    expand_256!(Even, t1, t3, out);
-    expand_256!(Odd, 0x20, t1, t3, out);
-    expand_256!(Even, t1, t3, out);
-    expand_256!(Odd, 0x40, t1, t3, out);
+    expand_256!(Odd, 0x01, t1, t3, out[2]);
+    expand_256!(Even, t1, t3, out[3]);
+    expand_256!(Odd, 0x02, t1, t3, out[4]);
+    expand_256!(Even, t1, t3, out[5]);
+    expand_256!(Odd, 0x04, t1, t3, out[6]);
+    expand_256!(Even, t1, t3, out[7]);
+    expand_256!(Odd, 0x08, t1, t3, out[8]);
+    expand_256!(Even, t1, t3, out[9]);
+    expand_256!(Odd, 0x10, t1, t3, out[10]);
+    expand_256!(Even, t1, t3, out[11]);
+    expand_256!(Odd, 0x20, t1, t3, out[12]);
+    expand_256!(Even, t1, t3, out[13]);
+    expand_256!(Odd, 0x40, t1, t3, out[14]);
 }
 
 #[target_feature(enable = "aes")]
-unsafe fn aes128_block(round_keys: &[u32], block_inout: &mut [u8]) {
+unsafe fn aes128_block(round_keys: &[__m128i; 11], block_inout: &mut [u8]) {
     let block = _mm_lddqu_si128(block_inout.as_ptr() as *const _);
-    let block = _mm_xor_si128(block, _mm_lddqu_si128(round_keys[0..].as_ptr() as *const _));
-    let block = _mm_aesenc_si128(block, _mm_lddqu_si128(round_keys[4..].as_ptr() as *const _));
-    let block = _mm_aesenc_si128(block, _mm_lddqu_si128(round_keys[8..].as_ptr() as *const _));
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[12..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[16..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[20..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[24..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[28..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[32..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[36..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenclast_si128(
-        block,
-        _mm_lddqu_si128(round_keys[40..].as_ptr() as *const _),
-    );
+    let block = _mm_xor_si128(block, round_keys[0]);
+    let block = _mm_aesenc_si128(block, round_keys[1]);
+    let block = _mm_aesenc_si128(block, round_keys[2]);
+    let block = _mm_aesenc_si128(block, round_keys[3]);
+    let block = _mm_aesenc_si128(block, round_keys[4]);
+    let block = _mm_aesenc_si128(block, round_keys[5]);
+    let block = _mm_aesenc_si128(block, round_keys[6]);
+    let block = _mm_aesenc_si128(block, round_keys[7]);
+    let block = _mm_aesenc_si128(block, round_keys[8]);
+    let block = _mm_aesenc_si128(block, round_keys[9]);
+    let block = _mm_aesenclast_si128(block, round_keys[10]);
     _mm_storeu_si128(block_inout.as_mut_ptr() as *mut _, block);
 }
 
 #[target_feature(enable = "aes")]
-unsafe fn aes256_block(round_keys: &[u32], block_inout: &mut [u8]) {
+unsafe fn aes256_block(round_keys: &[__m128i; 15], block_inout: &mut [u8]) {
     let block = _mm_lddqu_si128(block_inout.as_ptr() as *const _);
-    let block = _mm_xor_si128(block, _mm_lddqu_si128(round_keys[0..].as_ptr() as *const _));
-    let block = _mm_aesenc_si128(block, _mm_lddqu_si128(round_keys[4..].as_ptr() as *const _));
-    let block = _mm_aesenc_si128(block, _mm_lddqu_si128(round_keys[8..].as_ptr() as *const _));
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[12..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[16..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[20..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[24..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[28..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[32..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[36..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[40..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[44..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[48..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenc_si128(
-        block,
-        _mm_lddqu_si128(round_keys[52..].as_ptr() as *const _),
-    );
-    let block = _mm_aesenclast_si128(
-        block,
-        _mm_lddqu_si128(round_keys[56..].as_ptr() as *const _),
-    );
+    let block = _mm_xor_si128(block, round_keys[0]);
+    let block = _mm_aesenc_si128(block, round_keys[1]);
+    let block = _mm_aesenc_si128(block, round_keys[2]);
+    let block = _mm_aesenc_si128(block, round_keys[3]);
+    let block = _mm_aesenc_si128(block, round_keys[4]);
+    let block = _mm_aesenc_si128(block, round_keys[5]);
+    let block = _mm_aesenc_si128(block, round_keys[6]);
+    let block = _mm_aesenc_si128(block, round_keys[7]);
+    let block = _mm_aesenc_si128(block, round_keys[8]);
+    let block = _mm_aesenc_si128(block, round_keys[9]);
+    let block = _mm_aesenc_si128(block, round_keys[10]);
+    let block = _mm_aesenc_si128(block, round_keys[11]);
+    let block = _mm_aesenc_si128(block, round_keys[12]);
+    let block = _mm_aesenc_si128(block, round_keys[13]);
+    let block = _mm_aesenclast_si128(block, round_keys[14]);
     _mm_storeu_si128(block_inout.as_mut_ptr() as *mut _, block);
 }
 
@@ -275,64 +249,64 @@ mod tests {
 
     #[test]
     fn test_key_expansion_128() {
-        let context = aes_expand_key(&[
+        let context = AesKey128::new(&[
             0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf,
             0x4f, 0x3c,
         ]);
 
-        let expected: Vec<u32> = [
-            0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x09cf4f3c, 0xa0fafe17, 0x88542cb1, 0x23a33939,
-            0x2a6c7605, 0xf2c295f2, 0x7a96b943, 0x5935807a, 0x7359f67f, 0x3d80477d, 0x4716fe3e,
-            0x1e237e44, 0x6d7a883b, 0xef44a541, 0xa8525b7f, 0xb671253b, 0xdb0bad00, 0xd4d1c6f8,
-            0x7c839d87, 0xcaf2b8bc, 0x11f915bc, 0x6d88a37a, 0x110b3efd, 0xdbf98641, 0xca0093fd,
-            0x4e54f70e, 0x5f5fc9f3, 0x84a64fb2, 0x4ea6dc4f, 0xead27321, 0xb58dbad2, 0x312bf560,
-            0x7f8d292f, 0xac7766f3, 0x19fadc21, 0x28d12941, 0x575c006e, 0xd014f9a8, 0xc9ee2589,
-            0xe13f0cc8, 0xb6630ca6,
-        ]
-        .into_iter()
-        .map(|item: u32| item.swap_bytes())
-        .collect();
+        let expected = [
+            0x2b7e1516_28aed2a6_abf71588_09cf4f3c,
+            0xa0fafe17_88542cb1_23a33939_2a6c7605,
+            0xf2c295f2_7a96b943_5935807a_7359f67f,
+            0x3d80477d_4716fe3e_1e237e44_6d7a883b,
+            0xef44a541_a8525b7f_b671253b_db0bad00,
+            0xd4d1c6f8_7c839d87_caf2b8bc_11f915bc,
+            0x6d88a37a_110b3efd_dbf98641_ca0093fd,
+            0x4e54f70e_5f5fc9f3_84a64fb2_4ea6dc4f,
+            0xead27321_b58dbad2_312bf560_7f8d292f,
+            0xac7766f3_19fadc21_28d12941_575c006e,
+            0xd014f9a8_c9ee2589_e13f0cc8_b6630ca6,
+        ];
 
-        println!("round_keys = {:#010x?}", context.round_keys);
-        println!("expected   = {:#010x?}", expected);
-
-        assert_eq!(context.rounds, 10);
-        assert_eq!(&context.round_keys[..44], &expected,);
+        for (i, expect) in expected.into_iter().enumerate() {
+            assert_eq!(to_u128(context.round_keys[i]).swap_bytes(), expect);
+        }
     }
 
     #[test]
     fn test_key_expansion_256() {
-        let context = aes_expand_key(&[
+        let context = AesKey256::new(&[
             0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe, 0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d,
             0x77, 0x81, 0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7, 0x2d, 0x98, 0x10, 0xa3,
             0x09, 0x14, 0xdf, 0xf4,
         ]);
 
-        let expected: Vec<u32> = [
-            0x603deb10, 0x15ca71be, 0x2b73aef0, 0x857d7781, 0x1f352c07, 0x3b6108d7, 0x2d9810a3,
-            0x0914dff4, 0x9ba35411, 0x8e6925af, 0xa51a8b5f, 0x2067fcde, 0xa8b09c1a, 0x93d194cd,
-            0xbe49846e, 0xb75d5b9a, 0xd59aecb8, 0x5bf3c917, 0xfee94248, 0xde8ebe96, 0xb5a9328a,
-            0x2678a647, 0x98312229, 0x2f6c79b3, 0x812c81ad, 0xdadf48ba, 0x24360af2, 0xfab8b464,
-            0x98c5bfc9, 0xbebd198e, 0x268c3ba7, 0x09e04214, 0x68007bac, 0xb2df3316, 0x96e939e4,
-            0x6c518d80, 0xc814e204, 0x76a9fb8a, 0x5025c02d, 0x59c58239, 0xde136967, 0x6ccc5a71,
-            0xfa256395, 0x9674ee15, 0x5886ca5d, 0x2e2f31d7, 0x7e0af1fa, 0x27cf73c3, 0x749c47ab,
-            0x18501dda, 0xe2757e4f, 0x7401905a, 0xcafaaae3, 0xe4d59b34, 0x9adf6ace, 0xbd10190d,
-            0xfe4890d1, 0xe6188d0b, 0x046df344, 0x706c631e,
-        ]
-        .into_iter()
-        .map(|item: u32| item.swap_bytes())
-        .collect();
+        let expected = [
+            0x603deb10_15ca71be_2b73aef0_857d7781,
+            0x1f352c07_3b6108d7_2d9810a3_0914dff4,
+            0x9ba35411_8e6925af_a51a8b5f_2067fcde,
+            0xa8b09c1a_93d194cd_be49846e_b75d5b9a,
+            0xd59aecb8_5bf3c917_fee94248_de8ebe96,
+            0xb5a9328a_2678a647_98312229_2f6c79b3,
+            0x812c81ad_dadf48ba_24360af2_fab8b464,
+            0x98c5bfc9_bebd198e_268c3ba7_09e04214,
+            0x68007bac_b2df3316_96e939e4_6c518d80,
+            0xc814e204_76a9fb8a_5025c02d_59c58239,
+            0xde136967_6ccc5a71_fa256395_9674ee15,
+            0x5886ca5d_2e2f31d7_7e0af1fa_27cf73c3,
+            0x749c47ab_18501dda_e2757e4f_7401905a,
+            0xcafaaae3_e4d59b34_9adf6ace_bd10190d,
+            0xfe4890d1_e6188d0b_046df344_706c631e,
+        ];
 
-        println!("round_keys = {:#010x?}", context.round_keys);
-        println!("expected   = {:#010x?}", expected);
-
-        assert_eq!(context.rounds, 14);
-        assert_eq!(&context.round_keys[..], &expected,);
+        for (i, expect) in expected.into_iter().enumerate() {
+            assert_eq!(to_u128(context.round_keys[i]).swap_bytes(), expect);
+        }
     }
 
     #[test]
     fn test_block_128() {
-        let context = aes_expand_key(&[
+        let context = AesKey128::new(&[
             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
             0x0e, 0x0f,
         ]);
@@ -352,7 +326,7 @@ mod tests {
 
     #[test]
     fn test_block_256() {
-        let context = aes_expand_key(&[
+        let context = AesKey256::new(&[
             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
             0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,
             0x1c, 0x1d, 0x1e, 0x1f,

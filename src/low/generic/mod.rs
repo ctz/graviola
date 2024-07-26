@@ -1,4 +1,3 @@
-pub(super) mod aes;
 pub(super) mod blockwise;
 pub(super) mod ct_equal;
 pub(crate) mod gf128;

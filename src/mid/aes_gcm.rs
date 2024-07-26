@@ -1,33 +1,22 @@
-use crate::low::{aes_expand_key, ct_equal};
-use crate::low::{gf128, AesKey, BlockwisePadded, GcmTable};
+use crate::low::ghash::{Ghash, GhashTable};
+use crate::low::{aes_gcm, ct_equal, AesKey};
 use crate::Error;
 
 pub struct AesGcm {
     key: AesKey,
-    gcm: GcmTable,
+    gh: GhashTable,
 }
 
 impl AesGcm {
     pub fn new(key: &[u8]) -> Self {
-        let key = aes_expand_key(key);
+        let key = AesKey::new(key);
         let mut h = [0u8; 16];
         key.encrypt_block(&mut h);
 
         let h = u128::from_be_bytes(h);
-        let mut h_table = [0; 9];
-        h_table[0] = gf128::mul(h, h);
-        h_table[1] = gf128::mul(h_table[0], h);
-        h_table[2] = gf128::mul(h_table[1], h);
-        h_table[3] = gf128::mul(h_table[2], h);
-        h_table[4] = gf128::mul(h_table[3], h);
-        h_table[5] = gf128::mul(h_table[4], h);
-        h_table[6] = gf128::mul(h_table[5], h);
-        h_table[7] = gf128::mul(h_table[6], h);
-        h_table[8] = gf128::mul(h_table[7], h);
+        let gh = GhashTable::new(h);
 
-        let gcm = GcmTable { h, h_table };
-
-        Self { key, gcm }
+        Self { key, gh }
     }
 
     pub fn encrypt(
@@ -37,11 +26,24 @@ impl AesGcm {
         cipher_inout: &mut [u8],
         tag_out: &mut [u8; 16],
     ) {
-        let mut ghash = Ghash::new(self.gcm.h);
-        ghash.add(aad);
+        let mut ghash = Ghash::new(&self.gh);
 
-        self.cipher(nonce, cipher_inout);
-        ghash.add(cipher_inout);
+        // equivalent to :
+        //   ghash.add(aad);
+        //   self.cipher(nonce, cipher_inout);
+        //   ghash.add(cipher_inout);
+        //
+        // except we can stitch the ghash
+        // computation on aad, the encryption,
+        // and the ghash computation on the ciphertext
+        if true {
+            let counter = self.nonce_to_y0(nonce);
+            aes_gcm::encrypt(&self.key, &mut ghash, &counter, aad, cipher_inout);
+        } else {
+            ghash.add(aad);
+            self.cipher(nonce, cipher_inout);
+            ghash.add(cipher_inout);
+        }
 
         let mut lengths = [0u8; 16];
         lengths[..8].copy_from_slice(&((aad.len() * 8) as u64).to_be_bytes());
@@ -63,7 +65,7 @@ impl AesGcm {
         cipher_inout: &mut [u8],
         tag: &[u8],
     ) -> Result<(), Error> {
-        let mut ghash = Ghash::new(self.gcm.h);
+        let mut ghash = Ghash::new(&self.gh);
         ghash.add(aad);
 
         ghash.add(cipher_inout);
@@ -106,28 +108,6 @@ impl AesGcm {
 
             xor_in_place(chunk, &block);
         }
-    }
-}
-
-struct Ghash {
-    current: u128,
-    h: u128,
-}
-
-impl Ghash {
-    fn new(h: u128) -> Self {
-        Self { current: 0, h }
-    }
-
-    fn add(&mut self, bytes: &[u8]) {
-        for block in BlockwisePadded::<16>::new(bytes, 0x00) {
-            self.current ^= u128::from_be_bytes(block);
-            self.current = gf128::mul(self.current, self.h);
-        }
-    }
-
-    fn into_bytes(self) -> [u8; 16] {
-        self.current.to_be_bytes()
     }
 }
 
