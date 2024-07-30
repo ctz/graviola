@@ -1,4 +1,8 @@
-#![allow(clippy::result_unit_err)]
+#![allow(
+    clippy::new_without_default,
+    clippy::result_unit_err,
+    clippy::too_many_arguments
+)]
 #![forbid(unused_must_use)]
 #![warn(
     clippy::alloc_instead_of_core,
