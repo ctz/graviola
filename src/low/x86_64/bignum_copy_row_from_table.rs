@@ -67,43 +67,43 @@ pub fn bignum_copy_row_from_table(
 
 
 
-        Q!("    test      " height!() ", " height!()),
-        Q!("    jz        " Label!("bignum_copy_row_from_table_end", 2, After)),
-        Q!("    test      " width!() ", " width!()),
-        Q!("    jz        " Label!("bignum_copy_row_from_table_end", 2, After)),
-        Q!("    mov       " "rax, " z!()),
-        Q!("    mov       " i!() ", " width!()),
+        Q!("    test            " height!() ", " height!()),
+        Q!("    jz              " Label!("bignum_copy_row_from_table_end", 2, After)),
+        Q!("    test            " width!() ", " width!()),
+        Q!("    jz              " Label!("bignum_copy_row_from_table_end", 2, After)),
+        Q!("    mov             " "rax, " z!()),
+        Q!("    mov             " i!() ", " width!()),
 
         Q!(Label!("bignum_copy_row_from_table_initzero", 3) ":"),
-        Q!("    mov       " "QWORD PTR [rax], 0"),
-        Q!("    add       " "rax, 8"),
-        Q!("    dec       " i!()),
-        Q!("    jnz       " Label!("bignum_copy_row_from_table_initzero", 3, Before)),
+        Q!("    mov             " "QWORD PTR [rax], 0"),
+        Q!("    add             " "rax, 8"),
+        Q!("    dec             " i!()),
+        Q!("    jnz             " Label!("bignum_copy_row_from_table_initzero", 3, Before)),
 
-        Q!("    mov       " i!() ", 0"),
-        Q!("    mov       " "rax, " table!()),
+        Q!("    mov             " i!() ", 0"),
+        Q!("    mov             " "rax, " table!()),
 
         Q!(Label!("bignum_copy_row_from_table_outerloop", 4) ":"),
-        Q!("    mov       " j!() ", 0"),
+        Q!("    mov             " j!() ", 0"),
 
         Q!(Label!("bignum_copy_row_from_table_innerloop", 5) ":"),
-        Q!("    xor       " "r11, r11"),
-        Q!("    cmp       " i!() ", " idx!()),
+        Q!("    xor             " "r11, r11"),
+        Q!("    cmp             " i!() ", " idx!()),
         // cmov always read the memory address
         // https://stackoverflow.com/a/54050427
-        Q!("    cmove     " "r11, [rax + 8 * " j!() "]"),
-        Q!("    or        " "[" z!() "+ 8 * " j!() "], r11"),
+        Q!("    cmove           " "r11, [rax + 8 * " j!() "]"),
+        Q!("    or              " "[" z!() "+ 8 * " j!() "], r11"),
 
-        Q!("    inc       " j!()),
-        Q!("    cmp       " j!() ", " width!()),
-        Q!("    jne       " Label!("bignum_copy_row_from_table_innerloop", 5, Before)),
+        Q!("    inc             " j!()),
+        Q!("    cmp             " j!() ", " width!()),
+        Q!("    jne             " Label!("bignum_copy_row_from_table_innerloop", 5, Before)),
 
         Q!(Label!("bignum_copy_row_from_table_innerloop_done", 6) ":"),
-        Q!("    lea       " j!() ", [" width!() "* 8]"),
-        Q!("    add       " "rax, " j!()),
-        Q!("    inc       " i!()),
-        Q!("    cmp       " i!() ", " height!()),
-        Q!("    jne       " Label!("bignum_copy_row_from_table_outerloop", 4, Before)),
+        Q!("    lea             " j!() ", [" width!() "* 8]"),
+        Q!("    add             " "rax, " j!()),
+        Q!("    inc             " i!()),
+        Q!("    cmp             " i!() ", " height!()),
+        Q!("    jne             " Label!("bignum_copy_row_from_table_outerloop", 4, Before)),
 
         Q!(Label!("bignum_copy_row_from_table_end", 2) ":"),
         inout("rdi") z.as_mut_ptr() => _,

@@ -82,37 +82,37 @@ pub fn bignum_add_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
 
         // First just add the numbers as [c;d3;d2;d1;d0]
 
-        Q!("    ldp       " d0!() ", " d1!() ", [" x!() "]"),
-        Q!("    ldp       " n0!() ", " n1!() ", [" y!() "]"),
-        Q!("    adds      " d0!() ", " d0!() ", " n0!()),
-        Q!("    adcs      " d1!() ", " d1!() ", " n1!()),
-        Q!("    ldp       " d2!() ", " d3!() ", [" x!() ", #16]"),
-        Q!("    ldp       " n2!() ", " n3!() ", [" y!() ", #16]"),
-        Q!("    adcs      " d2!() ", " d2!() ", " n2!()),
-        Q!("    adcs      " d3!() ", " d3!() ", " n3!()),
-        Q!("    adc       " c!() ", xzr, xzr"),
+        Q!("    ldp             " d0!() ", " d1!() ", [" x!() "]"),
+        Q!("    ldp             " n0!() ", " n1!() ", [" y!() "]"),
+        Q!("    adds            " d0!() ", " d0!() ", " n0!()),
+        Q!("    adcs            " d1!() ", " d1!() ", " n1!()),
+        Q!("    ldp             " d2!() ", " d3!() ", [" x!() ", #16]"),
+        Q!("    ldp             " n2!() ", " n3!() ", [" y!() ", #16]"),
+        Q!("    adcs            " d2!() ", " d2!() ", " n2!()),
+        Q!("    adcs            " d3!() ", " d3!() ", " n3!()),
+        Q!("    adc             " c!() ", xzr, xzr"),
 
         // Now let [c;n3;n2;n1;n0] = [c;d3;d2;d1;d0] - p_256
 
-        Q!("    subs      " n0!() ", " d0!() ", #0xffffffffffffffff"),
-        Q!("    mov       " n1!() ", #0x00000000ffffffff"),
-        Q!("    sbcs      " n1!() ", " d1!() ", " n1!()),
-        Q!("    sbcs      " n2!() ", " d2!() ", xzr"),
-        Q!("    mov       " n3!() ", #0xffffffff00000001"),
-        Q!("    sbcs      " n3!() ", " d3!() ", " n3!()),
-        Q!("    sbcs      " c!() ", " c!() ", xzr"),
+        Q!("    subs            " n0!() ", " d0!() ", #0xffffffffffffffff"),
+        Q!("    mov             " n1!() ", #0x00000000ffffffff"),
+        Q!("    sbcs            " n1!() ", " d1!() ", " n1!()),
+        Q!("    sbcs            " n2!() ", " d2!() ", xzr"),
+        Q!("    mov             " n3!() ", #0xffffffff00000001"),
+        Q!("    sbcs            " n3!() ", " d3!() ", " n3!()),
+        Q!("    sbcs            " c!() ", " c!() ", xzr"),
 
         // Select result according to whether (x + y) - p_256 < 0
 
-        Q!("    csel      " d0!() ", " d0!() ", " n0!() ", cc"),
-        Q!("    csel      " d1!() ", " d1!() ", " n1!() ", cc"),
-        Q!("    csel      " d2!() ", " d2!() ", " n2!() ", cc"),
-        Q!("    csel      " d3!() ", " d3!() ", " n3!() ", cc"),
+        Q!("    csel            " d0!() ", " d0!() ", " n0!() ", cc"),
+        Q!("    csel            " d1!() ", " d1!() ", " n1!() ", cc"),
+        Q!("    csel            " d2!() ", " d2!() ", " n2!() ", cc"),
+        Q!("    csel            " d3!() ", " d3!() ", " n3!() ", cc"),
 
         // Store the result
 
-        Q!("    stp       " d0!() ", " d1!() ", [" z!() "]"),
-        Q!("    stp       " d2!() ", " d3!() ", [" z!() ", #16]"),
+        Q!("    stp             " d0!() ", " d1!() ", [" z!() "]"),
+        Q!("    stp             " d2!() ", " d3!() ", [" z!() ", #16]"),
 
         inout("x0") z.as_mut_ptr() => _,
         in("x1") x.as_ptr(),

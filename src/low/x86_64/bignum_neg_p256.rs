@@ -84,39 +84,39 @@ pub fn bignum_neg_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // for the input being nonzero, so that we avoid doing -0 = p_256
         // and hence maintain strict modular reduction
 
-        Q!("    mov       " d0!() ", [" x!() "]"),
-        Q!("    mov       " d1!() ", [" x!() "+ 8]"),
-        Q!("    mov       " n1!() ", " d0!()),
-        Q!("    or        " n1!() ", " d1!()),
-        Q!("    mov       " d2!() ", [" x!() "+ 16]"),
-        Q!("    mov       " d3!() ", [" x!() "+ 24]"),
-        Q!("    mov       " n3!() ", " d2!()),
-        Q!("    or        " n3!() ", " d3!()),
-        Q!("    or        " n3!() ", " n1!()),
-        Q!("    neg       " n3!()),
-        Q!("    sbb       " q!() ", " q!()),
+        Q!("    mov             " d0!() ", [" x!() "]"),
+        Q!("    mov             " d1!() ", [" x!() "+ 8]"),
+        Q!("    mov             " n1!() ", " d0!()),
+        Q!("    or              " n1!() ", " d1!()),
+        Q!("    mov             " d2!() ", [" x!() "+ 16]"),
+        Q!("    mov             " d3!() ", [" x!() "+ 24]"),
+        Q!("    mov             " n3!() ", " d2!()),
+        Q!("    or              " n3!() ", " d3!()),
+        Q!("    or              " n3!() ", " n1!()),
+        Q!("    neg             " n3!()),
+        Q!("    sbb             " q!() ", " q!()),
 
         // Load the non-trivial words of p_256 = [n3;0;n1;-1] and mask them with q
 
-        Q!("    mov       " n1short!() ", 0x00000000ffffffff"),
-        Q!("    mov       " n3!() ", 0xffffffff00000001"),
-        Q!("    and       " n1!() ", " q!()),
-        Q!("    and       " n3!() ", " q!()),
+        Q!("    mov             " n1short!() ", 0x00000000ffffffff"),
+        Q!("    mov             " n3!() ", 0xffffffff00000001"),
+        Q!("    and             " n1!() ", " q!()),
+        Q!("    and             " n3!() ", " q!()),
 
         // Do the subtraction, getting it as [n3;d0;n1;q] to avoid moves
 
-        Q!("    sub       " q!() ", " d0!()),
-        Q!("    mov       " d0short!() ", 0"),
-        Q!("    sbb       " n1!() ", " d1!()),
-        Q!("    sbb       " d0!() ", " d2!()),
-        Q!("    sbb       " n3!() ", " d3!()),
+        Q!("    sub             " q!() ", " d0!()),
+        Q!("    mov             " d0short!() ", 0"),
+        Q!("    sbb             " n1!() ", " d1!()),
+        Q!("    sbb             " d0!() ", " d2!()),
+        Q!("    sbb             " n3!() ", " d3!()),
 
         // Write back
 
-        Q!("    mov       " "[" z!() "], " q!()),
-        Q!("    mov       " "[" z!() "+ 8], " n1!()),
-        Q!("    mov       " "[" z!() "+ 16], " d0!()),
-        Q!("    mov       " "[" z!() "+ 24], " n3!()),
+        Q!("    mov             " "[" z!() "], " q!()),
+        Q!("    mov             " "[" z!() "+ 8], " n1!()),
+        Q!("    mov             " "[" z!() "+ 16], " d0!()),
+        Q!("    mov             " "[" z!() "+ 24], " n3!()),
 
         inout("rdi") z.as_mut_ptr() => _,
         in("rsi") x.as_ptr(),

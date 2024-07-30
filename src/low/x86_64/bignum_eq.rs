@@ -56,51 +56,51 @@ pub fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
 
         // Initialize the accumulated OR of differences to zero
 
-        Q!("    xor       " c!() ", " c!()),
+        Q!("    xor             " c!() ", " c!()),
 
         // If m >= n jump into the m > n loop at the final equality test
         // This will drop through for m = n
 
-        Q!("    cmp       " m!() ", " n!()),
-        Q!("    jnc       " Label!("mtest", 2, After)),
+        Q!("    cmp             " m!() ", " n!()),
+        Q!("    jnc             " Label!("mtest", 2, After)),
 
         // Toploop for the case n > m
 
         Q!(Label!("nloop", 3) ":"),
-        Q!("    dec       " n!()),
-        Q!("    or        " c!() ", [" y!() "+ 8 * " n!() "]"),
-        Q!("    cmp       " m!() ", " n!()),
-        Q!("    jnz       " Label!("nloop", 3, Before)),
-        Q!("    jmp       " Label!("mmain", 4, After)),
+        Q!("    dec             " n!()),
+        Q!("    or              " c!() ", [" y!() "+ 8 * " n!() "]"),
+        Q!("    cmp             " m!() ", " n!()),
+        Q!("    jnz             " Label!("nloop", 3, Before)),
+        Q!("    jmp             " Label!("mmain", 4, After)),
 
         // Toploop for the case m > n (or n = m which enters at "mtest")
 
         Q!(Label!("mloop", 5) ":"),
-        Q!("    dec       " m!()),
-        Q!("    or        " c!() ", [" x!() "+ 8 * " m!() "]"),
-        Q!("    cmp       " m!() ", " n!()),
+        Q!("    dec             " m!()),
+        Q!("    or              " c!() ", [" x!() "+ 8 * " m!() "]"),
+        Q!("    cmp             " m!() ", " n!()),
         Q!(Label!("mtest", 2) ":"),
-        Q!("    jnz       " Label!("mloop", 5, Before)),
+        Q!("    jnz             " Label!("mloop", 5, Before)),
 
         // Combined main loop for the min(m,n) lower words
 
         Q!(Label!("mmain", 4) ":"),
-        Q!("    test      " m!() ", " m!()),
-        Q!("    jz        " Label!("end", 6, After)),
+        Q!("    test            " m!() ", " m!()),
+        Q!("    jz              " Label!("end", 6, After)),
 
         Q!(Label!("loop", 7) ":"),
-        Q!("    mov       " d!() ", [" x!() "+ 8 * " m!() "-8]"),
-        Q!("    xor       " d!() ", [" y!() "+ 8 * " m!() "-8]"),
-        Q!("    or        " c!() ", " d!()),
-        Q!("    dec       " m!()),
-        Q!("    jnz       " Label!("loop", 7, Before)),
+        Q!("    mov             " d!() ", [" x!() "+ 8 * " m!() "-8]"),
+        Q!("    xor             " d!() ", [" y!() "+ 8 * " m!() "-8]"),
+        Q!("    or              " c!() ", " d!()),
+        Q!("    dec             " m!()),
+        Q!("    jnz             " Label!("loop", 7, Before)),
 
         // Set a standard C condition based on whether c is nonzero
 
         Q!(Label!("end", 6) ":"),
-        Q!("    neg       " c!()),
-        Q!("    sbb       " c!() ", " c!()),
-        Q!("    inc       " c!()),
+        Q!("    neg             " c!()),
+        Q!("    sbb             " c!() ", " c!()),
+        Q!("    inc             " c!()),
         inout("rdi") x.len() => _,
         inout("rsi") x.as_ptr() => _,
         inout("rdx") y.len() => _,

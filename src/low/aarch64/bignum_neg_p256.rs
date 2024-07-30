@@ -63,31 +63,31 @@ pub fn bignum_neg_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Load the 4 digits of x
 
-        Q!("    ldp       " d0!() ", " d1!() ", [" x!() "]"),
-        Q!("    ldp       " d2!() ", " d3!() ", [" x!() ", #16]"),
+        Q!("    ldp             " d0!() ", " d1!() ", [" x!() "]"),
+        Q!("    ldp             " d2!() ", " d3!() ", [" x!() ", #16]"),
 
         // Set a bitmask p for the input being nonzero, so that we avoid doing
         // -0 = p_256 and hence maintain strict modular reduction
 
-        Q!("    orr       " t!() ", " d0!() ", " d1!()),
-        Q!("    orr       " p!() ", " d2!() ", " d3!()),
-        Q!("    orr       " p!() ", " p!() ", " t!()),
-        Q!("    cmp       " p!() ", #0"),
-        Q!("    csetm     " p!() ", ne"),
+        Q!("    orr             " t!() ", " d0!() ", " d1!()),
+        Q!("    orr             " p!() ", " d2!() ", " d3!()),
+        Q!("    orr             " p!() ", " p!() ", " t!()),
+        Q!("    cmp             " p!() ", #0"),
+        Q!("    csetm           " p!() ", ne"),
 
         // Mask the nontrivial words of p_256 = [n3;0;n1;-1] and subtract
 
-        Q!("    subs      " d0!() ", " p!() ", " d0!()),
-        Q!("    and       " t!() ", " p!() ", #0x00000000ffffffff"),
-        Q!("    sbcs      " d1!() ", " t!() ", " d1!()),
-        Q!("    sbcs      " d2!() ", xzr, " d2!()),
-        Q!("    and       " t!() ", " p!() ", #0xffffffff00000001"),
-        Q!("    sbc       " d3!() ", " t!() ", " d3!()),
+        Q!("    subs            " d0!() ", " p!() ", " d0!()),
+        Q!("    and             " t!() ", " p!() ", #0x00000000ffffffff"),
+        Q!("    sbcs            " d1!() ", " t!() ", " d1!()),
+        Q!("    sbcs            " d2!() ", xzr, " d2!()),
+        Q!("    and             " t!() ", " p!() ", #0xffffffff00000001"),
+        Q!("    sbc             " d3!() ", " t!() ", " d3!()),
 
         // Write back the result
 
-        Q!("    stp       " d0!() ", " d1!() ", [" z!() "]"),
-        Q!("    stp       " d2!() ", " d3!() ", [" z!() ", #16]"),
+        Q!("    stp             " d0!() ", " d1!() ", [" z!() "]"),
+        Q!("    stp             " d2!() ", " d3!() ", [" z!() ", #16]"),
 
         // Return
 

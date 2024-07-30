@@ -49,45 +49,45 @@ pub fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Save one more register to play with
 
-        Q!("    push      " "rbx"),
+        Q!("    push            " "rbx"),
 
         // Set up an initial 4-word window [r11,r10,r9,r8] = x
 
-        Q!("    mov       " "r8, [" x!() "]"),
-        Q!("    mov       " "r9, [" x!() "+ 8]"),
-        Q!("    mov       " "r10, [" x!() "+ 16]"),
-        Q!("    mov       " "r11, [" x!() "+ 24]"),
+        Q!("    mov             " "r8, [" x!() "]"),
+        Q!("    mov             " "r9, [" x!() "+ 8]"),
+        Q!("    mov             " "r10, [" x!() "+ 16]"),
+        Q!("    mov             " "r11, [" x!() "+ 24]"),
 
         // Fill in two zeros to the left
 
-        Q!("    xor       " "rbx, rbx"),
-        Q!("    xor       " "rsi, rsi"),
+        Q!("    xor             " "rbx, rbx"),
+        Q!("    xor             " "rsi, rsi"),
 
         // Montgomery reduce windows 0 and 1 together
 
-        Q!("    mov       " "rdx, 0x0000000100000000"),
+        Q!("    mov             " "rdx, 0x0000000100000000"),
         mulpadd!("r10", "r9", "r8"),
         mulpadd!("r11", "r10", "r9"),
-        Q!("    mov       " "rdx, 0xffffffff00000001"),
+        Q!("    mov             " "rdx, 0xffffffff00000001"),
         mulpadd!("rbx", "r11", "r8"),
         mulpadd!("rsi", "rbx", "r9"),
-        Q!("    mov       " "r8d, 0"),
-        Q!("    adcx      " "rsi, r8"),
+        Q!("    mov             " "r8d, 0"),
+        Q!("    adcx            " "rsi, r8"),
 
         // Append just one more leading zero (by the above r8 = 0 already).
 
-        Q!("    xor       " "r9, r9"),
+        Q!("    xor             " "r9, r9"),
 
         // Montgomery reduce windows 2 and 3 together
 
-        Q!("    mov       " "rdx, 0x0000000100000000"),
+        Q!("    mov             " "rdx, 0x0000000100000000"),
         mulpadd!("rbx", "r11", "r10"),
         mulpadd!("rsi", "rbx", "r11"),
-        Q!("    mov       " "rdx, 0xffffffff00000001"),
+        Q!("    mov             " "rdx, 0xffffffff00000001"),
         mulpadd!("r8", "rsi", "r10"),
         mulpadd!("r9", "r8", "r11"),
-        Q!("    mov       " "r10d, 0"),
-        Q!("    adcx      " "r9, r10"),
+        Q!("    mov             " "r10d, 0"),
+        Q!("    adcx            " "r9, r10"),
 
         // Since the input was assumed reduced modulo, i.e. < p, we actually know that
         // 2^256 * [carries; r9;r8;rsi;rbx] is <= (p - 1) + (2^256 - 1) p
@@ -95,14 +95,14 @@ pub fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // and [r9;r8;rsi;rbx] is already our answer, without further correction.
         // Write that back.
 
-        Q!("    mov       " "[" z!() "], rbx"),
-        Q!("    mov       " "[" z!() "+ 8], rsi"),
-        Q!("    mov       " "[" z!() "+ 16], r8"),
-        Q!("    mov       " "[" z!() "+ 24], r9"),
+        Q!("    mov             " "[" z!() "], rbx"),
+        Q!("    mov             " "[" z!() "+ 8], rsi"),
+        Q!("    mov             " "[" z!() "+ 16], r8"),
+        Q!("    mov             " "[" z!() "+ 24], r9"),
 
         // Restore saved register and return
 
-        Q!("    pop       " "rbx"),
+        Q!("    pop             " "rbx"),
 
         inout("rdi") z.as_mut_ptr() => _,
         inout("rsi") x.as_ptr() => _,

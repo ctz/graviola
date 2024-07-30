@@ -107,24 +107,24 @@ pub fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Load the input
 
-        Q!("    ldp       " d0!() ", " d1!() ", [x1]"),
-        Q!("    ldp       " d2!() ", " d3!() ", [x1, #16]"),
+        Q!("    ldp             " d0!() ", " d1!() ", [x1]"),
+        Q!("    ldp             " d2!() ", " d3!() ", [x1, #16]"),
 
         // Do an initial reduction to make sure this is < p_256, using just
         // a copy of the bignum_mod_p256_4 code. This is needed to set up the
         // invariant "input < p_256" for the main modular reduction steps.
 
-        Q!("    mov       " t0!() ", #0xffffffffffffffff"),
-        Q!("    mov       " t1!() ", #0x00000000ffffffff"),
-        Q!("    mov       " t3!() ", #0xffffffff00000001"),
-        Q!("    subs      " t0!() ", " d0!() ", " t0!()),
-        Q!("    sbcs      " t1!() ", " d1!() ", " t1!()),
-        Q!("    sbcs      " t2!() ", " d2!() ", xzr"),
-        Q!("    sbcs      " t3!() ", " d3!() ", " t3!()),
-        Q!("    csel      " d0!() ", " d0!() ", " t0!() ", cc"),
-        Q!("    csel      " d1!() ", " d1!() ", " t1!() ", cc"),
-        Q!("    csel      " d2!() ", " d2!() ", " t2!() ", cc"),
-        Q!("    csel      " d3!() ", " d3!() ", " t3!() ", cc"),
+        Q!("    mov             " t0!() ", #0xffffffffffffffff"),
+        Q!("    mov             " t1!() ", #0x00000000ffffffff"),
+        Q!("    mov             " t3!() ", #0xffffffff00000001"),
+        Q!("    subs            " t0!() ", " d0!() ", " t0!()),
+        Q!("    sbcs            " t1!() ", " d1!() ", " t1!()),
+        Q!("    sbcs            " t2!() ", " d2!() ", xzr"),
+        Q!("    sbcs            " t3!() ", " d3!() ", " t3!()),
+        Q!("    csel            " d0!() ", " d0!() ", " t0!() ", cc"),
+        Q!("    csel            " d1!() ", " d1!() ", " t1!() ", cc"),
+        Q!("    csel            " d2!() ", " d2!() ", " t2!() ", cc"),
+        Q!("    csel            " d3!() ", " d3!() ", " t3!() ", cc"),
 
         // Successively multiply by 2^64 and reduce
 
@@ -135,8 +135,8 @@ pub fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Store the result and return
 
-        Q!("    stp       " d1!() ", " d2!() ", [x0]"),
-        Q!("    stp       " d3!() ", " d4!() ", [x0, #16]"),
+        Q!("    stp             " d1!() ", " d2!() ", [x0]"),
+        Q!("    stp             " d3!() ", " d4!() ", [x0, #16]"),
 
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.as_ptr() => _,

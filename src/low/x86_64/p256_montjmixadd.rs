@@ -502,16 +502,16 @@ pub fn p256_montjmixadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 8]) {
         // Save registers and make room on stack for temporary variables
         // Put the input y in rbp where it lasts as long as it's needed.
 
-        Q!("    push      " "rbx"),
-        Q!("    push      " "rbp"),
-        Q!("    push      " "r12"),
-        Q!("    push      " "r13"),
-        Q!("    push      " "r14"),
-        Q!("    push      " "r15"),
+        Q!("    push            " "rbx"),
+        Q!("    push            " "rbp"),
+        Q!("    push            " "r12"),
+        Q!("    push            " "r13"),
+        Q!("    push            " "r14"),
+        Q!("    push            " "r15"),
 
-        Q!("    sub       " "rsp, " NSPACE!()),
+        Q!("    sub             " "rsp, " NSPACE!()),
 
-        Q!("    mov       " "rbp, rdx"),
+        Q!("    mov             " "rbp, rdx"),
 
         // Main code, just a sequence of basic field operations
         // 8 * multiply + 3 * square + 7 * subtract
@@ -562,26 +562,26 @@ pub fn p256_montjmixadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 8]) {
         store4!(y_3!(), "r12", "r13", "r14", "r15"),
 
         load4!("r8", "r9", "r10", "r11", resz!()),
-        Q!("    mov       " "eax, 1"),
-        Q!("    cmovz     " "r8, rax"),
-        Q!("    mov       " "rax, 0xffffffff00000000"),
-        Q!("    cmovz     " "r9, rax"),
-        Q!("    mov       " "rax, 0xffffffffffffffff"),
-        Q!("    cmovz     " "r10, rax"),
-        Q!("    mov       " "eax, 0x00000000fffffffe"),
-        Q!("    cmovz     " "r11, rax"),
+        Q!("    mov             " "eax, 1"),
+        Q!("    cmovz           " "r8, rax"),
+        Q!("    mov             " "rax, 0xffffffff00000000"),
+        Q!("    cmovz           " "r9, rax"),
+        Q!("    mov             " "rax, 0xffffffffffffffff"),
+        Q!("    cmovz           " "r10, rax"),
+        Q!("    mov             " "eax, 0x00000000fffffffe"),
+        Q!("    cmovz           " "r11, rax"),
 
         store4!(z_3!(), "r8", "r9", "r10", "r11"),
 
         // Restore stack and registers
 
-        Q!("    add       " "rsp, " NSPACE!()),
-        Q!("    pop       " "r15"),
-        Q!("    pop       " "r14"),
-        Q!("    pop       " "r13"),
-        Q!("    pop       " "r12"),
-        Q!("    pop       " "rbp"),
-        Q!("    pop       " "rbx"),
+        Q!("    add             " "rsp, " NSPACE!()),
+        Q!("    pop             " "r15"),
+        Q!("    pop             " "r14"),
+        Q!("    pop             " "r13"),
+        Q!("    pop             " "r12"),
+        Q!("    pop             " "rbp"),
+        Q!("    pop             " "rbx"),
 
         inout("rdi") p3.as_mut_ptr() => _,
         inout("rsi") p1.as_ptr() => _,

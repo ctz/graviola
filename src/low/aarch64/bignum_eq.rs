@@ -59,50 +59,50 @@ pub fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
 
         // Initialize the accumulated OR of differences to zero
 
-        Q!("    mov       " c!() ", xzr"),
+        Q!("    mov             " c!() ", xzr"),
 
         // If m >= n jump into the m > n loop at the final equality test
         // This will drop through for m = n
 
-        Q!("    cmp       " m!() ", " n!()),
-        Q!("    bcs       " Label!("mtest", 2, After)),
+        Q!("    cmp             " m!() ", " n!()),
+        Q!("    bcs             " Label!("mtest", 2, After)),
 
         // Toploop for the case n > m
 
         Q!(Label!("nloop", 3) ":"),
-        Q!("    sub       " n!() ", " n!() ", #1"),
-        Q!("    ldr       " a!() ", [" y!() ", " n!() ", lsl #3]"),
-        Q!("    orr       " c!() ", " c!() ", " a!()),
-        Q!("    cmp       " m!() ", " n!()),
-        Q!("    bne       " Label!("nloop", 3, Before)),
-        Q!("    b         " Label!("mmain", 4, After)),
+        Q!("    sub             " n!() ", " n!() ", #1"),
+        Q!("    ldr             " a!() ", [" y!() ", " n!() ", lsl #3]"),
+        Q!("    orr             " c!() ", " c!() ", " a!()),
+        Q!("    cmp             " m!() ", " n!()),
+        Q!("    bne             " Label!("nloop", 3, Before)),
+        Q!("    b               " Label!("mmain", 4, After)),
 
         // Toploop for the case m > n (or n = m which enters at "mtest")
 
         Q!(Label!("mloop", 5) ":"),
-        Q!("    sub       " m!() ", " m!() ", #1"),
-        Q!("    ldr       " a!() ", [" x!() ", " m!() ", lsl #3]"),
-        Q!("    orr       " c!() ", " c!() ", " a!()),
-        Q!("    cmp       " m!() ", " n!()),
+        Q!("    sub             " m!() ", " m!() ", #1"),
+        Q!("    ldr             " a!() ", [" x!() ", " m!() ", lsl #3]"),
+        Q!("    orr             " c!() ", " c!() ", " a!()),
+        Q!("    cmp             " m!() ", " n!()),
         Q!(Label!("mtest", 2) ":"),
-        Q!("    bne       " Label!("mloop", 5, Before)),
+        Q!("    bne             " Label!("mloop", 5, Before)),
 
         // Combined main loop for the min(m,n) lower words
 
         Q!(Label!("mmain", 4) ":"),
-        Q!("    cbz       " m!() ", " Label!("end", 6, After)),
+        Q!("    cbz             " m!() ", " Label!("end", 6, After)),
 
         Q!(Label!("loop", 7) ":"),
-        Q!("    sub       " m!() ", " m!() ", #1"),
-        Q!("    ldr       " a!() ", [" x!() ", " m!() ", lsl #3]"),
-        Q!("    ldr       " d!() ", [" y!() ", " m!() ", lsl #3]"),
-        Q!("    eor       " a!() ", " a!() ", " d!()),
-        Q!("    orr       " c!() ", " c!() ", " a!()),
-        Q!("    cbnz      " m!() ", " Label!("loop", 7, Before)),
+        Q!("    sub             " m!() ", " m!() ", #1"),
+        Q!("    ldr             " a!() ", [" x!() ", " m!() ", lsl #3]"),
+        Q!("    ldr             " d!() ", [" y!() ", " m!() ", lsl #3]"),
+        Q!("    eor             " a!() ", " a!() ", " d!()),
+        Q!("    orr             " c!() ", " c!() ", " a!()),
+        Q!("    cbnz            " m!() ", " Label!("loop", 7, Before)),
 
         Q!(Label!("end", 6) ":"),
-        Q!("    cmp       " c!() ", xzr"),
-        Q!("    cset      " "x0, eq"),
+        Q!("    cmp             " c!() ", xzr"),
+        Q!("    cset            " "x0, eq"),
         inout("x0") x.len() => ret,
         inout("x1") x.as_ptr() => _,
         inout("x2") y.len() => _,

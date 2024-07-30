@@ -512,3 +512,86 @@ if __name__ == "__main__":
             rust_decl="pub fn bignum_eq(x: &[u64], y: &[u64]) -> bool",
         )
         parse_file(input, d)
+
+    with open("../../s2n-bignum/arm/generic/bignum_modadd.S") as input, open(
+        "../curve25519/src/low/aarch64/bignum_modadd.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_aarch64)
+        d.emit_rust_function(
+            "bignum_modadd",
+            parameter_map=[
+                ("inout", "x0", "m.len() => _"),
+                ("inout", "x1", "z.as_mut_ptr() => _"),
+                ("inout", "x2", "x.as_ptr() => _"),
+                ("inout", "x3", "y.as_ptr() => _"),
+                ("inout", "x4", "m.as_ptr() => _"),
+            ],
+            rust_decl="pub fn bignum_modadd(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64])",
+        )
+        parse_file(input, d)
+
+    with open("../../s2n-bignum/arm/generic/bignum_modinv.S") as input, open(
+        "../curve25519/src/low/aarch64/bignum_modinv.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_aarch64)
+        d.emit_rust_function(
+            "bignum_modinv",
+            parameter_map=[
+                ("inout", "x0", "b.len() => _"),
+                ("inout", "x1", "z.as_mut_ptr() => _"),
+                ("inout", "x2", "a.as_ptr() => _"),
+                ("inout", "x3", "b.as_ptr() => _"),
+                ("inout", "x4", "t.as_mut_ptr() => _"),
+            ],
+            rust_decl="pub fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64])",
+        )
+        parse_file(input, d)
+
+    with open("../../s2n-bignum/arm/generic/bignum_montmul.S") as input, open(
+        "../curve25519/src/low/aarch64/bignum_montmul.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_aarch64)
+        d.emit_rust_function(
+            "bignum_montmul",
+            parameter_map=[
+                ("inout", "x0", "m.len() => _"),
+                ("inout", "x1", "z.as_mut_ptr() => _"),
+                ("inout", "x2", "x.as_ptr() => _"),
+                ("inout", "x3", "y.as_ptr() => _"),
+                ("inout", "x4", "m.as_ptr() => _"),
+            ],
+            rust_decl="pub fn bignum_montmul(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64])",
+        )
+        parse_file(input, d)
+
+    with open("../../s2n-bignum/arm/generic/bignum_demont.S") as input, open(
+        "../curve25519/src/low/aarch64/bignum_demont.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_aarch64)
+        d.emit_rust_function(
+            "bignum_demont",
+            parameter_map=[
+                ("inout", "x0", "m.len() => _"),
+                ("inout", "x1", "z.as_mut_ptr() => _"),
+                ("inout", "x2", "x.as_ptr() => _"),
+                ("inout", "x3", "m.as_ptr() => _"),
+            ],
+            rust_decl="pub fn bignum_demont(z: &mut [u64], x: &[u64], m: &[u64])",
+        )
+        parse_file(input, d)
+
+    with open("../../s2n-bignum/arm/generic/bignum_montifier.S") as input, open(
+        "../curve25519/src/low/aarch64/bignum_montifier.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_aarch64)
+        d.emit_rust_function(
+            "bignum_montifier",
+            parameter_map=[
+                ("inout", "x0", "m.len() => _"),
+                ("inout", "x1", "z.as_mut_ptr() => _"),
+                ("inout", "x2", "m.as_ptr() => _"),
+                ("inout", "x3", "t.as_mut_ptr() => _"),
+            ],
+            rust_decl="pub fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64])",
+        )
+        parse_file(input, d)

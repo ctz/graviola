@@ -429,14 +429,14 @@ pub fn p256_montjmixadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 8]) {
 
         // Save regs and make room on stack for temporary variables
 
-        Q!("    stp       " "x19, x20, [sp, #-16] !"),
-        Q!("    sub       " "sp, sp, " NSPACE!()),
+        Q!("    stp             " "x19, x20, [sp, #-16] !"),
+        Q!("    sub             " "sp, sp, " NSPACE!()),
 
         // Move the input arguments to stable places
 
-        Q!("    mov       " input_z!() ", x0"),
-        Q!("    mov       " input_x!() ", x1"),
-        Q!("    mov       " input_y!() ", x2"),
+        Q!("    mov             " input_z!() ", x0"),
+        Q!("    mov             " input_x!() ", x1"),
+        Q!("    mov             " input_y!() ", x2"),
 
         // Main code, just a sequence of basic field operations
         // 8 * multiply + 3 * square + 7 * subtract
@@ -472,58 +472,58 @@ pub fn p256_montjmixadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 8]) {
 
         // Test if z_1 = 0 to decide if p1 = 0 (up to projective equivalence)
 
-        Q!("    ldp       " "x0, x1, [" z_1!() "]"),
-        Q!("    ldp       " "x2, x3, [" z_1!() "+ 16]"),
-        Q!("    orr       " "x4, x0, x1"),
-        Q!("    orr       " "x5, x2, x3"),
-        Q!("    orr       " "x4, x4, x5"),
-        Q!("    cmp       " "x4, xzr"),
+        Q!("    ldp             " "x0, x1, [" z_1!() "]"),
+        Q!("    ldp             " "x2, x3, [" z_1!() "+ 16]"),
+        Q!("    orr             " "x4, x0, x1"),
+        Q!("    orr             " "x5, x2, x3"),
+        Q!("    orr             " "x4, x4, x5"),
+        Q!("    cmp             " "x4, xzr"),
 
         // Multiplex: if p1 <> 0 just copy the computed result from the staging area.
         // If p1 = 0 then return the point p2 augmented with a z = 1 coordinate (in
         // Montgomery form so not the simple constant 1 but rather 2^256 - p_256),
         // hence giving 0 + p2 = p2 for the final result.
 
-        Q!("    ldp       " "x0, x1, [" resx!() "]"),
-        Q!("    ldp       " "x12, x13, [" x_2!() "]"),
-        Q!("    csel      " "x0, x0, x12, ne"),
-        Q!("    csel      " "x1, x1, x13, ne"),
-        Q!("    ldp       " "x2, x3, [" resx!() "+ 16]"),
-        Q!("    ldp       " "x12, x13, [" x_2!() "+ 16]"),
-        Q!("    csel      " "x2, x2, x12, ne"),
-        Q!("    csel      " "x3, x3, x13, ne"),
+        Q!("    ldp             " "x0, x1, [" resx!() "]"),
+        Q!("    ldp             " "x12, x13, [" x_2!() "]"),
+        Q!("    csel            " "x0, x0, x12, ne"),
+        Q!("    csel            " "x1, x1, x13, ne"),
+        Q!("    ldp             " "x2, x3, [" resx!() "+ 16]"),
+        Q!("    ldp             " "x12, x13, [" x_2!() "+ 16]"),
+        Q!("    csel            " "x2, x2, x12, ne"),
+        Q!("    csel            " "x3, x3, x13, ne"),
 
-        Q!("    ldp       " "x4, x5, [" resy!() "]"),
-        Q!("    ldp       " "x12, x13, [" y_2!() "]"),
-        Q!("    csel      " "x4, x4, x12, ne"),
-        Q!("    csel      " "x5, x5, x13, ne"),
-        Q!("    ldp       " "x6, x7, [" resy!() "+ 16]"),
-        Q!("    ldp       " "x12, x13, [" y_2!() "+ 16]"),
-        Q!("    csel      " "x6, x6, x12, ne"),
-        Q!("    csel      " "x7, x7, x13, ne"),
+        Q!("    ldp             " "x4, x5, [" resy!() "]"),
+        Q!("    ldp             " "x12, x13, [" y_2!() "]"),
+        Q!("    csel            " "x4, x4, x12, ne"),
+        Q!("    csel            " "x5, x5, x13, ne"),
+        Q!("    ldp             " "x6, x7, [" resy!() "+ 16]"),
+        Q!("    ldp             " "x12, x13, [" y_2!() "+ 16]"),
+        Q!("    csel            " "x6, x6, x12, ne"),
+        Q!("    csel            " "x7, x7, x13, ne"),
 
-        Q!("    ldp       " "x8, x9, [" resz!() "]"),
-        Q!("    mov       " "x12, #0x0000000000000001"),
-        Q!("    mov       " "x13, #0xffffffff00000000"),
-        Q!("    csel      " "x8, x8, x12, ne"),
-        Q!("    csel      " "x9, x9, x13, ne"),
-        Q!("    ldp       " "x10, x11, [" resz!() "+ 16]"),
-        Q!("    mov       " "x12, #0xffffffffffffffff"),
-        Q!("    mov       " "x13, #0x00000000fffffffe"),
-        Q!("    csel      " "x10, x10, x12, ne"),
-        Q!("    csel      " "x11, x11, x13, ne"),
+        Q!("    ldp             " "x8, x9, [" resz!() "]"),
+        Q!("    mov             " "x12, #0x0000000000000001"),
+        Q!("    mov             " "x13, #0xffffffff00000000"),
+        Q!("    csel            " "x8, x8, x12, ne"),
+        Q!("    csel            " "x9, x9, x13, ne"),
+        Q!("    ldp             " "x10, x11, [" resz!() "+ 16]"),
+        Q!("    mov             " "x12, #0xffffffffffffffff"),
+        Q!("    mov             " "x13, #0x00000000fffffffe"),
+        Q!("    csel            " "x10, x10, x12, ne"),
+        Q!("    csel            " "x11, x11, x13, ne"),
 
-        Q!("    stp       " "x0, x1, [" x_3!() "]"),
-        Q!("    stp       " "x2, x3, [" x_3!() "+ 16]"),
-        Q!("    stp       " "x4, x5, [" y_3!() "]"),
-        Q!("    stp       " "x6, x7, [" y_3!() "+ 16]"),
-        Q!("    stp       " "x8, x9, [" z_3!() "]"),
-        Q!("    stp       " "x10, x11, [" z_3!() "+ 16]"),
+        Q!("    stp             " "x0, x1, [" x_3!() "]"),
+        Q!("    stp             " "x2, x3, [" x_3!() "+ 16]"),
+        Q!("    stp             " "x4, x5, [" y_3!() "]"),
+        Q!("    stp             " "x6, x7, [" y_3!() "+ 16]"),
+        Q!("    stp             " "x8, x9, [" z_3!() "]"),
+        Q!("    stp             " "x10, x11, [" z_3!() "+ 16]"),
 
         // Restore registers and return
 
-        Q!("    add       " "sp, sp, " NSPACE!()),
-        Q!("    ldp       " "x19, x20, [sp], 16"),
+        Q!("    add             " "sp, sp, " NSPACE!()),
+        Q!("    ldp             " "x19, x20, [sp], 16"),
         inout("x0") p3.as_mut_ptr() => _,
         inout("x1") p1.as_ptr() => _,
         inout("x2") p2.as_ptr() => _,

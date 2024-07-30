@@ -504,16 +504,16 @@ pub fn p256_montjadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 12]) {
         // Save registers and make room on stack for temporary variables
         // Put the input y in rbp where it lasts as long as it's needed.
 
-        Q!("    push      " "rbx"),
-        Q!("    push      " "rbp"),
-        Q!("    push      " "r12"),
-        Q!("    push      " "r13"),
-        Q!("    push      " "r14"),
-        Q!("    push      " "r15"),
+        Q!("    push            " "rbx"),
+        Q!("    push            " "rbp"),
+        Q!("    push            " "r12"),
+        Q!("    push            " "r13"),
+        Q!("    push            " "r14"),
+        Q!("    push            " "r15"),
 
-        Q!("    sub       " "rsp, " NSPACE!()),
+        Q!("    sub             " "rsp, " NSPACE!()),
 
-        Q!("    mov       " "rbp, rdx"),
+        Q!("    mov             " "rbp, rdx"),
 
         // Main code, just a sequence of basic field operations
         // 12 * multiply + 4 * square + 7 * subtract
@@ -562,32 +562,32 @@ pub fn p256_montjadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 12]) {
 
         load4!("r8", "r9", "r10", "r11", z_1!()),
 
-        Q!("    mov       " "rax, r8"),
-        Q!("    mov       " "rdx, r9"),
-        Q!("    or        " "rax, r10"),
-        Q!("    or        " "rdx, r11"),
-        Q!("    or        " "rax, rdx"),
-        Q!("    neg       " "rax"),
-        Q!("    sbb       " "rax, rax"),
+        Q!("    mov             " "rax, r8"),
+        Q!("    mov             " "rdx, r9"),
+        Q!("    or              " "rax, r10"),
+        Q!("    or              " "rdx, r11"),
+        Q!("    or              " "rax, rdx"),
+        Q!("    neg             " "rax"),
+        Q!("    sbb             " "rax, rax"),
 
         load4!("r12", "r13", "r14", "r15", z_2!()),
 
-        Q!("    mov       " "rbx, r12"),
-        Q!("    mov       " "rdx, r13"),
-        Q!("    or        " "rbx, r14"),
-        Q!("    or        " "rdx, r15"),
-        Q!("    or        " "rbx, rdx"),
-        Q!("    neg       " "rbx"),
-        Q!("    sbb       " "rbx, rbx"),
+        Q!("    mov             " "rbx, r12"),
+        Q!("    mov             " "rdx, r13"),
+        Q!("    or              " "rbx, r14"),
+        Q!("    or              " "rdx, r15"),
+        Q!("    or              " "rbx, rdx"),
+        Q!("    neg             " "rbx"),
+        Q!("    sbb             " "rbx, rbx"),
 
-        Q!("    cmp       " "rbx, rax"),
+        Q!("    cmp             " "rbx, rax"),
 
         // Multiplex the outputs accordingly, re-using the z's in registers
 
-        Q!("    cmovb     " "r12, r8"),
-        Q!("    cmovb     " "r13, r9"),
-        Q!("    cmovb     " "r14, r10"),
-        Q!("    cmovb     " "r15, r11"),
+        Q!("    cmovb           " "r12, r8"),
+        Q!("    cmovb           " "r13, r9"),
+        Q!("    cmovb           " "r14, r10"),
+        Q!("    cmovb           " "r15, r11"),
 
         czload4!("r12", "r13", "r14", "r15", resz!()),
 
@@ -602,13 +602,13 @@ pub fn p256_montjadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 12]) {
 
         // Restore stack and registers
 
-        Q!("    add       " "rsp, " NSPACE!()),
-        Q!("    pop       " "r15"),
-        Q!("    pop       " "r14"),
-        Q!("    pop       " "r13"),
-        Q!("    pop       " "r12"),
-        Q!("    pop       " "rbp"),
-        Q!("    pop       " "rbx"),
+        Q!("    add             " "rsp, " NSPACE!()),
+        Q!("    pop             " "r15"),
+        Q!("    pop             " "r14"),
+        Q!("    pop             " "r13"),
+        Q!("    pop             " "r12"),
+        Q!("    pop             " "rbp"),
+        Q!("    pop             " "rbx"),
 
         inout("rdi") p3.as_mut_ptr() => _,
         inout("rsi") p1.as_ptr() => _,

@@ -217,7 +217,7 @@ class ConstantArray:
 
     def add_item(self, value):
         for v in tokenise(value):
-            if v == ',':
+            if v == ",":
                 continue
             self.lines.append(v + ",")
             self.items.append(v)
@@ -357,6 +357,7 @@ class FunctionState:
     def finishes_hoist(self, opcode, operands):
         return self.hoisting and self.hoist[1] in operands
 
+
 class RustDriver:
     def __init__(self, output, architecture):
         super(RustDriver, self).__init__()
@@ -368,7 +369,13 @@ class RustDriver:
         self.formatter.discard_rust_function(function)
 
     def emit_rust_function(
-        self, name, parameter_map, rust_decl, return_value=None, allow_inline=True, hoist=None,
+        self,
+        name,
+        parameter_map,
+        rust_decl,
+        return_value=None,
+        allow_inline=True,
+        hoist=None,
     ):
         self.formatter.emit_rust_function(
             name,
@@ -421,14 +428,20 @@ class RustFormatter(Dispatcher):
         self.expected_functions[function] = None
 
     def emit_rust_function(
-        self, name, parameter_map, rust_decl, return_value=None, allow_inline=True, hoist=None,
+        self,
+        name,
+        parameter_map,
+        rust_decl,
+        return_value=None,
+        allow_inline=True,
+        hoist=None,
     ):
         self.expected_functions[name] = (
             parameter_map,
             rust_decl,
             return_value,
             allow_inline,
-            hoist
+            hoist,
         )
 
     def set_att_syntax(self, att_syntax):
@@ -638,7 +651,7 @@ use crate::low::macros::{Q, Label};
             self.on_asm(contexts, directive, *args)
         elif directive == ".byte" and self.current_constant_array:
             # avoid binary marker leaking into operational constants
-            if args and args[0].startswith('65,69,83,45,78,73,32,71,67,77,32,109'):
+            if args and args[0].startswith("65,69,83,45,78,73,32,71,67,77,32,109"):
                 return
             self.on_const(contexts, directive, *args)
 
@@ -763,13 +776,13 @@ use crate::low::macros::{Q, Label};
 
         if self.function_state.hoist and not self.function_state.hoisting:
             start, fin = self.function_state.hoist
-            print('// hoisting in %s -> %s' % (start, fin), file=self.output)
+            print("// hoisting in %s -> %s" % (start, fin), file=self.output)
             self.expected_labels.add("finish")
             self.on_asm([], "jmp", "finish")
             self.function_state.hoisting = True
             return
         elif self.function_state.hoisting:
-            self.on_label([], 'finish')
+            self.on_label([], "finish")
             self.function_state.hoisting = False
 
         for dir, reg, param in self.function_state.parameter_map:

@@ -100,8 +100,8 @@ pub fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Set up an initial window with the input x and an extra leading zero
 
-        Q!("    ldp       " d0!() ", " d1!() ", [" x!() "]"),
-        Q!("    ldp       " d2!() ", " d3!() ", [" x!() ", #16]"),
+        Q!("    ldp             " d0!() ", " d1!() ", [" x!() "]"),
+        Q!("    ldp             " d2!() ", " d3!() ", [" x!() ", #16]"),
 
         // Systematically scroll left doing 1-step reductions
 
@@ -115,8 +115,8 @@ pub fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Write back result
 
-        Q!("    stp       " d0!() ", " d1!() ", [" z!() "]"),
-        Q!("    stp       " d2!() ", " d3!() ", [" z!() ", #16]"),
+        Q!("    stp             " d0!() ", " d1!() ", [" z!() "]"),
+        Q!("    stp             " d2!() ", " d3!() ", [" z!() ", #16]"),
 
         inout("x0") z.as_mut_ptr() => _,
         in("x1") x.as_ptr(),

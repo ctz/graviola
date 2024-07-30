@@ -237,34 +237,34 @@ pub fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Load in all words of the input
 
-        Q!("    ldp       " a0!() ", " a1!() ", [x1]"),
-        Q!("    ldp       " a2!() ", " a3!() ", [x1, #16]"),
+        Q!("    ldp             " a0!() ", " a1!() ", [x1]"),
+        Q!("    ldp             " a2!() ", " a3!() ", [x1, #16]"),
 
         // Square the low half, getting a result in [s3;s2;s1;s0]
         // This uses 32x32->64 multiplications to reduce the number of UMULHs
 
-        Q!("    umull     " s0!() ", " a0short!() ", " a0short!()),
-        Q!("    lsr       " d1!() ", " a0!() ", #32"),
-        Q!("    umull     " s1!() ", " d1short!() ", " d1short!()),
-        Q!("    umull     " d1!() ", " a0short!() ", " d1short!()),
-        Q!("    adds      " s0!() ", " s0!() ", " d1!() ", lsl #33"),
-        Q!("    lsr       " d1!() ", " d1!() ", #31"),
-        Q!("    adc       " s1!() ", " s1!() ", " d1!()),
-        Q!("    umull     " s2!() ", " a1short!() ", " a1short!()),
-        Q!("    lsr       " d1!() ", " a1!() ", #32"),
-        Q!("    umull     " s3!() ", " d1short!() ", " d1short!()),
-        Q!("    umull     " d1!() ", " a1short!() ", " d1short!()),
-        Q!("    mul       " d2!() ", " a0!() ", " a1!()),
-        Q!("    umulh     " d3!() ", " a0!() ", " a1!()),
-        Q!("    adds      " s2!() ", " s2!() ", " d1!() ", lsl #33"),
-        Q!("    lsr       " d1!() ", " d1!() ", #31"),
-        Q!("    adc       " s3!() ", " s3!() ", " d1!()),
-        Q!("    adds      " d2!() ", " d2!() ", " d2!()),
-        Q!("    adcs      " d3!() ", " d3!() ", " d3!()),
-        Q!("    adc       " s3!() ", " s3!() ", xzr"),
-        Q!("    adds      " s1!() ", " s1!() ", " d2!()),
-        Q!("    adcs      " s2!() ", " s2!() ", " d3!()),
-        Q!("    adc       " s3!() ", " s3!() ", xzr"),
+        Q!("    umull           " s0!() ", " a0short!() ", " a0short!()),
+        Q!("    lsr             " d1!() ", " a0!() ", #32"),
+        Q!("    umull           " s1!() ", " d1short!() ", " d1short!()),
+        Q!("    umull           " d1!() ", " a0short!() ", " d1short!()),
+        Q!("    adds            " s0!() ", " s0!() ", " d1!() ", lsl #33"),
+        Q!("    lsr             " d1!() ", " d1!() ", #31"),
+        Q!("    adc             " s1!() ", " s1!() ", " d1!()),
+        Q!("    umull           " s2!() ", " a1short!() ", " a1short!()),
+        Q!("    lsr             " d1!() ", " a1!() ", #32"),
+        Q!("    umull           " s3!() ", " d1short!() ", " d1short!()),
+        Q!("    umull           " d1!() ", " a1short!() ", " d1short!()),
+        Q!("    mul             " d2!() ", " a0!() ", " a1!()),
+        Q!("    umulh           " d3!() ", " a0!() ", " a1!()),
+        Q!("    adds            " s2!() ", " s2!() ", " d1!() ", lsl #33"),
+        Q!("    lsr             " d1!() ", " d1!() ", #31"),
+        Q!("    adc             " s3!() ", " s3!() ", " d1!()),
+        Q!("    adds            " d2!() ", " d2!() ", " d2!()),
+        Q!("    adcs            " d3!() ", " d3!() ", " d3!()),
+        Q!("    adc             " s3!() ", " s3!() ", xzr"),
+        Q!("    adds            " s1!() ", " s1!() ", " d2!()),
+        Q!("    adcs            " s2!() ", " s2!() ", " d3!()),
+        Q!("    adc             " s3!() ", " s3!() ", xzr"),
 
         // Perform two "short" Montgomery steps on the low square
         // This shifts it to an offset compatible with middle product
@@ -275,40 +275,40 @@ pub fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Compute cross-product with ADK 2x2->4 multiplier as [c3;c2;c1;c0]
 
-        Q!("    mul       " c0!() ", " a0!() ", " a2!()),
-        Q!("    mul       " d4!() ", " a1!() ", " a3!()),
-        Q!("    umulh     " c2!() ", " a0!() ", " a2!()),
+        Q!("    mul             " c0!() ", " a0!() ", " a2!()),
+        Q!("    mul             " d4!() ", " a1!() ", " a3!()),
+        Q!("    umulh           " c2!() ", " a0!() ", " a2!()),
         muldiffn!(d3!(), d2!(), d1!(), c4!(), a0!(), a1!(), a3!(), a2!()),
 
-        Q!("    adds      " c1!() ", " c0!() ", " c2!()),
-        Q!("    adc       " c2!() ", " c2!() ", xzr"),
+        Q!("    adds            " c1!() ", " c0!() ", " c2!()),
+        Q!("    adc             " c2!() ", " c2!() ", xzr"),
 
-        Q!("    umulh     " c3!() ", " a1!() ", " a3!()),
+        Q!("    umulh           " c3!() ", " a1!() ", " a3!()),
 
-        Q!("    adds      " c1!() ", " c1!() ", " d4!()),
-        Q!("    adcs      " c2!() ", " c2!() ", " c3!()),
-        Q!("    adc       " c3!() ", " c3!() ", xzr"),
-        Q!("    adds      " c2!() ", " c2!() ", " d4!()),
-        Q!("    adc       " c3!() ", " c3!() ", xzr"),
+        Q!("    adds            " c1!() ", " c1!() ", " d4!()),
+        Q!("    adcs            " c2!() ", " c2!() ", " c3!()),
+        Q!("    adc             " c3!() ", " c3!() ", xzr"),
+        Q!("    adds            " c2!() ", " c2!() ", " d4!()),
+        Q!("    adc             " c3!() ", " c3!() ", xzr"),
 
-        Q!("    adds      " "xzr, " d3!() ", #1"),
-        Q!("    adcs      " c1!() ", " c1!() ", " d1!()),
-        Q!("    adcs      " c2!() ", " c2!() ", " d2!()),
-        Q!("    adc       " c3!() ", " c3!() ", " d3!()),
+        Q!("    adds            " "xzr, " d3!() ", #1"),
+        Q!("    adcs            " c1!() ", " c1!() ", " d1!()),
+        Q!("    adcs            " c2!() ", " c2!() ", " d2!()),
+        Q!("    adc             " c3!() ", " c3!() ", " d3!()),
 
         // Double it and add the Montgomerified low square
 
-        Q!("    adds      " c0!() ", " c0!() ", " c0!()),
-        Q!("    adcs      " c1!() ", " c1!() ", " c1!()),
-        Q!("    adcs      " c2!() ", " c2!() ", " c2!()),
-        Q!("    adcs      " c3!() ", " c3!() ", " c3!()),
-        Q!("    adc       " c4!() ", xzr, xzr"),
+        Q!("    adds            " c0!() ", " c0!() ", " c0!()),
+        Q!("    adcs            " c1!() ", " c1!() ", " c1!()),
+        Q!("    adcs            " c2!() ", " c2!() ", " c2!()),
+        Q!("    adcs            " c3!() ", " c3!() ", " c3!()),
+        Q!("    adc             " c4!() ", xzr, xzr"),
 
-        Q!("    adds      " c0!() ", " c0!() ", " s2!()),
-        Q!("    adcs      " c1!() ", " c1!() ", " s3!()),
-        Q!("    adcs      " c2!() ", " c2!() ", " s0!()),
-        Q!("    adcs      " c3!() ", " c3!() ", " s1!()),
-        Q!("    adc       " c4!() ", " c4!() ", xzr"),
+        Q!("    adds            " c0!() ", " c0!() ", " s2!()),
+        Q!("    adcs            " c1!() ", " c1!() ", " s3!()),
+        Q!("    adcs            " c2!() ", " c2!() ", " s0!()),
+        Q!("    adcs            " c3!() ", " c3!() ", " s1!()),
+        Q!("    adc             " c4!() ", " c4!() ", xzr"),
 
         // Montgomery-reduce the combined low and middle term another twice
 
@@ -332,28 +332,28 @@ pub fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Add in the pure squares 22 + 33
 
-        Q!("    mul       " t1!() ", " a2!() ", " a2!()),
-        Q!("    adds      " r0!() ", " r0!() ", " t1!()),
-        Q!("    mul       " t2!() ", " a3!() ", " a3!()),
-        Q!("    umulh     " t1!() ", " a2!() ", " a2!()),
-        Q!("    adcs      " r1!() ", " r1!() ", " t1!()),
-        Q!("    adcs      " r2!() ", " r2!() ", " t2!()),
-        Q!("    umulh     " t2!() ", " a3!() ", " a3!()),
-        Q!("    adcs      " r3!() ", " r3!() ", " t2!()),
-        Q!("    adc       " c!() ", " c!() ", xzr"),
+        Q!("    mul             " t1!() ", " a2!() ", " a2!()),
+        Q!("    adds            " r0!() ", " r0!() ", " t1!()),
+        Q!("    mul             " t2!() ", " a3!() ", " a3!()),
+        Q!("    umulh           " t1!() ", " a2!() ", " a2!()),
+        Q!("    adcs            " r1!() ", " r1!() ", " t1!()),
+        Q!("    adcs            " r2!() ", " r2!() ", " t2!()),
+        Q!("    umulh           " t2!() ", " a3!() ", " a3!()),
+        Q!("    adcs            " r3!() ", " r3!() ", " t2!()),
+        Q!("    adc             " c!() ", " c!() ", xzr"),
 
         // Construct the 23 term, double and add it in
 
-        Q!("    mul       " t1!() ", " a2!() ", " a3!()),
-        Q!("    umulh     " t2!() ", " a2!() ", " a3!()),
-        Q!("    adds      " t1!() ", " t1!() ", " t1!()),
-        Q!("    adcs      " t2!() ", " t2!() ", " t2!()),
-        Q!("    adc       " t3!() ", xzr, xzr"),
+        Q!("    mul             " t1!() ", " a2!() ", " a3!()),
+        Q!("    umulh           " t2!() ", " a2!() ", " a3!()),
+        Q!("    adds            " t1!() ", " t1!() ", " t1!()),
+        Q!("    adcs            " t2!() ", " t2!() ", " t2!()),
+        Q!("    adc             " t3!() ", xzr, xzr"),
 
-        Q!("    adds      " r1!() ", " r1!() ", " t1!()),
-        Q!("    adcs      " r2!() ", " r2!() ", " t2!()),
-        Q!("    adcs      " r3!() ", " r3!() ", " t3!()),
-        Q!("    adcs      " c!() ", " c!() ", xzr"),
+        Q!("    adds            " r1!() ", " r1!() ", " t1!()),
+        Q!("    adcs            " r2!() ", " r2!() ", " t2!()),
+        Q!("    adcs            " r3!() ", " r3!() ", " t3!()),
+        Q!("    adcs            " c!() ", " c!() ", xzr"),
 
         // We know, writing B = 2^{4*64} that the full implicit result is
         // B^2 c <= z + (B - 1) * p < B * p + (B - 1) * p < 2 * B * p,
@@ -366,25 +366,25 @@ pub fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Set CF (because of inversion) iff (0,p_256) <= (c,r3,r2,r1,r0)
 
-        Q!("    mov       " t1!() ", #0x00000000ffffffff"),
-        Q!("    subs      " t0!() ", " r0!() ", #-1"),
-        Q!("    sbcs      " t1!() ", " r1!() ", " t1!()),
-        Q!("    mov       " t3!() ", #0xffffffff00000001"),
-        Q!("    sbcs      " t2!() ", " r2!() ", xzr"),
-        Q!("    sbcs      " t3!() ", " r3!() ", " t3!()),
-        Q!("    sbcs      " "xzr, " c!() ", xzr"),
+        Q!("    mov             " t1!() ", #0x00000000ffffffff"),
+        Q!("    subs            " t0!() ", " r0!() ", #-1"),
+        Q!("    sbcs            " t1!() ", " r1!() ", " t1!()),
+        Q!("    mov             " t3!() ", #0xffffffff00000001"),
+        Q!("    sbcs            " t2!() ", " r2!() ", xzr"),
+        Q!("    sbcs            " t3!() ", " r3!() ", " t3!()),
+        Q!("    sbcs            " "xzr, " c!() ", xzr"),
 
         // Select final output accordingly
 
-        Q!("    csel      " r0!() ", " t0!() ", " r0!() ", cs"),
-        Q!("    csel      " r1!() ", " t1!() ", " r1!() ", cs"),
-        Q!("    csel      " r2!() ", " t2!() ", " r2!() ", cs"),
-        Q!("    csel      " r3!() ", " t3!() ", " r3!() ", cs"),
+        Q!("    csel            " r0!() ", " t0!() ", " r0!() ", cs"),
+        Q!("    csel            " r1!() ", " t1!() ", " r1!() ", cs"),
+        Q!("    csel            " r2!() ", " t2!() ", " r2!() ", cs"),
+        Q!("    csel            " r3!() ", " t3!() ", " r3!() ", cs"),
 
         // Store things back in place
 
-        Q!("    stp       " r0!() ", " r1!() ", [x0]"),
-        Q!("    stp       " r2!() ", " r3!() ", [x0, #16]"),
+        Q!("    stp             " r0!() ", " r1!() ", [x0]"),
+        Q!("    stp             " r2!() ", " r3!() ", [x0, #16]"),
 
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.as_ptr() => _,

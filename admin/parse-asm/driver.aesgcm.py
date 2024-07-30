@@ -30,16 +30,18 @@ if __name__ == "__main__":
         d.set_att_syntax(True)
 
         # internal functions
-        d.emit_rust_function("_aesni_ctr32_ghash_6x",
-                parameter_map=[],
-                rust_decl="pub fn _aesni_ctr32_ghash_6x()",
-                allow_inline=False,
+        d.emit_rust_function(
+            "_aesni_ctr32_ghash_6x",
+            parameter_map=[],
+            rust_decl="pub fn _aesni_ctr32_ghash_6x()",
+            allow_inline=False,
         )
-        d.emit_rust_function("_aesni_ctr32_6x",
-                parameter_map=[],
-                rust_decl="pub fn _aesni_ctr32_6x()",
-                allow_inline=False,
-                hoist=('.Lhandle_ctr32_2', '.Loop_ctr32'),
+        d.emit_rust_function(
+            "_aesni_ctr32_6x",
+            parameter_map=[],
+            rust_decl="pub fn _aesni_ctr32_6x()",
+            allow_inline=False,
+            hoist=(".Lhandle_ctr32_2", ".Loop_ctr32"),
         )
         d.add_const_symbol("_aesni_ctr32_ghash_6x")
         d.add_const_symbol("_aesni_ctr32_6x")
@@ -50,8 +52,8 @@ if __name__ == "__main__":
         d.add_const_symbol(".Ltwo_lsb", "two_lsb", align=64)
 
         # size_t aesni_gcm_[en|de]crypt(const void *inp, void *out, size_t len,
-        #>······>·······const AES_KEY *key, unsigned char iv[16],
-        #>······>·······struct { u128 Xi,H,Htbl[9]; } *Xip);
+        # >······>·······const AES_KEY *key, unsigned char iv[16],
+        # >······>·······struct { u128 Xi,H,Htbl[9]; } *Xip);
         for direction in ("encrypt", "decrypt"):
             d.emit_rust_function(
                 "aesni_gcm_" + direction,
@@ -65,9 +67,9 @@ if __name__ == "__main__":
                     ("inout", "r9", "x_i => _"),
                     ("out", "rax", "ret"),
                 ],
-                rust_decl="pub fn aesni_gcm_%s(inout: &mut [u8], key: &crate::low::AesKey, iv: &[u8; 16], x_i: &crate::low::GcmState) -> usize" % direction,
+                rust_decl="pub fn aesni_gcm_%s(inout: &mut [u8], key: &crate::low::AesKey, iv: &[u8; 16], x_i: &crate::low::GcmState) -> usize"
+                % direction,
                 allow_inline=False,
             )
 
         parse_file(input, d)
-

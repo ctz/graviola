@@ -89,33 +89,33 @@ pub fn bignum_mod_n256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         movbig!(n0!(), "#0xf3b9", "#0xcac2", "#0xfc63", "#0x2551"),
         movbig!(n1!(), "#0xbce6", "#0xfaad", "#0xa717", "#0x9e84"),
-        Q!("    mov       " n3!() ", #0xffffffff00000000"),
+        Q!("    mov             " n3!() ", #0xffffffff00000000"),
 
         // Load the input number
 
-        Q!("    ldp       " d0!() ", " d1!() ", [" x!() "]"),
-        Q!("    ldp       " d2!() ", " d3!() ", [" x!() ", #16]"),
+        Q!("    ldp             " d0!() ", " d1!() ", [" x!() "]"),
+        Q!("    ldp             " d2!() ", " d3!() ", [" x!() ", #16]"),
 
         // Do the subtraction. Since word 2 of n_256 is all 1s, that can be
         // done by adding zero with carry, thanks to the inverted carry.
 
-        Q!("    subs      " n0!() ", " d0!() ", " n0!()),
-        Q!("    sbcs      " n1!() ", " d1!() ", " n1!()),
-        Q!("    adcs      " n2!() ", " d2!() ", xzr"),
-        Q!("    sbcs      " n3!() ", " d3!() ", " n3!()),
+        Q!("    subs            " n0!() ", " d0!() ", " n0!()),
+        Q!("    sbcs            " n1!() ", " d1!() ", " n1!()),
+        Q!("    adcs            " n2!() ", " d2!() ", xzr"),
+        Q!("    sbcs            " n3!() ", " d3!() ", " n3!()),
 
         // Now if the carry is *clear* (inversion at work) the subtraction carried
         // and hence we should have done nothing, so we reset each n_i = d_i
 
-        Q!("    csel      " n0!() ", " d0!() ", " n0!() ", cc"),
-        Q!("    csel      " n1!() ", " d1!() ", " n1!() ", cc"),
-        Q!("    csel      " n2!() ", " d2!() ", " n2!() ", cc"),
-        Q!("    csel      " n3!() ", " d3!() ", " n3!() ", cc"),
+        Q!("    csel            " n0!() ", " d0!() ", " n0!() ", cc"),
+        Q!("    csel            " n1!() ", " d1!() ", " n1!() ", cc"),
+        Q!("    csel            " n2!() ", " d2!() ", " n2!() ", cc"),
+        Q!("    csel            " n3!() ", " d3!() ", " n3!() ", cc"),
 
         // Store the end result
 
-        Q!("    stp       " n0!() ", " n1!() ", [" z!() "]"),
-        Q!("    stp       " n2!() ", " n3!() ", [" z!() ", #16]"),
+        Q!("    stp             " n0!() ", " n1!() ", [" z!() "]"),
+        Q!("    stp             " n2!() ", " n3!() ", [" z!() ", #16]"),
 
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.as_ptr() => _,

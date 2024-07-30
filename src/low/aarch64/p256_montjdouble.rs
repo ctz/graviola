@@ -642,13 +642,13 @@ pub fn p256_montjdouble(p3: &mut [u64; 12], p1: &[u64; 12]) {
 
         // Save registers and make room on stack for temporary variables
 
-        Q!("    sub       " "sp, sp, " NSPACE!() "+ 16"),
-        Q!("    stp       " "x19, x20, [sp, " NSPACE!() "]"),
+        Q!("    sub             " "sp, sp, " NSPACE!() "+ 16"),
+        Q!("    stp             " "x19, x20, [sp, " NSPACE!() "]"),
 
         // Move the input arguments to stable places
 
-        Q!("    mov       " input_z!() ", x0"),
-        Q!("    mov       " input_x!() ", x1"),
+        Q!("    mov             " input_z!() ", x0"),
+        Q!("    mov             " input_x!() ", x1"),
 
         // Main code, just a sequence of basic field operations
 
@@ -702,8 +702,8 @@ pub fn p256_montjdouble(p3: &mut [u64; 12], p1: &[u64; 12]) {
 
         // Restore registers and stack and return
 
-        Q!("    ldp       " "x19, x20, [sp, " NSPACE!() "]"),
-        Q!("    add       " "sp, sp, " NSPACE!() "+ 16"),
+        Q!("    ldp             " "x19, x20, [sp, " NSPACE!() "]"),
+        Q!("    add             " "sp, sp, " NSPACE!() "+ 16"),
         inout("x0") p3.as_mut_ptr() => _,
         inout("x1") p1.as_ptr() => _,
         // clobbers
