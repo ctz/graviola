@@ -13,6 +13,18 @@ pub(crate) fn encrypt(
     ghash.add(cipher_inout);
 }
 
+pub(crate) fn decrypt(
+    key: &AesKey,
+    ghash: &mut Ghash<'_>,
+    initial_counter: &[u8; 16],
+    aad: &[u8],
+    cipher_inout: &mut [u8],
+) {
+    ghash.add(aad);
+    ghash.add(cipher_inout);
+    cipher(key, initial_counter, cipher_inout);
+}
+
 fn cipher(key: &AesKey, initial_counter: &[u8; 16], cipher_inout: &mut [u8]) {
     let mut counter = *initial_counter;
     let mut exact = cipher_inout.chunks_exact_mut(16);

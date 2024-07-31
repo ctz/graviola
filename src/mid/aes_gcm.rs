@@ -28,9 +28,13 @@ impl AesGcm {
     ) {
         let mut ghash = Ghash::new(&self.gh);
 
+        let counter = self.nonce_to_y0(nonce);
+
+        let mut e_y0 = counter;
+        self.key.encrypt_block(&mut e_y0);
+
         // give low-level code opportunity to stitch gf128 and aes
         // computations. see low::generic::aes_gcm for model version.
-        let counter = self.nonce_to_y0(nonce);
         aes_gcm::encrypt(&self.key, &mut ghash, &counter, aad, cipher_inout);
 
         let mut lengths = [0u8; 16];
@@ -38,12 +42,11 @@ impl AesGcm {
         lengths[8..].copy_from_slice(&((cipher_inout.len() * 8) as u64).to_be_bytes());
         ghash.add(&lengths);
 
-        let mut e_y0 = self.nonce_to_y0(nonce);
-        self.key.encrypt_block(&mut e_y0);
-
         let final_xi = ghash.into_bytes();
 
-        xor(tag_out, &final_xi, &e_y0);
+        for ((out, x), e) in tag_out.iter_mut().zip(final_xi.iter()).zip(e_y0.iter()) {
+            *out = *x ^ *e;
+        }
     }
 
     pub fn decrypt(
@@ -54,21 +57,23 @@ impl AesGcm {
         tag: &[u8],
     ) -> Result<(), Error> {
         let mut ghash = Ghash::new(&self.gh);
-        ghash.add(aad);
 
-        ghash.add(cipher_inout);
-        self.cipher(nonce, cipher_inout);
+        let counter = self.nonce_to_y0(nonce);
+
+        let mut e_y0 = counter;
+        self.key.encrypt_block(&mut e_y0);
+
+        aes_gcm::decrypt(&self.key, &mut ghash, &counter, aad, cipher_inout);
 
         let mut lengths = [0u8; 16];
         lengths[..8].copy_from_slice(&((aad.len() * 8) as u64).to_be_bytes());
         lengths[8..].copy_from_slice(&((cipher_inout.len() * 8) as u64).to_be_bytes());
         ghash.add(&lengths);
 
-        let mut e_y0 = self.nonce_to_y0(nonce);
-        self.key.encrypt_block(&mut e_y0);
-
         let mut actual_tag = ghash.into_bytes();
-        xor_in_place(&mut actual_tag, &e_y0);
+        for (out, e) in actual_tag.iter_mut().zip(e_y0.iter()) {
+            *out ^= *e;
+        }
 
         if ct_equal(&actual_tag, tag) {
             Ok(())
@@ -85,37 +90,6 @@ impl AesGcm {
         y0[15] = 0x01;
         y0
     }
-
-    fn cipher(&self, nonce: &[u8; 12], cipher_inout: &mut [u8]) {
-        let mut counter = self.nonce_to_y0(nonce);
-
-        for chunk in cipher_inout.chunks_mut(16) {
-            increment32(&mut counter);
-            let mut block = counter;
-            self.key.encrypt_block(&mut block);
-
-            xor_in_place(chunk, &block);
-        }
-    }
-}
-
-fn xor<const N: usize>(out: &mut [u8; N], a: &[u8; N], b: &[u8; N]) {
-    for i in 0..N {
-        out[i] = a[i] ^ b[i];
-    }
-}
-
-fn xor_in_place(inout: &mut [u8], offset: &[u8]) {
-    assert!(inout.len() <= offset.len());
-    for (a, b) in inout.iter_mut().zip(offset.iter()) {
-        *a ^= *b;
-    }
-}
-
-fn increment32(block: &mut [u8; 16]) {
-    let mut counter = u32::from_be_bytes(block[12..].try_into().unwrap());
-    counter = counter.wrapping_add(1);
-    block[12..].copy_from_slice(&counter.to_be_bytes());
 }
 
 #[cfg(test)]
