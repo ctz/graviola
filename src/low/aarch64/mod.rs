@@ -1,3 +1,4 @@
+pub(crate) mod aes;
 pub(crate) mod bignum_add_p256;
 pub(crate) mod bignum_copy_row_from_table;
 pub(crate) mod bignum_demont;
