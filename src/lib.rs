@@ -68,6 +68,5 @@ pub mod hash {
 }
 
 pub use error::Error;
-#[cfg(target_arch = "x86_64")]
 pub use mid::aes_gcm;
 pub use mid::rng::{RandomSource, SystemRandom};

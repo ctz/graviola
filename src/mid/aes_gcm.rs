@@ -28,22 +28,10 @@ impl AesGcm {
     ) {
         let mut ghash = Ghash::new(&self.gh);
 
-        // equivalent to :
-        //   ghash.add(aad);
-        //   self.cipher(nonce, cipher_inout);
-        //   ghash.add(cipher_inout);
-        //
-        // except we can stitch the ghash
-        // computation on aad, the encryption,
-        // and the ghash computation on the ciphertext
-        if true {
-            let counter = self.nonce_to_y0(nonce);
-            aes_gcm::encrypt(&self.key, &mut ghash, &counter, aad, cipher_inout);
-        } else {
-            ghash.add(aad);
-            self.cipher(nonce, cipher_inout);
-            ghash.add(cipher_inout);
-        }
+        // give low-level code opportunity to stitch gf128 and aes
+        // computations. see low::generic::aes_gcm for model version.
+        let counter = self.nonce_to_y0(nonce);
+        aes_gcm::encrypt(&self.key, &mut ghash, &counter, aad, cipher_inout);
 
         let mut lengths = [0u8; 16];
         lengths[..8].copy_from_slice(&((aad.len() * 8) as u64).to_be_bytes());

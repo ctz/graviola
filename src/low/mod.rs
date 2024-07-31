@@ -66,12 +66,13 @@ pub(crate) use aarch64::{
     p256_montjmixadd::p256_montjmixadd,
 };
 #[cfg(target_arch = "aarch64")]
-pub(crate) use generic::{sha256::sha256_compress_blocks, sha512::sha512_compress_blocks};
+pub(crate) use generic::{
+    aes_gcm, ghash, sha256::sha256_compress_blocks, sha512::sha512_compress_blocks,
+};
 
 mod generic;
 pub(crate) use generic::blockwise::Blockwise;
 pub(crate) use generic::ct_equal::ct_equal;
-//pub(crate) use generic::gf128;
 
 #[cfg(not(target_arch = "x86_64"))]
 pub use generic::optimise_barrier::optimise_barrier_u8;

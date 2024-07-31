@@ -1,7 +1,6 @@
 use serde::Deserialize;
 use std::fs::File;
 
-#[cfg(target_arch = "x86_64")]
 use graviola::aes_gcm;
 use graviola::ec::P256;
 use graviola::ecdsa::VerifyingKey;
@@ -269,7 +268,6 @@ fn test_ecdh_x25519() {
     }
 }
 
-#[cfg(target_arch = "x86_64")]
 #[test]
 fn test_aesgcm() {
     let data_file = File::open("thirdparty/wycheproof/testvectors_v1/aes_gcm_test.json")
