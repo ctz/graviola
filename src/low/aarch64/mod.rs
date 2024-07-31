@@ -17,6 +17,7 @@ pub(crate) mod bignum_neg_p256;
 pub(crate) mod bignum_tomont_p256;
 pub(crate) mod curve25519_x25519;
 pub(crate) mod curve25519_x25519base;
+pub(crate) mod ghash;
 pub(crate) mod p256_montjadd;
 pub(crate) mod p256_montjdouble;
 pub(crate) mod p256_montjmixadd;

@@ -61,14 +61,13 @@ pub(crate) use aarch64::{
     bignum_tomont_p256::bignum_tomont_p256,
     curve25519_x25519::curve25519_x25519,
     curve25519_x25519base::curve25519_x25519base,
+    ghash,
     p256_montjadd::p256_montjadd,
     p256_montjdouble::p256_montjdouble,
     p256_montjmixadd::p256_montjmixadd,
 };
 #[cfg(target_arch = "aarch64")]
-pub(crate) use generic::{
-    aes_gcm, ghash, sha256::sha256_compress_blocks, sha512::sha512_compress_blocks,
-};
+pub(crate) use generic::{aes_gcm, sha256::sha256_compress_blocks, sha512::sha512_compress_blocks};
 
 mod generic;
 pub(crate) use generic::blockwise::Blockwise;
