@@ -10,29 +10,51 @@ use core::arch::aarch64::*;
 use core::mem;
 
 pub(crate) struct GhashTable {
-    h: u128,
+    h: uint8x16_t,
+    //h2: uint8x16_t,
+    //h3: uint8x16_t,
+    //h4: uint8x16_t,
 }
 
 impl GhashTable {
     pub(crate) fn new(h: u128) -> Self {
-        Self { h }
+        let h = from_u128(&h);
+        //let h2 = mul(h, h);
+        //let h3 = mul(h2, h);
+        //let h4 = mul(h3, h);
+        Self { h } //, h2, h3, h4 }
     }
 }
 
 pub(crate) struct Ghash<'a> {
     table: &'a GhashTable,
-    current: u128,
+    current: uint8x16_t,
 }
+
 impl<'a> Ghash<'a> {
     pub(crate) fn new(table: &'a GhashTable) -> Self {
-        Self { table, current: 0 }
+        Self {
+            table,
+            current: zero(),
+        }
     }
 
     /// Input `bytes` to the computation.
     ///
     /// `bytes` is zero-padded, if required.
     pub(crate) fn add(&mut self, bytes: &[u8]) {
-        let mut whole_blocks = bytes.chunks_exact(16);
+        let mut by4_blocks = bytes.chunks_exact(64);
+
+        for chunk4 in by4_blocks.by_ref() {
+            self.four_blocks(
+                u128::from_be_bytes(chunk4[0..16].try_into().unwrap()),
+                u128::from_be_bytes(chunk4[16..32].try_into().unwrap()),
+                u128::from_be_bytes(chunk4[32..48].try_into().unwrap()),
+                u128::from_be_bytes(chunk4[48..64].try_into().unwrap()),
+            );
+        }
+
+        let mut whole_blocks = by4_blocks.remainder().chunks_exact(16);
 
         for chunk in whole_blocks.by_ref() {
             let u = u128::from_be_bytes(chunk.try_into().unwrap());
@@ -50,29 +72,30 @@ impl<'a> Ghash<'a> {
     }
 
     pub(crate) fn into_bytes(self) -> [u8; 16] {
-        self.current.to_be_bytes()
+        to_u128(self.current).to_be_bytes()
     }
 
     fn one_block(&mut self, block: u128) {
-        self.current ^= block;
+        unsafe { self.current = veorq_u8(self.current, from_u128(&block)) };
         self.current = mul(self.current, self.table.h);
+    }
+
+    fn four_blocks(&mut self, b1: u128, b2: u128, b3: u128, b4: u128) {
+        self.one_block(b1);
+        self.one_block(b2);
+        self.one_block(b3);
+        self.one_block(b4);
     }
 }
 
-fn mul(a: u128, b: u128) -> u128 {
+#[inline]
+fn mul(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
     unsafe { _mul(a, b) }
 }
 
 #[target_feature(enable = "neon,aes")]
-unsafe fn _mul(a: u128, b: u128) -> u128 {
+unsafe fn _mul(a8: uint8x16_t, b8: uint8x16_t) -> uint8x16_t {
     unsafe {
-        // do the whole computation in the wildly bizarre
-        // bit ordering of ghash, by reversing the inputs
-        let a8 = vld1q_u8(a.to_be_bytes().as_ptr());
-        let b8 = vld1q_u8(b.to_be_bytes().as_ptr());
-        let a8 = vrbitq_u8(a8);
-        let b8 = vrbitq_u8(b8);
-
         /* polynomial multiply */
         let z = vdupq_n_u8(0);
         let r0 = vmull_p64_fix(a8, b8);
@@ -97,10 +120,7 @@ unsafe fn _mul(a: u128, b: u128) -> u128 {
         let t0 = vmull_p64_fix(r1, p);
         let c8 = veorq_u8(r0, t0);
 
-        let c8 = vrbitq_u8(c8);
-        let mut r = [0; 16];
-        vst1q_u8(r.as_mut_ptr(), c8);
-        u128::from_be_bytes(r)
+        c8
     }
 }
 
@@ -126,7 +146,31 @@ unsafe fn vmull_high_p64_fix(a: uint8x16_t, b: uint8x16_t) -> uint8x16_t {
     mem::transmute(vmull_p64(a, b))
 }
 
-const R: u128 = 0xe1000000_00000000_00000000_00000000;
+#[inline]
+fn zero() -> uint8x16_t {
+    unsafe { mem::transmute(0u128) }
+}
+
+#[inline]
+fn from_u128(u: &u128) -> uint8x16_t {
+    unsafe {
+        // do the whole computation in the wildly bizarre
+        // bit ordering of ghash, by reversing the inputs
+        let t = vld1q_u8(u.to_be_bytes().as_ptr());
+        vrbitq_u8(t)
+    }
+}
+
+#[inline]
+fn to_u128(u: uint8x16_t) -> u128 {
+    unsafe {
+        let t = vrbitq_u8(u);
+
+        let mut r = [0; 16];
+        vst1q_u8(r.as_mut_ptr(), t);
+        u128::from_be_bytes(r)
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -134,7 +178,7 @@ mod tests {
 
     #[test]
     fn test_mul() {
-        assert_eq!(0, mul(1, 0));
+        assert_eq!(0, to_u128(mul(from_u128(&1), zero())));
 
         let x = u128::from_be_bytes(
             *b"\x03\x88\xda\xce\x60\xb6\xa3\x92\xf3\x28\xc2\xb9\x71\xb2\xfe\x78",
@@ -144,7 +188,7 @@ mod tests {
         );
         assert_eq!(
             b"\x5e\x2e\xc7\x46\x91\x70\x62\x88\x2c\x85\xb0\x68\x53\x53\xde\xb7",
-            &mul(x, y).to_be_bytes()
+            &to_u128(mul(from_u128(&x), from_u128(&y))).to_be_bytes()
         );
     }
 }
