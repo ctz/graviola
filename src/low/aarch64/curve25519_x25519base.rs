@@ -8,7 +8,7 @@ use crate::low::macros::{Label, Q};
 // The x25519 function for curve25519 on base element 9
 // Input scalar[4]; output res[4]
 //
-// extern void curve25519_x25519base_alt
+// extern void curve25519_x25519base
 //   (uint64_t res[static 4],uint64_t scalar[static 4]);
 //
 // Given a scalar n, returns the X coordinate of n * G where G = (9,...) is
@@ -98,111 +98,191 @@ macro_rules! t5 { () => { Q!("sp, # (13 * " NUMSIZE!() ")") } }
 
 macro_rules! NSPACE { () => { Q!("(14 * " NUMSIZE!() ")") } }
 
-// Macro wrapping up the basic field operation bignum_mul_p25519_alt, only
+// Macro wrapping up the basic field operation bignum_mul_p25519, only
 // trivially different from a pure function call to that subroutine.
 
 macro_rules! mul_p25519 {
     ($P0:expr, $P1:expr, $P2:expr) => { Q!(
         "ldp x3, x4, [" $P1 "];"
-        "ldp x7, x8, [" $P2 "];"
-        "mul x12, x3, x7;"
-        "umulh x13, x3, x7;"
-        "mul x11, x3, x8;"
-        "umulh x14, x3, x8;"
-        "adds x13, x13, x11;"
-        "ldp x9, x10, [" $P2 "+ 16];"
-        "mul x11, x3, x9;"
-        "umulh x15, x3, x9;"
-        "adcs x14, x14, x11;"
-        "mul x11, x3, x10;"
-        "umulh x16, x3, x10;"
-        "adcs x15, x15, x11;"
-        "adc x16, x16, xzr;"
-        "ldp x5, x6, [" $P1 "+ 16];"
-        "mul x11, x4, x7;"
-        "adds x13, x13, x11;"
-        "mul x11, x4, x8;"
-        "adcs x14, x14, x11;"
-        "mul x11, x4, x9;"
-        "adcs x15, x15, x11;"
-        "mul x11, x4, x10;"
-        "adcs x16, x16, x11;"
-        "umulh x3, x4, x10;"
-        "adc x3, x3, xzr;"
-        "umulh x11, x4, x7;"
-        "adds x14, x14, x11;"
-        "umulh x11, x4, x8;"
-        "adcs x15, x15, x11;"
-        "umulh x11, x4, x9;"
-        "adcs x16, x16, x11;"
-        "adc x3, x3, xzr;"
-        "mul x11, x5, x7;"
-        "adds x14, x14, x11;"
-        "mul x11, x5, x8;"
-        "adcs x15, x15, x11;"
-        "mul x11, x5, x9;"
-        "adcs x16, x16, x11;"
-        "mul x11, x5, x10;"
-        "adcs x3, x3, x11;"
-        "umulh x4, x5, x10;"
-        "adc x4, x4, xzr;"
-        "umulh x11, x5, x7;"
-        "adds x15, x15, x11;"
-        "umulh x11, x5, x8;"
-        "adcs x16, x16, x11;"
-        "umulh x11, x5, x9;"
-        "adcs x3, x3, x11;"
-        "adc x4, x4, xzr;"
-        "mul x11, x6, x7;"
-        "adds x15, x15, x11;"
-        "mul x11, x6, x8;"
-        "adcs x16, x16, x11;"
-        "mul x11, x6, x9;"
-        "adcs x3, x3, x11;"
-        "mul x11, x6, x10;"
-        "adcs x4, x4, x11;"
-        "umulh x5, x6, x10;"
-        "adc x5, x5, xzr;"
-        "umulh x11, x6, x7;"
-        "adds x16, x16, x11;"
-        "umulh x11, x6, x8;"
-        "adcs x3, x3, x11;"
-        "umulh x11, x6, x9;"
-        "adcs x4, x4, x11;"
-        "adc x5, x5, xzr;"
-        "mov x7, #0x26;"
-        "mul x11, x7, x16;"
-        "umulh x9, x7, x16;"
-        "adds x12, x12, x11;"
-        "mul x11, x7, x3;"
-        "umulh x3, x7, x3;"
-        "adcs x13, x13, x11;"
-        "mul x11, x7, x4;"
-        "umulh x4, x7, x4;"
-        "adcs x14, x14, x11;"
-        "mul x11, x7, x5;"
-        "umulh x5, x7, x5;"
-        "adcs x15, x15, x11;"
-        "cset x16, cs;"
-        "adds x15, x15, x4;"
-        "adc x16, x16, x5;"
-        "cmn x15, x15;"
-        "orr x15, x15, #0x8000000000000000;"
-        "adc x8, x16, x16;"
-        "mov x7, #0x13;"
-        "madd x11, x7, x8, x7;"
-        "adds x12, x12, x11;"
-        "adcs x13, x13, x9;"
-        "adcs x14, x14, x3;"
-        "adcs x15, x15, xzr;"
-        "csel x7, x7, xzr, cc;"
-        "subs x12, x12, x7;"
-        "sbcs x13, x13, xzr;"
-        "sbcs x14, x14, xzr;"
-        "sbc x15, x15, xzr;"
-        "and x15, x15, #0x7fffffffffffffff;"
-        "stp x12, x13, [" $P0 "];"
-        "stp x14, x15, [" $P0 "+ 16]"
+        "ldp x5, x6, [" $P2 "];"
+        "umull x7, w3, w5;"
+        "lsr x0, x3, #32;"
+        "umull x15, w0, w5;"
+        "lsr x16, x5, #32;"
+        "umull x8, w16, w0;"
+        "umull x16, w3, w16;"
+        "adds x7, x7, x15, lsl #32;"
+        "lsr x15, x15, #32;"
+        "adc x8, x8, x15;"
+        "adds x7, x7, x16, lsl #32;"
+        "lsr x16, x16, #32;"
+        "adc x8, x8, x16;"
+        "mul x9, x4, x6;"
+        "umulh x10, x4, x6;"
+        "subs x4, x4, x3;"
+        "cneg x4, x4, cc;"
+        "csetm x16, cc;"
+        "adds x9, x9, x8;"
+        "adc x10, x10, xzr;"
+        "subs x3, x5, x6;"
+        "cneg x3, x3, cc;"
+        "cinv x16, x16, cc;"
+        "mul x15, x4, x3;"
+        "umulh x3, x4, x3;"
+        "adds x8, x7, x9;"
+        "adcs x9, x9, x10;"
+        "adc x10, x10, xzr;"
+        "cmn x16, #0x1;"
+        "eor x15, x15, x16;"
+        "adcs x8, x15, x8;"
+        "eor x3, x3, x16;"
+        "adcs x9, x3, x9;"
+        "adc x10, x10, x16;"
+        "ldp x3, x4, [" $P1 "+ 16];"
+        "ldp x5, x6, [" $P2 "+ 16];"
+        "umull x11, w3, w5;"
+        "lsr x0, x3, #32;"
+        "umull x15, w0, w5;"
+        "lsr x16, x5, #32;"
+        "umull x12, w16, w0;"
+        "umull x16, w3, w16;"
+        "adds x11, x11, x15, lsl #32;"
+        "lsr x15, x15, #32;"
+        "adc x12, x12, x15;"
+        "adds x11, x11, x16, lsl #32;"
+        "lsr x16, x16, #32;"
+        "adc x12, x12, x16;"
+        "mul x13, x4, x6;"
+        "umulh x14, x4, x6;"
+        "subs x4, x4, x3;"
+        "cneg x4, x4, cc;"
+        "csetm x16, cc;"
+        "adds x13, x13, x12;"
+        "adc x14, x14, xzr;"
+        "subs x3, x5, x6;"
+        "cneg x3, x3, cc;"
+        "cinv x16, x16, cc;"
+        "mul x15, x4, x3;"
+        "umulh x3, x4, x3;"
+        "adds x12, x11, x13;"
+        "adcs x13, x13, x14;"
+        "adc x14, x14, xzr;"
+        "cmn x16, #0x1;"
+        "eor x15, x15, x16;"
+        "adcs x12, x15, x12;"
+        "eor x3, x3, x16;"
+        "adcs x13, x3, x13;"
+        "adc x14, x14, x16;"
+        "ldp x3, x4, [" $P1 "+ 16];"
+        "ldp x15, x16, [" $P1 "];"
+        "subs x3, x3, x15;"
+        "sbcs x4, x4, x16;"
+        "csetm x16, cc;"
+        "ldp x15, x0, [" $P2 "];"
+        "subs x5, x15, x5;"
+        "sbcs x6, x0, x6;"
+        "csetm x0, cc;"
+        "eor x3, x3, x16;"
+        "subs x3, x3, x16;"
+        "eor x4, x4, x16;"
+        "sbc x4, x4, x16;"
+        "eor x5, x5, x0;"
+        "subs x5, x5, x0;"
+        "eor x6, x6, x0;"
+        "sbc x6, x6, x0;"
+        "eor x16, x0, x16;"
+        "adds x11, x11, x9;"
+        "adcs x12, x12, x10;"
+        "adcs x13, x13, xzr;"
+        "adc x14, x14, xzr;"
+        "mul x2, x3, x5;"
+        "umulh x0, x3, x5;"
+        "mul x15, x4, x6;"
+        "umulh x1, x4, x6;"
+        "subs x4, x4, x3;"
+        "cneg x4, x4, cc;"
+        "csetm x9, cc;"
+        "adds x15, x15, x0;"
+        "adc x1, x1, xzr;"
+        "subs x6, x5, x6;"
+        "cneg x6, x6, cc;"
+        "cinv x9, x9, cc;"
+        "mul x5, x4, x6;"
+        "umulh x6, x4, x6;"
+        "adds x0, x2, x15;"
+        "adcs x15, x15, x1;"
+        "adc x1, x1, xzr;"
+        "cmn x9, #0x1;"
+        "eor x5, x5, x9;"
+        "adcs x0, x5, x0;"
+        "eor x6, x6, x9;"
+        "adcs x15, x6, x15;"
+        "adc x1, x1, x9;"
+        "adds x9, x11, x7;"
+        "adcs x10, x12, x8;"
+        "adcs x11, x13, x11;"
+        "adcs x12, x14, x12;"
+        "adcs x13, x13, xzr;"
+        "adc x14, x14, xzr;"
+        "cmn x16, #0x1;"
+        "eor x2, x2, x16;"
+        "adcs x9, x2, x9;"
+        "eor x0, x0, x16;"
+        "adcs x10, x0, x10;"
+        "eor x15, x15, x16;"
+        "adcs x11, x15, x11;"
+        "eor x1, x1, x16;"
+        "adcs x12, x1, x12;"
+        "adcs x13, x13, x16;"
+        "adc x14, x14, x16;"
+        "mov x3, #0x26;"
+        "umull x4, w11, w3;"
+        "add x4, x4, w7, uxtw;"
+        "lsr x7, x7, #32;"
+        "lsr x11, x11, #32;"
+        "umaddl x11, w11, w3, x7;"
+        "mov x7, x4;"
+        "umull x4, w12, w3;"
+        "add x4, x4, w8, uxtw;"
+        "lsr x8, x8, #32;"
+        "lsr x12, x12, #32;"
+        "umaddl x12, w12, w3, x8;"
+        "mov x8, x4;"
+        "umull x4, w13, w3;"
+        "add x4, x4, w9, uxtw;"
+        "lsr x9, x9, #32;"
+        "lsr x13, x13, #32;"
+        "umaddl x13, w13, w3, x9;"
+        "mov x9, x4;"
+        "umull x4, w14, w3;"
+        "add x4, x4, w10, uxtw;"
+        "lsr x10, x10, #32;"
+        "lsr x14, x14, #32;"
+        "umaddl x14, w14, w3, x10;"
+        "mov x10, x4;"
+        "lsr x0, x14, #31;"
+        "mov x5, #0x13;"
+        "umaddl x5, w5, w0, x5;"
+        "add x7, x7, x5;"
+        "adds x7, x7, x11, lsl #32;"
+        "extr x3, x12, x11, #32;"
+        "adcs x8, x8, x3;"
+        "extr x3, x13, x12, #32;"
+        "adcs x9, x9, x3;"
+        "extr x3, x14, x13, #32;"
+        "lsl x5, x0, #63;"
+        "eor x10, x10, x5;"
+        "adc x10, x10, x3;"
+        "mov x3, #0x13;"
+        "tst x10, #0x8000000000000000;"
+        "csel x3, x3, xzr, pl;"
+        "subs x7, x7, x3;"
+        "sbcs x8, x8, xzr;"
+        "sbcs x9, x9, xzr;"
+        "sbc x10, x10, xzr;"
+        "and x10, x10, #0x7fffffffffffffff;"
+        "stp x7, x8, [" $P0 "];"
+        "stp x9, x10, [" $P0 "+ 16]"
     )}
 }
 
@@ -212,99 +292,177 @@ macro_rules! mul_p25519 {
 macro_rules! mul_4 {
     ($P0:expr, $P1:expr, $P2:expr) => { Q!(
         "ldp x3, x4, [" $P1 "];"
-        "ldp x7, x8, [" $P2 "];"
-        "mul x12, x3, x7;"
-        "umulh x13, x3, x7;"
-        "mul x11, x3, x8;"
-        "umulh x14, x3, x8;"
-        "adds x13, x13, x11;"
-        "ldp x9, x10, [" $P2 "+ 16];"
-        "mul x11, x3, x9;"
-        "umulh x15, x3, x9;"
-        "adcs x14, x14, x11;"
-        "mul x11, x3, x10;"
-        "umulh x16, x3, x10;"
-        "adcs x15, x15, x11;"
-        "adc x16, x16, xzr;"
-        "ldp x5, x6, [" $P1 "+ 16];"
-        "mul x11, x4, x7;"
-        "adds x13, x13, x11;"
-        "mul x11, x4, x8;"
-        "adcs x14, x14, x11;"
-        "mul x11, x4, x9;"
-        "adcs x15, x15, x11;"
-        "mul x11, x4, x10;"
-        "adcs x16, x16, x11;"
-        "umulh x3, x4, x10;"
-        "adc x3, x3, xzr;"
-        "umulh x11, x4, x7;"
-        "adds x14, x14, x11;"
-        "umulh x11, x4, x8;"
-        "adcs x15, x15, x11;"
-        "umulh x11, x4, x9;"
-        "adcs x16, x16, x11;"
-        "adc x3, x3, xzr;"
-        "mul x11, x5, x7;"
-        "adds x14, x14, x11;"
-        "mul x11, x5, x8;"
-        "adcs x15, x15, x11;"
-        "mul x11, x5, x9;"
-        "adcs x16, x16, x11;"
-        "mul x11, x5, x10;"
-        "adcs x3, x3, x11;"
-        "umulh x4, x5, x10;"
-        "adc x4, x4, xzr;"
-        "umulh x11, x5, x7;"
-        "adds x15, x15, x11;"
-        "umulh x11, x5, x8;"
-        "adcs x16, x16, x11;"
-        "umulh x11, x5, x9;"
-        "adcs x3, x3, x11;"
-        "adc x4, x4, xzr;"
-        "mul x11, x6, x7;"
-        "adds x15, x15, x11;"
-        "mul x11, x6, x8;"
-        "adcs x16, x16, x11;"
-        "mul x11, x6, x9;"
-        "adcs x3, x3, x11;"
-        "mul x11, x6, x10;"
-        "adcs x4, x4, x11;"
-        "umulh x5, x6, x10;"
-        "adc x5, x5, xzr;"
-        "umulh x11, x6, x7;"
-        "adds x16, x16, x11;"
-        "umulh x11, x6, x8;"
-        "adcs x3, x3, x11;"
-        "umulh x11, x6, x9;"
-        "adcs x4, x4, x11;"
-        "adc x5, x5, xzr;"
-        "mov x7, #0x26;"
-        "mul x11, x7, x16;"
-        "umulh x9, x7, x16;"
-        "adds x12, x12, x11;"
-        "mul x11, x7, x3;"
-        "umulh x3, x7, x3;"
-        "adcs x13, x13, x11;"
-        "mul x11, x7, x4;"
-        "umulh x4, x7, x4;"
-        "adcs x14, x14, x11;"
-        "mul x11, x7, x5;"
-        "umulh x5, x7, x5;"
-        "adcs x15, x15, x11;"
-        "cset x16, cs;"
-        "adds x15, x15, x4;"
-        "adc x16, x16, x5;"
-        "cmn x15, x15;"
-        "bic x15, x15, #0x8000000000000000;"
-        "adc x8, x16, x16;"
-        "mov x7, #0x13;"
-        "mul x11, x7, x8;"
-        "adds x12, x12, x11;"
-        "adcs x13, x13, x9;"
-        "adcs x14, x14, x3;"
-        "adc x15, x15, xzr;"
-        "stp x12, x13, [" $P0 "];"
-        "stp x14, x15, [" $P0 "+ 16]"
+        "ldp x5, x6, [" $P2 "];"
+        "umull x7, w3, w5;"
+        "lsr x0, x3, #32;"
+        "umull x15, w0, w5;"
+        "lsr x16, x5, #32;"
+        "umull x8, w16, w0;"
+        "umull x16, w3, w16;"
+        "adds x7, x7, x15, lsl #32;"
+        "lsr x15, x15, #32;"
+        "adc x8, x8, x15;"
+        "adds x7, x7, x16, lsl #32;"
+        "lsr x16, x16, #32;"
+        "adc x8, x8, x16;"
+        "mul x9, x4, x6;"
+        "umulh x10, x4, x6;"
+        "subs x4, x4, x3;"
+        "cneg x4, x4, cc;"
+        "csetm x16, cc;"
+        "adds x9, x9, x8;"
+        "adc x10, x10, xzr;"
+        "subs x3, x5, x6;"
+        "cneg x3, x3, cc;"
+        "cinv x16, x16, cc;"
+        "mul x15, x4, x3;"
+        "umulh x3, x4, x3;"
+        "adds x8, x7, x9;"
+        "adcs x9, x9, x10;"
+        "adc x10, x10, xzr;"
+        "cmn x16, #0x1;"
+        "eor x15, x15, x16;"
+        "adcs x8, x15, x8;"
+        "eor x3, x3, x16;"
+        "adcs x9, x3, x9;"
+        "adc x10, x10, x16;"
+        "ldp x3, x4, [" $P1 "+ 16];"
+        "ldp x5, x6, [" $P2 "+ 16];"
+        "umull x11, w3, w5;"
+        "lsr x0, x3, #32;"
+        "umull x15, w0, w5;"
+        "lsr x16, x5, #32;"
+        "umull x12, w16, w0;"
+        "umull x16, w3, w16;"
+        "adds x11, x11, x15, lsl #32;"
+        "lsr x15, x15, #32;"
+        "adc x12, x12, x15;"
+        "adds x11, x11, x16, lsl #32;"
+        "lsr x16, x16, #32;"
+        "adc x12, x12, x16;"
+        "mul x13, x4, x6;"
+        "umulh x14, x4, x6;"
+        "subs x4, x4, x3;"
+        "cneg x4, x4, cc;"
+        "csetm x16, cc;"
+        "adds x13, x13, x12;"
+        "adc x14, x14, xzr;"
+        "subs x3, x5, x6;"
+        "cneg x3, x3, cc;"
+        "cinv x16, x16, cc;"
+        "mul x15, x4, x3;"
+        "umulh x3, x4, x3;"
+        "adds x12, x11, x13;"
+        "adcs x13, x13, x14;"
+        "adc x14, x14, xzr;"
+        "cmn x16, #0x1;"
+        "eor x15, x15, x16;"
+        "adcs x12, x15, x12;"
+        "eor x3, x3, x16;"
+        "adcs x13, x3, x13;"
+        "adc x14, x14, x16;"
+        "ldp x3, x4, [" $P1 "+ 16];"
+        "ldp x15, x16, [" $P1 "];"
+        "subs x3, x3, x15;"
+        "sbcs x4, x4, x16;"
+        "csetm x16, cc;"
+        "ldp x15, x0, [" $P2 "];"
+        "subs x5, x15, x5;"
+        "sbcs x6, x0, x6;"
+        "csetm x0, cc;"
+        "eor x3, x3, x16;"
+        "subs x3, x3, x16;"
+        "eor x4, x4, x16;"
+        "sbc x4, x4, x16;"
+        "eor x5, x5, x0;"
+        "subs x5, x5, x0;"
+        "eor x6, x6, x0;"
+        "sbc x6, x6, x0;"
+        "eor x16, x0, x16;"
+        "adds x11, x11, x9;"
+        "adcs x12, x12, x10;"
+        "adcs x13, x13, xzr;"
+        "adc x14, x14, xzr;"
+        "mul x2, x3, x5;"
+        "umulh x0, x3, x5;"
+        "mul x15, x4, x6;"
+        "umulh x1, x4, x6;"
+        "subs x4, x4, x3;"
+        "cneg x4, x4, cc;"
+        "csetm x9, cc;"
+        "adds x15, x15, x0;"
+        "adc x1, x1, xzr;"
+        "subs x6, x5, x6;"
+        "cneg x6, x6, cc;"
+        "cinv x9, x9, cc;"
+        "mul x5, x4, x6;"
+        "umulh x6, x4, x6;"
+        "adds x0, x2, x15;"
+        "adcs x15, x15, x1;"
+        "adc x1, x1, xzr;"
+        "cmn x9, #0x1;"
+        "eor x5, x5, x9;"
+        "adcs x0, x5, x0;"
+        "eor x6, x6, x9;"
+        "adcs x15, x6, x15;"
+        "adc x1, x1, x9;"
+        "adds x9, x11, x7;"
+        "adcs x10, x12, x8;"
+        "adcs x11, x13, x11;"
+        "adcs x12, x14, x12;"
+        "adcs x13, x13, xzr;"
+        "adc x14, x14, xzr;"
+        "cmn x16, #0x1;"
+        "eor x2, x2, x16;"
+        "adcs x9, x2, x9;"
+        "eor x0, x0, x16;"
+        "adcs x10, x0, x10;"
+        "eor x15, x15, x16;"
+        "adcs x11, x15, x11;"
+        "eor x1, x1, x16;"
+        "adcs x12, x1, x12;"
+        "adcs x13, x13, x16;"
+        "adc x14, x14, x16;"
+        "mov x3, #0x26;"
+        "umull x4, w11, w3;"
+        "add x4, x4, w7, uxtw;"
+        "lsr x7, x7, #32;"
+        "lsr x11, x11, #32;"
+        "umaddl x11, w11, w3, x7;"
+        "mov x7, x4;"
+        "umull x4, w12, w3;"
+        "add x4, x4, w8, uxtw;"
+        "lsr x8, x8, #32;"
+        "lsr x12, x12, #32;"
+        "umaddl x12, w12, w3, x8;"
+        "mov x8, x4;"
+        "umull x4, w13, w3;"
+        "add x4, x4, w9, uxtw;"
+        "lsr x9, x9, #32;"
+        "lsr x13, x13, #32;"
+        "umaddl x13, w13, w3, x9;"
+        "mov x9, x4;"
+        "umull x4, w14, w3;"
+        "add x4, x4, w10, uxtw;"
+        "lsr x10, x10, #32;"
+        "lsr x14, x14, #32;"
+        "umaddl x14, w14, w3, x10;"
+        "mov x10, x4;"
+        "lsr x0, x14, #31;"
+        "mov x5, #0x13;"
+        "umull x5, w5, w0;"
+        "add x7, x7, x5;"
+        "adds x7, x7, x11, lsl #32;"
+        "extr x3, x12, x11, #32;"
+        "adcs x8, x8, x3;"
+        "extr x3, x13, x12, #32;"
+        "adcs x9, x9, x3;"
+        "extr x3, x14, x13, #32;"
+        "lsl x5, x0, #63;"
+        "eor x10, x10, x5;"
+        "adc x10, x10, x3;"
+        "stp x7, x8, [" $P0 "];"
+        "stp x9, x10, [" $P0 "+ 16]"
     )}
 }
 
@@ -384,14 +542,14 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
 
         // Save regs and make room for temporaries
 
-        Q!("    stp       " "x19, x20, [sp, -16] !"),
-        Q!("    stp       " "x21, x22, [sp, -16] !"),
-        Q!("    stp       " "x23, x24, [sp, -16] !"),
-        Q!("    sub       " "sp, sp, # " NSPACE!()),
+        Q!("    stp             " "x19, x20, [sp, -16] !"),
+        Q!("    stp             " "x21, x22, [sp, -16] !"),
+        Q!("    stp             " "x23, x24, [sp, -16] !"),
+        Q!("    sub             " "sp, sp, # " NSPACE!()),
 
         // Move the output pointer to a stable place
 
-        Q!("    mov       " res!() ", x0"),
+        Q!("    mov             " res!() ", x0"),
 
         // Copy the input scalar to its local variable while mangling it.
         // In principle the mangling is into 01xxx...xxx000, but actually
@@ -399,11 +557,11 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         // 2^254 * G is taken care of by the starting value for the addition
         // chain below, while we never look at the three low bits at all.
 
-        Q!("    ldp       " "x10, x11, [x1]"),
-        Q!("    stp       " "x10, x11, [" scalar!() "]"),
-        Q!("    ldp       " "x12, x13, [x1, #16]"),
-        Q!("    bic       " "x13, x13, #0xc000000000000000"),
-        Q!("    stp       " "x12, x13, [" scalar!() "+ 16]"),
+        Q!("    ldp             " "x10, x11, [x1]"),
+        Q!("    stp             " "x10, x11, [" scalar!() "]"),
+        Q!("    ldp             " "x12, x13, [x1, #16]"),
+        Q!("    bic             " "x13, x13, #0xc000000000000000"),
+        Q!("    stp             " "x12, x13, [" scalar!() "+ 16]"),
 
         // The main part of the computation is on the edwards25519 curve in
         // extended-projective coordinates (X,Y,Z,T), representing a point
@@ -416,50 +574,50 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         // depending on bit 3 of the scalar, the only nonzero bit of the bottom 4.
         // Thus, we have effectively dealt with bits 0, 1, 2, 3, 254 and 255.
 
-        Q!("    ldr       " "x0, [" scalar!() "]"),
-        Q!("    ands      " "xzr, x0, #8"),
+        Q!("    ldr             " "x0, [" scalar!() "]"),
+        Q!("    ands            " "xzr, x0, #8"),
 
-        Q!("    adrp      " "x10, {curve25519_x25519base_alt_edwards25519_0g}"),
-        Q!("    adrp      " "x11, {curve25519_x25519base_alt_edwards25519_8g}"),
-        Q!("    ldp       " "x0, x1, [x10]"),
-        Q!("    ldp       " "x2, x3, [x11]"),
-        Q!("    csel      " "x0, x0, x2, eq"),
-        Q!("    csel      " "x1, x1, x3, eq"),
-        Q!("    stp       " "x0, x1, [" acc!() "]"),
+        Q!("    adrp            " "x10, {curve25519_x25519base_edwards25519_0g}"),
+        Q!("    adrp            " "x11, {curve25519_x25519base_edwards25519_8g}"),
+        Q!("    ldp             " "x0, x1, [x10]"),
+        Q!("    ldp             " "x2, x3, [x11]"),
+        Q!("    csel            " "x0, x0, x2, eq"),
+        Q!("    csel            " "x1, x1, x3, eq"),
+        Q!("    stp             " "x0, x1, [" acc!() "]"),
 
-        Q!("    ldp       " "x0, x1, [x10, 1 * 16]"),
-        Q!("    ldp       " "x2, x3, [x11, 1 * 16]"),
-        Q!("    csel      " "x0, x0, x2, eq"),
-        Q!("    csel      " "x1, x1, x3, eq"),
-        Q!("    stp       " "x0, x1, [" acc!() "+ 1 * 16]"),
+        Q!("    ldp             " "x0, x1, [x10, 1 * 16]"),
+        Q!("    ldp             " "x2, x3, [x11, 1 * 16]"),
+        Q!("    csel            " "x0, x0, x2, eq"),
+        Q!("    csel            " "x1, x1, x3, eq"),
+        Q!("    stp             " "x0, x1, [" acc!() "+ 1 * 16]"),
 
-        Q!("    ldp       " "x0, x1, [x10, 2 * 16]"),
-        Q!("    ldp       " "x2, x3, [x11, 2 * 16]"),
-        Q!("    csel      " "x0, x0, x2, eq"),
-        Q!("    csel      " "x1, x1, x3, eq"),
-        Q!("    stp       " "x0, x1, [" acc!() "+ 2 * 16]"),
+        Q!("    ldp             " "x0, x1, [x10, 2 * 16]"),
+        Q!("    ldp             " "x2, x3, [x11, 2 * 16]"),
+        Q!("    csel            " "x0, x0, x2, eq"),
+        Q!("    csel            " "x1, x1, x3, eq"),
+        Q!("    stp             " "x0, x1, [" acc!() "+ 2 * 16]"),
 
-        Q!("    ldp       " "x0, x1, [x10, 3 * 16]"),
-        Q!("    ldp       " "x2, x3, [x11, 3 * 16]"),
-        Q!("    csel      " "x0, x0, x2, eq"),
-        Q!("    csel      " "x1, x1, x3, eq"),
-        Q!("    stp       " "x0, x1, [" acc!() "+ 3 * 16]"),
+        Q!("    ldp             " "x0, x1, [x10, 3 * 16]"),
+        Q!("    ldp             " "x2, x3, [x11, 3 * 16]"),
+        Q!("    csel            " "x0, x0, x2, eq"),
+        Q!("    csel            " "x1, x1, x3, eq"),
+        Q!("    stp             " "x0, x1, [" acc!() "+ 3 * 16]"),
 
-        Q!("    mov       " "x0, #1"),
-        Q!("    stp       " "x0, xzr, [" acc!() "+ 4 * 16]"),
-        Q!("    stp       " "xzr, xzr, [" acc!() "+ 5 * 16]"),
+        Q!("    mov             " "x0, #1"),
+        Q!("    stp             " "x0, xzr, [" acc!() "+ 4 * 16]"),
+        Q!("    stp             " "xzr, xzr, [" acc!() "+ 5 * 16]"),
 
-        Q!("    ldp       " "x0, x1, [x10, 4 * 16]"),
-        Q!("    ldp       " "x2, x3, [x11, 4 * 16]"),
-        Q!("    csel      " "x0, x0, x2, eq"),
-        Q!("    csel      " "x1, x1, x3, eq"),
-        Q!("    stp       " "x0, x1, [" acc!() "+ 6 * 16]"),
+        Q!("    ldp             " "x0, x1, [x10, 4 * 16]"),
+        Q!("    ldp             " "x2, x3, [x11, 4 * 16]"),
+        Q!("    csel            " "x0, x0, x2, eq"),
+        Q!("    csel            " "x1, x1, x3, eq"),
+        Q!("    stp             " "x0, x1, [" acc!() "+ 6 * 16]"),
 
-        Q!("    ldp       " "x0, x1, [x10, 5 * 16]"),
-        Q!("    ldp       " "x2, x3, [x11, 5 * 16]"),
-        Q!("    csel      " "x0, x0, x2, eq"),
-        Q!("    csel      " "x1, x1, x3, eq"),
-        Q!("    stp       " "x0, x1, [" acc!() "+ 7 * 16]"),
+        Q!("    ldp             " "x0, x1, [x10, 5 * 16]"),
+        Q!("    ldp             " "x2, x3, [x11, 5 * 16]"),
+        Q!("    csel            " "x0, x0, x2, eq"),
+        Q!("    csel            " "x1, x1, x3, eq"),
+        Q!("    stp             " "x0, x1, [" acc!() "+ 7 * 16]"),
 
         // The counter "i" tracks the bit position for which the scalar has
         // already been absorbed, starting at 4 and going up in chunks of 4.
@@ -475,217 +633,217 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         // end because of the clearing of bit 255 of the scalar, meaning the
         // l >= 9 case cannot arise on the last iteration.
 
-        Q!("    mov       " i!() ", 4"),
-        Q!("    adrp      " tab!() ", {curve25519_x25519base_alt_edwards25519_gtable}"),
-        Q!("    mov       " bias!() ", xzr"),
+        Q!("    mov             " i!() ", 4"),
+        Q!("    adrp            " tab!() ", {curve25519_x25519base_edwards25519_gtable}"),
+        Q!("    mov             " bias!() ", xzr"),
 
         // Start of the main loop, repeated 63 times for i = 4, 8, ..., 252
 
-        Q!(Label!("curve25519_x25519base_alt_scalarloop", 2) ":"),
+        Q!(Label!("curve25519_x25519base_scalarloop", 2) ":"),
 
         // Look at the next 4-bit field "bf", adding the previous bias as well.
         // Choose the table index "ix" as bf when bf <= 8 and 16 - bf for bf >= 9,
         // setting the bias to 1 for the next iteration in the latter case.
 
-        Q!("    lsr       " "x0, " i!() ", #6"),
-        Q!("    ldr       " "x2, [sp, x0, lsl #3]"),
-        Q!("    lsr       " "x2, x2, " i!()),
-        Q!("    and       " "x2, x2, #15"),
-        Q!("    add       " bf!() ", x2, " bias!()),
+        Q!("    lsr             " "x0, " i!() ", #6"),
+        Q!("    ldr             " "x2, [sp, x0, lsl #3]"),
+        Q!("    lsr             " "x2, x2, " i!()),
+        Q!("    and             " "x2, x2, #15"),
+        Q!("    add             " bf!() ", x2, " bias!()),
 
-        Q!("    cmp       " bf!() ", 9"),
-        Q!("    cset      " bias!() ", cs"),
+        Q!("    cmp             " bf!() ", 9"),
+        Q!("    cset            " bias!() ", cs"),
 
-        Q!("    mov       " "x0, 16"),
-        Q!("    sub       " "x0, x0, " bf!()),
-        Q!("    cmp       " bias!() ", xzr"),
-        Q!("    csel      " ix!() ", x0, " bf!() ", ne"),
+        Q!("    mov             " "x0, 16"),
+        Q!("    sub             " "x0, x0, " bf!()),
+        Q!("    cmp             " bias!() ", xzr"),
+        Q!("    csel            " ix!() ", x0, " bf!() ", ne"),
 
         // Perform constant-time lookup in the table to get element number "ix".
         // The table entry for the affine point (x,y) is actually a triple
         // (y - x,x + y,2 * d * x * y) to precompute parts of the addition.
         // Note that "ix" can be 0, so we set up the appropriate identity first.
 
-        Q!("    mov       " "x0, #1"),
-        Q!("    mov       " "x1, xzr"),
-        Q!("    mov       " "x2, xzr"),
-        Q!("    mov       " "x3, xzr"),
-        Q!("    mov       " "x4, #1"),
-        Q!("    mov       " "x5, xzr"),
-        Q!("    mov       " "x6, xzr"),
-        Q!("    mov       " "x7, xzr"),
-        Q!("    mov       " "x8, xzr"),
-        Q!("    mov       " "x9, xzr"),
-        Q!("    mov       " "x10, xzr"),
-        Q!("    mov       " "x11, xzr"),
+        Q!("    mov             " "x0, #1"),
+        Q!("    mov             " "x1, xzr"),
+        Q!("    mov             " "x2, xzr"),
+        Q!("    mov             " "x3, xzr"),
+        Q!("    mov             " "x4, #1"),
+        Q!("    mov             " "x5, xzr"),
+        Q!("    mov             " "x6, xzr"),
+        Q!("    mov             " "x7, xzr"),
+        Q!("    mov             " "x8, xzr"),
+        Q!("    mov             " "x9, xzr"),
+        Q!("    mov             " "x10, xzr"),
+        Q!("    mov             " "x11, xzr"),
 
-        Q!("    cmp       " ix!() ", #1"),
-        Q!("    ldp       " "x12, x13, [" tab!() "]"),
-        Q!("    csel      " "x0, x0, x12, ne"),
-        Q!("    csel      " "x1, x1, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #16]"),
-        Q!("    csel      " "x2, x2, x12, ne"),
-        Q!("    csel      " "x3, x3, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #32]"),
-        Q!("    csel      " "x4, x4, x12, ne"),
-        Q!("    csel      " "x5, x5, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #48]"),
-        Q!("    csel      " "x6, x6, x12, ne"),
-        Q!("    csel      " "x7, x7, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #64]"),
-        Q!("    csel      " "x8, x8, x12, ne"),
-        Q!("    csel      " "x9, x9, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #80]"),
-        Q!("    csel      " "x10, x10, x12, ne"),
-        Q!("    csel      " "x11, x11, x13, ne"),
-        Q!("    add       " tab!() ", " tab!() ", #96"),
+        Q!("    cmp             " ix!() ", #1"),
+        Q!("    ldp             " "x12, x13, [" tab!() "]"),
+        Q!("    csel            " "x0, x0, x12, ne"),
+        Q!("    csel            " "x1, x1, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #16]"),
+        Q!("    csel            " "x2, x2, x12, ne"),
+        Q!("    csel            " "x3, x3, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #32]"),
+        Q!("    csel            " "x4, x4, x12, ne"),
+        Q!("    csel            " "x5, x5, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #48]"),
+        Q!("    csel            " "x6, x6, x12, ne"),
+        Q!("    csel            " "x7, x7, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #64]"),
+        Q!("    csel            " "x8, x8, x12, ne"),
+        Q!("    csel            " "x9, x9, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #80]"),
+        Q!("    csel            " "x10, x10, x12, ne"),
+        Q!("    csel            " "x11, x11, x13, ne"),
+        Q!("    add             " tab!() ", " tab!() ", #96"),
 
-        Q!("    cmp       " ix!() ", #2"),
-        Q!("    ldp       " "x12, x13, [" tab!() "]"),
-        Q!("    csel      " "x0, x0, x12, ne"),
-        Q!("    csel      " "x1, x1, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #16]"),
-        Q!("    csel      " "x2, x2, x12, ne"),
-        Q!("    csel      " "x3, x3, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #32]"),
-        Q!("    csel      " "x4, x4, x12, ne"),
-        Q!("    csel      " "x5, x5, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #48]"),
-        Q!("    csel      " "x6, x6, x12, ne"),
-        Q!("    csel      " "x7, x7, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #64]"),
-        Q!("    csel      " "x8, x8, x12, ne"),
-        Q!("    csel      " "x9, x9, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #80]"),
-        Q!("    csel      " "x10, x10, x12, ne"),
-        Q!("    csel      " "x11, x11, x13, ne"),
-        Q!("    add       " tab!() ", " tab!() ", #96"),
+        Q!("    cmp             " ix!() ", #2"),
+        Q!("    ldp             " "x12, x13, [" tab!() "]"),
+        Q!("    csel            " "x0, x0, x12, ne"),
+        Q!("    csel            " "x1, x1, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #16]"),
+        Q!("    csel            " "x2, x2, x12, ne"),
+        Q!("    csel            " "x3, x3, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #32]"),
+        Q!("    csel            " "x4, x4, x12, ne"),
+        Q!("    csel            " "x5, x5, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #48]"),
+        Q!("    csel            " "x6, x6, x12, ne"),
+        Q!("    csel            " "x7, x7, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #64]"),
+        Q!("    csel            " "x8, x8, x12, ne"),
+        Q!("    csel            " "x9, x9, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #80]"),
+        Q!("    csel            " "x10, x10, x12, ne"),
+        Q!("    csel            " "x11, x11, x13, ne"),
+        Q!("    add             " tab!() ", " tab!() ", #96"),
 
-        Q!("    cmp       " ix!() ", #3"),
-        Q!("    ldp       " "x12, x13, [" tab!() "]"),
-        Q!("    csel      " "x0, x0, x12, ne"),
-        Q!("    csel      " "x1, x1, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #16]"),
-        Q!("    csel      " "x2, x2, x12, ne"),
-        Q!("    csel      " "x3, x3, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #32]"),
-        Q!("    csel      " "x4, x4, x12, ne"),
-        Q!("    csel      " "x5, x5, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #48]"),
-        Q!("    csel      " "x6, x6, x12, ne"),
-        Q!("    csel      " "x7, x7, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #64]"),
-        Q!("    csel      " "x8, x8, x12, ne"),
-        Q!("    csel      " "x9, x9, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #80]"),
-        Q!("    csel      " "x10, x10, x12, ne"),
-        Q!("    csel      " "x11, x11, x13, ne"),
-        Q!("    add       " tab!() ", " tab!() ", #96"),
+        Q!("    cmp             " ix!() ", #3"),
+        Q!("    ldp             " "x12, x13, [" tab!() "]"),
+        Q!("    csel            " "x0, x0, x12, ne"),
+        Q!("    csel            " "x1, x1, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #16]"),
+        Q!("    csel            " "x2, x2, x12, ne"),
+        Q!("    csel            " "x3, x3, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #32]"),
+        Q!("    csel            " "x4, x4, x12, ne"),
+        Q!("    csel            " "x5, x5, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #48]"),
+        Q!("    csel            " "x6, x6, x12, ne"),
+        Q!("    csel            " "x7, x7, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #64]"),
+        Q!("    csel            " "x8, x8, x12, ne"),
+        Q!("    csel            " "x9, x9, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #80]"),
+        Q!("    csel            " "x10, x10, x12, ne"),
+        Q!("    csel            " "x11, x11, x13, ne"),
+        Q!("    add             " tab!() ", " tab!() ", #96"),
 
-        Q!("    cmp       " ix!() ", #4"),
-        Q!("    ldp       " "x12, x13, [" tab!() "]"),
-        Q!("    csel      " "x0, x0, x12, ne"),
-        Q!("    csel      " "x1, x1, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #16]"),
-        Q!("    csel      " "x2, x2, x12, ne"),
-        Q!("    csel      " "x3, x3, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #32]"),
-        Q!("    csel      " "x4, x4, x12, ne"),
-        Q!("    csel      " "x5, x5, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #48]"),
-        Q!("    csel      " "x6, x6, x12, ne"),
-        Q!("    csel      " "x7, x7, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #64]"),
-        Q!("    csel      " "x8, x8, x12, ne"),
-        Q!("    csel      " "x9, x9, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #80]"),
-        Q!("    csel      " "x10, x10, x12, ne"),
-        Q!("    csel      " "x11, x11, x13, ne"),
-        Q!("    add       " tab!() ", " tab!() ", #96"),
+        Q!("    cmp             " ix!() ", #4"),
+        Q!("    ldp             " "x12, x13, [" tab!() "]"),
+        Q!("    csel            " "x0, x0, x12, ne"),
+        Q!("    csel            " "x1, x1, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #16]"),
+        Q!("    csel            " "x2, x2, x12, ne"),
+        Q!("    csel            " "x3, x3, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #32]"),
+        Q!("    csel            " "x4, x4, x12, ne"),
+        Q!("    csel            " "x5, x5, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #48]"),
+        Q!("    csel            " "x6, x6, x12, ne"),
+        Q!("    csel            " "x7, x7, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #64]"),
+        Q!("    csel            " "x8, x8, x12, ne"),
+        Q!("    csel            " "x9, x9, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #80]"),
+        Q!("    csel            " "x10, x10, x12, ne"),
+        Q!("    csel            " "x11, x11, x13, ne"),
+        Q!("    add             " tab!() ", " tab!() ", #96"),
 
-        Q!("    cmp       " ix!() ", #5"),
-        Q!("    ldp       " "x12, x13, [" tab!() "]"),
-        Q!("    csel      " "x0, x0, x12, ne"),
-        Q!("    csel      " "x1, x1, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #16]"),
-        Q!("    csel      " "x2, x2, x12, ne"),
-        Q!("    csel      " "x3, x3, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #32]"),
-        Q!("    csel      " "x4, x4, x12, ne"),
-        Q!("    csel      " "x5, x5, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #48]"),
-        Q!("    csel      " "x6, x6, x12, ne"),
-        Q!("    csel      " "x7, x7, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #64]"),
-        Q!("    csel      " "x8, x8, x12, ne"),
-        Q!("    csel      " "x9, x9, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #80]"),
-        Q!("    csel      " "x10, x10, x12, ne"),
-        Q!("    csel      " "x11, x11, x13, ne"),
-        Q!("    add       " tab!() ", " tab!() ", #96"),
+        Q!("    cmp             " ix!() ", #5"),
+        Q!("    ldp             " "x12, x13, [" tab!() "]"),
+        Q!("    csel            " "x0, x0, x12, ne"),
+        Q!("    csel            " "x1, x1, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #16]"),
+        Q!("    csel            " "x2, x2, x12, ne"),
+        Q!("    csel            " "x3, x3, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #32]"),
+        Q!("    csel            " "x4, x4, x12, ne"),
+        Q!("    csel            " "x5, x5, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #48]"),
+        Q!("    csel            " "x6, x6, x12, ne"),
+        Q!("    csel            " "x7, x7, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #64]"),
+        Q!("    csel            " "x8, x8, x12, ne"),
+        Q!("    csel            " "x9, x9, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #80]"),
+        Q!("    csel            " "x10, x10, x12, ne"),
+        Q!("    csel            " "x11, x11, x13, ne"),
+        Q!("    add             " tab!() ", " tab!() ", #96"),
 
-        Q!("    cmp       " ix!() ", #6"),
-        Q!("    ldp       " "x12, x13, [" tab!() "]"),
-        Q!("    csel      " "x0, x0, x12, ne"),
-        Q!("    csel      " "x1, x1, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #16]"),
-        Q!("    csel      " "x2, x2, x12, ne"),
-        Q!("    csel      " "x3, x3, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #32]"),
-        Q!("    csel      " "x4, x4, x12, ne"),
-        Q!("    csel      " "x5, x5, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #48]"),
-        Q!("    csel      " "x6, x6, x12, ne"),
-        Q!("    csel      " "x7, x7, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #64]"),
-        Q!("    csel      " "x8, x8, x12, ne"),
-        Q!("    csel      " "x9, x9, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #80]"),
-        Q!("    csel      " "x10, x10, x12, ne"),
-        Q!("    csel      " "x11, x11, x13, ne"),
-        Q!("    add       " tab!() ", " tab!() ", #96"),
+        Q!("    cmp             " ix!() ", #6"),
+        Q!("    ldp             " "x12, x13, [" tab!() "]"),
+        Q!("    csel            " "x0, x0, x12, ne"),
+        Q!("    csel            " "x1, x1, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #16]"),
+        Q!("    csel            " "x2, x2, x12, ne"),
+        Q!("    csel            " "x3, x3, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #32]"),
+        Q!("    csel            " "x4, x4, x12, ne"),
+        Q!("    csel            " "x5, x5, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #48]"),
+        Q!("    csel            " "x6, x6, x12, ne"),
+        Q!("    csel            " "x7, x7, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #64]"),
+        Q!("    csel            " "x8, x8, x12, ne"),
+        Q!("    csel            " "x9, x9, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #80]"),
+        Q!("    csel            " "x10, x10, x12, ne"),
+        Q!("    csel            " "x11, x11, x13, ne"),
+        Q!("    add             " tab!() ", " tab!() ", #96"),
 
-        Q!("    cmp       " ix!() ", #7"),
-        Q!("    ldp       " "x12, x13, [" tab!() "]"),
-        Q!("    csel      " "x0, x0, x12, ne"),
-        Q!("    csel      " "x1, x1, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #16]"),
-        Q!("    csel      " "x2, x2, x12, ne"),
-        Q!("    csel      " "x3, x3, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #32]"),
-        Q!("    csel      " "x4, x4, x12, ne"),
-        Q!("    csel      " "x5, x5, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #48]"),
-        Q!("    csel      " "x6, x6, x12, ne"),
-        Q!("    csel      " "x7, x7, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #64]"),
-        Q!("    csel      " "x8, x8, x12, ne"),
-        Q!("    csel      " "x9, x9, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #80]"),
-        Q!("    csel      " "x10, x10, x12, ne"),
-        Q!("    csel      " "x11, x11, x13, ne"),
-        Q!("    add       " tab!() ", " tab!() ", #96"),
+        Q!("    cmp             " ix!() ", #7"),
+        Q!("    ldp             " "x12, x13, [" tab!() "]"),
+        Q!("    csel            " "x0, x0, x12, ne"),
+        Q!("    csel            " "x1, x1, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #16]"),
+        Q!("    csel            " "x2, x2, x12, ne"),
+        Q!("    csel            " "x3, x3, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #32]"),
+        Q!("    csel            " "x4, x4, x12, ne"),
+        Q!("    csel            " "x5, x5, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #48]"),
+        Q!("    csel            " "x6, x6, x12, ne"),
+        Q!("    csel            " "x7, x7, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #64]"),
+        Q!("    csel            " "x8, x8, x12, ne"),
+        Q!("    csel            " "x9, x9, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #80]"),
+        Q!("    csel            " "x10, x10, x12, ne"),
+        Q!("    csel            " "x11, x11, x13, ne"),
+        Q!("    add             " tab!() ", " tab!() ", #96"),
 
-        Q!("    cmp       " ix!() ", #8"),
-        Q!("    ldp       " "x12, x13, [" tab!() "]"),
-        Q!("    csel      " "x0, x0, x12, ne"),
-        Q!("    csel      " "x1, x1, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #16]"),
-        Q!("    csel      " "x2, x2, x12, ne"),
-        Q!("    csel      " "x3, x3, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #32]"),
-        Q!("    csel      " "x4, x4, x12, ne"),
-        Q!("    csel      " "x5, x5, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #48]"),
-        Q!("    csel      " "x6, x6, x12, ne"),
-        Q!("    csel      " "x7, x7, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #64]"),
-        Q!("    csel      " "x8, x8, x12, ne"),
-        Q!("    csel      " "x9, x9, x13, ne"),
-        Q!("    ldp       " "x12, x13, [" tab!() ", #80]"),
-        Q!("    csel      " "x10, x10, x12, ne"),
-        Q!("    csel      " "x11, x11, x13, ne"),
-        Q!("    add       " tab!() ", " tab!() ", #96"),
+        Q!("    cmp             " ix!() ", #8"),
+        Q!("    ldp             " "x12, x13, [" tab!() "]"),
+        Q!("    csel            " "x0, x0, x12, ne"),
+        Q!("    csel            " "x1, x1, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #16]"),
+        Q!("    csel            " "x2, x2, x12, ne"),
+        Q!("    csel            " "x3, x3, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #32]"),
+        Q!("    csel            " "x4, x4, x12, ne"),
+        Q!("    csel            " "x5, x5, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #48]"),
+        Q!("    csel            " "x6, x6, x12, ne"),
+        Q!("    csel            " "x7, x7, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #64]"),
+        Q!("    csel            " "x8, x8, x12, ne"),
+        Q!("    csel            " "x9, x9, x13, ne"),
+        Q!("    ldp             " "x12, x13, [" tab!() ", #80]"),
+        Q!("    csel            " "x10, x10, x12, ne"),
+        Q!("    csel            " "x11, x11, x13, ne"),
+        Q!("    add             " tab!() ", " tab!() ", #96"),
 
         // We now have the triple from the table in registers as follows
         //
@@ -704,43 +862,43 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         // that in the zero case the whole negation is trivial, and
         // so indeed is the swapping.
 
-        Q!("    cmp       " bias!() ", #0"),
+        Q!("    cmp             " bias!() ", #0"),
 
-        Q!("    csel      " "x12, x0, x4, eq"),
-        Q!("    csel      " "x13, x1, x5, eq"),
-        Q!("    csel      " "x14, x2, x6, eq"),
-        Q!("    csel      " "x15, x3, x7, eq"),
-        Q!("    stp       " "x12, x13, [" tabent!() "]"),
-        Q!("    stp       " "x14, x15, [" tabent!() "+ 16]"),
+        Q!("    csel            " "x12, x0, x4, eq"),
+        Q!("    csel            " "x13, x1, x5, eq"),
+        Q!("    csel            " "x14, x2, x6, eq"),
+        Q!("    csel            " "x15, x3, x7, eq"),
+        Q!("    stp             " "x12, x13, [" tabent!() "]"),
+        Q!("    stp             " "x14, x15, [" tabent!() "+ 16]"),
 
-        Q!("    csel      " "x12, x0, x4, ne"),
-        Q!("    csel      " "x13, x1, x5, ne"),
-        Q!("    csel      " "x14, x2, x6, ne"),
-        Q!("    csel      " "x15, x3, x7, ne"),
-        Q!("    stp       " "x12, x13, [" tabent!() "+ 32]"),
-        Q!("    stp       " "x14, x15, [" tabent!() "+ 48]"),
+        Q!("    csel            " "x12, x0, x4, ne"),
+        Q!("    csel            " "x13, x1, x5, ne"),
+        Q!("    csel            " "x14, x2, x6, ne"),
+        Q!("    csel            " "x15, x3, x7, ne"),
+        Q!("    stp             " "x12, x13, [" tabent!() "+ 32]"),
+        Q!("    stp             " "x14, x15, [" tabent!() "+ 48]"),
 
-        Q!("    mov       " "x0, #-19"),
-        Q!("    subs      " "x0, x0, x8"),
-        Q!("    mov       " "x2, #-1"),
-        Q!("    sbcs      " "x1, x2, x9"),
-        Q!("    sbcs      " "x2, x2, x10"),
-        Q!("    mov       " "x3, #0x7FFFFFFFFFFFFFFF"),
-        Q!("    sbc       " "x3, x3, x11"),
+        Q!("    mov             " "x0, #-19"),
+        Q!("    subs            " "x0, x0, x8"),
+        Q!("    mov             " "x2, #-1"),
+        Q!("    sbcs            " "x1, x2, x9"),
+        Q!("    sbcs            " "x2, x2, x10"),
+        Q!("    mov             " "x3, #0x7FFFFFFFFFFFFFFF"),
+        Q!("    sbc             " "x3, x3, x11"),
 
-        Q!("    cmp       " ix!() ", xzr"),
-        Q!("    ccmp      " bias!() ", xzr, #4, ne"),
+        Q!("    cmp             " ix!() ", xzr"),
+        Q!("    ccmp            " bias!() ", xzr, #4, ne"),
 
-        Q!("    csel      " "x0, x0, x8, ne"),
-        Q!("    csel      " "x1, x1, x9, ne"),
-        Q!("    stp       " "x0, x1, [" tabent!() "+ 64]"),
-        Q!("    csel      " "x2, x2, x10, ne"),
-        Q!("    csel      " "x3, x3, x11, ne"),
-        Q!("    stp       " "x2, x3, [" tabent!() "+ 80]"),
+        Q!("    csel            " "x0, x0, x8, ne"),
+        Q!("    csel            " "x1, x1, x9, ne"),
+        Q!("    stp             " "x0, x1, [" tabent!() "+ 64]"),
+        Q!("    csel            " "x2, x2, x10, ne"),
+        Q!("    csel            " "x3, x3, x11, ne"),
+        Q!("    stp             " "x2, x3, [" tabent!() "+ 80]"),
 
         // Extended-projective and precomputed mixed addition.
         // This is effectively the same as calling the standalone
-        // function edwards25519_pepadd_alt(acc,acc,tabent), but we
+        // function edwards25519_pepadd(acc,acc,tabent), but we
         // only retain slightly weaker normalization < 2 * p_25519
         // throughout the inner loop, so the computation is
         // slightly different, and faster overall.
@@ -762,9 +920,9 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
 
         // End of the main loop; move on by 4 bits.
 
-        Q!("    add       " i!() ", " i!() ", 4"),
-        Q!("    cmp       " i!() ", 256"),
-        Q!("    bcc       " Label!("curve25519_x25519base_alt_scalarloop", 2, Before)),
+        Q!("    add             " i!() ", " i!() ", 4"),
+        Q!("    cmp             " i!() ", 256"),
+        Q!("    bcc             " Label!("curve25519_x25519base_scalarloop", 2, Before)),
 
         // Now we need to translate from Edwards curve edwards25519 back
         // to the Montgomery form curve25519. The mapping in the affine
@@ -798,8 +956,8 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         // Note that this works for the weakly normalized z_3 equally well.
         // The non-coprime case z_3 == 0 (mod p_25519) cannot arise anyway.
 
-        Q!("    add       " "x0, " t0!()),
-        Q!("    add       " "x1, " t2!()),
+        Q!("    add             " "x0, " t0!()),
+        Q!("    add             " "x1, " t2!()),
 
         // Inline copy of bignum_inv_p25519, identical except for stripping out
         // the prologue and epilogue saving and restoring registers and making
@@ -808,1034 +966,1034 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         // its own temporaries is 128 bytes, so it has no effect on variables
         // that are needed in the rest of our computation here: res, t0, t1, t2.
 
-        Q!("    mov       " "x20, x0"),
-        Q!("    mov       " "x10, #0xffffffffffffffed"),
-        Q!("    mov       " "x11, #0xffffffffffffffff"),
-        Q!("    stp       " "x10, x11, [sp]"),
-        Q!("    mov       " "x12, #0x7fffffffffffffff"),
-        Q!("    stp       " "x11, x12, [sp, #16]"),
-        Q!("    ldp       " "x2, x3, [x1]"),
-        Q!("    ldp       " "x4, x5, [x1, #16]"),
-        Q!("    mov       " "x7, #0x13"),
-        Q!("    lsr       " "x6, x5, #63"),
-        Q!("    madd      " "x6, x7, x6, x7"),
-        Q!("    adds      " "x2, x2, x6"),
-        Q!("    adcs      " "x3, x3, xzr"),
-        Q!("    adcs      " "x4, x4, xzr"),
-        Q!("    orr       " "x5, x5, #0x8000000000000000"),
-        Q!("    adcs      " "x5, x5, xzr"),
-        Q!("    csel      " "x6, x7, xzr, cc"),
-        Q!("    subs      " "x2, x2, x6"),
-        Q!("    sbcs      " "x3, x3, xzr"),
-        Q!("    sbcs      " "x4, x4, xzr"),
-        Q!("    sbc       " "x5, x5, xzr"),
-        Q!("    and       " "x5, x5, #0x7fffffffffffffff"),
-        Q!("    stp       " "x2, x3, [sp, #32]"),
-        Q!("    stp       " "x4, x5, [sp, #48]"),
-        Q!("    stp       " "xzr, xzr, [sp, #64]"),
-        Q!("    stp       " "xzr, xzr, [sp, #80]"),
-        Q!("    mov       " "x10, #0x2099"),
-        Q!("    movk      " "x10, #0x7502, lsl #16"),
-        Q!("    movk      " "x10, #0x9e23, lsl #32"),
-        Q!("    movk      " "x10, #0xa0f9, lsl #48"),
-        Q!("    mov       " "x11, #0x2595"),
-        Q!("    movk      " "x11, #0x1d13, lsl #16"),
-        Q!("    movk      " "x11, #0x8f3f, lsl #32"),
-        Q!("    movk      " "x11, #0xa8c6, lsl #48"),
-        Q!("    mov       " "x12, #0x5242"),
-        Q!("    movk      " "x12, #0x5ac, lsl #16"),
-        Q!("    movk      " "x12, #0x8938, lsl #32"),
-        Q!("    movk      " "x12, #0x6c6c, lsl #48"),
-        Q!("    mov       " "x13, #0x615"),
-        Q!("    movk      " "x13, #0x4177, lsl #16"),
-        Q!("    movk      " "x13, #0x8b2, lsl #32"),
-        Q!("    movk      " "x13, #0x2765, lsl #48"),
-        Q!("    stp       " "x10, x11, [sp, #96]"),
-        Q!("    stp       " "x12, x13, [sp, #112]"),
-        Q!("    mov       " "x21, #0xa"),
-        Q!("    mov       " "x22, #0x1"),
-        Q!("    b         " Label!("curve25519_x25519base_alt_invmidloop", 3, After)),
-        Q!(Label!("curve25519_x25519base_alt_invloop", 4) ":"),
-        Q!("    cmp       " "x10, xzr"),
-        Q!("    csetm     " "x14, mi"),
-        Q!("    cneg      " "x10, x10, mi"),
-        Q!("    cmp       " "x11, xzr"),
-        Q!("    csetm     " "x15, mi"),
-        Q!("    cneg      " "x11, x11, mi"),
-        Q!("    cmp       " "x12, xzr"),
-        Q!("    csetm     " "x16, mi"),
-        Q!("    cneg      " "x12, x12, mi"),
-        Q!("    cmp       " "x13, xzr"),
-        Q!("    csetm     " "x17, mi"),
-        Q!("    cneg      " "x13, x13, mi"),
-        Q!("    and       " "x0, x10, x14"),
-        Q!("    and       " "x1, x11, x15"),
-        Q!("    add       " "x9, x0, x1"),
-        Q!("    and       " "x0, x12, x16"),
-        Q!("    and       " "x1, x13, x17"),
-        Q!("    add       " "x19, x0, x1"),
-        Q!("    ldr       " "x7, [sp]"),
-        Q!("    eor       " "x1, x7, x14"),
-        Q!("    mul       " "x0, x1, x10"),
-        Q!("    umulh     " "x1, x1, x10"),
-        Q!("    adds      " "x4, x9, x0"),
-        Q!("    adc       " "x2, xzr, x1"),
-        Q!("    ldr       " "x8, [sp, #32]"),
-        Q!("    eor       " "x1, x8, x15"),
-        Q!("    mul       " "x0, x1, x11"),
-        Q!("    umulh     " "x1, x1, x11"),
-        Q!("    adds      " "x4, x4, x0"),
-        Q!("    adc       " "x2, x2, x1"),
-        Q!("    eor       " "x1, x7, x16"),
-        Q!("    mul       " "x0, x1, x12"),
-        Q!("    umulh     " "x1, x1, x12"),
-        Q!("    adds      " "x5, x19, x0"),
-        Q!("    adc       " "x3, xzr, x1"),
-        Q!("    eor       " "x1, x8, x17"),
-        Q!("    mul       " "x0, x1, x13"),
-        Q!("    umulh     " "x1, x1, x13"),
-        Q!("    adds      " "x5, x5, x0"),
-        Q!("    adc       " "x3, x3, x1"),
-        Q!("    ldr       " "x7, [sp, #8]"),
-        Q!("    eor       " "x1, x7, x14"),
-        Q!("    mul       " "x0, x1, x10"),
-        Q!("    umulh     " "x1, x1, x10"),
-        Q!("    adds      " "x2, x2, x0"),
-        Q!("    adc       " "x6, xzr, x1"),
-        Q!("    ldr       " "x8, [sp, #40]"),
-        Q!("    eor       " "x1, x8, x15"),
-        Q!("    mul       " "x0, x1, x11"),
-        Q!("    umulh     " "x1, x1, x11"),
-        Q!("    adds      " "x2, x2, x0"),
-        Q!("    adc       " "x6, x6, x1"),
-        Q!("    extr      " "x4, x2, x4, #59"),
-        Q!("    str       " "x4, [sp]"),
-        Q!("    eor       " "x1, x7, x16"),
-        Q!("    mul       " "x0, x1, x12"),
-        Q!("    umulh     " "x1, x1, x12"),
-        Q!("    adds      " "x3, x3, x0"),
-        Q!("    adc       " "x4, xzr, x1"),
-        Q!("    eor       " "x1, x8, x17"),
-        Q!("    mul       " "x0, x1, x13"),
-        Q!("    umulh     " "x1, x1, x13"),
-        Q!("    adds      " "x3, x3, x0"),
-        Q!("    adc       " "x4, x4, x1"),
-        Q!("    extr      " "x5, x3, x5, #59"),
-        Q!("    str       " "x5, [sp, #32]"),
-        Q!("    ldr       " "x7, [sp, #16]"),
-        Q!("    eor       " "x1, x7, x14"),
-        Q!("    mul       " "x0, x1, x10"),
-        Q!("    umulh     " "x1, x1, x10"),
-        Q!("    adds      " "x6, x6, x0"),
-        Q!("    adc       " "x5, xzr, x1"),
-        Q!("    ldr       " "x8, [sp, #48]"),
-        Q!("    eor       " "x1, x8, x15"),
-        Q!("    mul       " "x0, x1, x11"),
-        Q!("    umulh     " "x1, x1, x11"),
-        Q!("    adds      " "x6, x6, x0"),
-        Q!("    adc       " "x5, x5, x1"),
-        Q!("    extr      " "x2, x6, x2, #59"),
-        Q!("    str       " "x2, [sp, #8]"),
-        Q!("    eor       " "x1, x7, x16"),
-        Q!("    mul       " "x0, x1, x12"),
-        Q!("    umulh     " "x1, x1, x12"),
-        Q!("    adds      " "x4, x4, x0"),
-        Q!("    adc       " "x2, xzr, x1"),
-        Q!("    eor       " "x1, x8, x17"),
-        Q!("    mul       " "x0, x1, x13"),
-        Q!("    umulh     " "x1, x1, x13"),
-        Q!("    adds      " "x4, x4, x0"),
-        Q!("    adc       " "x2, x2, x1"),
-        Q!("    extr      " "x3, x4, x3, #59"),
-        Q!("    str       " "x3, [sp, #40]"),
-        Q!("    ldr       " "x7, [sp, #24]"),
-        Q!("    eor       " "x1, x7, x14"),
-        Q!("    asr       " "x3, x1, #63"),
-        Q!("    and       " "x3, x3, x10"),
-        Q!("    neg       " "x3, x3"),
-        Q!("    mul       " "x0, x1, x10"),
-        Q!("    umulh     " "x1, x1, x10"),
-        Q!("    adds      " "x5, x5, x0"),
-        Q!("    adc       " "x3, x3, x1"),
-        Q!("    ldr       " "x8, [sp, #56]"),
-        Q!("    eor       " "x1, x8, x15"),
-        Q!("    asr       " "x0, x1, #63"),
-        Q!("    and       " "x0, x0, x11"),
-        Q!("    sub       " "x3, x3, x0"),
-        Q!("    mul       " "x0, x1, x11"),
-        Q!("    umulh     " "x1, x1, x11"),
-        Q!("    adds      " "x5, x5, x0"),
-        Q!("    adc       " "x3, x3, x1"),
-        Q!("    extr      " "x6, x5, x6, #59"),
-        Q!("    str       " "x6, [sp, #16]"),
-        Q!("    extr      " "x5, x3, x5, #59"),
-        Q!("    str       " "x5, [sp, #24]"),
-        Q!("    eor       " "x1, x7, x16"),
-        Q!("    asr       " "x5, x1, #63"),
-        Q!("    and       " "x5, x5, x12"),
-        Q!("    neg       " "x5, x5"),
-        Q!("    mul       " "x0, x1, x12"),
-        Q!("    umulh     " "x1, x1, x12"),
-        Q!("    adds      " "x2, x2, x0"),
-        Q!("    adc       " "x5, x5, x1"),
-        Q!("    eor       " "x1, x8, x17"),
-        Q!("    asr       " "x0, x1, #63"),
-        Q!("    and       " "x0, x0, x13"),
-        Q!("    sub       " "x5, x5, x0"),
-        Q!("    mul       " "x0, x1, x13"),
-        Q!("    umulh     " "x1, x1, x13"),
-        Q!("    adds      " "x2, x2, x0"),
-        Q!("    adc       " "x5, x5, x1"),
-        Q!("    extr      " "x4, x2, x4, #59"),
-        Q!("    str       " "x4, [sp, #48]"),
-        Q!("    extr      " "x2, x5, x2, #59"),
-        Q!("    str       " "x2, [sp, #56]"),
-        Q!("    ldr       " "x7, [sp, #64]"),
-        Q!("    eor       " "x1, x7, x14"),
-        Q!("    mul       " "x0, x1, x10"),
-        Q!("    umulh     " "x1, x1, x10"),
-        Q!("    adds      " "x4, x9, x0"),
-        Q!("    adc       " "x2, xzr, x1"),
-        Q!("    ldr       " "x8, [sp, #96]"),
-        Q!("    eor       " "x1, x8, x15"),
-        Q!("    mul       " "x0, x1, x11"),
-        Q!("    umulh     " "x1, x1, x11"),
-        Q!("    adds      " "x4, x4, x0"),
-        Q!("    str       " "x4, [sp, #64]"),
-        Q!("    adc       " "x2, x2, x1"),
-        Q!("    eor       " "x1, x7, x16"),
-        Q!("    mul       " "x0, x1, x12"),
-        Q!("    umulh     " "x1, x1, x12"),
-        Q!("    adds      " "x5, x19, x0"),
-        Q!("    adc       " "x3, xzr, x1"),
-        Q!("    eor       " "x1, x8, x17"),
-        Q!("    mul       " "x0, x1, x13"),
-        Q!("    umulh     " "x1, x1, x13"),
-        Q!("    adds      " "x5, x5, x0"),
-        Q!("    str       " "x5, [sp, #96]"),
-        Q!("    adc       " "x3, x3, x1"),
-        Q!("    ldr       " "x7, [sp, #72]"),
-        Q!("    eor       " "x1, x7, x14"),
-        Q!("    mul       " "x0, x1, x10"),
-        Q!("    umulh     " "x1, x1, x10"),
-        Q!("    adds      " "x2, x2, x0"),
-        Q!("    adc       " "x6, xzr, x1"),
-        Q!("    ldr       " "x8, [sp, #104]"),
-        Q!("    eor       " "x1, x8, x15"),
-        Q!("    mul       " "x0, x1, x11"),
-        Q!("    umulh     " "x1, x1, x11"),
-        Q!("    adds      " "x2, x2, x0"),
-        Q!("    str       " "x2, [sp, #72]"),
-        Q!("    adc       " "x6, x6, x1"),
-        Q!("    eor       " "x1, x7, x16"),
-        Q!("    mul       " "x0, x1, x12"),
-        Q!("    umulh     " "x1, x1, x12"),
-        Q!("    adds      " "x3, x3, x0"),
-        Q!("    adc       " "x4, xzr, x1"),
-        Q!("    eor       " "x1, x8, x17"),
-        Q!("    mul       " "x0, x1, x13"),
-        Q!("    umulh     " "x1, x1, x13"),
-        Q!("    adds      " "x3, x3, x0"),
-        Q!("    str       " "x3, [sp, #104]"),
-        Q!("    adc       " "x4, x4, x1"),
-        Q!("    ldr       " "x7, [sp, #80]"),
-        Q!("    eor       " "x1, x7, x14"),
-        Q!("    mul       " "x0, x1, x10"),
-        Q!("    umulh     " "x1, x1, x10"),
-        Q!("    adds      " "x6, x6, x0"),
-        Q!("    adc       " "x5, xzr, x1"),
-        Q!("    ldr       " "x8, [sp, #112]"),
-        Q!("    eor       " "x1, x8, x15"),
-        Q!("    mul       " "x0, x1, x11"),
-        Q!("    umulh     " "x1, x1, x11"),
-        Q!("    adds      " "x6, x6, x0"),
-        Q!("    str       " "x6, [sp, #80]"),
-        Q!("    adc       " "x5, x5, x1"),
-        Q!("    eor       " "x1, x7, x16"),
-        Q!("    mul       " "x0, x1, x12"),
-        Q!("    umulh     " "x1, x1, x12"),
-        Q!("    adds      " "x4, x4, x0"),
-        Q!("    adc       " "x2, xzr, x1"),
-        Q!("    eor       " "x1, x8, x17"),
-        Q!("    mul       " "x0, x1, x13"),
-        Q!("    umulh     " "x1, x1, x13"),
-        Q!("    adds      " "x4, x4, x0"),
-        Q!("    str       " "x4, [sp, #112]"),
-        Q!("    adc       " "x2, x2, x1"),
-        Q!("    ldr       " "x7, [sp, #88]"),
-        Q!("    eor       " "x1, x7, x14"),
-        Q!("    and       " "x3, x14, x10"),
-        Q!("    neg       " "x3, x3"),
-        Q!("    mul       " "x0, x1, x10"),
-        Q!("    umulh     " "x1, x1, x10"),
-        Q!("    adds      " "x5, x5, x0"),
-        Q!("    adc       " "x3, x3, x1"),
-        Q!("    ldr       " "x8, [sp, #120]"),
-        Q!("    eor       " "x1, x8, x15"),
-        Q!("    and       " "x0, x15, x11"),
-        Q!("    sub       " "x3, x3, x0"),
-        Q!("    mul       " "x0, x1, x11"),
-        Q!("    umulh     " "x1, x1, x11"),
-        Q!("    adds      " "x5, x5, x0"),
-        Q!("    adc       " "x3, x3, x1"),
-        Q!("    extr      " "x6, x3, x5, #63"),
-        Q!("    ldp       " "x0, x1, [sp, #64]"),
-        Q!("    add       " "x6, x6, x3, asr #63"),
-        Q!("    mov       " "x3, #0x13"),
-        Q!("    mul       " "x4, x6, x3"),
-        Q!("    add       " "x5, x5, x6, lsl #63"),
-        Q!("    smulh     " "x3, x6, x3"),
-        Q!("    ldr       " "x6, [sp, #80]"),
-        Q!("    adds      " "x0, x0, x4"),
-        Q!("    adcs      " "x1, x1, x3"),
-        Q!("    asr       " "x3, x3, #63"),
-        Q!("    adcs      " "x6, x6, x3"),
-        Q!("    adc       " "x5, x5, x3"),
-        Q!("    stp       " "x0, x1, [sp, #64]"),
-        Q!("    stp       " "x6, x5, [sp, #80]"),
-        Q!("    eor       " "x1, x7, x16"),
-        Q!("    and       " "x5, x16, x12"),
-        Q!("    neg       " "x5, x5"),
-        Q!("    mul       " "x0, x1, x12"),
-        Q!("    umulh     " "x1, x1, x12"),
-        Q!("    adds      " "x2, x2, x0"),
-        Q!("    adc       " "x5, x5, x1"),
-        Q!("    eor       " "x1, x8, x17"),
-        Q!("    and       " "x0, x17, x13"),
-        Q!("    sub       " "x5, x5, x0"),
-        Q!("    mul       " "x0, x1, x13"),
-        Q!("    umulh     " "x1, x1, x13"),
-        Q!("    adds      " "x2, x2, x0"),
-        Q!("    adc       " "x5, x5, x1"),
-        Q!("    extr      " "x6, x5, x2, #63"),
-        Q!("    ldp       " "x0, x1, [sp, #96]"),
-        Q!("    add       " "x6, x6, x5, asr #63"),
-        Q!("    mov       " "x5, #0x13"),
-        Q!("    mul       " "x4, x6, x5"),
-        Q!("    add       " "x2, x2, x6, lsl #63"),
-        Q!("    smulh     " "x5, x6, x5"),
-        Q!("    ldr       " "x3, [sp, #112]"),
-        Q!("    adds      " "x0, x0, x4"),
-        Q!("    adcs      " "x1, x1, x5"),
-        Q!("    asr       " "x5, x5, #63"),
-        Q!("    adcs      " "x3, x3, x5"),
-        Q!("    adc       " "x2, x2, x5"),
-        Q!("    stp       " "x0, x1, [sp, #96]"),
-        Q!("    stp       " "x3, x2, [sp, #112]"),
-        Q!(Label!("curve25519_x25519base_alt_invmidloop", 3) ":"),
-        Q!("    mov       " "x1, x22"),
-        Q!("    ldr       " "x2, [sp]"),
-        Q!("    ldr       " "x3, [sp, #32]"),
-        Q!("    and       " "x4, x2, #0xfffff"),
-        Q!("    orr       " "x4, x4, #0xfffffe0000000000"),
-        Q!("    and       " "x5, x3, #0xfffff"),
-        Q!("    orr       " "x5, x5, #0xc000000000000000"),
-        Q!("    tst       " "x5, #0x1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    add       " "x8, x4, #0x100, lsl #12"),
-        Q!("    sbfx      " "x8, x8, #21, #21"),
-        Q!("    mov       " "x11, #0x100000"),
-        Q!("    add       " "x11, x11, x11, lsl #21"),
-        Q!("    add       " "x9, x4, x11"),
-        Q!("    asr       " "x9, x9, #42"),
-        Q!("    add       " "x10, x5, #0x100, lsl #12"),
-        Q!("    sbfx      " "x10, x10, #21, #21"),
-        Q!("    add       " "x11, x5, x11"),
-        Q!("    asr       " "x11, x11, #42"),
-        Q!("    mul       " "x6, x8, x2"),
-        Q!("    mul       " "x7, x9, x3"),
-        Q!("    mul       " "x2, x10, x2"),
-        Q!("    mul       " "x3, x11, x3"),
-        Q!("    add       " "x4, x6, x7"),
-        Q!("    add       " "x5, x2, x3"),
-        Q!("    asr       " "x2, x4, #20"),
-        Q!("    asr       " "x3, x5, #20"),
-        Q!("    and       " "x4, x2, #0xfffff"),
-        Q!("    orr       " "x4, x4, #0xfffffe0000000000"),
-        Q!("    and       " "x5, x3, #0xfffff"),
-        Q!("    orr       " "x5, x5, #0xc000000000000000"),
-        Q!("    tst       " "x5, #0x1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    add       " "x12, x4, #0x100, lsl #12"),
-        Q!("    sbfx      " "x12, x12, #21, #21"),
-        Q!("    mov       " "x15, #0x100000"),
-        Q!("    add       " "x15, x15, x15, lsl #21"),
-        Q!("    add       " "x13, x4, x15"),
-        Q!("    asr       " "x13, x13, #42"),
-        Q!("    add       " "x14, x5, #0x100, lsl #12"),
-        Q!("    sbfx      " "x14, x14, #21, #21"),
-        Q!("    add       " "x15, x5, x15"),
-        Q!("    asr       " "x15, x15, #42"),
-        Q!("    mul       " "x6, x12, x2"),
-        Q!("    mul       " "x7, x13, x3"),
-        Q!("    mul       " "x2, x14, x2"),
-        Q!("    mul       " "x3, x15, x3"),
-        Q!("    add       " "x4, x6, x7"),
-        Q!("    add       " "x5, x2, x3"),
-        Q!("    asr       " "x2, x4, #20"),
-        Q!("    asr       " "x3, x5, #20"),
-        Q!("    and       " "x4, x2, #0xfffff"),
-        Q!("    orr       " "x4, x4, #0xfffffe0000000000"),
-        Q!("    and       " "x5, x3, #0xfffff"),
-        Q!("    orr       " "x5, x5, #0xc000000000000000"),
-        Q!("    tst       " "x5, #0x1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    mul       " "x2, x12, x8"),
-        Q!("    mul       " "x3, x12, x9"),
-        Q!("    mul       " "x6, x14, x8"),
-        Q!("    mul       " "x7, x14, x9"),
-        Q!("    madd      " "x8, x13, x10, x2"),
-        Q!("    madd      " "x9, x13, x11, x3"),
-        Q!("    madd      " "x16, x15, x10, x6"),
-        Q!("    madd      " "x17, x15, x11, x7"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    tst       " "x5, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    csel      " "x6, x4, xzr, ne"),
-        Q!("    ccmp      " "x1, xzr, #0x8, ne"),
-        Q!("    cneg      " "x1, x1, ge"),
-        Q!("    cneg      " "x6, x6, ge"),
-        Q!("    csel      " "x4, x5, x4, ge"),
-        Q!("    add       " "x5, x5, x6"),
-        Q!("    add       " "x1, x1, #0x2"),
-        Q!("    asr       " "x5, x5, #1"),
-        Q!("    add       " "x12, x4, #0x100, lsl #12"),
-        Q!("    sbfx      " "x12, x12, #22, #21"),
-        Q!("    mov       " "x15, #0x100000"),
-        Q!("    add       " "x15, x15, x15, lsl #21"),
-        Q!("    add       " "x13, x4, x15"),
-        Q!("    asr       " "x13, x13, #43"),
-        Q!("    add       " "x14, x5, #0x100, lsl #12"),
-        Q!("    sbfx      " "x14, x14, #22, #21"),
-        Q!("    add       " "x15, x5, x15"),
-        Q!("    asr       " "x15, x15, #43"),
-        Q!("    mneg      " "x2, x12, x8"),
-        Q!("    mneg      " "x3, x12, x9"),
-        Q!("    mneg      " "x4, x14, x8"),
-        Q!("    mneg      " "x5, x14, x9"),
-        Q!("    msub      " "x10, x13, x16, x2"),
-        Q!("    msub      " "x11, x13, x17, x3"),
-        Q!("    msub      " "x12, x15, x16, x4"),
-        Q!("    msub      " "x13, x15, x17, x5"),
-        Q!("    mov       " "x22, x1"),
-        Q!("    subs      " "x21, x21, #0x1"),
-        Q!("    b.ne      " Label!("curve25519_x25519base_alt_invloop", 4, Before)),
-        Q!("    ldr       " "x0, [sp]"),
-        Q!("    ldr       " "x1, [sp, #32]"),
-        Q!("    mul       " "x0, x0, x10"),
-        Q!("    madd      " "x1, x1, x11, x0"),
-        Q!("    asr       " "x0, x1, #63"),
-        Q!("    cmp       " "x10, xzr"),
-        Q!("    csetm     " "x14, mi"),
-        Q!("    cneg      " "x10, x10, mi"),
-        Q!("    eor       " "x14, x14, x0"),
-        Q!("    cmp       " "x11, xzr"),
-        Q!("    csetm     " "x15, mi"),
-        Q!("    cneg      " "x11, x11, mi"),
-        Q!("    eor       " "x15, x15, x0"),
-        Q!("    cmp       " "x12, xzr"),
-        Q!("    csetm     " "x16, mi"),
-        Q!("    cneg      " "x12, x12, mi"),
-        Q!("    eor       " "x16, x16, x0"),
-        Q!("    cmp       " "x13, xzr"),
-        Q!("    csetm     " "x17, mi"),
-        Q!("    cneg      " "x13, x13, mi"),
-        Q!("    eor       " "x17, x17, x0"),
-        Q!("    and       " "x0, x10, x14"),
-        Q!("    and       " "x1, x11, x15"),
-        Q!("    add       " "x9, x0, x1"),
-        Q!("    ldr       " "x7, [sp, #64]"),
-        Q!("    eor       " "x1, x7, x14"),
-        Q!("    mul       " "x0, x1, x10"),
-        Q!("    umulh     " "x1, x1, x10"),
-        Q!("    adds      " "x4, x9, x0"),
-        Q!("    adc       " "x2, xzr, x1"),
-        Q!("    ldr       " "x8, [sp, #96]"),
-        Q!("    eor       " "x1, x8, x15"),
-        Q!("    mul       " "x0, x1, x11"),
-        Q!("    umulh     " "x1, x1, x11"),
-        Q!("    adds      " "x4, x4, x0"),
-        Q!("    str       " "x4, [sp, #64]"),
-        Q!("    adc       " "x2, x2, x1"),
-        Q!("    ldr       " "x7, [sp, #72]"),
-        Q!("    eor       " "x1, x7, x14"),
-        Q!("    mul       " "x0, x1, x10"),
-        Q!("    umulh     " "x1, x1, x10"),
-        Q!("    adds      " "x2, x2, x0"),
-        Q!("    adc       " "x6, xzr, x1"),
-        Q!("    ldr       " "x8, [sp, #104]"),
-        Q!("    eor       " "x1, x8, x15"),
-        Q!("    mul       " "x0, x1, x11"),
-        Q!("    umulh     " "x1, x1, x11"),
-        Q!("    adds      " "x2, x2, x0"),
-        Q!("    str       " "x2, [sp, #72]"),
-        Q!("    adc       " "x6, x6, x1"),
-        Q!("    ldr       " "x7, [sp, #80]"),
-        Q!("    eor       " "x1, x7, x14"),
-        Q!("    mul       " "x0, x1, x10"),
-        Q!("    umulh     " "x1, x1, x10"),
-        Q!("    adds      " "x6, x6, x0"),
-        Q!("    adc       " "x5, xzr, x1"),
-        Q!("    ldr       " "x8, [sp, #112]"),
-        Q!("    eor       " "x1, x8, x15"),
-        Q!("    mul       " "x0, x1, x11"),
-        Q!("    umulh     " "x1, x1, x11"),
-        Q!("    adds      " "x6, x6, x0"),
-        Q!("    str       " "x6, [sp, #80]"),
-        Q!("    adc       " "x5, x5, x1"),
-        Q!("    ldr       " "x7, [sp, #88]"),
-        Q!("    eor       " "x1, x7, x14"),
-        Q!("    and       " "x3, x14, x10"),
-        Q!("    neg       " "x3, x3"),
-        Q!("    mul       " "x0, x1, x10"),
-        Q!("    umulh     " "x1, x1, x10"),
-        Q!("    adds      " "x5, x5, x0"),
-        Q!("    adc       " "x3, x3, x1"),
-        Q!("    ldr       " "x8, [sp, #120]"),
-        Q!("    eor       " "x1, x8, x15"),
-        Q!("    and       " "x0, x15, x11"),
-        Q!("    sub       " "x3, x3, x0"),
-        Q!("    mul       " "x0, x1, x11"),
-        Q!("    umulh     " "x1, x1, x11"),
-        Q!("    adds      " "x5, x5, x0"),
-        Q!("    adc       " "x3, x3, x1"),
-        Q!("    extr      " "x6, x3, x5, #63"),
-        Q!("    ldp       " "x0, x1, [sp, #64]"),
-        Q!("    tst       " "x3, x3"),
-        Q!("    cinc      " "x6, x6, pl"),
-        Q!("    mov       " "x3, #0x13"),
-        Q!("    mul       " "x4, x6, x3"),
-        Q!("    add       " "x5, x5, x6, lsl #63"),
-        Q!("    smulh     " "x6, x6, x3"),
-        Q!("    ldr       " "x2, [sp, #80]"),
-        Q!("    adds      " "x0, x0, x4"),
-        Q!("    adcs      " "x1, x1, x6"),
-        Q!("    asr       " "x6, x6, #63"),
-        Q!("    adcs      " "x2, x2, x6"),
-        Q!("    adcs      " "x5, x5, x6"),
-        Q!("    csel      " "x3, x3, xzr, mi"),
-        Q!("    subs      " "x0, x0, x3"),
-        Q!("    sbcs      " "x1, x1, xzr"),
-        Q!("    sbcs      " "x2, x2, xzr"),
-        Q!("    sbc       " "x5, x5, xzr"),
-        Q!("    and       " "x5, x5, #0x7fffffffffffffff"),
-        Q!("    mov       " "x4, x20"),
-        Q!("    stp       " "x0, x1, [x4]"),
-        Q!("    stp       " "x2, x5, [x4, #16]"),
+        Q!("    mov             " "x20, x0"),
+        Q!("    mov             " "x10, #0xffffffffffffffed"),
+        Q!("    mov             " "x11, #0xffffffffffffffff"),
+        Q!("    stp             " "x10, x11, [sp]"),
+        Q!("    mov             " "x12, #0x7fffffffffffffff"),
+        Q!("    stp             " "x11, x12, [sp, #16]"),
+        Q!("    ldp             " "x2, x3, [x1]"),
+        Q!("    ldp             " "x4, x5, [x1, #16]"),
+        Q!("    mov             " "x7, #0x13"),
+        Q!("    lsr             " "x6, x5, #63"),
+        Q!("    madd            " "x6, x7, x6, x7"),
+        Q!("    adds            " "x2, x2, x6"),
+        Q!("    adcs            " "x3, x3, xzr"),
+        Q!("    adcs            " "x4, x4, xzr"),
+        Q!("    orr             " "x5, x5, #0x8000000000000000"),
+        Q!("    adcs            " "x5, x5, xzr"),
+        Q!("    csel            " "x6, x7, xzr, cc"),
+        Q!("    subs            " "x2, x2, x6"),
+        Q!("    sbcs            " "x3, x3, xzr"),
+        Q!("    sbcs            " "x4, x4, xzr"),
+        Q!("    sbc             " "x5, x5, xzr"),
+        Q!("    and             " "x5, x5, #0x7fffffffffffffff"),
+        Q!("    stp             " "x2, x3, [sp, #32]"),
+        Q!("    stp             " "x4, x5, [sp, #48]"),
+        Q!("    stp             " "xzr, xzr, [sp, #64]"),
+        Q!("    stp             " "xzr, xzr, [sp, #80]"),
+        Q!("    mov             " "x10, #0x2099"),
+        Q!("    movk            " "x10, #0x7502, lsl #16"),
+        Q!("    movk            " "x10, #0x9e23, lsl #32"),
+        Q!("    movk            " "x10, #0xa0f9, lsl #48"),
+        Q!("    mov             " "x11, #0x2595"),
+        Q!("    movk            " "x11, #0x1d13, lsl #16"),
+        Q!("    movk            " "x11, #0x8f3f, lsl #32"),
+        Q!("    movk            " "x11, #0xa8c6, lsl #48"),
+        Q!("    mov             " "x12, #0x5242"),
+        Q!("    movk            " "x12, #0x5ac, lsl #16"),
+        Q!("    movk            " "x12, #0x8938, lsl #32"),
+        Q!("    movk            " "x12, #0x6c6c, lsl #48"),
+        Q!("    mov             " "x13, #0x615"),
+        Q!("    movk            " "x13, #0x4177, lsl #16"),
+        Q!("    movk            " "x13, #0x8b2, lsl #32"),
+        Q!("    movk            " "x13, #0x2765, lsl #48"),
+        Q!("    stp             " "x10, x11, [sp, #96]"),
+        Q!("    stp             " "x12, x13, [sp, #112]"),
+        Q!("    mov             " "x21, #0xa"),
+        Q!("    mov             " "x22, #0x1"),
+        Q!("    b               " Label!("curve25519_x25519base_invmidloop", 3, After)),
+        Q!(Label!("curve25519_x25519base_invloop", 4) ":"),
+        Q!("    cmp             " "x10, xzr"),
+        Q!("    csetm           " "x14, mi"),
+        Q!("    cneg            " "x10, x10, mi"),
+        Q!("    cmp             " "x11, xzr"),
+        Q!("    csetm           " "x15, mi"),
+        Q!("    cneg            " "x11, x11, mi"),
+        Q!("    cmp             " "x12, xzr"),
+        Q!("    csetm           " "x16, mi"),
+        Q!("    cneg            " "x12, x12, mi"),
+        Q!("    cmp             " "x13, xzr"),
+        Q!("    csetm           " "x17, mi"),
+        Q!("    cneg            " "x13, x13, mi"),
+        Q!("    and             " "x0, x10, x14"),
+        Q!("    and             " "x1, x11, x15"),
+        Q!("    add             " "x9, x0, x1"),
+        Q!("    and             " "x0, x12, x16"),
+        Q!("    and             " "x1, x13, x17"),
+        Q!("    add             " "x19, x0, x1"),
+        Q!("    ldr             " "x7, [sp]"),
+        Q!("    eor             " "x1, x7, x14"),
+        Q!("    mul             " "x0, x1, x10"),
+        Q!("    umulh           " "x1, x1, x10"),
+        Q!("    adds            " "x4, x9, x0"),
+        Q!("    adc             " "x2, xzr, x1"),
+        Q!("    ldr             " "x8, [sp, #32]"),
+        Q!("    eor             " "x1, x8, x15"),
+        Q!("    mul             " "x0, x1, x11"),
+        Q!("    umulh           " "x1, x1, x11"),
+        Q!("    adds            " "x4, x4, x0"),
+        Q!("    adc             " "x2, x2, x1"),
+        Q!("    eor             " "x1, x7, x16"),
+        Q!("    mul             " "x0, x1, x12"),
+        Q!("    umulh           " "x1, x1, x12"),
+        Q!("    adds            " "x5, x19, x0"),
+        Q!("    adc             " "x3, xzr, x1"),
+        Q!("    eor             " "x1, x8, x17"),
+        Q!("    mul             " "x0, x1, x13"),
+        Q!("    umulh           " "x1, x1, x13"),
+        Q!("    adds            " "x5, x5, x0"),
+        Q!("    adc             " "x3, x3, x1"),
+        Q!("    ldr             " "x7, [sp, #8]"),
+        Q!("    eor             " "x1, x7, x14"),
+        Q!("    mul             " "x0, x1, x10"),
+        Q!("    umulh           " "x1, x1, x10"),
+        Q!("    adds            " "x2, x2, x0"),
+        Q!("    adc             " "x6, xzr, x1"),
+        Q!("    ldr             " "x8, [sp, #40]"),
+        Q!("    eor             " "x1, x8, x15"),
+        Q!("    mul             " "x0, x1, x11"),
+        Q!("    umulh           " "x1, x1, x11"),
+        Q!("    adds            " "x2, x2, x0"),
+        Q!("    adc             " "x6, x6, x1"),
+        Q!("    extr            " "x4, x2, x4, #59"),
+        Q!("    str             " "x4, [sp]"),
+        Q!("    eor             " "x1, x7, x16"),
+        Q!("    mul             " "x0, x1, x12"),
+        Q!("    umulh           " "x1, x1, x12"),
+        Q!("    adds            " "x3, x3, x0"),
+        Q!("    adc             " "x4, xzr, x1"),
+        Q!("    eor             " "x1, x8, x17"),
+        Q!("    mul             " "x0, x1, x13"),
+        Q!("    umulh           " "x1, x1, x13"),
+        Q!("    adds            " "x3, x3, x0"),
+        Q!("    adc             " "x4, x4, x1"),
+        Q!("    extr            " "x5, x3, x5, #59"),
+        Q!("    str             " "x5, [sp, #32]"),
+        Q!("    ldr             " "x7, [sp, #16]"),
+        Q!("    eor             " "x1, x7, x14"),
+        Q!("    mul             " "x0, x1, x10"),
+        Q!("    umulh           " "x1, x1, x10"),
+        Q!("    adds            " "x6, x6, x0"),
+        Q!("    adc             " "x5, xzr, x1"),
+        Q!("    ldr             " "x8, [sp, #48]"),
+        Q!("    eor             " "x1, x8, x15"),
+        Q!("    mul             " "x0, x1, x11"),
+        Q!("    umulh           " "x1, x1, x11"),
+        Q!("    adds            " "x6, x6, x0"),
+        Q!("    adc             " "x5, x5, x1"),
+        Q!("    extr            " "x2, x6, x2, #59"),
+        Q!("    str             " "x2, [sp, #8]"),
+        Q!("    eor             " "x1, x7, x16"),
+        Q!("    mul             " "x0, x1, x12"),
+        Q!("    umulh           " "x1, x1, x12"),
+        Q!("    adds            " "x4, x4, x0"),
+        Q!("    adc             " "x2, xzr, x1"),
+        Q!("    eor             " "x1, x8, x17"),
+        Q!("    mul             " "x0, x1, x13"),
+        Q!("    umulh           " "x1, x1, x13"),
+        Q!("    adds            " "x4, x4, x0"),
+        Q!("    adc             " "x2, x2, x1"),
+        Q!("    extr            " "x3, x4, x3, #59"),
+        Q!("    str             " "x3, [sp, #40]"),
+        Q!("    ldr             " "x7, [sp, #24]"),
+        Q!("    eor             " "x1, x7, x14"),
+        Q!("    asr             " "x3, x1, #63"),
+        Q!("    and             " "x3, x3, x10"),
+        Q!("    neg             " "x3, x3"),
+        Q!("    mul             " "x0, x1, x10"),
+        Q!("    umulh           " "x1, x1, x10"),
+        Q!("    adds            " "x5, x5, x0"),
+        Q!("    adc             " "x3, x3, x1"),
+        Q!("    ldr             " "x8, [sp, #56]"),
+        Q!("    eor             " "x1, x8, x15"),
+        Q!("    asr             " "x0, x1, #63"),
+        Q!("    and             " "x0, x0, x11"),
+        Q!("    sub             " "x3, x3, x0"),
+        Q!("    mul             " "x0, x1, x11"),
+        Q!("    umulh           " "x1, x1, x11"),
+        Q!("    adds            " "x5, x5, x0"),
+        Q!("    adc             " "x3, x3, x1"),
+        Q!("    extr            " "x6, x5, x6, #59"),
+        Q!("    str             " "x6, [sp, #16]"),
+        Q!("    extr            " "x5, x3, x5, #59"),
+        Q!("    str             " "x5, [sp, #24]"),
+        Q!("    eor             " "x1, x7, x16"),
+        Q!("    asr             " "x5, x1, #63"),
+        Q!("    and             " "x5, x5, x12"),
+        Q!("    neg             " "x5, x5"),
+        Q!("    mul             " "x0, x1, x12"),
+        Q!("    umulh           " "x1, x1, x12"),
+        Q!("    adds            " "x2, x2, x0"),
+        Q!("    adc             " "x5, x5, x1"),
+        Q!("    eor             " "x1, x8, x17"),
+        Q!("    asr             " "x0, x1, #63"),
+        Q!("    and             " "x0, x0, x13"),
+        Q!("    sub             " "x5, x5, x0"),
+        Q!("    mul             " "x0, x1, x13"),
+        Q!("    umulh           " "x1, x1, x13"),
+        Q!("    adds            " "x2, x2, x0"),
+        Q!("    adc             " "x5, x5, x1"),
+        Q!("    extr            " "x4, x2, x4, #59"),
+        Q!("    str             " "x4, [sp, #48]"),
+        Q!("    extr            " "x2, x5, x2, #59"),
+        Q!("    str             " "x2, [sp, #56]"),
+        Q!("    ldr             " "x7, [sp, #64]"),
+        Q!("    eor             " "x1, x7, x14"),
+        Q!("    mul             " "x0, x1, x10"),
+        Q!("    umulh           " "x1, x1, x10"),
+        Q!("    adds            " "x4, x9, x0"),
+        Q!("    adc             " "x2, xzr, x1"),
+        Q!("    ldr             " "x8, [sp, #96]"),
+        Q!("    eor             " "x1, x8, x15"),
+        Q!("    mul             " "x0, x1, x11"),
+        Q!("    umulh           " "x1, x1, x11"),
+        Q!("    adds            " "x4, x4, x0"),
+        Q!("    str             " "x4, [sp, #64]"),
+        Q!("    adc             " "x2, x2, x1"),
+        Q!("    eor             " "x1, x7, x16"),
+        Q!("    mul             " "x0, x1, x12"),
+        Q!("    umulh           " "x1, x1, x12"),
+        Q!("    adds            " "x5, x19, x0"),
+        Q!("    adc             " "x3, xzr, x1"),
+        Q!("    eor             " "x1, x8, x17"),
+        Q!("    mul             " "x0, x1, x13"),
+        Q!("    umulh           " "x1, x1, x13"),
+        Q!("    adds            " "x5, x5, x0"),
+        Q!("    str             " "x5, [sp, #96]"),
+        Q!("    adc             " "x3, x3, x1"),
+        Q!("    ldr             " "x7, [sp, #72]"),
+        Q!("    eor             " "x1, x7, x14"),
+        Q!("    mul             " "x0, x1, x10"),
+        Q!("    umulh           " "x1, x1, x10"),
+        Q!("    adds            " "x2, x2, x0"),
+        Q!("    adc             " "x6, xzr, x1"),
+        Q!("    ldr             " "x8, [sp, #104]"),
+        Q!("    eor             " "x1, x8, x15"),
+        Q!("    mul             " "x0, x1, x11"),
+        Q!("    umulh           " "x1, x1, x11"),
+        Q!("    adds            " "x2, x2, x0"),
+        Q!("    str             " "x2, [sp, #72]"),
+        Q!("    adc             " "x6, x6, x1"),
+        Q!("    eor             " "x1, x7, x16"),
+        Q!("    mul             " "x0, x1, x12"),
+        Q!("    umulh           " "x1, x1, x12"),
+        Q!("    adds            " "x3, x3, x0"),
+        Q!("    adc             " "x4, xzr, x1"),
+        Q!("    eor             " "x1, x8, x17"),
+        Q!("    mul             " "x0, x1, x13"),
+        Q!("    umulh           " "x1, x1, x13"),
+        Q!("    adds            " "x3, x3, x0"),
+        Q!("    str             " "x3, [sp, #104]"),
+        Q!("    adc             " "x4, x4, x1"),
+        Q!("    ldr             " "x7, [sp, #80]"),
+        Q!("    eor             " "x1, x7, x14"),
+        Q!("    mul             " "x0, x1, x10"),
+        Q!("    umulh           " "x1, x1, x10"),
+        Q!("    adds            " "x6, x6, x0"),
+        Q!("    adc             " "x5, xzr, x1"),
+        Q!("    ldr             " "x8, [sp, #112]"),
+        Q!("    eor             " "x1, x8, x15"),
+        Q!("    mul             " "x0, x1, x11"),
+        Q!("    umulh           " "x1, x1, x11"),
+        Q!("    adds            " "x6, x6, x0"),
+        Q!("    str             " "x6, [sp, #80]"),
+        Q!("    adc             " "x5, x5, x1"),
+        Q!("    eor             " "x1, x7, x16"),
+        Q!("    mul             " "x0, x1, x12"),
+        Q!("    umulh           " "x1, x1, x12"),
+        Q!("    adds            " "x4, x4, x0"),
+        Q!("    adc             " "x2, xzr, x1"),
+        Q!("    eor             " "x1, x8, x17"),
+        Q!("    mul             " "x0, x1, x13"),
+        Q!("    umulh           " "x1, x1, x13"),
+        Q!("    adds            " "x4, x4, x0"),
+        Q!("    str             " "x4, [sp, #112]"),
+        Q!("    adc             " "x2, x2, x1"),
+        Q!("    ldr             " "x7, [sp, #88]"),
+        Q!("    eor             " "x1, x7, x14"),
+        Q!("    and             " "x3, x14, x10"),
+        Q!("    neg             " "x3, x3"),
+        Q!("    mul             " "x0, x1, x10"),
+        Q!("    umulh           " "x1, x1, x10"),
+        Q!("    adds            " "x5, x5, x0"),
+        Q!("    adc             " "x3, x3, x1"),
+        Q!("    ldr             " "x8, [sp, #120]"),
+        Q!("    eor             " "x1, x8, x15"),
+        Q!("    and             " "x0, x15, x11"),
+        Q!("    sub             " "x3, x3, x0"),
+        Q!("    mul             " "x0, x1, x11"),
+        Q!("    umulh           " "x1, x1, x11"),
+        Q!("    adds            " "x5, x5, x0"),
+        Q!("    adc             " "x3, x3, x1"),
+        Q!("    extr            " "x6, x3, x5, #63"),
+        Q!("    ldp             " "x0, x1, [sp, #64]"),
+        Q!("    add             " "x6, x6, x3, asr #63"),
+        Q!("    mov             " "x3, #0x13"),
+        Q!("    mul             " "x4, x6, x3"),
+        Q!("    add             " "x5, x5, x6, lsl #63"),
+        Q!("    smulh           " "x3, x6, x3"),
+        Q!("    ldr             " "x6, [sp, #80]"),
+        Q!("    adds            " "x0, x0, x4"),
+        Q!("    adcs            " "x1, x1, x3"),
+        Q!("    asr             " "x3, x3, #63"),
+        Q!("    adcs            " "x6, x6, x3"),
+        Q!("    adc             " "x5, x5, x3"),
+        Q!("    stp             " "x0, x1, [sp, #64]"),
+        Q!("    stp             " "x6, x5, [sp, #80]"),
+        Q!("    eor             " "x1, x7, x16"),
+        Q!("    and             " "x5, x16, x12"),
+        Q!("    neg             " "x5, x5"),
+        Q!("    mul             " "x0, x1, x12"),
+        Q!("    umulh           " "x1, x1, x12"),
+        Q!("    adds            " "x2, x2, x0"),
+        Q!("    adc             " "x5, x5, x1"),
+        Q!("    eor             " "x1, x8, x17"),
+        Q!("    and             " "x0, x17, x13"),
+        Q!("    sub             " "x5, x5, x0"),
+        Q!("    mul             " "x0, x1, x13"),
+        Q!("    umulh           " "x1, x1, x13"),
+        Q!("    adds            " "x2, x2, x0"),
+        Q!("    adc             " "x5, x5, x1"),
+        Q!("    extr            " "x6, x5, x2, #63"),
+        Q!("    ldp             " "x0, x1, [sp, #96]"),
+        Q!("    add             " "x6, x6, x5, asr #63"),
+        Q!("    mov             " "x5, #0x13"),
+        Q!("    mul             " "x4, x6, x5"),
+        Q!("    add             " "x2, x2, x6, lsl #63"),
+        Q!("    smulh           " "x5, x6, x5"),
+        Q!("    ldr             " "x3, [sp, #112]"),
+        Q!("    adds            " "x0, x0, x4"),
+        Q!("    adcs            " "x1, x1, x5"),
+        Q!("    asr             " "x5, x5, #63"),
+        Q!("    adcs            " "x3, x3, x5"),
+        Q!("    adc             " "x2, x2, x5"),
+        Q!("    stp             " "x0, x1, [sp, #96]"),
+        Q!("    stp             " "x3, x2, [sp, #112]"),
+        Q!(Label!("curve25519_x25519base_invmidloop", 3) ":"),
+        Q!("    mov             " "x1, x22"),
+        Q!("    ldr             " "x2, [sp]"),
+        Q!("    ldr             " "x3, [sp, #32]"),
+        Q!("    and             " "x4, x2, #0xfffff"),
+        Q!("    orr             " "x4, x4, #0xfffffe0000000000"),
+        Q!("    and             " "x5, x3, #0xfffff"),
+        Q!("    orr             " "x5, x5, #0xc000000000000000"),
+        Q!("    tst             " "x5, #0x1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    add             " "x8, x4, #0x100, lsl #12"),
+        Q!("    sbfx            " "x8, x8, #21, #21"),
+        Q!("    mov             " "x11, #0x100000"),
+        Q!("    add             " "x11, x11, x11, lsl #21"),
+        Q!("    add             " "x9, x4, x11"),
+        Q!("    asr             " "x9, x9, #42"),
+        Q!("    add             " "x10, x5, #0x100, lsl #12"),
+        Q!("    sbfx            " "x10, x10, #21, #21"),
+        Q!("    add             " "x11, x5, x11"),
+        Q!("    asr             " "x11, x11, #42"),
+        Q!("    mul             " "x6, x8, x2"),
+        Q!("    mul             " "x7, x9, x3"),
+        Q!("    mul             " "x2, x10, x2"),
+        Q!("    mul             " "x3, x11, x3"),
+        Q!("    add             " "x4, x6, x7"),
+        Q!("    add             " "x5, x2, x3"),
+        Q!("    asr             " "x2, x4, #20"),
+        Q!("    asr             " "x3, x5, #20"),
+        Q!("    and             " "x4, x2, #0xfffff"),
+        Q!("    orr             " "x4, x4, #0xfffffe0000000000"),
+        Q!("    and             " "x5, x3, #0xfffff"),
+        Q!("    orr             " "x5, x5, #0xc000000000000000"),
+        Q!("    tst             " "x5, #0x1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    add             " "x12, x4, #0x100, lsl #12"),
+        Q!("    sbfx            " "x12, x12, #21, #21"),
+        Q!("    mov             " "x15, #0x100000"),
+        Q!("    add             " "x15, x15, x15, lsl #21"),
+        Q!("    add             " "x13, x4, x15"),
+        Q!("    asr             " "x13, x13, #42"),
+        Q!("    add             " "x14, x5, #0x100, lsl #12"),
+        Q!("    sbfx            " "x14, x14, #21, #21"),
+        Q!("    add             " "x15, x5, x15"),
+        Q!("    asr             " "x15, x15, #42"),
+        Q!("    mul             " "x6, x12, x2"),
+        Q!("    mul             " "x7, x13, x3"),
+        Q!("    mul             " "x2, x14, x2"),
+        Q!("    mul             " "x3, x15, x3"),
+        Q!("    add             " "x4, x6, x7"),
+        Q!("    add             " "x5, x2, x3"),
+        Q!("    asr             " "x2, x4, #20"),
+        Q!("    asr             " "x3, x5, #20"),
+        Q!("    and             " "x4, x2, #0xfffff"),
+        Q!("    orr             " "x4, x4, #0xfffffe0000000000"),
+        Q!("    and             " "x5, x3, #0xfffff"),
+        Q!("    orr             " "x5, x5, #0xc000000000000000"),
+        Q!("    tst             " "x5, #0x1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    mul             " "x2, x12, x8"),
+        Q!("    mul             " "x3, x12, x9"),
+        Q!("    mul             " "x6, x14, x8"),
+        Q!("    mul             " "x7, x14, x9"),
+        Q!("    madd            " "x8, x13, x10, x2"),
+        Q!("    madd            " "x9, x13, x11, x3"),
+        Q!("    madd            " "x16, x15, x10, x6"),
+        Q!("    madd            " "x17, x15, x11, x7"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    tst             " "x5, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    csel            " "x6, x4, xzr, ne"),
+        Q!("    ccmp            " "x1, xzr, #0x8, ne"),
+        Q!("    cneg            " "x1, x1, ge"),
+        Q!("    cneg            " "x6, x6, ge"),
+        Q!("    csel            " "x4, x5, x4, ge"),
+        Q!("    add             " "x5, x5, x6"),
+        Q!("    add             " "x1, x1, #0x2"),
+        Q!("    asr             " "x5, x5, #1"),
+        Q!("    add             " "x12, x4, #0x100, lsl #12"),
+        Q!("    sbfx            " "x12, x12, #22, #21"),
+        Q!("    mov             " "x15, #0x100000"),
+        Q!("    add             " "x15, x15, x15, lsl #21"),
+        Q!("    add             " "x13, x4, x15"),
+        Q!("    asr             " "x13, x13, #43"),
+        Q!("    add             " "x14, x5, #0x100, lsl #12"),
+        Q!("    sbfx            " "x14, x14, #22, #21"),
+        Q!("    add             " "x15, x5, x15"),
+        Q!("    asr             " "x15, x15, #43"),
+        Q!("    mneg            " "x2, x12, x8"),
+        Q!("    mneg            " "x3, x12, x9"),
+        Q!("    mneg            " "x4, x14, x8"),
+        Q!("    mneg            " "x5, x14, x9"),
+        Q!("    msub            " "x10, x13, x16, x2"),
+        Q!("    msub            " "x11, x13, x17, x3"),
+        Q!("    msub            " "x12, x15, x16, x4"),
+        Q!("    msub            " "x13, x15, x17, x5"),
+        Q!("    mov             " "x22, x1"),
+        Q!("    subs            " "x21, x21, #0x1"),
+        Q!("    b.ne            " Label!("curve25519_x25519base_invloop", 4, Before)),
+        Q!("    ldr             " "x0, [sp]"),
+        Q!("    ldr             " "x1, [sp, #32]"),
+        Q!("    mul             " "x0, x0, x10"),
+        Q!("    madd            " "x1, x1, x11, x0"),
+        Q!("    asr             " "x0, x1, #63"),
+        Q!("    cmp             " "x10, xzr"),
+        Q!("    csetm           " "x14, mi"),
+        Q!("    cneg            " "x10, x10, mi"),
+        Q!("    eor             " "x14, x14, x0"),
+        Q!("    cmp             " "x11, xzr"),
+        Q!("    csetm           " "x15, mi"),
+        Q!("    cneg            " "x11, x11, mi"),
+        Q!("    eor             " "x15, x15, x0"),
+        Q!("    cmp             " "x12, xzr"),
+        Q!("    csetm           " "x16, mi"),
+        Q!("    cneg            " "x12, x12, mi"),
+        Q!("    eor             " "x16, x16, x0"),
+        Q!("    cmp             " "x13, xzr"),
+        Q!("    csetm           " "x17, mi"),
+        Q!("    cneg            " "x13, x13, mi"),
+        Q!("    eor             " "x17, x17, x0"),
+        Q!("    and             " "x0, x10, x14"),
+        Q!("    and             " "x1, x11, x15"),
+        Q!("    add             " "x9, x0, x1"),
+        Q!("    ldr             " "x7, [sp, #64]"),
+        Q!("    eor             " "x1, x7, x14"),
+        Q!("    mul             " "x0, x1, x10"),
+        Q!("    umulh           " "x1, x1, x10"),
+        Q!("    adds            " "x4, x9, x0"),
+        Q!("    adc             " "x2, xzr, x1"),
+        Q!("    ldr             " "x8, [sp, #96]"),
+        Q!("    eor             " "x1, x8, x15"),
+        Q!("    mul             " "x0, x1, x11"),
+        Q!("    umulh           " "x1, x1, x11"),
+        Q!("    adds            " "x4, x4, x0"),
+        Q!("    str             " "x4, [sp, #64]"),
+        Q!("    adc             " "x2, x2, x1"),
+        Q!("    ldr             " "x7, [sp, #72]"),
+        Q!("    eor             " "x1, x7, x14"),
+        Q!("    mul             " "x0, x1, x10"),
+        Q!("    umulh           " "x1, x1, x10"),
+        Q!("    adds            " "x2, x2, x0"),
+        Q!("    adc             " "x6, xzr, x1"),
+        Q!("    ldr             " "x8, [sp, #104]"),
+        Q!("    eor             " "x1, x8, x15"),
+        Q!("    mul             " "x0, x1, x11"),
+        Q!("    umulh           " "x1, x1, x11"),
+        Q!("    adds            " "x2, x2, x0"),
+        Q!("    str             " "x2, [sp, #72]"),
+        Q!("    adc             " "x6, x6, x1"),
+        Q!("    ldr             " "x7, [sp, #80]"),
+        Q!("    eor             " "x1, x7, x14"),
+        Q!("    mul             " "x0, x1, x10"),
+        Q!("    umulh           " "x1, x1, x10"),
+        Q!("    adds            " "x6, x6, x0"),
+        Q!("    adc             " "x5, xzr, x1"),
+        Q!("    ldr             " "x8, [sp, #112]"),
+        Q!("    eor             " "x1, x8, x15"),
+        Q!("    mul             " "x0, x1, x11"),
+        Q!("    umulh           " "x1, x1, x11"),
+        Q!("    adds            " "x6, x6, x0"),
+        Q!("    str             " "x6, [sp, #80]"),
+        Q!("    adc             " "x5, x5, x1"),
+        Q!("    ldr             " "x7, [sp, #88]"),
+        Q!("    eor             " "x1, x7, x14"),
+        Q!("    and             " "x3, x14, x10"),
+        Q!("    neg             " "x3, x3"),
+        Q!("    mul             " "x0, x1, x10"),
+        Q!("    umulh           " "x1, x1, x10"),
+        Q!("    adds            " "x5, x5, x0"),
+        Q!("    adc             " "x3, x3, x1"),
+        Q!("    ldr             " "x8, [sp, #120]"),
+        Q!("    eor             " "x1, x8, x15"),
+        Q!("    and             " "x0, x15, x11"),
+        Q!("    sub             " "x3, x3, x0"),
+        Q!("    mul             " "x0, x1, x11"),
+        Q!("    umulh           " "x1, x1, x11"),
+        Q!("    adds            " "x5, x5, x0"),
+        Q!("    adc             " "x3, x3, x1"),
+        Q!("    extr            " "x6, x3, x5, #63"),
+        Q!("    ldp             " "x0, x1, [sp, #64]"),
+        Q!("    tst             " "x3, x3"),
+        Q!("    cinc            " "x6, x6, pl"),
+        Q!("    mov             " "x3, #0x13"),
+        Q!("    mul             " "x4, x6, x3"),
+        Q!("    add             " "x5, x5, x6, lsl #63"),
+        Q!("    smulh           " "x6, x6, x3"),
+        Q!("    ldr             " "x2, [sp, #80]"),
+        Q!("    adds            " "x0, x0, x4"),
+        Q!("    adcs            " "x1, x1, x6"),
+        Q!("    asr             " "x6, x6, #63"),
+        Q!("    adcs            " "x2, x2, x6"),
+        Q!("    adcs            " "x5, x5, x6"),
+        Q!("    csel            " "x3, x3, xzr, mi"),
+        Q!("    subs            " "x0, x0, x3"),
+        Q!("    sbcs            " "x1, x1, xzr"),
+        Q!("    sbcs            " "x2, x2, xzr"),
+        Q!("    sbc             " "x5, x5, xzr"),
+        Q!("    and             " "x5, x5, #0x7fffffffffffffff"),
+        Q!("    mov             " "x4, x20"),
+        Q!("    stp             " "x0, x1, [x4]"),
+        Q!("    stp             " "x2, x5, [x4, #16]"),
 
         // The final result is (X + T) / (X - T)
         // This is the only operation in the whole computation that
@@ -1846,16 +2004,16 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
 
         // Restore stack and registers
 
-        Q!("    add       " "sp, sp, # " NSPACE!()),
-        Q!("    ldp       " "x23, x24, [sp], 16"),
-        Q!("    ldp       " "x21, x22, [sp], 16"),
-        Q!("    ldp       " "x19, x20, [sp], 16"),
+        Q!("    add             " "sp, sp, # " NSPACE!()),
+        Q!("    ldp             " "x23, x24, [sp], 16"),
+        Q!("    ldp             " "x21, x22, [sp], 16"),
+        Q!("    ldp             " "x19, x20, [sp], 16"),
 
         inout("x0") res.as_mut_ptr() => _,
         inout("x1") scalar.as_ptr() => _,
-        curve25519_x25519base_alt_edwards25519_0g = sym curve25519_x25519base_alt_edwards25519_0g,
-        curve25519_x25519base_alt_edwards25519_8g = sym curve25519_x25519base_alt_edwards25519_8g,
-        curve25519_x25519base_alt_edwards25519_gtable = sym curve25519_x25519base_alt_edwards25519_gtable,
+        curve25519_x25519base_edwards25519_0g = sym curve25519_x25519base_edwards25519_0g,
+        curve25519_x25519base_edwards25519_8g = sym curve25519_x25519base_edwards25519_8g,
+        curve25519_x25519base_edwards25519_gtable = sym curve25519_x25519base_edwards25519_gtable,
         // clobbers
         out("x10") _,
         out("x11") _,
@@ -1897,7 +2055,7 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
 #[repr(align(4096))]
 struct PageAlignedu64Array12([u64; 12]);
 
-static curve25519_x25519base_alt_edwards25519_0g: PageAlignedu64Array12 = PageAlignedu64Array12([
+static curve25519_x25519base_edwards25519_0g: PageAlignedu64Array12 = PageAlignedu64Array12([
     0x251037f7cf4e861d,
     0x10ede0fb19fb128f,
     0x96c033b175f5e2c8,
@@ -1912,7 +2070,7 @@ static curve25519_x25519base_alt_edwards25519_0g: PageAlignedu64Array12 = PageAl
     0x1253c19e53dbe1bc,
 ]);
 
-static curve25519_x25519base_alt_edwards25519_8g: PageAlignedu64Array12 = PageAlignedu64Array12([
+static curve25519_x25519base_edwards25519_8g: PageAlignedu64Array12 = PageAlignedu64Array12([
     0x331d086e0d9abcaa,
     0x1e23c96d311a10c9,
     0x96d0f95e58c13478,
@@ -1933,7 +2091,7 @@ static curve25519_x25519base_alt_edwards25519_8g: PageAlignedu64Array12 = PageAl
 #[repr(align(4096))]
 struct PageAlignedu64Array6048([u64; 6048]);
 
-static curve25519_x25519base_alt_edwards25519_gtable: PageAlignedu64Array6048 =
+static curve25519_x25519base_edwards25519_gtable: PageAlignedu64Array6048 =
     PageAlignedu64Array6048([
         // 2^4 * 1 * G
         0x7ec851ca553e2df3,
