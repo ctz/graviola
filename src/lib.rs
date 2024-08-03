@@ -18,7 +18,7 @@
     unused_qualifications
 )]
 // XXX: development: remove these
-#![allow(missing_docs, unreachable_pub)]
+#![allow(missing_docs, unreachable_pub, dead_code)]
 
 /// Low level operations.
 ///
