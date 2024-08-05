@@ -1,5 +1,6 @@
 #![deny(unsafe_code)]
 
+pub mod asn1;
 pub mod curve;
 pub mod ecdsa;
 pub mod hash;
