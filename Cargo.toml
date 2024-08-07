@@ -18,6 +18,7 @@ p256 = { version = "0.13.2", features = ["ecdh"] }
 proptest = "1.5.0"
 rand_core = { version = "0.6", features = ["getrandom"] }
 ring = "0.17"
+rsa = { version = "0.9", features = ["sha2"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10.8"
@@ -43,4 +44,12 @@ harness = false
 
 [[bench]]
 name = "aes_gcm"
+harness = false
+
+[[bench]]
+name = "rsa_pub"
+harness = false
+
+[[bench]]
+name = "rsa_priv"
 harness = false

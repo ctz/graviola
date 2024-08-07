@@ -54,9 +54,16 @@ asn1_enum! {
 }
 
 asn1_struct! {
-    SubjectPublicKeyInfo ::= SEQUENCE  {
+    SubjectPublicKeyInfo ::= SEQUENCE {
         algorithm         AlgorithmIdentifier REF,
         subjectPublicKey  BIT STRING
+    }
+}
+
+asn1_struct! {
+    DigestInfo ::= SEQUENCE {
+        digestAlgorithm AlgorithmIdentifier REF,
+        digest          OCTET STRING
     }
 }
 

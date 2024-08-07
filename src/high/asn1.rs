@@ -375,14 +375,14 @@ impl<'a> Integer<'a> {
         }
     }
 
-    fn is_negative(&self) -> bool {
+    pub(crate) fn is_negative(&self) -> bool {
         self.twos_complement
             .first()
             .map(|b| b & 0x80 == 0x80)
             .unwrap_or_default()
     }
 
-    fn as_usize(&self) -> Result<usize, Error> {
+    pub(crate) fn as_usize(&self) -> Result<usize, Error> {
         if self.is_negative() || self.twos_complement.len() > size_of::<usize>() {
             return Err(Error::IntegerOutOfRange);
         }
@@ -392,6 +392,12 @@ impl<'a> Integer<'a> {
             bytes[bytes.len() - 1 - i] = *b;
         }
         Ok(usize::from_be_bytes(bytes))
+    }
+}
+
+impl<'a> AsRef<[u8]> for Integer<'a> {
+    fn as_ref(&self) -> &'a [u8] {
+        self.twos_complement
     }
 }
 
@@ -415,6 +421,12 @@ impl<'a> Type<'a> for Integer<'a> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OctetString<'a> {
     octets: &'a [u8],
+}
+
+impl<'a> OctetString<'a> {
+    pub(crate) fn new(octets: &'a [u8]) -> Self {
+        Self { octets }
+    }
 }
 
 impl<'a> Type<'a> for OctetString<'a> {

@@ -21,4 +21,7 @@ pub enum Error {
 
     /// Presented AEAD tag/aad/ciphertext/nonce was wrong
     DecryptFailed,
+
+    /// An ASN.1 encoding/decoding error.
+    Asn1Error(crate::high::asn1::Error),
 }

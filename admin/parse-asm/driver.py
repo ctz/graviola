@@ -350,12 +350,34 @@ class FunctionState:
         self.referenced_constant_syms = set()
         self.hoist = None
         self.hoisting = False
+        self.past_hoist_end_marker = False
 
     def output(self):
         return self.spool
 
+    def emit_ret(self):
+        # we want rets in local functions during a hoist, but not at the end of
+        # the primary function (leaving rustc to provider the function epilogue)
+        if self.hoist is not None:
+            return self.hoisting and self.hoist_mode_is_proc()
+        else:
+            return False
+
+    def hoist_mode_is_proc(self):
+        return self.hoist[0] == "proc"
+
+    def hoist_last_label(self):
+        return self.hoist[1]
+
+    def hoist_finish_opcode(self):
+        return self.hoist[2]
+
     def finishes_hoist(self, opcode, operands):
-        return self.hoisting and self.hoist[1] in operands
+        return (
+            self.hoisting
+            and self.past_hoist_end_marker
+            and opcode == self.hoist_finish_opcode()
+        )
 
 
 class RustDriver:
@@ -374,6 +396,7 @@ class RustDriver:
         parameter_map,
         rust_decl,
         return_value=None,
+        assertions=[],
         allow_inline=True,
         hoist=None,
     ):
@@ -382,6 +405,7 @@ class RustDriver:
             parameter_map,
             rust_decl,
             return_value=return_value,
+            assertions=assertions,
             allow_inline=allow_inline,
             hoist=hoist,
         )
@@ -433,6 +457,7 @@ class RustFormatter(Dispatcher):
         parameter_map,
         rust_decl,
         return_value=None,
+        assertions=[],
         allow_inline=True,
         hoist=None,
     ):
@@ -442,6 +467,7 @@ class RustFormatter(Dispatcher):
             return_value,
             allow_inline,
             hoist,
+            assertions,
         )
 
     def set_att_syntax(self, att_syntax):
@@ -570,7 +596,14 @@ use crate::low::macros::{Q, Label};
             if defn is None:
                 self.function_state.skip = True
             else:
-                parameter_map, rust_decl, return_value, allow_inline, hoist = defn
+                (
+                    parameter_map,
+                    rust_decl,
+                    return_value,
+                    allow_inline,
+                    hoist,
+                    assertions,
+                ) = defn
                 self.function_state.parameter_map = parameter_map
                 self.function_state.rust_decl = rust_decl
                 self.function_state.return_value = return_value
@@ -581,6 +614,8 @@ use crate::low::macros::{Q, Label};
                 if self.function_state.return_value:
                     rtype, rname, _ = self.function_state.return_value
                     locals = "let %s: %s;" % (rname, rtype)
+                for a in assertions:
+                    locals += "debug_assert!(%s);" % a
 
                 print("", file=self.output)
 
@@ -660,7 +695,10 @@ use crate::low::macros::{Q, Label};
             # No need for these as we leave function entry/return to rustc
             return
 
-        if opcode in ("ret", "retl"):
+        if opcode in ("ret", "retl") and (
+            (self.function_state and not self.function_state.emit_ret())
+            or not self.function_state
+        ):
             return self.finish_function()
 
         self.visit_operands(operands)
@@ -692,6 +730,14 @@ use crate::low::macros::{Q, Label};
     def on_label(self, contexts, label):
         if "WINDOWS_ABI" in contexts:
             return
+
+        if (
+            self.function_state
+            and self.function_state.hoisting
+            and self.function_state.hoist_last_label() == label
+        ):
+            self.function_state.past_hoist_end_marker = True
+
         if label in self.expected_functions:
             self.on_function(contexts, label)
             return
@@ -775,15 +821,34 @@ use crate::low::macros::{Q, Label};
             return
 
         if self.function_state.hoist and not self.function_state.hoisting:
-            start, fin = self.function_state.hoist
-            print("// hoisting in %s -> %s" % (start, fin), file=self.output)
-            self.expected_labels.add("finish")
-            self.on_asm([], "jmp", "finish")
+            mode, after, fin = self.function_state.hoist
+            # linear hoisting: multiple rets from the main function, no calls, only jmps
+            #                  all rets are replaced with jmps to hoist_finish
+            # proc hoisting: single ret from the main function, but local functions after
+            #                that.  first ret is replaced with a jmp, others are left.
+            #
+            # this is deeply manual and inflexible.
+            #
+            # TODO: do a basic block pass, to determine which blocks are reached from the
+            # main function, and how (call/jmp), and then simply emit the correct code.
+            assert mode in ("linear", "proc")
+            print(
+                "// %s hoisting in -> %s after %s" % (mode, fin, after),
+                file=self.output,
+            )
+            self.expected_labels.add("hoist_finish")
+            self.on_asm([], "jmp", "hoist_finish")
             self.function_state.hoisting = True
             return
-        elif self.function_state.hoisting:
-            self.on_label([], "finish")
+        elif self.function_state.hoisting and self.function_state.past_hoist_end_marker:
+            self.on_label([], "hoist_finish")
             self.function_state.hoisting = False
+        elif (
+            self.function_state.hoisting
+            and not self.function_state.hoist_mode_is_proc()
+        ):
+            self.on_asm([], "jmp", "hoist_finish")
+            return
 
         for dir, reg, param in self.function_state.parameter_map:
             print('%s("%s") %s,' % (dir, reg, param), file=self.output)

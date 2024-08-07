@@ -6,6 +6,7 @@ use graviola::ec::P256;
 use graviola::ecdsa::VerifyingKey;
 use graviola::high::hash::{Sha256, Sha384, Sha512};
 use graviola::high::hmac::Hmac;
+use graviola::high::rsa;
 use graviola::p256;
 use graviola::x25519;
 use graviola::Error;
@@ -23,6 +24,13 @@ struct TestGroup {
 
     #[serde(default, rename(deserialize = "publicKey"))]
     public_key: PublicKey,
+
+    #[serde(default, rename(deserialize = "publicKeyAsn"), with = "hex::serde")]
+    public_key_asn: Vec<u8>,
+
+    #[serde(default)]
+    sha: String,
+
     tests: Vec<Test>,
 }
 
@@ -65,7 +73,7 @@ impl Test {
 
 #[derive(Deserialize, Debug, Default)]
 struct PublicKey {
-    #[serde(with = "hex::serde")]
+    #[serde(default, with = "hex::serde")]
     uncompressed: Vec<u8>,
 }
 
@@ -316,6 +324,57 @@ fn test_aesgcm() {
             if test.result == ExpectedResult::Valid {
                 assert_eq!(ct, test.ct);
                 assert_eq!(&tag, &test.tag[..]);
+            }
+        }
+    }
+}
+
+#[test]
+fn test_rsa_pkcs1_verify() {
+    for file in &[
+        "rsa_signature_2048_sha256_test.json",
+        "rsa_signature_2048_sha384_test.json",
+        "rsa_signature_2048_sha512_test.json",
+        "rsa_signature_3072_sha256_test.json",
+        "rsa_signature_3072_sha384_test.json",
+        "rsa_signature_3072_sha512_test.json",
+        "rsa_signature_4096_sha256_test.json",
+        "rsa_signature_4096_sha384_test.json",
+        "rsa_signature_4096_sha512_test.json",
+        "rsa_signature_8192_sha256_test.json",
+        "rsa_signature_8192_sha384_test.json",
+        "rsa_signature_8192_sha512_test.json",
+    ] {
+        let data_file = File::open(&format!("thirdparty/wycheproof/testvectors_v1/{file}"))
+            .expect("failed to open data file");
+        println!("file: {data_file:?}");
+
+        let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+
+        for group in tests.groups {
+            println!("group: {:?}", group.typ);
+
+            let key = rsa::RsaPublicVerificationKey::from_pkcs1_der(&group.public_key_asn).unwrap();
+            println!("key is {:?}", key);
+
+            for test in group.tests {
+                println!("  test {:?}", test);
+
+                let result = match group.sha.as_ref() {
+                    "SHA-256" => key.verify_pkcs1_sha256(&test.sig, &test.msg),
+                    "SHA-384" => key.verify_pkcs1_sha384(&test.sig, &test.msg),
+                    "SHA-512" => key.verify_pkcs1_sha512(&test.sig, &test.msg),
+                    other => panic!("unhandled sha {other:?}"),
+                };
+
+                match (test.result, &result) {
+                    (ExpectedResult::Valid, Ok(())) => {}
+                    (
+                        ExpectedResult::Invalid | ExpectedResult::Acceptable,
+                        Err(Error::BadSignature),
+                    ) => {}
+                    _ => panic!("expected {:?} got {:?}", test.result, result.err()),
+                }
             }
         }
     }

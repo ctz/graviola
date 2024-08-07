@@ -1,4 +1,6 @@
 mod macros;
+mod posint;
+pub(crate) use posint::PosInt;
 
 #[cfg(test)]
 mod tests;
@@ -10,19 +12,28 @@ mod x86_64;
 pub(crate) use x86_64::{
     aes::{AesKey, AesKey128, AesKey256},
     aes_gcm,
+    bignum_add::bignum_add,
     bignum_add_p256::bignum_add_p256,
+    bignum_bitsize::bignum_bitsize,
+    bignum_cmp_lt::bignum_cmp_lt,
     bignum_copy_row_from_table::bignum_copy_row_from_table,
     bignum_demont::bignum_demont,
     bignum_demont_p256::bignum_demont_p256,
+    bignum_digitsize::bignum_digitsize,
     bignum_eq::bignum_eq,
     bignum_inv_p256::bignum_inv_p256,
     bignum_mod_n256::bignum_mod_n256,
     bignum_modadd::bignum_modadd,
+    bignum_modexp::bignum_modexp,
     bignum_modinv::bignum_modinv,
+    bignum_modsub::bignum_modsub,
     bignum_montifier::bignum_montifier,
     bignum_montmul::bignum_montmul,
     bignum_montmul_p256::bignum_montmul_p256,
+    bignum_montredc::bignum_montredc,
+    bignum_montsqr::bignum_montsqr,
     bignum_montsqr_p256::bignum_montsqr_p256,
+    bignum_mul::bignum_mul,
     bignum_mux::bignum_mux,
     bignum_neg_p256::bignum_neg_p256,
     bignum_tomont_p256::bignum_tomont_p256,
