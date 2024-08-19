@@ -14,6 +14,7 @@ pub(crate) struct RsaPrivateKey {
     iqmp_mont: RsaPosIntModP,
     p_montifier: RsaPosIntModP,
     q_montifier: RsaPosIntModP,
+    p0: u64,
 }
 
 impl RsaPrivateKey {
@@ -40,6 +41,7 @@ impl RsaPrivateKey {
         let p_montifier = p.montifier();
         let q_montifier = q.montifier();
         let iqmp_mont = iqmp.to_montgomery(&p_montifier, &p);
+        let p0 = p.mont_neg_inverse();
 
         Ok(Self {
             p,
@@ -51,6 +53,7 @@ impl RsaPrivateKey {
             iqmp_mont,
             p_montifier,
             q_montifier,
+            p0,
         })
     }
 
@@ -85,7 +88,7 @@ impl RsaPrivateKey {
         // iii. Let h = (m_1 - m_2) * qInv mod p.
         let h = m_1
             .sub_mod(&m_2, &self.p)
-            .mont_mul(&self.iqmp_mont, &self.p);
+            .mont_mul(&self.iqmp_mont, &self.p, self.p0);
 
         // iv.  Let m = m_2 + q * h.
         let m = m_2.widen().add(&low::PosInt::mul(&self.q, &h));
@@ -111,11 +114,3 @@ const MIN_PRIVATE_MODULUS_BYTES: usize = MIN_PRIVATE_MODULUS_BITS / 8;
 
 type RsaPosIntModP = low::PosInt<MAX_PRIVATE_MODULUS_WORDS>;
 type RsaPosIntModN = low::PosInt<{ MAX_PRIVATE_MODULUS_WORDS * 2 }>;
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn smoke() {}
-}

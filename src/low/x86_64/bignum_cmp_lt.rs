@@ -52,7 +52,7 @@ macro_rules! ashort {
     };
 }
 
-pub fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> bool {
+pub fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64 {
     let ret: u64;
     unsafe {
         core::arch::asm!(
@@ -124,5 +124,5 @@ pub fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> bool {
         out("r8") _,
             )
     };
-    ret > 0
+    ret
 }

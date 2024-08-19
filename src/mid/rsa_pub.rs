@@ -8,6 +8,7 @@ pub(crate) struct RsaPublicKey {
 
     montifier: RsaPosInt,
     one: RsaPosInt,
+    n0: u64,
 }
 
 impl RsaPublicKey {
@@ -23,14 +24,18 @@ impl RsaPublicKey {
         // determine M^2 mod n
         let montifier = n.montifier();
 
+        // and its inverse such that n * n0 == -1 (mod 2^64)
+        let n0 = n.mont_neg_inverse();
+
         // and just M
-        let one = RsaPosInt::one().mont_mul(&montifier, &n);
+        let one = RsaPosInt::one().mont_mul(&montifier, &n, n0);
 
         Ok(Self {
             n,
             e,
             montifier,
             one,
+            n0,
         })
     }
 
@@ -47,15 +52,22 @@ impl RsaPublicKey {
         // bring c into montgomery domain, c_mont = c * M^2 * M^-1 mod n
         let c_mont = c.to_montgomery(&self.montifier, &self.n);
 
-        // accumulator is 1 in montgomery domain, ie, M
+        // accumulator is 1 * 1 in montgomery domain, ie, just M
         let mut accum = self.one.clone();
 
+        let mut first = true;
         for bit in (0..self.e.ilog2() + 1).rev() {
-            let tmp = accum.mont_sqr(&self.n);
+            let tmp = if first {
+                // avoid pointless squaring of multiplicative identity
+                first = false;
+                accum
+            } else {
+                accum.mont_sqr(&self.n, self.n0)
+            };
 
             let mask = 1 << bit;
             if self.e & mask == mask {
-                accum = tmp.mont_mul(&c_mont, &self.n);
+                accum = tmp.mont_mul(&c_mont, &self.n, self.n0);
             } else {
                 accum = tmp;
             }

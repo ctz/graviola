@@ -138,7 +138,7 @@ impl<const N: usize> PosInt<N> {
     }
 
     pub(crate) fn less_than(&self, other: &Self) -> bool {
-        low::bignum_cmp_lt(self.as_words(), other.as_words())
+        low::bignum_cmp_lt(self.as_words(), other.as_words()) > 0
     }
 
     /// Returns the "montifier" for arithmetic mod `self`: M^2 mod self.
@@ -170,9 +170,25 @@ impl<const N: usize> PosInt<N> {
         mont
     }
 
-    /// Return `self` ^ 2 in montgomery domain, self ^ 2 * M^-1 mod n.
     #[must_use]
-    pub(crate) fn mont_sqr(&self, n: &Self) -> Self {
+    pub(crate) fn mont_neg_inverse(&self) -> u64 {
+        let mut tmp = Self::zero();
+        tmp.used = self.used;
+        low::bignum_negmodinv(tmp.as_mut_words(), self.as_words());
+        tmp.words[0]
+    }
+
+    /// Return `self` ^ 2 in montgomery domain, self ^ 2 * M^-1 mod n.
+    ///
+    /// `n0` is `n.mont_neg_inverse()`.
+    #[must_use]
+    pub(crate) fn mont_sqr(&self, n: &Self, n0: u64) -> Self {
+        match (self.used, n.used) {
+            (16, 16) => return self.mont_sqr_1024(n, n0),
+            (32, 32) => return self.mont_sqr_2048(n, n0),
+            _ => {}
+        }
+
         let mut tmp = Self::zero();
         tmp.used = n.used;
         low::bignum_montsqr(tmp.as_mut_words(), self.as_words(), n.as_words());
@@ -180,8 +196,15 @@ impl<const N: usize> PosInt<N> {
     }
 
     /// Return `self` * v in montgomery domain, self * v * M^-1 mod n.
+    ///
+    /// `n0` is `n.mont_neg_inverse()`.
     #[must_use]
-    pub(crate) fn mont_mul(&self, v: &Self, n: &Self) -> Self {
+    pub(crate) fn mont_mul(&self, v: &Self, n: &Self, n0: u64) -> Self {
+        match (self.used, v.used, n.used) {
+            (16, 16, 16) => return self.mont_mul_1024(v, n, n0),
+            (32, 32, 32) => return self.mont_mul_2048(v, n, n0),
+            _ => {}
+        }
         let mut tmp = Self::zero();
         tmp.used = n.used;
         low::bignum_montmul(
@@ -191,6 +214,57 @@ impl<const N: usize> PosInt<N> {
             n.as_words(),
         );
         tmp
+    }
+
+    /// Specialisation of `mont_mul`, using 1024-bit karatsuba multiplier
+    fn mont_mul_1024(&self, v: &Self, n: &Self, n0: u64) -> Self {
+        let mut tmp = [0u64; 32];
+        let mut res = [0u64; 32];
+        low::bignum_kmul_16_32(&mut res, self.as_words(), v.as_words(), &mut tmp);
+
+        Self::mont_reduce8(&mut res, n, n0)
+    }
+
+    /// Specialisation of `mont_mul`, using 2048-bit karatsuba multiplier
+    fn mont_mul_2048(&self, v: &Self, n: &Self, n0: u64) -> Self {
+        let mut tmp = [0u64; 96];
+        let mut res = [0u64; 64];
+        low::bignum_kmul_32_64(&mut res, self.as_words(), v.as_words(), &mut tmp);
+
+        Self::mont_reduce8(&mut res, n, n0)
+    }
+
+    /// Specialisation of `mont_sqr`, using 1024-bit karatsuba squaring
+    fn mont_sqr_1024(&self, n: &Self, n0: u64) -> Self {
+        let mut tmp = [0u64; 24];
+        let mut res = [0u64; 32];
+        low::bignum_ksqr_16_32(&mut res, self.as_words(), &mut tmp);
+
+        Self::mont_reduce8(&mut res, n, n0)
+    }
+
+    /// Specialisation of `mont_sqr`, using 2048-bit karatsuba squaring
+    fn mont_sqr_2048(&self, n: &Self, n0: u64) -> Self {
+        let mut tmp = [0u64; 72];
+        let mut res = [0u64; 64];
+        low::bignum_ksqr_32_64(&mut res, self.as_words(), &mut tmp);
+
+        Self::mont_reduce8(&mut res, n, n0)
+    }
+
+    /// Full montgomery reduction, specialised for multiples of 8 word reductions.
+    ///
+    /// `n0` is `n.mont_neg_inverse()`.
+    fn mont_reduce8(product: &mut [u64], n: &Self, n0: u64) -> Self {
+        let carry = low::bignum_emontredc_8n(product, n.as_words(), n0);
+        let (_, reduced) = product.split_at(product.len() / 2);
+        let carry = carry | low::bignum_cmp_lt(n.as_words(), reduced);
+
+        let mut result = Self::zero();
+        result.used = n.used;
+        low::bignum_optsub(result.as_mut_words(), reduced, n.as_words(), carry);
+
+        result
     }
 
     #[must_use]
@@ -209,6 +283,7 @@ impl<const N: usize> PosInt<N> {
     /// Reduce `self` mod `n`.
     ///
     /// `n` must be odd.
+    /// `n_montifier` is `n.montifier()`.
     #[must_use]
     pub(crate) fn reduce<const M: usize>(
         &self,

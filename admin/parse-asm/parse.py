@@ -2,6 +2,10 @@ import enum
 import re
 import glob
 import string
+import subprocess
+from os import path
+import io
+
 
 MACRO = re.compile(r"^(?P<name>[a-z0-9_]+)\((?P<args>[a-z0-9_,\[\]\+\* \#]*)\);?$")
 ASM = re.compile(
@@ -196,15 +200,64 @@ def tokenise(s):
     return x
 
 
-def extract_header_comment(file):
+def extract_header_comment(file, ignore="#!", prefix="#"):
     comment_lines = []
 
     for line in file.readlines():
-        if line.startswith("#!"):
+        if line.startswith(ignore):
             continue
-        elif line.startswith("#"):
-            comment_lines.append(line.rstrip().lstrip("# "))
+        elif line.startswith(prefix):
+            comment_lines.append(line.rstrip().lstrip(prefix + " "))
         else:
             break
 
     return comment_lines
+
+
+def assemble_and_disassemble(file, tool_prefix):
+    comment_lines = []
+    for line in file:
+        if line.startswith("#"):
+            break
+        comment_lines.append(line)
+
+    subprocess.check_call(
+        [
+            tool_prefix + "cpp",
+            "-I" + path.dirname(file.name) + "/../../include",
+            "-o",
+            "preprocessed.S",
+            file.name,
+        ]
+    )
+    subprocess.check_call([tool_prefix + "as", "-o", "assembled.o", "preprocessed.S"])
+    out = subprocess.check_output(
+        [tool_prefix + "objdump", "--no-addresses", "-Mintel", "-d", "assembled.o"],
+        encoding="utf-8",
+    )
+
+    ret = io.StringIO()
+    for line in comment_lines:
+        ret.write(line)
+
+    skipping = True
+    for line in out.splitlines():
+        if line.startswith("<") and line.rstrip().endswith(":"):
+            sym = line.rstrip()
+            sym = sym.replace("<", "").replace(">", "").replace(":", "")
+            if skipping:
+                ret.write("S2N_BN_SYMBOL(%s):\n" % sym)
+            else:
+                ret.write("\n%s:\n" % sym)
+            skipping = False
+        elif not skipping:
+            if line.count("\t") == 2:
+                _, insn, asm = line.split("\t")
+                if "call" in asm or "je" in asm or "jne" in asm:
+                    asm = asm.replace("<", "").replace(">", "")
+                ret.write("    " + asm + "\n")
+
+    ret.name = file.name
+    ret.seek(0)
+    # open("tmp.S", "w").write(ret.getvalue())
+    return ret
