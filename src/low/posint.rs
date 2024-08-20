@@ -334,6 +334,31 @@ impl<const N: usize> PosInt<N> {
         r
     }
 
+    /// Computes `self` ^ `e` mod `n`.
+    ///
+    /// `n_montifier` is `n.montifier()`.
+    /// `n_0` is `n.mont_neg_inverse()`.
+    pub(crate) fn mont_exp(&self, e: &Self, n: &Self, n_montifier: &Self, n_0: u64) -> Self {
+        let mut accum = Self::one().mont_mul(n_montifier, n, n_0);
+
+        let mut first = true;
+        let self_mont = self.to_montgomery(n_montifier, n);
+
+        for bit in BitsMsbFirstIter::new(e.as_words()) {
+            let tmp = if first {
+                first = false;
+                accum.clone()
+            } else {
+                accum.mont_sqr(n, n_0)
+            };
+
+            let mul = tmp.mont_mul(&self_mont, n, n_0);
+            low::bignum_mux(bit, accum.as_mut_words(), mul.as_words(), tmp.as_words());
+        }
+
+        accum.from_montgomery(n)
+    }
+
     /// Computes `self` + `b`
     #[must_use]
     pub(crate) fn add(&self, b: &Self) -> Self {
@@ -377,6 +402,43 @@ impl<const N: usize> PosInt<N> {
         r.words.copy_from_slice(&self.words[..M]);
         r.used = cmp::min(self.used, N);
         r
+    }
+}
+
+#[derive(Debug)]
+struct BitsMsbFirstIter<'a> {
+    words: &'a [u64],
+    bit: usize,
+    word: usize,
+}
+
+impl<'a> BitsMsbFirstIter<'a> {
+    fn new(words: &'a [u64]) -> Self {
+        debug_assert!(!words.is_empty());
+        Self {
+            words,
+            bit: 64,
+            word: words.len() - 1,
+        }
+    }
+}
+
+impl Iterator for BitsMsbFirstIter<'_> {
+    type Item = u64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.bit == 0 && self.word == 0 {
+            return None;
+        }
+
+        if self.bit == 0 {
+            self.bit = 63;
+            self.word -= 1;
+        } else {
+            self.bit -= 1;
+        }
+
+        Some((self.words[self.word] >> self.bit) & 1)
     }
 }
 

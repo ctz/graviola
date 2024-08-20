@@ -15,6 +15,7 @@ pub(crate) struct RsaPrivateKey {
     p_montifier: RsaPosIntModP,
     q_montifier: RsaPosIntModP,
     p0: u64,
+    q0: u64,
 }
 
 impl RsaPrivateKey {
@@ -42,6 +43,7 @@ impl RsaPrivateKey {
         let q_montifier = q.montifier();
         let iqmp_mont = iqmp.to_montgomery(&p_montifier, &p);
         let p0 = p.mont_neg_inverse();
+        let q0 = q.mont_neg_inverse();
 
         Ok(Self {
             p,
@@ -54,6 +56,7 @@ impl RsaPrivateKey {
             p_montifier,
             q_montifier,
             p0,
+            q0,
         })
     }
 
@@ -76,11 +79,10 @@ impl RsaPrivateKey {
         // i.   Let m_1 = c^dP mod p and m_2 = c^dQ mod q.
         // (do reductions of c first, so the mod exp can be done at
         // width of p or q rather than pq.)
-        let mut tmp = low::PosInt::<{ MAX_PRIVATE_MODULUS_WORDS * 3 }>::zero();
         let cmp = c.reduce(&self.p, &self.p_montifier);
-        let m_1 = cmp.mod_exp(&self.dp, &self.p, &mut tmp);
+        let m_1 = cmp.mont_exp(&self.dp, &self.p, &self.p_montifier, self.p0);
         let cmq = c.reduce(&self.q, &self.q_montifier);
-        let m_2 = cmq.mod_exp(&self.dq, &self.q, &mut tmp);
+        let m_2 = cmq.mont_exp(&self.dq, &self.q, &self.q_montifier, self.q0);
 
         // ii. If u > 2, let m_i = c^(d_i) mod r_i, i = 3, ..., u.
         // (we don't support multiprime rsa)
