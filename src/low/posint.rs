@@ -341,8 +341,77 @@ impl<const N: usize> PosInt<N> {
     pub(crate) fn mont_exp(&self, e: &Self, n: &Self, n_montifier: &Self, n_0: u64) -> Self {
         let mut accum = Self::one().mont_mul(n_montifier, n, n_0);
 
+        // our window size is 4 bits, so precompute a table of 2**4 multiples of self
+        //
+        // the window size also evenly divides our 64-bit word size, so there is no
+        // need to have a degenerate case at the end of the loop
+        //
+        // put this on the heap, so only n.used * 16 entries are needed (rather than
+        // N * 16, which is not possible to express with half-finished const generics)
+
+        let mut table = Vec::with_capacity(n.used * 16);
+
+        // 0: identity in montgomery domain
+        table.extend_from_slice(accum.as_words());
+
+        // 1: self
+        let t1 = self.to_montgomery(n_montifier, n);
+        table.extend_from_slice(t1.as_words());
+
+        // 2: self ^ 2
+        let t2 = t1.mont_sqr(n, n_0);
+        table.extend_from_slice(t2.as_words());
+
+        // 3: self ^ 2 * self
+        let t3 = t2.mont_mul(&t1, n, n_0);
+        table.extend_from_slice(t3.as_words());
+
+        // 4: self ^ 2 ^ 2
+        let t4 = t2.mont_sqr(n, n_0);
+        table.extend_from_slice(t4.as_words());
+
+        // 5: self ^ 2 ^ 2
+        let t5 = t4.mont_mul(&t1, n, n_0);
+        table.extend_from_slice(t5.as_words());
+
+        // 6: (self ^ 2 * self) ^ 2
+        let t6 = t3.mont_sqr(n, n_0);
+        table.extend_from_slice(t6.as_words());
+
+        // (and so on)
+        let t7 = t6.mont_mul(&t1, n, n_0);
+        table.extend_from_slice(t7.as_words());
+
+        let t8 = t4.mont_sqr(n, n_0);
+        table.extend_from_slice(t8.as_words());
+
+        let t9 = t8.mont_mul(&t1, n, n_0);
+        table.extend_from_slice(t9.as_words());
+
+        let t10 = t5.mont_sqr(n, n_0);
+        table.extend_from_slice(t10.as_words());
+
+        let t11 = t10.mont_mul(&t1, n, n_0);
+        table.extend_from_slice(t11.as_words());
+
+        let t12 = t6.mont_sqr(n, n_0);
+        table.extend_from_slice(t12.as_words());
+
+        let t13 = t12.mont_mul(&t1, n, n_0);
+        table.extend_from_slice(t13.as_words());
+
+        let t14 = t7.mont_sqr(n, n_0);
+        table.extend_from_slice(t14.as_words());
+
+        let t15 = t14.mont_mul(&t1, n, n_0);
+        table.extend_from_slice(t15.as_words());
+
         let mut first = true;
-        let self_mont = self.to_montgomery(n_montifier, n);
+        let mut wcount = 0;
+        let mut window = 0;
+
+        let mut term = Self::zero();
+        term.used = n.used;
 
         for bit in BitsMsbFirstIter::new(e.as_words()) {
             let tmp = if first {
@@ -352,8 +421,24 @@ impl<const N: usize> PosInt<N> {
                 accum.mont_sqr(n, n_0)
             };
 
-            let mul = tmp.mont_mul(&self_mont, n, n_0);
-            low::bignum_mux(bit, accum.as_mut_words(), mul.as_words(), tmp.as_words());
+            window = (window << 1) | bit;
+            wcount += 1;
+
+            if wcount == 4 {
+                low::bignum_copy_row_from_table(
+                    &mut term.words,
+                    table.as_slice(),
+                    16,
+                    n.used as u64,
+                    window,
+                );
+
+                accum = tmp.mont_mul(&term, n, n_0);
+                wcount = 0;
+                window = 0;
+            } else {
+                accum = tmp;
+            }
         }
 
         accum.from_montgomery(n)
