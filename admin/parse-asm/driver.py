@@ -21,6 +21,9 @@ class Architecture:
     # this also converts `adr` insns of such references into `adrp`
     constant_references_must_be_page_aligned = False
 
+    # instruction mnemonic for unconditional jump; used for hoisting
+    unconditional_jump = "str"
+
     # canonicalise register names, by returning a better name
     # for `reg`.
     #
@@ -47,6 +50,8 @@ class Architecture_amd64(Architecture):
     """
 
     ignore_clobber = set("rbx rsp rbp rip".split())
+
+    unconditional_jump = "jmp"
 
     @staticmethod
     def lookup_register(reg):
@@ -91,6 +96,8 @@ class Architecture_aarch64(Architecture):
     """
 
     ignore_clobber = set(["x19", "x29"])
+
+    unconditional_jump = "b"
 
     constant_references_must_be_page_aligned = True
 
@@ -837,7 +844,7 @@ use crate::low::macros::{Q, Label};
                 file=self.output,
             )
             self.expected_labels.add("hoist_finish")
-            self.on_asm([], "jmp", "hoist_finish")
+            self.on_asm([], self.arch.unconditional_jump, "hoist_finish")
             self.function_state.hoisting = True
             return
         elif self.function_state.hoisting and self.function_state.past_hoist_end_marker:
@@ -847,7 +854,7 @@ use crate::low::macros::{Q, Label};
             self.function_state.hoisting
             and not self.function_state.hoist_mode_is_proc()
         ):
-            self.on_asm([], "jmp", "hoist_finish")
+            self.on_asm([], self.arch.unconditional_jump, "hoist_finish")
             return
 
         for dir, reg, param in self.function_state.parameter_map:

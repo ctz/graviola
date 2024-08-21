@@ -230,11 +230,15 @@ def assemble_and_disassemble(file, tool_prefix):
             file.name,
         ]
     )
+
+    m_option = ["-Mintel"] if "x86" in tool_prefix else []
+
     subprocess.check_call([tool_prefix + "as", "-o", "assembled.o", "preprocessed.S"])
     out = subprocess.check_output(
-        [tool_prefix + "objdump", "--no-addresses", "-Mintel", "-d", "assembled.o"],
+        [tool_prefix + "objdump", "--no-addresses"] + m_option + ["-d", "assembled.o"],
         encoding="utf-8",
     )
+    #open("disasm.txt", "w").write(out)
 
     ret = io.StringIO()
     for line in comment_lines:
@@ -251,13 +255,13 @@ def assemble_and_disassemble(file, tool_prefix):
                 ret.write("\n%s:\n" % sym)
             skipping = False
         elif not skipping:
-            if line.count("\t") == 2:
-                _, insn, asm = line.split("\t")
-                if "call" in asm or "je" in asm or "jne" in asm:
-                    asm = asm.replace("<", "").replace(">", "")
+            if line.count("\t") >= 2:
+                parts = line.split("\t")
+                asm = "\t".join(parts[2:])
+                asm = asm.replace("<", "").replace(">", "")
                 ret.write("    " + asm + "\n")
 
     ret.name = file.name
     ret.seek(0)
-    # open("tmp.S", "w").write(ret.getvalue())
+    #open("result.S", "w").write(ret.getvalue())
     return ret

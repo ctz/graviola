@@ -1,10 +1,11 @@
 mod generic;
+#[macro_use]
 mod macros;
 mod posint;
 
-pub(crate) use posint::PosInt;
 pub(crate) use generic::blockwise::Blockwise;
 pub(crate) use generic::ct_equal::ct_equal;
+pub(crate) use posint::PosInt;
 
 #[cfg(test)]
 mod tests;
@@ -59,21 +60,36 @@ cfg_if::cfg_if! {
         mod aarch64;
 
         pub(crate) use aarch64::aes::AesKey;
+        pub(crate) use aarch64::bignum_add::bignum_add;
         pub(crate) use aarch64::bignum_add_p256::bignum_add_p256;
+        pub(crate) use aarch64::bignum_bitsize::bignum_bitsize;
+        pub(crate) use aarch64::bignum_cmp_lt::bignum_cmp_lt;
         pub(crate) use aarch64::bignum_copy_row_from_table::bignum_copy_row_from_table;
         pub(crate) use aarch64::bignum_demont::bignum_demont;
         pub(crate) use aarch64::bignum_demont_p256::bignum_demont_p256;
+        pub(crate) use aarch64::bignum_digitsize::bignum_digitsize;
+        pub(crate) use aarch64::bignum_emontredc_8n::bignum_emontredc_8n;
         pub(crate) use aarch64::bignum_eq::bignum_eq;
         pub(crate) use aarch64::bignum_inv_p256::bignum_inv_p256;
+        pub(crate) use aarch64::bignum_kmul_16_32::bignum_kmul_16_32;
+        pub(crate) use aarch64::bignum_kmul_32_64::bignum_kmul_32_64;
+        pub(crate) use aarch64::bignum_ksqr_16_32::bignum_ksqr_16_32;
+        pub(crate) use aarch64::bignum_ksqr_32_64::bignum_ksqr_32_64;
         pub(crate) use aarch64::bignum_mod_n256::bignum_mod_n256;
         pub(crate) use aarch64::bignum_modadd::bignum_modadd;
         pub(crate) use aarch64::bignum_modinv::bignum_modinv;
+        pub(crate) use aarch64::bignum_modsub::bignum_modsub;
         pub(crate) use aarch64::bignum_montifier::bignum_montifier;
         pub(crate) use aarch64::bignum_montmul::bignum_montmul;
         pub(crate) use aarch64::bignum_montmul_p256::bignum_montmul_p256;
+        pub(crate) use aarch64::bignum_montredc::bignum_montredc;
+        pub(crate) use aarch64::bignum_montsqr::bignum_montsqr;
         pub(crate) use aarch64::bignum_montsqr_p256::bignum_montsqr_p256;
+        pub(crate) use aarch64::bignum_mul::bignum_mul;
         pub(crate) use aarch64::bignum_mux::bignum_mux;
         pub(crate) use aarch64::bignum_neg_p256::bignum_neg_p256;
+        pub(crate) use aarch64::bignum_negmodinv::bignum_negmodinv;
+        pub(crate) use aarch64::bignum_optsub::bignum_optsub;
         pub(crate) use aarch64::bignum_tomont_p256::bignum_tomont_p256;
         pub(crate) use aarch64::curve25519_x25519::curve25519_x25519;
         pub(crate) use aarch64::curve25519_x25519base::curve25519_x25519base;

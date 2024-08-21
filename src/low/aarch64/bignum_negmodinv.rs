@@ -1,0 +1,183 @@
+#![allow(non_upper_case_globals, unused_macros, unused_imports)]
+use crate::low::macros::{Label, Q};
+
+// Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
+// SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
+
+// ----------------------------------------------------------------------------
+// Negated modular inverse, z := (-1/x) mod 2^{64k}
+// Input x[k]; output z[k]
+//
+//    extern void bignum_negmodinv
+//     (uint64_t k, uint64_t *z, uint64_t *x);
+//
+// Assuming x is odd (otherwise nothing makes sense) the result satisfies
+//
+//       x * z + 1 == 0 (mod 2^{64 * k})
+//
+// but is not necessarily reduced mod x.
+//
+// Standard ARM ABI: X0 = k, X1 = z, X2 = x
+// ----------------------------------------------------------------------------
+
+macro_rules! k {
+    () => {
+        Q!("x0")
+    };
+}
+macro_rules! z {
+    () => {
+        Q!("x1")
+    };
+}
+macro_rules! x {
+    () => {
+        Q!("x2")
+    };
+}
+
+macro_rules! w {
+    () => {
+        Q!("x3")
+    };
+}
+macro_rules! a {
+    () => {
+        Q!("x4")
+    };
+}
+macro_rules! m {
+    () => {
+        Q!("x5")
+    };
+}
+macro_rules! h {
+    () => {
+        Q!("x6")
+    };
+}
+macro_rules! l {
+    () => {
+        Q!("x7")
+    };
+}
+macro_rules! e {
+    () => {
+        Q!("x8")
+    };
+}
+macro_rules! i {
+    () => {
+        Q!("x9")
+    };
+}
+
+pub fn bignum_negmodinv(z: &mut [u64], x: &[u64]) {
+    debug_assert!(z.len() == x.len());
+    unsafe {
+        core::arch::asm!(
+
+
+        // If k = 0 do nothing
+
+        Q!("    cbz             " k!() ", " Label!("end", 2, After)),
+
+        // Compute word-level negated modular inverse w for x[0].
+
+        Q!("    ldr             " a!() ", [" x!() "]"),
+        Q!("    lsl             " w!() ", " a!() ", #2"),
+        Q!("    sub             " w!() ", " a!() ", " w!()),
+        Q!("    eor             " w!() ", " w!() ", #2"),
+        Q!("    mov             " h!() ", #1"),
+        Q!("    madd            " h!() ", " a!() ", " w!() ", " h!()),
+        Q!("    mul             " l!() ", " h!() ", " h!()),
+        Q!("    madd            " w!() ", " h!() ", " w!() ", " w!()),
+        Q!("    mul             " h!() ", " l!() ", " l!()),
+        Q!("    madd            " w!() ", " l!() ", " w!() ", " w!()),
+        Q!("    mul             " l!() ", " h!() ", " h!()),
+        Q!("    madd            " w!() ", " h!() ", " w!() ", " w!()),
+        Q!("    madd            " w!() ", " l!() ", " w!() ", " w!()),
+
+        // Write that as lowest word of the output, then if k = 1 we're finished
+
+        Q!("    str             " w!() ", [" z!() "]"),
+        Q!("    cmp             " k!() ", #1"),
+        Q!("    beq             " Label!("end", 2, After)),
+
+        // Otherwise compute and write the other digits (1..k-1) of w * x + 1.
+        // Note that at this point CF was set by the comparison (subtraction) "k - 1".
+        // Since k >= 2 if we got here, this subtraction didn't carry; allowing
+        // for the inverted carry on ARM that means that CF is guaranteed to be set.
+        // This allows us to ignore the nominal "a * w + 1" from adding the low
+        // part of the product, since its only contribution is to set the carry
+        // flag. Thus, we only calculate the high part of a * w explicitly.
+
+        Q!("    umulh           " h!() ", " a!() ", " w!()),
+        Q!("    mov             " i!() ", #1"),
+        Q!(Label!("initloop", 3) ":"),
+        Q!("    ldr             " a!() ", [" x!() ", " i!() ", lsl #3]"),
+        Q!("    mul             " l!() ", " a!() ", " w!()),
+        Q!("    adcs            " l!() ", " l!() ", " h!()),
+        Q!("    umulh           " h!() ", " a!() ", " w!()),
+        Q!("    str             " l!() ", [" z!() ", " i!() ", lsl #3]"),
+        Q!("    add             " i!() ", " i!() ", #1"),
+        Q!("    sub             " a!() ", " k!() ", " i!()),
+        Q!("    cbnz            " a!() ", " Label!("initloop", 3, Before)),
+
+        // For simpler indexing, z := z + 8 and k := k - 1 per outer iteration
+        // Then we can use the same index for x and for z and effective size k.
+        //
+        // But we also offset k by 1 so the "real" size is k + 1, which is why the
+        // test at the end of the inner loop is i < k <=> i' = i + 1 < k + 1.
+        // This lets us avoid some special cases inside the loop at the cost
+        // of needing the additional "finale" tail for the final iteration
+        // since we do one outer loop iteration too few.
+
+        Q!("    subs            " k!() ", " k!() ", #2"),
+        Q!("    beq             " Label!("finale", 4, After)),
+
+        Q!(Label!("outerloop", 5) ":"),
+        Q!("    add             " z!() ", " z!() ", #8"),
+        Q!("    ldr             " e!() ", [" z!() "]"),
+        Q!("    mul             " m!() ", " e!() ", " w!()),
+        Q!("    str             " m!() ", [" z!() "]"),
+        Q!("    ldr             " a!() ", [" x!() "]"),
+        Q!("    umulh           " h!() ", " a!() ", " m!()),
+        Q!("    subs            " "xzr, " e!() ", #1"),
+        Q!("    mov             " i!() ", #1"),
+        Q!(Label!("innerloop", 6) ":"),
+        Q!("    ldr             " a!() ", [" x!() ", " i!() ", lsl #3]"),
+        Q!("    ldr             " e!() ", [" z!() ", " i!() ", lsl #3]"),
+        Q!("    mul             " l!() ", " a!() ", " m!()),
+        Q!("    adcs            " e!() ", " e!() ", " h!()),
+        Q!("    umulh           " h!() ", " a!() ", " m!()),
+        Q!("    adc             " h!() ", " h!() ", xzr"),
+        Q!("    adds            " e!() ", " e!() ", " l!()),
+        Q!("    str             " e!() ", [" z!() ", " i!() ", lsl #3]"),
+        Q!("    sub             " a!() ", " i!() ", " k!()),
+        Q!("    add             " i!() ", " i!() ", #1"),
+        Q!("    cbnz            " a!() ", " Label!("innerloop", 6, Before)),
+
+        Q!("    subs            " k!() ", " k!() ", #1"),
+        Q!("    bne             " Label!("outerloop", 5, Before)),
+
+        Q!(Label!("finale", 4) ":"),
+        Q!("    ldr             " e!() ", [" z!() ", #8]"),
+        Q!("    mul             " m!() ", " e!() ", " w!()),
+        Q!("    str             " m!() ", [" z!() ", #8]"),
+
+        Q!(Label!("end", 2) ":"),
+        inout("x0") z.len() => _,
+        inout("x1") z.as_mut_ptr() => _,
+        inout("x2") x.as_ptr() => _,
+        // clobbers
+        out("x3") _,
+        out("x4") _,
+        out("x5") _,
+        out("x6") _,
+        out("x7") _,
+        out("x8") _,
+        out("x9") _,
+            )
+    };
+}

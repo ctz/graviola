@@ -20,7 +20,7 @@ are not welcomed; please do not file issues or PRs.
 - [ ] aarch64 sha2 using intrinsics
 - [ ] 4-wide ghash for aarch64
 - [ ] wide gcm for aarch64
-- [ ] p384 and p521
+- [ ] p384
 - [ ] source-based automated interleaving for intrinsic code
 - [ ] add CI for enforcing SPDX header
 
@@ -61,9 +61,9 @@ We are grateful to:
 ### Public key signatures
 
 - [ ] RSA-PSS signature verification
-- [ ] RSA-PKCS#1 signature verification
+- [x] RSA-PKCS#1 signature verification
 - [ ] RSA-PSS signing
-- [ ] RSA-PKCS#1 signing
+- [x] RSA-PKCS#1 signing
 - [x] ECDSA on P256 w/ SHA2
   - [x] RFC6979 deterministic ECDSA.
   - [ ] additional data variant.  This means we follow RFC6979's construction
