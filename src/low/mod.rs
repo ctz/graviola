@@ -1,95 +1,93 @@
+mod generic;
 mod macros;
 mod posint;
+
 pub(crate) use posint::PosInt;
+pub(crate) use generic::blockwise::Blockwise;
+pub(crate) use generic::ct_equal::ct_equal;
 
 #[cfg(test)]
 mod tests;
 
-#[cfg(target_arch = "x86_64")]
-mod x86_64;
+cfg_if::cfg_if! {
+    if #[cfg(target_arch = "x86_64")] {
+        mod x86_64;
 
-#[cfg(target_arch = "x86_64")]
-pub(crate) use x86_64::{
-    aes::{AesKey, AesKey128, AesKey256},
-    aes_gcm,
-    bignum_add::bignum_add,
-    bignum_add_p256::bignum_add_p256,
-    bignum_bitsize::bignum_bitsize,
-    bignum_cmp_lt::bignum_cmp_lt,
-    bignum_copy_row_from_table::bignum_copy_row_from_table,
-    bignum_demont::bignum_demont,
-    bignum_demont_p256::bignum_demont_p256,
-    bignum_digitsize::bignum_digitsize,
-    bignum_emontredc_8n::bignum_emontredc_8n,
-    bignum_eq::bignum_eq,
-    bignum_inv_p256::bignum_inv_p256,
-    bignum_kmul_16_32::bignum_kmul_16_32,
-    bignum_kmul_32_64::bignum_kmul_32_64,
-    bignum_ksqr_16_32::bignum_ksqr_16_32,
-    bignum_ksqr_32_64::bignum_ksqr_32_64,
-    bignum_mod_n256::bignum_mod_n256,
-    bignum_modadd::bignum_modadd,
-    bignum_modexp::bignum_modexp,
-    bignum_modinv::bignum_modinv,
-    bignum_modsub::bignum_modsub,
-    bignum_montifier::bignum_montifier,
-    bignum_montmul::bignum_montmul,
-    bignum_montmul_p256::bignum_montmul_p256,
-    bignum_montredc::bignum_montredc,
-    bignum_montsqr::bignum_montsqr,
-    bignum_montsqr_p256::bignum_montsqr_p256,
-    bignum_mul::bignum_mul,
-    bignum_mux::bignum_mux,
-    bignum_neg_p256::bignum_neg_p256,
-    bignum_negmodinv::bignum_negmodinv,
-    bignum_optsub::bignum_optsub,
-    bignum_tomont_p256::bignum_tomont_p256,
-    curve25519_x25519::curve25519_x25519,
-    curve25519_x25519base::curve25519_x25519base,
-    ghash,
-    optimise_barrier::optimise_barrier_u8,
-    p256_montjadd::p256_montjadd,
-    p256_montjdouble::p256_montjdouble,
-    p256_montjmixadd::p256_montjmixadd,
-    sha256_mux::sha256_compress_blocks,
-    sha512_mux::sha512_compress_blocks,
-};
+        pub(crate) use x86_64::aes::AesKey;
+        pub(crate) use x86_64::aes_gcm;
+        pub(crate) use x86_64::bignum_add::bignum_add;
+        pub(crate) use x86_64::bignum_add_p256::bignum_add_p256;
+        pub(crate) use x86_64::bignum_bitsize::bignum_bitsize;
+        pub(crate) use x86_64::bignum_cmp_lt::bignum_cmp_lt;
+        pub(crate) use x86_64::bignum_copy_row_from_table::bignum_copy_row_from_table;
+        pub(crate) use x86_64::bignum_demont::bignum_demont;
+        pub(crate) use x86_64::bignum_demont_p256::bignum_demont_p256;
+        pub(crate) use x86_64::bignum_digitsize::bignum_digitsize;
+        pub(crate) use x86_64::bignum_emontredc_8n::bignum_emontredc_8n;
+        pub(crate) use x86_64::bignum_eq::bignum_eq;
+        pub(crate) use x86_64::bignum_inv_p256::bignum_inv_p256;
+        pub(crate) use x86_64::bignum_kmul_16_32::bignum_kmul_16_32;
+        pub(crate) use x86_64::bignum_kmul_32_64::bignum_kmul_32_64;
+        pub(crate) use x86_64::bignum_ksqr_16_32::bignum_ksqr_16_32;
+        pub(crate) use x86_64::bignum_ksqr_32_64::bignum_ksqr_32_64;
+        pub(crate) use x86_64::bignum_mod_n256::bignum_mod_n256;
+        pub(crate) use x86_64::bignum_modadd::bignum_modadd;
+        pub(crate) use x86_64::bignum_modexp::bignum_modexp;
+        pub(crate) use x86_64::bignum_modinv::bignum_modinv;
+        pub(crate) use x86_64::bignum_modsub::bignum_modsub;
+        pub(crate) use x86_64::bignum_montifier::bignum_montifier;
+        pub(crate) use x86_64::bignum_montmul::bignum_montmul;
+        pub(crate) use x86_64::bignum_montmul_p256::bignum_montmul_p256;
+        pub(crate) use x86_64::bignum_montredc::bignum_montredc;
+        pub(crate) use x86_64::bignum_montsqr::bignum_montsqr;
+        pub(crate) use x86_64::bignum_montsqr_p256::bignum_montsqr_p256;
+        pub(crate) use x86_64::bignum_mul::bignum_mul;
+        pub(crate) use x86_64::bignum_mux::bignum_mux;
+        pub(crate) use x86_64::bignum_neg_p256::bignum_neg_p256;
+        pub(crate) use x86_64::bignum_negmodinv::bignum_negmodinv;
+        pub(crate) use x86_64::bignum_optsub::bignum_optsub;
+        pub(crate) use x86_64::bignum_tomont_p256::bignum_tomont_p256;
+        pub(crate) use x86_64::curve25519_x25519::curve25519_x25519;
+        pub(crate) use x86_64::curve25519_x25519base::curve25519_x25519base;
+        pub(crate) use x86_64::ghash;
+        pub(crate) use x86_64::optimise_barrier::optimise_barrier_u8;
+        pub(crate) use x86_64::p256_montjadd::p256_montjadd;
+        pub(crate) use x86_64::p256_montjdouble::p256_montjdouble;
+        pub(crate) use x86_64::p256_montjmixadd::p256_montjmixadd;
+        pub(crate) use x86_64::sha256_mux::sha256_compress_blocks;
+        pub(crate) use x86_64::sha512_mux::sha512_compress_blocks;
+    } else if #[cfg(target_arch = "aarch64")] {
+        mod aarch64;
 
-#[cfg(target_arch = "aarch64")]
-mod aarch64;
+        pub(crate) use aarch64::aes::AesKey;
+        pub(crate) use aarch64::bignum_add_p256::bignum_add_p256;
+        pub(crate) use aarch64::bignum_copy_row_from_table::bignum_copy_row_from_table;
+        pub(crate) use aarch64::bignum_demont::bignum_demont;
+        pub(crate) use aarch64::bignum_demont_p256::bignum_demont_p256;
+        pub(crate) use aarch64::bignum_eq::bignum_eq;
+        pub(crate) use aarch64::bignum_inv_p256::bignum_inv_p256;
+        pub(crate) use aarch64::bignum_mod_n256::bignum_mod_n256;
+        pub(crate) use aarch64::bignum_modadd::bignum_modadd;
+        pub(crate) use aarch64::bignum_modinv::bignum_modinv;
+        pub(crate) use aarch64::bignum_montifier::bignum_montifier;
+        pub(crate) use aarch64::bignum_montmul::bignum_montmul;
+        pub(crate) use aarch64::bignum_montmul_p256::bignum_montmul_p256;
+        pub(crate) use aarch64::bignum_montsqr_p256::bignum_montsqr_p256;
+        pub(crate) use aarch64::bignum_mux::bignum_mux;
+        pub(crate) use aarch64::bignum_neg_p256::bignum_neg_p256;
+        pub(crate) use aarch64::bignum_tomont_p256::bignum_tomont_p256;
+        pub(crate) use aarch64::curve25519_x25519::curve25519_x25519;
+        pub(crate) use aarch64::curve25519_x25519base::curve25519_x25519base;
+        pub(crate) use aarch64::ghash;
+        pub(crate) use aarch64::p256_montjadd::p256_montjadd;
+        pub(crate) use aarch64::p256_montjdouble::p256_montjdouble;
+        pub(crate) use aarch64::p256_montjmixadd::p256_montjmixadd;
 
-#[cfg(target_arch = "aarch64")]
-pub(crate) use aarch64::{
-    aes::{AesKey, AesKey128, AesKey256},
-    bignum_add_p256::bignum_add_p256,
-    bignum_copy_row_from_table::bignum_copy_row_from_table,
-    bignum_demont::bignum_demont,
-    bignum_demont_p256::bignum_demont_p256,
-    bignum_eq::bignum_eq,
-    bignum_inv_p256::bignum_inv_p256,
-    bignum_mod_n256::bignum_mod_n256,
-    bignum_modadd::bignum_modadd,
-    bignum_modinv::bignum_modinv,
-    bignum_montifier::bignum_montifier,
-    bignum_montmul::bignum_montmul,
-    bignum_montmul_p256::bignum_montmul_p256,
-    bignum_montsqr_p256::bignum_montsqr_p256,
-    bignum_mux::bignum_mux,
-    bignum_neg_p256::bignum_neg_p256,
-    bignum_tomont_p256::bignum_tomont_p256,
-    curve25519_x25519::curve25519_x25519,
-    curve25519_x25519base::curve25519_x25519base,
-    ghash,
-    p256_montjadd::p256_montjadd,
-    p256_montjdouble::p256_montjdouble,
-    p256_montjmixadd::p256_montjmixadd,
-};
-#[cfg(target_arch = "aarch64")]
-pub(crate) use generic::{aes_gcm, sha256::sha256_compress_blocks, sha512::sha512_compress_blocks};
-
-mod generic;
-pub(crate) use generic::blockwise::Blockwise;
-pub(crate) use generic::ct_equal::ct_equal;
-
-#[cfg(not(target_arch = "x86_64"))]
-pub use generic::optimise_barrier::optimise_barrier_u8;
+        pub(crate) use generic::aes_gcm;
+        pub(crate) use generic::sha256::sha256_compress_blocks;
+        pub(crate) use generic::sha512::sha512_compress_blocks;
+        pub(crate) use generic::optimise_barrier::optimise_barrier_u8;
+    } else {
+        compile_error!("This crate only supports x86_64 or aarch64");
+    }
+}
