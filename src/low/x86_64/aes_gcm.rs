@@ -1,4 +1,4 @@
-//! Ref. https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/communications-ia-cryptographic-paper.pdf
+//! Ref. <https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/communications-ia-cryptographic-paper.pdf>
 
 use core::arch::x86_64::*;
 use core::mem;
