@@ -110,6 +110,24 @@ impl RsaPrivateSigningKey {
         self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA256, hash.as_ref())
     }
 
+    pub fn sign_pkcs1_sha384<'a>(
+        &self,
+        signature: &'a mut [u8],
+        message: &[u8],
+    ) -> Result<&'a [u8], Error> {
+        let hash = hash::Sha384::hash(message);
+        self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA384, hash.as_ref())
+    }
+
+    pub fn sign_pkcs1_sha512<'a>(
+        &self,
+        signature: &'a mut [u8],
+        message: &[u8],
+    ) -> Result<&'a [u8], Error> {
+        let hash = hash::Sha512::hash(message);
+        self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA512, hash.as_ref())
+    }
+
     fn _sign_pkcs1<'a>(
         &self,
         signature: &'a mut [u8],
@@ -133,13 +151,94 @@ impl RsaPrivateSigningKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
-    fn pairwise_rsa_sign_verify() {
-        let mut sig = [0u8; 256];
+    fn pairwise_rsa2048_sign_verify() {
+        let mut buf = [0u8; 256];
         let private_key =
             RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa2048.der")).unwrap();
-        let sig = private_key.sign_pkcs1_sha256(&mut sig, b"hello").unwrap();
+
         let pub_key = private_key.public_key();
+
+        let sig = private_key.sign_pkcs1_sha256(&mut buf, b"hello").unwrap();
         pub_key.verify_pkcs1_sha256(sig, b"hello").unwrap();
+
+        let sig = private_key.sign_pkcs1_sha384(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha384(sig, b"hello").unwrap();
+
+        let sig = private_key.sign_pkcs1_sha512(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha512(sig, b"hello").unwrap();
+    }
+
+    #[test]
+    fn pairwise_rsa3072_sign_verify() {
+        let mut buf = [0u8; 384];
+        let private_key =
+            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa3072.der")).unwrap();
+
+        let pub_key = private_key.public_key();
+
+        let sig = private_key.sign_pkcs1_sha256(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha256(sig, b"hello").unwrap();
+
+        let sig = private_key.sign_pkcs1_sha384(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha384(sig, b"hello").unwrap();
+
+        let sig = private_key.sign_pkcs1_sha512(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha512(sig, b"hello").unwrap();
+    }
+
+    #[test]
+    fn pairwise_rsa4096_sign_verify() {
+        let mut buf = [0u8; 512];
+        let private_key =
+            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa4096.der")).unwrap();
+
+        let pub_key = private_key.public_key();
+
+        let sig = private_key.sign_pkcs1_sha256(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha256(sig, b"hello").unwrap();
+
+        let sig = private_key.sign_pkcs1_sha384(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha384(sig, b"hello").unwrap();
+
+        let sig = private_key.sign_pkcs1_sha512(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha512(sig, b"hello").unwrap();
+    }
+
+    #[test]
+    fn pairwise_rsa6144_sign_verify() {
+        let mut buf = [0u8; 768];
+        let private_key =
+            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa6144.der")).unwrap();
+
+        let pub_key = private_key.public_key();
+
+        let sig = private_key.sign_pkcs1_sha256(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha256(sig, b"hello").unwrap();
+
+        let sig = private_key.sign_pkcs1_sha384(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha384(sig, b"hello").unwrap();
+
+        let sig = private_key.sign_pkcs1_sha512(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha512(sig, b"hello").unwrap();
+    }
+
+    #[test]
+    fn pairwise_rsa8192_sign_verify() {
+        let mut buf = [0u8; 1024];
+        let private_key =
+            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa8192.der")).unwrap();
+
+        let pub_key = private_key.public_key();
+
+        let sig = private_key.sign_pkcs1_sha256(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha256(sig, b"hello").unwrap();
+
+        let sig = private_key.sign_pkcs1_sha384(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha384(sig, b"hello").unwrap();
+
+        let sig = private_key.sign_pkcs1_sha512(&mut buf, b"hello").unwrap();
+        pub_key.verify_pkcs1_sha512(sig, b"hello").unwrap();
     }
 }
