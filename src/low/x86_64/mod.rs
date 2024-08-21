@@ -17,7 +17,6 @@ pub(crate) mod bignum_ksqr_16_32;
 pub(crate) mod bignum_ksqr_32_64;
 pub(crate) mod bignum_mod_n256;
 pub(crate) mod bignum_modadd;
-pub(crate) mod bignum_modexp;
 pub(crate) mod bignum_modinv;
 pub(crate) mod bignum_modsub;
 pub(crate) mod bignum_montifier;

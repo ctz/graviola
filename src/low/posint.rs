@@ -317,25 +317,6 @@ impl<const N: usize> PosInt<N> {
 
     /// Computes `self` ^ `e` mod `n`.
     ///
-    /// `M` -- the size of `tmp` -- must be 3 times larger than `N`.
-    #[must_use]
-    pub(crate) fn mod_exp<const M: usize>(&self, e: &Self, n: &Self, tmp: &mut PosInt<M>) -> Self {
-        assert!(N * 3 == M);
-
-        let mut r = Self::zero();
-        r.used = n.used;
-        low::bignum_modexp(
-            r.as_mut_words(),
-            self.as_words(),
-            e.as_words(),
-            n.as_words(),
-            &mut tmp.words,
-        );
-        r
-    }
-
-    /// Computes `self` ^ `e` mod `n`.
-    ///
     /// `n_montifier` is `n.montifier()`.
     /// `n_0` is `n.mont_neg_inverse()`.
     pub(crate) fn mont_exp(&self, e: &Self, n: &Self, n_montifier: &Self, n_0: u64) -> Self {

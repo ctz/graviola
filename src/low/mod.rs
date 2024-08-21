@@ -32,7 +32,6 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::bignum_ksqr_32_64::bignum_ksqr_32_64;
         pub(crate) use x86_64::bignum_mod_n256::bignum_mod_n256;
         pub(crate) use x86_64::bignum_modadd::bignum_modadd;
-        pub(crate) use x86_64::bignum_modexp::bignum_modexp;
         pub(crate) use x86_64::bignum_modinv::bignum_modinv;
         pub(crate) use x86_64::bignum_modsub::bignum_modsub;
         pub(crate) use x86_64::bignum_montifier::bignum_montifier;

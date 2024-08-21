@@ -61,31 +61,6 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/x86/generic/bignum_modexp.S") as input, open(
-        "../curve25519/src/low/x86_64/bignum_modexp.rs", "w"
-    ) as output:
-        d = RustDriver(output, Architecture_amd64)
-        d.emit_rust_function(
-            "bignum_modexp",
-            parameter_map=[
-                ("inout", "rdi", "z.len() => _"),
-                ("inout", "rsi", "z.as_mut_ptr() => _"),
-                ("inout", "rdx", "a.as_ptr() => _"),
-                ("inout", "rcx", "p.as_ptr() => _"),
-                ("inout", "r8", "m.as_ptr() => _"),
-                ("inout", "r9", "t.as_mut_ptr() => _"),
-            ],
-            assertions=[
-                "z.len() == a.len()",
-                "z.len() == p.len()",
-                "z.len() == m.len()",
-                "z.len() * 3 <= t.len()",
-            ],
-            hoist=["proc", "muxend", "ret"],
-            rust_decl="pub fn bignum_modexp(z: &mut [u64], a: &[u64], p: &[u64], m: &[u64], t: &mut [u64])",
-        )
-        parse_file(input, d)
-
     with open("../../s2n-bignum/x86/generic/bignum_mul.S") as input, open(
         "../curve25519/src/low/x86_64/bignum_mul.rs", "w"
     ) as output:
