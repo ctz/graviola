@@ -1,7 +1,12 @@
-# Graviola
+<p align="center">
+  <h1>Graviola</h1>
+  <img width="460" height="300" src="https://raw.githubusercontent.com/ctz/graviola/main/admin/picture.png">
+</p>
 
+<p align="center">
 Graviola is a compendium of high quality, fast cryptography for Rust.
 It is designed to be easy and fast to build.
+</p>
 
 High quality: Graviola incorporates assembler routines
 from the [s2n-bignum] project.  These have been formally proven
