@@ -8,9 +8,7 @@ executables=$(cross bench --target aarch64-unknown-linux-gnu --no-run 2>&1 | gre
 
 mkdir -p target/criterion/$HOST/criterion
 rsync --compress --progress $executables $HOST:~
-cd target/criterion/$HOST && rsync --recursive --compress --progress criterion $HOST:target/
 for e in $executables ; do
   ee=$(basename $e)
   ssh $HOST "set -e ; ./$ee --bench $@"
 done
-rsync --no-relative --recursive --compress $HOST:target/criterion target/criterion/$HOST
