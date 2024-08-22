@@ -1,3 +1,6 @@
+// Written for Graviola by Joe Birr-Pixton, 2024.
+// SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
+
 use crate::low::generic;
 use crate::low::x86_64::sha512::{sha512_block_data_order_avx, sha512_block_data_order_avx2};
 

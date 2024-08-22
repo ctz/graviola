@@ -1,3 +1,6 @@
+// Written for Graviola by Joe Birr-Pixton, 2024.
+// SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
+
 fn bignum_mux_equiv(p: u64, x_if_p: &[u64], y_if_not_p: &[u64]) {
     let mut model_z = vec![0; x_if_p.len()];
     let mut real_z = vec![0; x_if_p.len()];

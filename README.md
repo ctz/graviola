@@ -112,8 +112,8 @@ Graviola incorporates and redistributes code from:
 - [s2n-bignum]: Apache-2.0 OR ISC or MIT-0
 - [cryptogams]: BSD-3-Clause OR GPL-2.0-only
 
-New code written for Graviola is licensed under Apache-2.0
-or MIT-0.
+New code written for Graviola is licensed under
+Apache-2.0 OR ISC OR MIT-0.
 
 Because we have a mix of licenses, every file has a
 `SPDX-License-Identifier` comment.

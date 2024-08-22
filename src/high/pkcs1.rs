@@ -1,3 +1,6 @@
+// Written for Graviola by Joe Birr-Pixton, 2024.
+// SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
+
 /// This is EMSA-PKCS1-v1_5-ENCODE
 ///
 /// `out` is the modulus-size output buffer.

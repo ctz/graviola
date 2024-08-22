@@ -1,0 +1,11 @@
+#!/usr/bin/bash
+
+set -e
+
+bad=0
+for f in $(find src/ -name *.rs -exec grep -L "SPDX-License-Identifier:" {} +) ; do
+  echo "$f requires a SPDX-License-Identifier"
+  bad=1
+done
+
+exit $bad

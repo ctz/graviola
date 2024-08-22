@@ -1,3 +1,6 @@
+// Written for Graviola by Joe Birr-Pixton, 2024.
+// SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
+
 use crate::low::ct_equal;
 use crate::mid::sha2::{Sha256Context, Sha384Context, Sha512Context};
 

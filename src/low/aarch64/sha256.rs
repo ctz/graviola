@@ -1,3 +1,6 @@
+// Written for Graviola by Joe Birr-Pixton, 2024.
+// SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
+
 use core::arch::aarch64::*;
 
 pub fn sha256_compress_blocks(state: &mut [u32; 8], blocks: &[u8]) {
