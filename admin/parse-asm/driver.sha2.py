@@ -24,7 +24,7 @@ if __name__ == "__main__":
     )
 
     with open("../../cryptogams/sha512.S") as input, open(
-        "../curve25519/src/low/x86_64/sha512.rs", "w"
+        "../../src/low/x86_64/sha512.rs", "w"
     ) as output:
         for line in front_matter:
             print("//! " + line, file=output)
@@ -57,7 +57,7 @@ if __name__ == "__main__":
         parse_file(input, d)
 
     with open("../../cryptogams/sha256.S") as input, open(
-        "../curve25519/src/low/x86_64/sha256.rs", "w"
+        "../../src/low/x86_64/sha256.rs", "w"
     ) as output:
         for line in front_matter:
             print("//! " + line, file=output)

@@ -6,8 +6,8 @@ from driver import (
 )
 
 if __name__ == "__main__":
-    with open("../../s2n-bignum/x86/curve25519/curve25519_x25519.S") as input, open(
-        "../curve25519/src/low/x86_64/curve25519_x25519.rs", "w"
+    with open("../../thirdparty/s2n-bignum/x../..//curve25519_x25519.S") as input, open(
+        "../../src/low/x86_../../_x25519.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
@@ -21,9 +21,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/x86/curve25519/curve25519_x25519base.S") as input, open(
-        "../curve25519/src/low/x86_64/curve25519_x25519base.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/x../..//curve25519_x25519base.S"
+    ) as input, open("../../src/low/x86_../../_x25519base.rs", "w") as output:
         d = RustDriver(output, Architecture_amd64)
         d.add_const_symbol("curve25519_x25519base_edwards25519_0g")
         d.add_const_symbol("curve25519_x25519base_edwards25519_8g")
@@ -38,8 +38,8 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/arm/curve25519/curve25519_x25519.S") as input, open(
-        "../curve25519/src/low/aarch64/curve25519_x25519.rs", "w"
+    with open("../../thirdparty/s2n-bignum/a../..//curve25519_x25519.S") as input, open(
+        "../../src/low/aarch../../_x25519.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
@@ -53,9 +53,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/arm/curve25519/curve25519_x25519base.S") as input, open(
-        "../curve25519/src/low/aarch64/curve25519_x25519base.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/a../..//curve25519_x25519base.S"
+    ) as input, open("../../src/low/aarch../../_x25519base.rs", "w") as output:
         d = RustDriver(output, Architecture_aarch64)
         d.add_const_symbol("curve25519_x25519base_edwards25519_0g")
         d.add_const_symbol("curve25519_x25519base_edwards25519_8g")

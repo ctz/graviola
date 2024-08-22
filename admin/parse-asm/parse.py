@@ -238,7 +238,7 @@ def assemble_and_disassemble(file, tool_prefix):
         [tool_prefix + "objdump", "--no-addresses"] + m_option + ["-d", "assembled.o"],
         encoding="utf-8",
     )
-    #open("disasm.txt", "w").write(out)
+    # open("disasm.txt", "w").write(out)
 
     ret = io.StringIO()
     for line in comment_lines:
@@ -263,5 +263,5 @@ def assemble_and_disassemble(file, tool_prefix):
 
     ret.name = file.name
     ret.seek(0)
-    #open("result.S", "w").write(ret.getvalue())
+    # open("result.S", "w").write(ret.getvalue())
     return ret

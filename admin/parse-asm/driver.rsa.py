@@ -6,9 +6,9 @@ from driver import (
 )
 
 if __name__ == "__main__":
-    with open("../../s2n-bignum/x86/generic/bignum_montsqr.S") as input, open(
-        "../curve25519/src/low/x86_64/bignum_montsqr.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/x86/generic/bignum_montsqr.S"
+    ) as input, open("../../src/low/x86_64/bignum_montsqr.rs", "w") as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
             "bignum_montsqr",
@@ -26,9 +26,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/x86/generic/bignum_bitsize.S") as input, open(
-        "../curve25519/src/low/x86_64/bignum_bitsize.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/x86/generic/bignum_bitsize.S"
+    ) as input, open("../../src/low/x86_64/bignum_bitsize.rs", "w") as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
             "bignum_bitsize",
@@ -42,8 +42,8 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/x86/generic/bignum_lt.S") as input, open(
-        "../curve25519/src/low/x86_64/bignum_cmp_lt.rs", "w"
+    with open("../../thirdparty/s2n-bignum/x86/generic/bignum_lt.S") as input, open(
+        "../../src/low/x86_64/bignum_cmp_lt.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
@@ -61,8 +61,8 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/x86/generic/bignum_mul.S") as input, open(
-        "../curve25519/src/low/x86_64/bignum_mul.rs", "w"
+    with open("../../thirdparty/s2n-bignum/x86/generic/bignum_mul.S") as input, open(
+        "../../src/low/x86_64/bignum_mul.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
@@ -82,8 +82,8 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/x86/generic/bignum_add.S") as input, open(
-        "../curve25519/src/low/x86_64/bignum_add.rs", "w"
+    with open("../../thirdparty/s2n-bignum/x86/generic/bignum_add.S") as input, open(
+        "../../src/low/x86_64/bignum_add.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
@@ -101,8 +101,8 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/x86/generic/bignum_modsub.S") as input, open(
-        "../curve25519/src/low/x86_64/bignum_modsub.rs", "w"
+    with open("../../thirdparty/s2n-bignum/x86/generic/bignum_modsub.S") as input, open(
+        "../../src/low/x86_64/bignum_modsub.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
@@ -123,9 +123,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/x86/generic/bignum_montredc.S") as input, open(
-        "../curve25519/src/low/x86_64/bignum_montredc.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/x86/generic/bignum_montredc.S"
+    ) as input, open("../../src/low/x86_64/bignum_montredc.rs", "w") as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
             "bignum_montredc",
@@ -142,9 +142,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/x86/generic/bignum_digitsize.S") as input, open(
-        "../curve25519/src/low/x86_64/bignum_digitsize.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/x86/generic/bignum_digitsize.S"
+    ) as input, open("../../src/low/x86_64/bignum_digitsize.rs", "w") as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
             "bignum_digitsize",
@@ -172,8 +172,8 @@ if __name__ == "__main__":
         outwidth = inwidth * 2
         name = "bignum_%s_%d_%d" % (op, inwidth, outwidth)
 
-        with open("../../s2n-bignum/x86/fastmul/%s.S" % name) as input, open(
-            "../curve25519/src/low/x86_64/%s.rs" % name, "w"
+        with open("../../thirdparty/s2n-bignum/x86/fastmul/%s.S" % name) as input, open(
+            "../../src/low/x86_64/%s.rs" % name, "w"
         ) as output:
 
             if op == "kmul":
@@ -214,9 +214,9 @@ if __name__ == "__main__":
             input = assemble_and_disassemble(input, tool_prefix="x86_64-linux-gnu-")
             parse_file(input, d)
 
-    with open("../../s2n-bignum/x86/fastmul/bignum_emontredc_8n.S") as input, open(
-        "../curve25519/src/low/x86_64/bignum_emontredc_8n.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/x86/fastmul/bignum_emontredc_8n.S"
+    ) as input, open("../../src/low/x86_64/bignum_emontredc_8n.rs", "w") as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
             "bignum_emontredc_8n",
@@ -235,8 +235,8 @@ if __name__ == "__main__":
         input = assemble_and_disassemble(input, tool_prefix="x86_64-linux-gnu-")
         parse_file(input, d)
 
-    with open("../../s2n-bignum/x86/generic/bignum_optsub.S") as input, open(
-        "../curve25519/src/low/x86_64/bignum_optsub.rs", "w"
+    with open("../../thirdparty/s2n-bignum/x86/generic/bignum_optsub.S") as input, open(
+        "../../src/low/x86_64/bignum_optsub.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
@@ -252,9 +252,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/x86/generic/bignum_negmodinv.S") as input, open(
-        "../curve25519/src/low/x86_64/bignum_negmodinv.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/x86/generic/bignum_negmodinv.S"
+    ) as input, open("../../src/low/x86_64/bignum_negmodinv.rs", "w") as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
             "bignum_negmodinv",
@@ -269,9 +269,9 @@ if __name__ == "__main__":
         parse_file(input, d)
 
     # aarch64
-    with open("../../s2n-bignum/arm/generic/bignum_montsqr.S") as input, open(
-        "../curve25519/src/low/aarch64/bignum_montsqr.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/arm/generic/bignum_montsqr.S"
+    ) as input, open("../../src/low/aarch64/bignum_montsqr.rs", "w") as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
             "bignum_montsqr",
@@ -289,9 +289,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/arm/generic/bignum_bitsize.S") as input, open(
-        "../curve25519/src/low/aarch64/bignum_bitsize.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/arm/generic/bignum_bitsize.S"
+    ) as input, open("../../src/low/aarch64/bignum_bitsize.rs", "w") as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
             "bignum_bitsize",
@@ -304,8 +304,8 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/arm/generic/bignum_lt.S") as input, open(
-        "../curve25519/src/low/aarch64/bignum_cmp_lt.rs", "w"
+    with open("../../thirdparty/s2n-bignum/arm/generic/bignum_lt.S") as input, open(
+        "../../src/low/aarch64/bignum_cmp_lt.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
@@ -322,8 +322,8 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/arm/generic/bignum_mul.S") as input, open(
-        "../curve25519/src/low/aarch64/bignum_mul.rs", "w"
+    with open("../../thirdparty/s2n-bignum/arm/generic/bignum_mul.S") as input, open(
+        "../../src/low/aarch64/bignum_mul.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
@@ -343,8 +343,8 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/arm/generic/bignum_add.S") as input, open(
-        "../curve25519/src/low/aarch64/bignum_add.rs", "w"
+    with open("../../thirdparty/s2n-bignum/arm/generic/bignum_add.S") as input, open(
+        "../../src/low/aarch64/bignum_add.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
@@ -362,8 +362,8 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/arm/generic/bignum_modsub.S") as input, open(
-        "../curve25519/src/low/aarch64/bignum_modsub.rs", "w"
+    with open("../../thirdparty/s2n-bignum/arm/generic/bignum_modsub.S") as input, open(
+        "../../src/low/aarch64/bignum_modsub.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
@@ -384,9 +384,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/arm/generic/bignum_montredc.S") as input, open(
-        "../curve25519/src/low/aarch64/bignum_montredc.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/arm/generic/bignum_montredc.S"
+    ) as input, open("../../src/low/aarch64/bignum_montredc.rs", "w") as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
             "bignum_montredc",
@@ -403,9 +403,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/arm/generic/bignum_digitsize.S") as input, open(
-        "../curve25519/src/low/aarch64/bignum_digitsize.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/arm/generic/bignum_digitsize.S"
+    ) as input, open("../../src/low/aarch64/bignum_digitsize.rs", "w") as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
             "bignum_digitsize",
@@ -442,8 +442,8 @@ if __name__ == "__main__":
         outwidth = inwidth * 2
         name = "bignum_%s_%d_%d" % (op, inwidth, outwidth)
 
-        with open("../../s2n-bignum/arm/fastmul/%s.S" % name) as input, open(
-            "../curve25519/src/low/aarch64/%s.rs" % name, "w"
+        with open("../../thirdparty/s2n-bignum/arm/fastmul/%s.S" % name) as input, open(
+            "../../src/low/aarch64/%s.rs" % name, "w"
         ) as output:
 
             if op == "kmul":
@@ -484,9 +484,9 @@ if __name__ == "__main__":
             input = assemble_and_disassemble(input, tool_prefix="aarch64-linux-gnu-")
             parse_file(input, d)
 
-    with open("../../s2n-bignum/arm/fastmul/bignum_emontredc_8n.S") as input, open(
-        "../curve25519/src/low/aarch64/bignum_emontredc_8n.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/arm/fastmul/bignum_emontredc_8n.S"
+    ) as input, open("../../src/low/aarch64/bignum_emontredc_8n.rs", "w") as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
             "bignum_emontredc_8n",
@@ -504,8 +504,8 @@ if __name__ == "__main__":
         input = assemble_and_disassemble(input, tool_prefix="aarch64-linux-gnu-")
         parse_file(input, d)
 
-    with open("../../s2n-bignum/arm/generic/bignum_optsub.S") as input, open(
-        "../curve25519/src/low/aarch64/bignum_optsub.rs", "w"
+    with open("../../thirdparty/s2n-bignum/arm/generic/bignum_optsub.S") as input, open(
+        "../../src/low/aarch64/bignum_optsub.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
@@ -521,9 +521,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../s2n-bignum/arm/generic/bignum_negmodinv.S") as input, open(
-        "../curve25519/src/low/aarch64/bignum_negmodinv.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/arm/generic/bignum_negmodinv.S"
+    ) as input, open("../../src/low/aarch64/bignum_negmodinv.rs", "w") as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
             "bignum_negmodinv",
