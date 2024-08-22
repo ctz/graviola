@@ -17,7 +17,7 @@ are not welcomed; please do not file issues or PRs.
 ## TODO list, and ideas
 
 - [ ] interdict cpuid usage and test all combinations
-- [ ] aarch64 sha2 using intrinsics
+- [x] aarch64 sha2 using intrinsics
 - [ ] 4-wide ghash for aarch64
 - [ ] wide gcm for aarch64
 - [ ] p384

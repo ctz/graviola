@@ -36,3 +36,4 @@ pub(crate) mod ghash;
 pub(crate) mod p256_montjadd;
 pub(crate) mod p256_montjdouble;
 pub(crate) mod p256_montjmixadd;
+pub(crate) mod sha256;

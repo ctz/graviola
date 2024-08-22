@@ -97,9 +97,9 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::p256_montjadd::p256_montjadd;
         pub(crate) use aarch64::p256_montjdouble::p256_montjdouble;
         pub(crate) use aarch64::p256_montjmixadd::p256_montjmixadd;
+        pub(crate) use aarch64::sha256::sha256_compress_blocks;
 
         pub(crate) use generic::aes_gcm;
-        pub(crate) use generic::sha256::sha256_compress_blocks;
         pub(crate) use generic::sha512::sha512_compress_blocks;
         pub(crate) use generic::optimise_barrier::optimise_barrier_u8;
     } else {
