@@ -1,3 +1,6 @@
 [submodule "thirdparty/s2n-bignum"]
 	path = thirdparty/s2n-bignum
 	url = https://github.com/awslabs/s2n-bignum.git
+[submodule "thirdparty/wycheproof"]
+	path = thirdparty/wycheproof
+	url = https://github.com/C2SP/wycheproof.git
