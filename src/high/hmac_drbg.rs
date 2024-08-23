@@ -17,9 +17,9 @@ pub struct HmacDrbg<H: Hash> {
 }
 
 impl<H: Hash> HmacDrbg<H> {
-    pub fn new(entropy_input: &[u8], nonce: &[u8]) -> Self {
+    pub fn new(entropy_input: &[u8], nonce: &[u8], personalization_string: &[u8]) -> Self {
         // 1. seed_material = entropy_input || nonce || personalization_string.
-        let seed_material = &[entropy_input, nonce];
+        let seed_material = &[entropy_input, nonce, personalization_string];
 
         // 2. Key = 0x00 00...00. Comment: outlen bits.
         let k = H::zeroed_output();
@@ -129,7 +129,7 @@ mod tests {
         let h1 =
             b"\x01\x79\x5E\xDF\x0D\x54\xDB\x76\x0F\x15\x6D\x0D\xAC\x04\xC0\x32\x2B\x3A\x20\x42\x24";
 
-        let mut ctx = HmacDrbg::<Sha256>::new(x, h1);
+        let mut ctx = HmacDrbg::<Sha256>::new(x, h1, &[]);
         let mut t1 = [0u8; 32];
         ctx.fill(&mut t1).unwrap();
         assert_eq!(&t1, b"\x93\x05\xA4\x6D\xE7\xFF\x8E\xB1\x07\x19\x4D\xEB\xD3\xFD\x48\xAA\x20\xD5\xE7\x65\x6C\xBE\x0E\xA6\x9D\x2A\x8D\x4E\x7C\x67\x31\x4A");

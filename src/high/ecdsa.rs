@@ -4,6 +4,7 @@
 use super::curve::{Curve, PrivateKey, PublicKey, Scalar, MAX_SCALAR_LEN};
 use super::hash::{Hash, HashContext};
 use super::hmac_drbg::HmacDrbg;
+use crate::mid::rng::{RandomSource, SystemRandom};
 use crate::Error;
 
 pub struct SigningKey<C: Curve> {
@@ -11,7 +12,40 @@ pub struct SigningKey<C: Curve> {
 }
 
 impl<C: Curve> SigningKey<C> {
+    /// ECDSA signing, returning a fixed-length signature.
+    ///
+    /// The `message` is hashed using `H`.  The message is a sequence of byte
+    /// slices, so some workloads can avoid joining it into one buffer beforehand.
+    ///
+    /// `signature` is the output buffer; `Error::WrongLength` is returned
+    /// if it is not long enough.  The used prefix of this buffer is returned
+    /// on success.
     pub fn sign<H: Hash>(&self, message: &[&[u8]], signature: &mut [u8]) -> Result<(), Error> {
+        let mut random = [0u8; 16];
+        SystemRandom.fill(&mut random)?;
+        self.rfc6979_sign_with_random::<H>(message, &random, signature)
+    }
+
+    /// This is RFC6979 deterministic ECDSA signing, _with added randomness_.
+    ///
+    /// What? Why?
+    ///
+    /// Deterministic ECDSA is good for implementation quality (we can test
+    /// and validate the selection of `k` is good, and that is absolutely crucial),
+    /// but theoretically behaves worse under fault attacks.
+    ///
+    /// The added randomness is non-critical, assuming the design of HMAC_DRBG
+    /// is OK.
+    ///
+    /// RFC6979 allows for this: see section 3.6:
+    /// <https://datatracker.ietf.org/doc/html/rfc6979#section-3.6>.  And HMAC_DRBG
+    /// also allows for it, it is the `personalization_string` input.
+    fn rfc6979_sign_with_random<H: Hash>(
+        &self,
+        message: &[&[u8]],
+        random: &[u8],
+        signature: &mut [u8],
+    ) -> Result<(), Error> {
         let output = signature
             .get_mut(..C::Scalar::LEN_BYTES * 2)
             .ok_or(Error::WrongLength)?;
@@ -28,7 +62,11 @@ impl<C: Curve> SigningKey<C> {
         let e = hash_to_scalar::<C>(hash.as_ref())?;
         let mut e_bytes = [0u8; MAX_SCALAR_LEN];
         e.write_bytes(&mut e_bytes[..C::Scalar::LEN_BYTES]);
-        let mut rng = HmacDrbg::<H>::new(encoded_private_key, &e_bytes[..C::Scalar::LEN_BYTES]);
+        let mut rng = HmacDrbg::<H>::new(
+            encoded_private_key,
+            &e_bytes[..C::Scalar::LEN_BYTES],
+            random,
+        );
 
         let (k, r) = loop {
             let k = C::generate_random_key(&mut rng)?;
@@ -50,10 +88,19 @@ pub struct VerifyingKey<C: Curve> {
 }
 
 impl<C: Curve> VerifyingKey<C> {
+    /// Create a `VerifyingKey` by decoding an X9.62 uncompressed point.
     pub fn from_x962_uncompressed(encoded: &[u8]) -> Result<Self, Error> {
         C::PublicKey::from_x962_uncompressed(encoded).map(|public_key| Self { public_key })
     }
 
+    /// Verify an ECDSA fixed-length signature.
+    ///
+    /// The `message` is hashed with `H`.  The message is presented as a sequence of byte
+    /// slices (effectively concatenated by this function).
+    ///
+    /// `signature` is the purported signature.
+    ///
+    /// Returns nothing when the signature is valid, or `Error::BadSignature` if not.
     pub fn verify<H: Hash>(&self, message: &[&[u8]], signature: &[u8]) -> Result<(), Error> {
         if signature.len() != C::Scalar::LEN_BYTES * 2 {
             return Err(Error::WrongLength);
@@ -117,7 +164,7 @@ mod tests {
         let k = SigningKey::<curve::P256> { private_key };
         let mut signature = [0u8; 64];
 
-        k.sign::<hash::Sha256>(&[b"sample"], &mut signature)
+        k.rfc6979_sign_with_random::<hash::Sha256>(&[b"sample"], &[], &mut signature)
             .unwrap();
         assert_eq!(
             signature,
@@ -130,7 +177,8 @@ mod tests {
             ]
         );
 
-        k.sign::<hash::Sha256>(&[b"test"], &mut signature).unwrap();
+        k.rfc6979_sign_with_random::<hash::Sha256>(&[b"test"], &[], &mut signature)
+            .unwrap();
         assert_eq!(
             signature,
             [
@@ -142,7 +190,7 @@ mod tests {
             ]
         );
 
-        k.sign::<hash::Sha512>(&[b"sample"], &mut signature)
+        k.rfc6979_sign_with_random::<hash::Sha512>(&[b"sample"], &[], &mut signature)
             .unwrap();
         assert_eq!(
             signature,
@@ -155,7 +203,8 @@ mod tests {
             ]
         );
 
-        k.sign::<hash::Sha512>(&[b"test"], &mut signature).unwrap();
+        k.rfc6979_sign_with_random::<hash::Sha512>(&[b"test"], &[], &mut signature)
+            .unwrap();
         assert_eq!(
             signature,
             [

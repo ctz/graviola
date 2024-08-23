@@ -73,10 +73,7 @@ We are grateful to:
 - [ ] RSA-PSS signing
 - [x] RSA-PKCS#1 signing
 - [x] ECDSA on P256 w/ SHA2
-  - [x] RFC6979 deterministic ECDSA.
-  - [ ] additional data variant.  This means we follow RFC6979's construction
-        (and pass its tests) but add additional random input to ameliorate
-        fault attacks.
+  - [x] RFC6979 deterministic ECDSA with additional randomness.
 
 ### Hashing
 
