@@ -1,18 +1,21 @@
-<p align="center">
-  <h1>Graviola</h1>
-  <img width="460" height="300" src="https://raw.githubusercontent.com/ctz/graviola/main/admin/picture.png">
-</p>
+<h1 align="center">Graviola</h1>
+<img width="40%" align="right" src="https://raw.githubusercontent.com/ctz/graviola/main/admin/picture.png">
 
-<p align="center">
-Graviola is a compendium of high quality, fast cryptography for Rust.
-It is designed to be easy and fast to build.
-</p>
+> **Graviola** is a compendium of **high quality**,
+> **fast** and **easy to build** cryptography for Rust, aimed
+> at use with [rustls](https://github.com/rustls/rustls).
 
-High quality: Graviola incorporates assembler routines
+*High quality*: Graviola incorporates assembler routines
 from the [s2n-bignum] project.  These have been formally proven
 to be memory safe, free of side channels (at the architectural level),
 and to correctly implement the desired mathematical operation.  They
 are also high performance: using (in part) [SLOTHY].
+
+*Fast*: Graviola beats or is competitive with other cryptography
+libraries for Rust.  See [performance](#performance).
+
+*Easy and fast to build*: no C compiler, assembler or other tooling
+needed: just the Rust compiler.  Compiles in less than one second.
 
 ## Status
 
@@ -40,9 +43,9 @@ are not welcomed; please do not file issues or PRs.
 
 ## Limitations
 
-- aarch64 and amd64 only
+- `target_arch = "aarch64"` and `target_arch = "x86_64"` only
     - aarch64 requires `aes` and `neon` CPU features.
-    - amd64 requires `aes`, `ssse3` and `pclmulqdq` CPU features.
+    - x86_64 requires `aes`, `ssse3` and `pclmulqdq` CPU features.
 
 ## Acknowledgements and Thanks
 
