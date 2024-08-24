@@ -31,6 +31,12 @@ struct TestGroup {
     #[serde(default)]
     sha: String,
 
+    #[serde(default, rename(deserialize = "mgfSha"))]
+    mgf_sha: String,
+
+    #[serde(default, rename(deserialize = "sLen"))]
+    salt_len: usize,
+
     tests: Vec<Test>,
 }
 
@@ -364,6 +370,62 @@ fn test_rsa_pkcs1_verify() {
                     "SHA-256" => key.verify_pkcs1_sha256(&test.sig, &test.msg),
                     "SHA-384" => key.verify_pkcs1_sha384(&test.sig, &test.msg),
                     "SHA-512" => key.verify_pkcs1_sha512(&test.sig, &test.msg),
+                    other => panic!("unhandled sha {other:?}"),
+                };
+
+                match (test.result, &result) {
+                    (ExpectedResult::Valid, Ok(())) => {}
+                    (
+                        ExpectedResult::Invalid | ExpectedResult::Acceptable,
+                        Err(Error::BadSignature),
+                    ) => {}
+                    _ => panic!("expected {:?} got {:?}", test.result, result.err()),
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn test_rsa_pss_verify() {
+    for file in &[
+        "rsa_pss_2048_sha256_mgf1_32_test.json",
+        "rsa_pss_2048_sha384_mgf1_48_test.json",
+        "rsa_pss_3072_sha256_mgf1_32_test.json",
+        "rsa_pss_4096_sha256_mgf1_32_test.json",
+        "rsa_pss_4096_sha384_mgf1_48_test.json",
+        "rsa_pss_4096_sha512_mgf1_64_test.json",
+        "rsa_pss_misc_test.json",
+    ] {
+        let data_file = File::open(&format!("thirdparty/wycheproof/testvectors_v1/{file}"))
+            .expect("failed to open data file");
+        println!("file: {data_file:?}");
+
+        let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+
+        for group in tests.groups {
+            println!("group: {:?}", group.typ);
+
+            let key = rsa::RsaPublicVerificationKey::from_pkcs1_der(&group.public_key_asn).unwrap();
+            println!("key is {:?}", key);
+
+            match (group.sha.as_ref(), group.mgf_sha.as_ref(), group.salt_len) {
+                ("SHA-256", "SHA-256", 32) => {}
+                ("SHA-384", "SHA-384", 48) => {}
+                ("SHA-512", "SHA-512", 64) => {}
+                other => {
+                    println!("not supported {other:?}");
+                    continue;
+                }
+            }
+
+            for test in group.tests {
+                println!("  test {:?}", test);
+
+                let result = match group.sha.as_ref() {
+                    "SHA-256" => key.verify_pss_sha256(&test.sig, &test.msg),
+                    "SHA-384" => key.verify_pss_sha384(&test.sig, &test.msg),
+                    "SHA-512" => key.verify_pss_sha512(&test.sig, &test.msg),
                     other => panic!("unhandled sha {other:?}"),
                 };
 

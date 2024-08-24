@@ -68,9 +68,9 @@ We are grateful to:
 
 ### Public key signatures
 
-- [ ] RSA-PSS signature verification
+- [x] RSA-PSS signature verification
 - [x] RSA-PKCS#1 signature verification
-- [ ] RSA-PSS signing
+- [x] RSA-PSS signing
 - [x] RSA-PKCS#1 signing
 - [x] ECDSA on P256 w/ SHA2
   - [x] RFC6979 deterministic ECDSA with additional randomness.

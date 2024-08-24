@@ -5,6 +5,7 @@ use crate::high::asn1::{pkix, Type};
 use crate::high::hash::{self, Hash};
 use crate::high::pkcs1;
 use crate::low::PosInt;
+use crate::mid::rng::SystemRandom;
 use crate::mid::{rsa_priv, rsa_pub};
 use crate::Error;
 
@@ -66,6 +67,33 @@ impl RsaPublicVerificationKey {
             true => Ok(()),
             false => Err(Error::BadSignature),
         }
+    }
+
+    pub fn verify_pss_sha256(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
+        self._verify_pss::<hash::Sha256>(signature, message)
+    }
+
+    pub fn verify_pss_sha384(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
+        self._verify_pss::<hash::Sha384>(signature, message)
+    }
+
+    pub fn verify_pss_sha512(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
+        self._verify_pss::<hash::Sha512>(signature, message)
+    }
+
+    fn _verify_pss<H: Hash>(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
+        let hash = H::hash(message);
+
+        if signature.len() > self.0.modulus_len_bytes() {
+            return Err(Error::BadSignature);
+        }
+        let c = PosInt::from_bytes(signature).map_err(|_| Error::BadSignature)?;
+        let m = self.0.public_op(&c).map_err(|_| Error::BadSignature)?;
+
+        let mut m_bytes = [0u8; rsa_pub::MAX_PUBLIC_MODULUS_BYTES];
+        let m_bytes_len = m.to_bytes(&mut m_bytes)?.len();
+
+        pkcs1::verify_pss_sig::<H>(&mut m_bytes[..m_bytes_len], hash.as_ref())
     }
 }
 
@@ -131,6 +159,30 @@ impl RsaPrivateSigningKey {
         self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA512, hash.as_ref())
     }
 
+    pub fn sign_pss_sha256<'a>(
+        &self,
+        signature: &'a mut [u8],
+        message: &[u8],
+    ) -> Result<&'a [u8], Error> {
+        self._sign_pss::<hash::Sha256>(signature, message)
+    }
+
+    pub fn sign_pss_sha384<'a>(
+        &self,
+        signature: &'a mut [u8],
+        message: &[u8],
+    ) -> Result<&'a [u8], Error> {
+        self._sign_pss::<hash::Sha384>(signature, message)
+    }
+
+    pub fn sign_pss_sha512<'a>(
+        &self,
+        signature: &'a mut [u8],
+        message: &[u8],
+    ) -> Result<&'a [u8], Error> {
+        self._sign_pss::<hash::Sha512>(signature, message)
+    }
+
     fn _sign_pkcs1<'a>(
         &self,
         signature: &'a mut [u8],
@@ -149,99 +201,93 @@ impl RsaPrivateSigningKey {
         let c = self.0.private_op(&m).map_err(|_| Error::BadSignature)?;
         c.to_bytes(signature)
     }
+
+    fn _sign_pss<'a, H: Hash>(
+        &self,
+        signature: &'a mut [u8],
+        message: &[u8],
+    ) -> Result<&'a [u8], Error> {
+        if signature.len() < self.0.modulus_len_bytes() {
+            return Err(Error::OutOfRange);
+        }
+
+        let hash = H::hash(message);
+
+        let mut m = [0u8; rsa_pub::MAX_PUBLIC_MODULUS_BYTES];
+        let m = &mut m[..self.0.modulus_len_bytes()];
+
+        pkcs1::encode_pss_sig::<H>(m, &mut SystemRandom, hash.as_ref())?;
+        let m = PosInt::from_bytes(m)?;
+        let c = self.0.private_op(&m).map_err(|_| Error::BadSignature)?;
+        c.to_bytes(signature)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    fn check_all_algs(
+        buf: &mut [u8],
+        private: &RsaPrivateSigningKey,
+        public: &RsaPublicVerificationKey,
+    ) {
+        let sig = private.sign_pkcs1_sha256(buf, b"hello").unwrap();
+        public.verify_pkcs1_sha256(sig, b"hello").unwrap();
+
+        let sig = private.sign_pkcs1_sha384(buf, b"hello").unwrap();
+        public.verify_pkcs1_sha384(sig, b"hello").unwrap();
+
+        let sig = private.sign_pkcs1_sha512(buf, b"hello").unwrap();
+        public.verify_pkcs1_sha512(sig, b"hello").unwrap();
+
+        let sig = private.sign_pss_sha256(buf, b"hello").unwrap();
+        public.verify_pss_sha256(sig, b"hello").unwrap();
+
+        let sig = private.sign_pss_sha384(buf, b"hello").unwrap();
+        public.verify_pss_sha384(sig, b"hello").unwrap();
+
+        let sig = private.sign_pss_sha512(buf, b"hello").unwrap();
+        public.verify_pss_sha512(sig, b"hello").unwrap();
+    }
+
     #[test]
     fn pairwise_rsa2048_sign_verify() {
-        let mut buf = [0u8; 256];
         let private_key =
             RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa2048.der")).unwrap();
 
-        let pub_key = private_key.public_key();
-
-        let sig = private_key.sign_pkcs1_sha256(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha256(sig, b"hello").unwrap();
-
-        let sig = private_key.sign_pkcs1_sha384(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha384(sig, b"hello").unwrap();
-
-        let sig = private_key.sign_pkcs1_sha512(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha512(sig, b"hello").unwrap();
+        check_all_algs(&mut [0u8; 256], &private_key, &private_key.public_key());
     }
 
     #[test]
     fn pairwise_rsa3072_sign_verify() {
-        let mut buf = [0u8; 384];
         let private_key =
             RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa3072.der")).unwrap();
 
-        let pub_key = private_key.public_key();
-
-        let sig = private_key.sign_pkcs1_sha256(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha256(sig, b"hello").unwrap();
-
-        let sig = private_key.sign_pkcs1_sha384(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha384(sig, b"hello").unwrap();
-
-        let sig = private_key.sign_pkcs1_sha512(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha512(sig, b"hello").unwrap();
+        check_all_algs(&mut [0u8; 384], &private_key, &private_key.public_key());
     }
 
     #[test]
     fn pairwise_rsa4096_sign_verify() {
-        let mut buf = [0u8; 512];
         let private_key =
             RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa4096.der")).unwrap();
 
-        let pub_key = private_key.public_key();
-
-        let sig = private_key.sign_pkcs1_sha256(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha256(sig, b"hello").unwrap();
-
-        let sig = private_key.sign_pkcs1_sha384(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha384(sig, b"hello").unwrap();
-
-        let sig = private_key.sign_pkcs1_sha512(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha512(sig, b"hello").unwrap();
+        check_all_algs(&mut [0u8; 512], &private_key, &private_key.public_key());
     }
 
     #[test]
     fn pairwise_rsa6144_sign_verify() {
-        let mut buf = [0u8; 768];
         let private_key =
             RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa6144.der")).unwrap();
 
-        let pub_key = private_key.public_key();
-
-        let sig = private_key.sign_pkcs1_sha256(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha256(sig, b"hello").unwrap();
-
-        let sig = private_key.sign_pkcs1_sha384(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha384(sig, b"hello").unwrap();
-
-        let sig = private_key.sign_pkcs1_sha512(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha512(sig, b"hello").unwrap();
+        check_all_algs(&mut [0u8; 768], &private_key, &private_key.public_key());
     }
 
     #[test]
     fn pairwise_rsa8192_sign_verify() {
-        let mut buf = [0u8; 1024];
         let private_key =
             RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa8192.der")).unwrap();
 
-        let pub_key = private_key.public_key();
-
-        let sig = private_key.sign_pkcs1_sha256(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha256(sig, b"hello").unwrap();
-
-        let sig = private_key.sign_pkcs1_sha384(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha384(sig, b"hello").unwrap();
-
-        let sig = private_key.sign_pkcs1_sha512(&mut buf, b"hello").unwrap();
-        pub_key.verify_pkcs1_sha512(sig, b"hello").unwrap();
+        check_all_algs(&mut [0u8; 1024], &private_key, &private_key.public_key());
     }
 }
