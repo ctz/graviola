@@ -1,0 +1,32 @@
+name: build
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Install NASM for aws-lc-rs on Windows
+      if: runner.os == 'Windows'
+      uses: ilammy/setup-nasm@v1
+
+    - name: Build (debug)
+      run: cargo build
+    - name: Run tests (debug)
+      run: cargo test
+    - name: Build (release)
+      run: cargo build --release
+    - name: Run tests (release)
+      run: cargo test --release

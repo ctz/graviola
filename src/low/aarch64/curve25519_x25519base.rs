@@ -577,8 +577,8 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         Q!("    ldr             " "x0, [" scalar!() "]"),
         Q!("    ands            " "xzr, x0, #8"),
 
-        Q!("    adrp            " "x10, {curve25519_x25519base_edwards25519_0g}"),
-        Q!("    adrp            " "x11, {curve25519_x25519base_edwards25519_8g}"),
+        Q!("    adrp            " "x10, {curve25519_x25519base_edwards25519_0g}@PAGE"),
+        Q!("    adrp            " "x11, {curve25519_x25519base_edwards25519_8g}@PAGE"),
         Q!("    ldp             " "x0, x1, [x10]"),
         Q!("    ldp             " "x2, x3, [x11]"),
         Q!("    csel            " "x0, x0, x2, eq"),
@@ -634,7 +634,7 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         // l >= 9 case cannot arise on the last iteration.
 
         Q!("    mov             " i!() ", 4"),
-        Q!("    adrp            " tab!() ", {curve25519_x25519base_edwards25519_gtable}"),
+        Q!("    adrp            " tab!() ", {curve25519_x25519base_edwards25519_gtable}@PAGE"),
         Q!("    mov             " bias!() ", xzr"),
 
         // Start of the main loop, repeated 63 times for i = 4, 8, ..., 252
