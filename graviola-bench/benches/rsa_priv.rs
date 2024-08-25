@@ -1,7 +1,7 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
 
 fn rsa2048_pkcs1_sha256_sign(c: &mut Criterion) {
-    let private_key = include_bytes!("../src/high/rsa/rsa2048.der");
+    let private_key = include_bytes!("../../graviola/src/high/rsa/rsa2048.der");
     let message =
         b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
 

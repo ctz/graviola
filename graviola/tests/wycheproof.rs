@@ -93,7 +93,7 @@ enum ExpectedResult {
 
 #[test]
 fn hmac_sha256_tests() {
-    let data_file = File::open("thirdparty/wycheproof/testvectors_v1/hmac_sha256_test.json")
+    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hmac_sha256_test.json")
         .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
@@ -118,7 +118,7 @@ fn hmac_sha256_tests() {
 
 #[test]
 fn hmac_sha384_tests() {
-    let data_file = File::open("thirdparty/wycheproof/testvectors_v1/hmac_sha384_test.json")
+    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hmac_sha384_test.json")
         .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
@@ -143,7 +143,7 @@ fn hmac_sha384_tests() {
 
 #[test]
 fn hmac_sha512_tests() {
-    let data_file = File::open("thirdparty/wycheproof/testvectors_v1/hmac_sha512_test.json")
+    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hmac_sha512_test.json")
         .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
@@ -168,9 +168,10 @@ fn hmac_sha512_tests() {
 
 #[test]
 fn test_verify_ecdsa_p256_sha256() {
-    let data_file =
-        File::open("thirdparty/wycheproof/testvectors_v1/ecdsa_secp256r1_sha256_p1363_test.json")
-            .expect("failed to open data file");
+    let data_file = File::open(
+        "../thirdparty/wycheproof/testvectors_v1/ecdsa_secp256r1_sha256_p1363_test.json",
+    )
+    .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
 
@@ -195,9 +196,10 @@ fn test_verify_ecdsa_p256_sha256() {
 
 #[test]
 fn test_verify_ecdsa_p256_sha512() {
-    let data_file =
-        File::open("thirdparty/wycheproof/testvectors_v1/ecdsa_secp256r1_sha512_p1363_test.json")
-            .expect("failed to open data file");
+    let data_file = File::open(
+        "../thirdparty/wycheproof/testvectors_v1/ecdsa_secp256r1_sha512_p1363_test.json",
+    )
+    .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
 
@@ -223,7 +225,7 @@ fn test_verify_ecdsa_p256_sha512() {
 #[test]
 fn test_ecdh_p256() {
     let data_file =
-        File::open("thirdparty/wycheproof/testvectors_v1/ecdh_secp256r1_ecpoint_test.json")
+        File::open("../thirdparty/wycheproof/testvectors_v1/ecdh_secp256r1_ecpoint_test.json")
             .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
@@ -258,7 +260,7 @@ fn test_ecdh_p256() {
 
 #[test]
 fn test_ecdh_x25519() {
-    let data_file = File::open("thirdparty/wycheproof/testvectors_v1/x25519_test.json")
+    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/x25519_test.json")
         .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
@@ -284,7 +286,7 @@ fn test_ecdh_x25519() {
 
 #[test]
 fn test_aesgcm() {
-    let data_file = File::open("thirdparty/wycheproof/testvectors_v1/aes_gcm_test.json")
+    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/aes_gcm_test.json")
         .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
@@ -351,7 +353,7 @@ fn test_rsa_pkcs1_verify() {
         "rsa_signature_8192_sha384_test.json",
         "rsa_signature_8192_sha512_test.json",
     ] {
-        let data_file = File::open(&format!("thirdparty/wycheproof/testvectors_v1/{file}"))
+        let data_file = File::open(&format!("../thirdparty/wycheproof/testvectors_v1/{file}"))
             .expect("failed to open data file");
         println!("file: {data_file:?}");
 
@@ -397,7 +399,7 @@ fn test_rsa_pss_verify() {
         "rsa_pss_4096_sha512_mgf1_64_test.json",
         "rsa_pss_misc_test.json",
     ] {
-        let data_file = File::open(&format!("thirdparty/wycheproof/testvectors_v1/{file}"))
+        let data_file = File::open(&format!("../thirdparty/wycheproof/testvectors_v1/{file}"))
             .expect("failed to open data file");
         println!("file: {data_file:?}");
 

@@ -23,10 +23,10 @@ jobs:
       uses: ilammy/setup-nasm@v1
 
     - name: Build (debug)
-      run: cargo build
+      run: cargo build -p graviola
     - name: Run tests (debug)
-      run: cargo test
+      run: cargo test -p graviola
     - name: Build (release)
-      run: cargo build --release
+      run: cargo build -p graviola --release
     - name: Run tests (release)
-      run: cargo test --release
+      run: cargo test -p graviola --release
