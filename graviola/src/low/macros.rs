@@ -37,3 +37,19 @@ macro_rules! Label {
 }
 
 pub(crate) use Label;
+
+/// Plasters over the difference between ELF and Mach-O relocation
+/// syntax, for page-aligned items.  (Only makes sense on aarch64).
+#[cfg(target_os = "macos")]
+macro_rules! PageRef {
+    ($sym:literal) => { Q!( "{" $sym "}@PAGE" ) }
+}
+
+#[allow(unused_macros)]
+#[cfg(not(target_os = "macos"))]
+macro_rules! PageRef {
+    ($sym:literal) => { Q!( "{" $sym "}" ) }
+}
+
+#[allow(unused_imports)]
+pub(crate) use PageRef;

@@ -1,5 +1,5 @@
 #![allow(non_upper_case_globals, unused_macros, unused_imports)]
-use crate::low::macros::{Label, Q};
+use crate::low::macros::*;
 
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
@@ -577,8 +577,8 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         Q!("    ldr             " "x0, [" scalar!() "]"),
         Q!("    ands            " "xzr, x0, #8"),
 
-        Q!("    adrp            " "x10, {curve25519_x25519base_edwards25519_0g}@PAGE"),
-        Q!("    adrp            " "x11, {curve25519_x25519base_edwards25519_8g}@PAGE"),
+        Q!("    adrp            " "x10, " PageRef!("curve25519_x25519base_edwards25519_0g")),
+        Q!("    adrp            " "x11, " PageRef!("curve25519_x25519base_edwards25519_8g")),
         Q!("    ldp             " "x0, x1, [x10]"),
         Q!("    ldp             " "x2, x3, [x11]"),
         Q!("    csel            " "x0, x0, x2, eq"),
@@ -634,7 +634,7 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         // l >= 9 case cannot arise on the last iteration.
 
         Q!("    mov             " i!() ", 4"),
-        Q!("    adrp            " tab!() ", {curve25519_x25519base_edwards25519_gtable}@PAGE"),
+        Q!("    adrp            " tab!() ", " PageRef!("curve25519_x25519base_edwards25519_gtable")),
         Q!("    mov             " bias!() ", xzr"),
 
         // Start of the main loop, repeated 63 times for i = 4, 8, ..., 252
@@ -2052,7 +2052,7 @@ pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
 // but with Z = 1 assumed and hence left out, so they are (X,Y,T) only.
 
 #[allow(dead_code)]
-#[repr(align(4096))]
+#[repr(align(16384))]
 struct PageAlignedu64Array12([u64; 12]);
 
 static curve25519_x25519base_edwards25519_0g: PageAlignedu64Array12 = PageAlignedu64Array12([
@@ -2088,7 +2088,7 @@ static curve25519_x25519base_edwards25519_8g: PageAlignedu64Array12 = PageAligne
 ]);
 
 #[allow(dead_code)]
-#[repr(align(4096))]
+#[repr(align(16384))]
 struct PageAlignedu64Array6048([u64; 6048]);
 
 static curve25519_x25519base_edwards25519_gtable: PageAlignedu64Array6048 =

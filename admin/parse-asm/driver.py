@@ -488,7 +488,7 @@ class RustFormatter(Dispatcher):
     unused_macros,
     unused_imports,
 )]
-use crate::low::macros::{Q, Label};
+use crate::low::macros::*;
 
 """,
             file=self.output,
@@ -560,7 +560,10 @@ use crate::low::macros::{Q, Label};
                     t = self.constant_sym_rename[t]
                     if self.function_state:
                         self.function_state.referenced_constant_syms.add(t)
-                    yield "{" + t + "}"
+                    if self.arch.constant_references_must_be_page_aligned:
+                        yield unquote('PageRef!("' + t + '")')
+                    else:
+                        yield "{" + t + "}"
                 elif (
                     self.function_state and t in self.function_state.labels
                 ) or self.looks_like_label(t):
@@ -795,7 +798,7 @@ use crate::low::macros::{Q, Label};
                     alignment = self.constant_sym_alignment[ca.name]
                     how = "B" + str(alignment)
                 else:
-                    alignment = 4096
+                    alignment = 16384
                     how = "Page"
 
                 rust_type = "%sAligned%sArray%d" % (how, rust_type, len(ca.items))
