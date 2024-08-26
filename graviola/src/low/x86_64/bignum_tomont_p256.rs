@@ -61,8 +61,8 @@ macro_rules! ushort {
 
 macro_rules! mulpadd {
     ($high:expr, $low:expr, $m:expr) => { Q!(
-        "mulx rcx, rax, " $m ";"
-        "adcx " $low ", rax;"
+        "mulx rcx, rax, " $m ";\n"
+        "adcx " $low ", rax;\n"
         "adox " $high ", rcx"
     )}
 }

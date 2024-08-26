@@ -309,6 +309,10 @@ def _tokens_to_single_glued_string_semicolon_lines(tokens, indent):
     collect = []
     for span in tokens_to_quoted_spans(tokens):
         if span.endswith(';"'):
+            collect.append(span.replace(";", ";\\n"))
+            lines.append((" " * indent) + " ".join(collect))
+            collect = []
+        elif span.endswith("*/"):
             collect.append(span)
             lines.append((" " * indent) + " ".join(collect))
             collect = []

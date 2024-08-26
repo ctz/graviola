@@ -73,9 +73,9 @@ macro_rules! d3 {
 
 macro_rules! movbig {
     ($nn:expr, $n3:expr, $n2:expr, $n1:expr, $n0:expr) => { Q!(
-        "movz " $nn ", " $n0 ";"
-        "movk " $nn ", " $n1 ", lsl #16;"
-        "movk " $nn ", " $n2 ", lsl #32;"
+        "movz " $nn ", " $n0 ";\n"
+        "movk " $nn ", " $n1 ", lsl #16;\n"
+        "movk " $nn ", " $n2 ", lsl #32;\n"
         "movk " $nn ", " $n3 ", lsl #48"
     )}
 }

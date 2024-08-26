@@ -27,13 +27,17 @@ use crate::low::macros::*;
 
 macro_rules! montreds {
     ($d4:expr, $d3:expr, $d2:expr, $d1:expr, $d0:expr, $t2:expr, $t1:expr, $t0:expr) => { Q!(
-        /* Let w = d0, the original word we use as offset; d0 gets recycled      */ /* First let [t2;t1] = 2^32 * w                                          */ /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)           */ "lsl " $t1 ", " $d0 ", #32;"
-        "subs " $t0 ", " $d0 ", " $t1 ";"
-        "lsr " $t2 ", " $d0 ", #32;"
-        "sbc " $d0 ", " $d0 ", " $t2 ";"
-        /* Hence [d4;..;d1] := [d3;d2;d1;0] + (2^256 - 2^224 + 2^192 + 2^96) * w */ "adds " $d1 ", " $d1 ", " $t1 ";"
-        "adcs " $d2 ", " $d2 ", " $t2 ";"
-        "adcs " $d3 ", " $d3 ", " $t0 ";"
+        /* Let w = d0, the original word we use as offset; d0 gets recycled      */
+        /* First let [t2;t1] = 2^32 * w                                          */
+        /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)           */
+        "lsl " $t1 ", " $d0 ", #32;\n"
+        "subs " $t0 ", " $d0 ", " $t1 ";\n"
+        "lsr " $t2 ", " $d0 ", #32;\n"
+        "sbc " $d0 ", " $d0 ", " $t2 ";\n"
+        /* Hence [d4;..;d1] := [d3;d2;d1;0] + (2^256 - 2^224 + 2^192 + 2^96) * w */
+        "adds " $d1 ", " $d1 ", " $t1 ";\n"
+        "adcs " $d2 ", " $d2 ", " $t2 ";\n"
+        "adcs " $d3 ", " $d3 ", " $t0 ";\n"
         "adc " $d4 ", " $d0 ", xzr"
     )}
 }

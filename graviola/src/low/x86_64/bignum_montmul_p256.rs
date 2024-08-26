@@ -44,8 +44,8 @@ macro_rules! y {
 
 macro_rules! mulpadd {
     ($high:expr, $low:expr, $m:expr) => { Q!(
-        "mulx rbx, rax, " $m ";"
-        "adcx " $low ", rax;"
+        "mulx rbx, rax, " $m ";\n"
+        "adcx " $low ", rax;\n"
         "adox " $high ", rbx"
     )}
 }
