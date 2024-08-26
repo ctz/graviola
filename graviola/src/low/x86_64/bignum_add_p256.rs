@@ -123,7 +123,7 @@ pub fn bignum_add_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         Q!("    mov             " "[" z!() "+ 24], " d3!()),
 
         inout("rdi") z.as_mut_ptr() => _,
-        in("rsi") x.as_ptr(),
+        inout("rsi") x.as_ptr() => _,
         inout("rdx") y.as_ptr() => _,
         // clobbers
         out("r10") _,

@@ -16,7 +16,7 @@ if __name__ == "__main__":
             "bignum_montsqr_p256",
             parameter_map=[
                 ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("in", "rsi", "x.as_ptr()"),
+                ("inout", "rsi", "x.as_ptr() => _"),
             ],
             rust_decl="pub fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4])",
         )
@@ -32,7 +32,7 @@ if __name__ == "__main__":
             "bignum_montmul_p256",
             parameter_map=[
                 ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("in", "rsi", "x.as_ptr()"),
+                ("inout", "rsi", "x.as_ptr() => _"),
                 ("inout", "rdx", "y.as_ptr() => _"),
             ],
             rust_decl="pub fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4])",
@@ -47,7 +47,7 @@ if __name__ == "__main__":
             "bignum_add_p256",
             parameter_map=[
                 ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("in", "rsi", "x.as_ptr()"),
+                ("inout", "rsi", "x.as_ptr() => _"),
                 ("inout", "rdx", "y.as_ptr() => _"),
             ],
             rust_decl="pub fn bignum_add_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4])",
@@ -80,7 +80,7 @@ if __name__ == "__main__":
             "bignum_tomont_p256",
             parameter_map=[
                 ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("in", "rsi", "x.as_ptr()"),
+                ("inout", "rsi", "x.as_ptr() => _"),
             ],
             rust_decl="pub fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4])",
         )
@@ -94,7 +94,7 @@ if __name__ == "__main__":
             "bignum_neg_p256",
             parameter_map=[
                 ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("in", "rsi", "x.as_ptr()"),
+                ("inout", "rsi", "x.as_ptr() => _"),
             ],
             rust_decl="pub fn bignum_neg_p256(z: &mut [u64; 4], x: &[u64; 4])",
         )
@@ -353,7 +353,7 @@ if __name__ == "__main__":
             "bignum_add_p256",
             parameter_map=[
                 ("inout", "x0", "z.as_mut_ptr() => _"),
-                ("in", "x1", "x.as_ptr()"),
+                ("inout", "x1", "x.as_ptr() => _"),
                 ("inout", "x2", "y.as_ptr() => _"),
             ],
             rust_decl="pub fn bignum_add_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4])",
@@ -370,7 +370,7 @@ if __name__ == "__main__":
             "bignum_demont_p256",
             parameter_map=[
                 ("inout", "x0", "z.as_mut_ptr() => _"),
-                ("in", "x1", "x.as_ptr()"),
+                ("inout", "x1", "x.as_ptr() => _"),
             ],
             rust_decl="pub fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4])",
         )

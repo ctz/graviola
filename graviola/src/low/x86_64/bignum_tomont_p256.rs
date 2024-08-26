@@ -204,7 +204,7 @@ pub fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         Q!("    pop             " "r12"),
 
         inout("rdi") z.as_mut_ptr() => _,
-        in("rsi") x.as_ptr(),
+        inout("rsi") x.as_ptr() => _,
         // clobbers
         out("r10") _,
         out("r11") _,
