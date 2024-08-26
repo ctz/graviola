@@ -1,5 +1,5 @@
 #![allow(non_upper_case_globals, unused_macros, unused_imports)]
-use crate::low::macros::{Label, Q};
+use crate::low::macros::*;
 
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
@@ -50,20 +50,22 @@ macro_rules! z_3 { () => { Q!("rdi + (2 * " NUMSIZE!() ")") } }
 // NSPACE is the total stack needed for these temporaries
 
 macro_rules! z2 { () => { Q!("rsp + (" NUMSIZE!() "* 0)") } }
+macro_rules! y4 { () => { Q!("rsp + (" NUMSIZE!() "* 0)") } }
+
 macro_rules! y2 { () => { Q!("rsp + (" NUMSIZE!() "* 1)") } }
-macro_rules! x2p { () => { Q!("rsp + (" NUMSIZE!() "* 2)") } }
-macro_rules! xy2 { () => { Q!("rsp + (" NUMSIZE!() "* 3)") } }
 
-macro_rules! y4 { () => { Q!("rsp + (" NUMSIZE!() "* 4)") } }
-macro_rules! t2 { () => { Q!("rsp + (" NUMSIZE!() "* 4)") } }
+macro_rules! t1 { () => { Q!("rsp + (" NUMSIZE!() "* 2)") } }
 
-macro_rules! dx2 { () => { Q!("rsp + (" NUMSIZE!() "* 5)") } }
-macro_rules! t1 { () => { Q!("rsp + (" NUMSIZE!() "* 5)") } }
+macro_rules! t2 { () => { Q!("rsp + (" NUMSIZE!() "* 3)") } }
+macro_rules! x2p { () => { Q!("rsp + (" NUMSIZE!() "* 3)") } }
+macro_rules! dx2 { () => { Q!("rsp + (" NUMSIZE!() "* 3)") } }
 
-macro_rules! d { () => { Q!("rsp + (" NUMSIZE!() "* 6)") } }
-macro_rules! x4p { () => { Q!("rsp + (" NUMSIZE!() "* 6)") } }
+macro_rules! xy2 { () => { Q!("rsp + (" NUMSIZE!() "* 4)") } }
 
-macro_rules! NSPACE { () => { Q!("(" NUMSIZE!() "* 7)") } }
+macro_rules! x4p { () => { Q!("rsp + (" NUMSIZE!() "* 5)") } }
+macro_rules! d { () => { Q!("rsp + (" NUMSIZE!() "* 5)") } }
+
+macro_rules! NSPACE { () => { Q!("(" NUMSIZE!() "* 6)") } }
 
 // Corresponds exactly to bignum_montmul_p256
 
@@ -584,39 +586,39 @@ pub fn p256_montjdouble(p3: &mut [u64; 12], p1: &[u64; 12]) {
 
         // x2p = x^2 - z^4 = (x + z^2) * (x - z^2)
 
-        weakadd_p256!(t1!(), x_1!(), z2!()),
         sub_p256!(t2!(), x_1!(), z2!()),
+        weakadd_p256!(t1!(), x_1!(), z2!()),
         montmul_p256!(x2p!(), t1!(), t2!()),
 
         // t1 = y + z
-        // x4p = x2p^2
         // xy2 = x * y^2
+        // x4p = x2p^2
 
         add_p256!(t1!(), y_1!(), z_1!()),
-        montsqr_p256!(x4p!(), x2p!()),
         montmul_p256!(xy2!(), x_1!(), y2!()),
+        montsqr_p256!(x4p!(), x2p!()),
 
-        // t2 = (y + z)^2
+        // t1 = (y + z)^2
 
-        montsqr_p256!(t2!(), t1!()),
+        montsqr_p256!(t1!(), t1!()),
 
         // d = 12 * xy2 - 9 * x4p
         // t1 = y^2 + 2 * y * z
 
         cmsub_p256!(d!(), "12", xy2!(), "9", x4p!()),
-        sub_p256!(t1!(), t2!(), z2!()),
+        sub_p256!(t1!(), t1!(), z2!()),
 
         // y4 = y^4
 
         montsqr_p256!(y4!(), y2!()),
 
-        // Restore the output pointer to write to x_3, y_3 and z_3.
-
-        // z_3' = 2 * y * z
         // dx2 = d * x2p
 
-        sub_p256!(z_3!(), t1!(), y2!()),
         montmul_p256!(dx2!(), d!(), x2p!()),
+
+        // z_3' = 2 * y * z
+
+        sub_p256!(z_3!(), t1!(), y2!()),
 
         // x' = 4 * xy2 - d
 

@@ -1,5 +1,5 @@
 #![allow(non_upper_case_globals, unused_macros, unused_imports)]
-use crate::low::macros::{Label, Q};
+use crate::low::macros::*;
 
 // Copyright Amazon.com, Inc. or its affiliates. All Rights Reserved.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
@@ -812,17 +812,6 @@ macro_rules! divstep59 {
         "msub " m01!() ", x13, x17, x3;"
         "msub " m10!() ", x15, x16, x4;"
         "msub " m11!() ", x15, x17, x5"
-    )}
-}
-
-// Loading large constants
-
-macro_rules! movbig {
-    ($nn:expr, $n3:expr, $n2:expr, $n1:expr, $n0:expr) => { Q!(
-        "movz " $nn ", " $n0 ";"
-        "movk " $nn ", " $n1 ", lsl #16;"
-        "movk " $nn ", " $n2 ", lsl #32;"
-        "movk " $nn ", " $n3 ", lsl #48"
     )}
 }
 
