@@ -48,6 +48,8 @@ macro_rules! a {
 }
 
 pub fn bignum_mux(p: u64, z: &mut [u64], x_if_p: &[u64], y_if_not_p: &[u64]) {
+    debug_assert!(z.len() == x_if_p.len());
+    debug_assert!(z.len() == y_if_not_p.len());
     unsafe {
         core::arch::asm!(
 

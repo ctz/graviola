@@ -13,6 +13,7 @@ pub(crate) struct PosInt<const N: usize> {
 }
 
 impl<const N: usize> PosInt<N> {
+    /// Makes a minimum-width zero.
     pub(crate) fn zero() -> Self {
         Self {
             words: [0; N],
@@ -20,11 +21,28 @@ impl<const N: usize> PosInt<N> {
         }
     }
 
-    pub(crate) fn one() -> Self {
+    /// Makes a minimum-width one.
+    fn one() -> Self {
         let mut r = Self::zero();
         r.words[0] = 1;
         r.used = 1;
         r
+    }
+
+    /// Makes a one, but at the width of `self`.
+    pub(crate) fn fixed_one(&self) -> Self {
+        let mut one = Self::one();
+        one.expand(self);
+        one
+    }
+
+    /// Widen `self` to `other`.
+    pub(crate) fn expand(&mut self, other: &Self) {
+        // nb, self and other are both of type `Self`, so they have
+        // the same size backing store, and `self` has zero words above
+        // its used words. inductively that means this is safe.
+        // compare this with `widen()`.
+        self.used = other.used;
     }
 
     /// Replaces top word with `word` and increases `used`.
@@ -323,7 +341,7 @@ impl<const N: usize> PosInt<N> {
     /// `n_montifier` is `n.montifier()`.
     /// `n_0` is `n.mont_neg_inverse()`.
     pub(crate) fn mont_exp(&self, e: &Self, n: &Self, n_montifier: &Self, n_0: u64) -> Self {
-        let mut accum = Self::one().mont_mul(n_montifier, n, n_0);
+        let mut accum = n.fixed_one().mont_mul(n_montifier, n, n_0);
 
         // our window size is 4 bits, so precompute a table of 2**4 multiples of self
         //
@@ -410,7 +428,7 @@ impl<const N: usize> PosInt<N> {
 
             if wcount == 4 {
                 low::bignum_copy_row_from_table(
-                    &mut term.words,
+                    term.as_mut_words(),
                     table.as_slice(),
                     16,
                     n.used as u64,

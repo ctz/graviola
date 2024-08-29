@@ -103,6 +103,8 @@ macro_rules! q {
 }
 
 pub fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
+    debug_assert!(z.len() == m.len());
+    debug_assert!(z.len() <= t.len());
     unsafe {
         core::arch::asm!(
 

@@ -62,6 +62,8 @@ pub fn bignum_copy_row_from_table(
     width: u64,
     index: u64,
 ) {
+    debug_assert!(z.len() as u64 == width);
+    debug_assert!(index < height);
     unsafe {
         core::arch::asm!(
 

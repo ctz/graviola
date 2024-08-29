@@ -54,7 +54,7 @@ impl RsaPublicVerificationKey {
         hash: &[u8],
     ) -> Result<(), Error> {
         let c = PosInt::from_bytes(signature).map_err(|_| Error::BadSignature)?;
-        let m = self.0.public_op(&c).map_err(|_| Error::BadSignature)?;
+        let m = self.0.public_op(c).map_err(|_| Error::BadSignature)?;
 
         let mut m_bytes = [0u8; rsa_pub::MAX_PUBLIC_MODULUS_BYTES];
         let m_bytes = m.to_bytes(&mut m_bytes)?;
@@ -88,7 +88,7 @@ impl RsaPublicVerificationKey {
             return Err(Error::BadSignature);
         }
         let c = PosInt::from_bytes(signature).map_err(|_| Error::BadSignature)?;
-        let m = self.0.public_op(&c).map_err(|_| Error::BadSignature)?;
+        let m = self.0.public_op(c).map_err(|_| Error::BadSignature)?;
 
         let mut m_bytes = [0u8; rsa_pub::MAX_PUBLIC_MODULUS_BYTES];
         let m_bytes_len = m.to_bytes(&mut m_bytes)?.len();

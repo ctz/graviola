@@ -101,7 +101,7 @@ impl RsaPrivateKey {
         // validate the result as a fault attack countermeasure,
         // at the same time it validates our working above, and
         // the key halves against each other
-        let c2 = self.public.public_op(&m)?;
+        let c2 = self.public.public_op(m.clone())?;
         if c2.equals(c) {
             Ok(m)
         } else {

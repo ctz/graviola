@@ -112,6 +112,8 @@ macro_rules! jshort {
 }
 
 pub fn bignum_demont(z: &mut [u64], x: &[u64], m: &[u64]) {
+    debug_assert!(z.len() == x.len());
+    debug_assert!(z.len() == m.len());
     unsafe {
         core::arch::asm!(
 
