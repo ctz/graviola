@@ -118,6 +118,12 @@ class Architecture_aarch64(Architecture):
             if reg == "p" + n:
                 return reg
 
+        if "." in reg:
+            parts = reg.split(".")
+            lu = Architecture_aarch64.lookup_register(parts[0])
+            if lu:
+                return lu
+
 
 class Dispatcher:
     def __call__(self, ty, *args):
