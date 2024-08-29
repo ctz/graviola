@@ -125,10 +125,6 @@ pub fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.as_ptr() => _,
         // clobbers
-        out("v0") _,
-        out("v1") _,
-        out("v2") _,
-        out("v3") _,
         out("v4") _,
         out("x2") _,
         out("x3") _,

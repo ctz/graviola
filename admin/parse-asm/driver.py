@@ -737,6 +737,8 @@ use crate::low::macros::*;
     def visit_operands(self, operands):
         for t in tokenise(operands):
             t = t.lstrip("%")
+            if t in self.rust_macros:
+                continue
             actual_reg = self.arch.lookup_register(t)
             if actual_reg and self.function_state:
                 self.function_state.clobbers.add(actual_reg)

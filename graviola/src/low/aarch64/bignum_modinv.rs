@@ -743,8 +743,6 @@ pub fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) {
         inout("x3") b.as_ptr() => _,
         inout("x4") t.as_mut_ptr() => _,
         // clobbers
-        out("v1") _,
-        out("v2") _,
         out("x10") _,
         out("x11") _,
         out("x12") _,

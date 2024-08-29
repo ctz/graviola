@@ -1365,8 +1365,6 @@ pub fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // clobbers
         out("v0") _,
         out("v1") _,
-        out("v10") _,
-        out("v11") _,
         out("v2") _,
         out("v3") _,
         out("v4") _,

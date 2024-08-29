@@ -398,10 +398,6 @@ pub fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         inout("x1") x.as_ptr() => _,
         // clobbers
         out("v0") _,
-        out("v1") _,
-        out("v2") _,
-        out("v3") _,
-        out("v4") _,
         out("v5") _,
         out("x10") _,
         out("x11") _,

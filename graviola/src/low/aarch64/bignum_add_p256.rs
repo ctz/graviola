@@ -118,10 +118,6 @@ pub fn bignum_add_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
         inout("x1") x.as_ptr() => _,
         inout("x2") y.as_ptr() => _,
         // clobbers
-        out("v0") _,
-        out("v1") _,
-        out("v2") _,
-        out("v3") _,
         out("x10") _,
         out("x11") _,
         out("x3") _,
