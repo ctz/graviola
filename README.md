@@ -56,11 +56,9 @@ We are grateful to:
     - P256, P384, P521 field arithmetic and group operations
     - x25519
     - Big integer arithmetic
-- [cryptogams]: assembler routines for SHA2
 - [wycheproof]: collated test vectors for all algorithms.
 
 [s2n-bignum]: https://github.com/awslabs/s2n-bignum
-[cryptogams]: https://github.com/dot-asm/cryptogams
 [wycheproof]: https://github.com/C2SP/wycheproof
 [SLOTHY]: https://github.com/slothy-optimizer/slothy
 
@@ -115,7 +113,6 @@ or intrinsic-based implementations for a certain platform.
 Graviola incorporates and redistributes code from:
 
 - [s2n-bignum]: Apache-2.0 OR ISC or MIT-0
-- [cryptogams]: BSD-3-Clause OR GPL-2.0-only
 
 New code written for Graviola is licensed under
 Apache-2.0 OR ISC OR MIT-0.
