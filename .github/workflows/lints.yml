@@ -1,0 +1,47 @@
+name: quality lints
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 18 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: install codegen deps
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cpp-aarch64-linux-gnu binutils-aarch64-linux-gnu
+
+    - name: Install stable toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+
+    - name: clippy
+      run: cargo clippy --all-features -- --deny warnings
+
+    - name: rustfmt
+      run: cargo fmt --check
+
+    - name: check codegen
+      working-directory: admin/parse-asm
+      run: |
+        ./all.sh
+        git diff --exit-code
+
+    - name: check license headers
+      run: ./admin/scan-license

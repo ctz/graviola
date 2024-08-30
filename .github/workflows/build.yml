@@ -3,6 +3,8 @@ name: build
 on:
   push:
   pull_request:
+  schedule:
+    - cron: '0 18 * * *'
 
 env:
   CARGO_TERM_COLOR: always
@@ -18,6 +20,11 @@ jobs:
       with:
         submodules: true
 
+    - name: Install stable toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+
     - name: Install NASM for aws-lc-rs on Windows
       if: runner.os == 'Windows'
       uses: ilammy/setup-nasm@v1
@@ -26,6 +33,7 @@ jobs:
       run: cargo build -p graviola
     - name: Run tests (debug)
       run: cargo test -p graviola
+
     - name: Build (release)
       run: cargo build -p graviola --release
     - name: Run tests (release)
