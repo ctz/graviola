@@ -1,0 +1,69 @@
+<html>
+<head>
+<title>Graviola Benchmarking Results</title>
+</head>
+<body>
+<h1>Graviola Benchmarking Results</h1>
+
+<p>At the moment benchmarking is non-automated, and is run on two of my laptops.  See <a href="#reports">below</a>.
+
+<h2>Headlines</h2>
+
+These categories are chosen as being typically used for TLS traffic on the web.
+
+<!-- begin headlines -->
+<h2>x86_64</h2>
+<h3>AES256-GCM encryption (16KB wide)</h3><table width='80%'><tr>
+<th align='left'>aws-lc-rs</th>
+<th align='left'>graviola</th>
+<th align='left'>ring</th>
+<th align='left'>rustcrypto</th>
+</tr><tr>
+<td><big>10.6 GiB/sec</big></td>
+<td><big>3.35 GiB/sec</big></td>
+<td><big>5.2 GiB/sec</big></td>
+<td><big>1.78 GiB/sec</big></td>
+</tr></table>
+<h3>RSA2048 signature verification</h3><table width='80%'><tr>
+<th align='left'>aws-lc-rs</th>
+<th align='left'>graviola</th>
+<th align='left'>ring</th>
+<th align='left'>rustcrypto</th>
+</tr><tr>
+<td><big>76,401 sigs/sec</big></td>
+<td><big>82,028.8 sigs/sec</big></td>
+<td><big>63,589 sigs/sec</big></td>
+<td><big>7,339.84 sigs/sec</big></td>
+</tr></table>
+<h3>RSA2048 signing</h3><table width='80%'><tr>
+<th align='left'>aws-lc-rs</th>
+<th align='left'>graviola</th>
+<th align='left'>ring</th>
+<th align='left'>rustcrypto</th>
+</tr><tr>
+<td><big>2,297.85 sigs/sec</big></td>
+<td><big>2,026.79 sigs/sec</big></td>
+<td><big>2,359.52 sigs/sec</big></td>
+<td><big>857.161 sigs/sec</big></td>
+</tr></table>
+<h3>X25519 key agreement</h3><table width='80%'><tr>
+<th align='left'>aws-lc-rs</th>
+<th align='left'>dalek</th>
+<th align='left'>graviola</th>
+<th align='left'>ring</th>
+</tr><tr>
+<td><big>42,610.5 kx/sec</big></td>
+<td><big>19,948.8 kx/sec</big></td>
+<td><big>42,061.3 kx/sec</big></td>
+<td><big>19,457.1 kx/sec</big></td>
+</tr></table>
+<!-- end headlines -->
+
+<h2 name="reports">Full reports</h2>
+<ul>
+<li> <a href="reports/x86_64/report/index.html">Framework 16 with AMD Ryzen 9 7940HS CPU</a>
+<li> <a href="reports/aarch64/report/index.html">Macbook Pro M2 (2022)</a>
+</ul>
+
+</body>
+</html>
