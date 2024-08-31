@@ -213,6 +213,25 @@ mod tests {
     }
 
     #[test]
+    fn sha512_long() {
+        let mut data = Vec::with_capacity(1024);
+        for i in 0..1024 {
+            data.push(i as u8);
+        }
+        let mut ctx = Sha512Context::new();
+        ctx.update(&data);
+        assert_eq!(
+            &ctx.finish(),
+            &[
+                55, 246, 82, 190, 134, 127, 40, 237, 3, 50, 105, 203, 186, 32, 26, 242, 17, 44, 43,
+                63, 211, 52, 168, 159, 210, 247, 87, 147, 141, 222, 232, 21, 120, 124, 198, 29,
+                110, 36, 168, 163, 51, 64, 208, 247, 232, 111, 252, 5, 136, 22, 184, 133, 48, 118,
+                107, 166, 226, 49, 98, 10, 19, 11, 86, 108
+            ]
+        );
+    }
+
+    #[test]
     fn sha256_all_lengths() {
         // see cifra `vector_length` and associated
         let mut outer = Sha256Context::new();
