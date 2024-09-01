@@ -12,6 +12,51 @@
 These categories are chosen as being typically used for TLS traffic on the web.
 
 <!-- begin headlines -->
+<h2>aarch64</h2>
+<h3>AES256-GCM encryption (16KB wide)</h3><table width='80%'><tr>
+<th align='left'>aws-lc-rs</th>
+<th align='left'>graviola</th>
+<th align='left'>ring</th>
+<th align='left'>rustcrypto</th>
+</tr><tr>
+<td><big>5.64 GiB/sec</big></td>
+<td><big>1.72 GiB/sec</big></td>
+<td><big>5.63 GiB/sec</big></td>
+<td><big>0.134 GiB/sec</big></td>
+</tr></table>
+<h3>RSA2048 signature verification</h3><table width='80%'><tr>
+<th align='left'>aws-lc-rs</th>
+<th align='left'>graviola</th>
+<th align='left'>ring</th>
+<th align='left'>rustcrypto</th>
+</tr><tr>
+<td><big>43,872.2 sigs/sec</big></td>
+<td><big>49,206.3 sigs/sec</big></td>
+<td><big>57,590.6 sigs/sec</big></td>
+<td><big>7,891.33 sigs/sec</big></td>
+</tr></table>
+<h3>RSA2048 signing</h3><table width='80%'><tr>
+<th align='left'>aws-lc-rs</th>
+<th align='left'>graviola</th>
+<th align='left'>ring</th>
+<th align='left'>rustcrypto</th>
+</tr><tr>
+<td><big>1,276.23 sigs/sec</big></td>
+<td><big>1,279.58 sigs/sec</big></td>
+<td><big>2,054.32 sigs/sec</big></td>
+<td><big>971.199 sigs/sec</big></td>
+</tr></table>
+<h3>X25519 key agreement</h3><table width='80%'><tr>
+<th align='left'>aws-lc-rs</th>
+<th align='left'>dalek</th>
+<th align='left'>graviola</th>
+<th align='left'>ring</th>
+</tr><tr>
+<td><big>34,302.5 kx/sec</big></td>
+<td><big>23,958.2 kx/sec</big></td>
+<td><big>34,564.2 kx/sec</big></td>
+<td><big>25,674.6 kx/sec</big></td>
+</tr></table>
 <h2>x86_64</h2>
 <h3>AES256-GCM encryption (16KB wide)</h3><table width='80%'><tr>
 <th align='left'>aws-lc-rs</th>

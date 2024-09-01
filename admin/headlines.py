@@ -4,7 +4,7 @@ from os import path
 import json
 from io import StringIO
 
-archs = "x86_64".split()
+archs = "aarch64 x86_64".split()
 impls = "aws-lc-rs dalek ring graviola rustcrypto".split()
 which = {
     ("rsa2048-pkcs1-sha256-verify",): {
@@ -69,7 +69,7 @@ for arch, descs in sorted(tree.items()):
         print("</tr><tr>", file=fragment)
 
         for impl in sorted(impls.keys()):
-            print("<td class='measure impl-{}'><big>{}</big></td>".format(impls[impl]), file=fragment)
+            print("<td><big>{}</big></td>".format(impls[impl]), file=fragment)
         print("</tr></table>", file=fragment)
 
 
