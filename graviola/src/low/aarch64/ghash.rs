@@ -121,9 +121,7 @@ unsafe fn _mul(a8: uint8x16_t, b8: uint8x16_t) -> uint8x16_t {
         let t1 = vextq_u8(z, t0, 8);
         let r0 = veorq_u8(r0, t1);
         let t0 = vmull_p64_fix(r1, p);
-        let c8 = veorq_u8(r0, t0);
-
-        c8
+        veorq_u8(r0, t0)
     }
 }
 
