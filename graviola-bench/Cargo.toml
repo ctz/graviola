@@ -9,6 +9,7 @@ graviola = { path = "../graviola" }
 [dev-dependencies]
 aes-gcm = "0.10"
 aws-lc-rs = "1"
+chacha20poly1305 = "0.10"
 criterion = "0.5"
 hex = { version = "0.4", features = ["serde"] }
 p256 = { version = "0.13.2", features = ["ecdh"] }
@@ -49,4 +50,8 @@ harness = false
 
 [[bench]]
 name = "rsa_priv"
+harness = false
+
+[[bench]]
+name = "chacha20poly1305"
 harness = false
