@@ -1,18 +1,22 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
-// Originally from cifra
+// Originally from cifra, but later adopting the 32x32
+// multiplication layout from poly1305-donna.
 
 use super::blockwise::Blockwise;
 
 pub(crate) struct Poly1305 {
     /// Current accumulator
-    h: [u32; 17],
+    h: [u32; 5],
 
     /// Block multiplier
-    r: [u32; 17],
+    r: [u32; 5],
+
+    /// r[1..5] times 5
+    r5: [u32; 4],
 
     /// Final XOR offset
-    s: [u8; 16],
+    s: [u32; 4],
 
     /// Unprocessed input
     bw: Blockwise<16>,
@@ -20,30 +24,25 @@ pub(crate) struct Poly1305 {
 
 impl Poly1305 {
     pub(crate) fn new(key: &[u8; 32]) -> Self {
-        let h = [0; 17];
+        let h = [0; 5];
         let r = [
-            u32::from(key[0]),
-            u32::from(key[1]),
-            u32::from(key[2]),
-            u32::from(key[3] & 0x0f),
-            u32::from(key[4] & 0xfc),
-            u32::from(key[5]),
-            u32::from(key[6]),
-            u32::from(key[7] & 0x0f),
-            u32::from(key[8] & 0xfc),
-            u32::from(key[9]),
-            u32::from(key[10]),
-            u32::from(key[11] & 0x0f),
-            u32::from(key[12] & 0xfc),
-            u32::from(key[13]),
-            u32::from(key[14]),
-            u32::from(key[15] & 0x0f),
-            0,
+            read32(&key[0..4]) & 0x3ffffff,
+            (read32(&key[3..7]) >> 2) & 0x3ffff03,
+            (read32(&key[6..10]) >> 4) & 0x3ffc0ff,
+            (read32(&key[9..13]) >> 6) & 0x3f03fff,
+            (read32(&key[12..16]) >> 8) & 0x00fffff,
         ];
-        let s = key[16..32].try_into().unwrap();
+        let r5 = [r[1] * 5, r[2] * 5, r[3] * 5, r[4] * 5];
+        let s = [
+            read32(&key[16..20]),
+            read32(&key[20..24]),
+            read32(&key[24..28]),
+            read32(&key[28..32]),
+        ];
         Self {
             h,
             r,
+            r5,
             s,
             bw: Blockwise::new(),
         }
@@ -69,140 +68,186 @@ impl Poly1305 {
             self.process_last_block(block);
         }
 
-        let mut s32 = [0u32; 17];
-        for (out, ss) in s32.iter_mut().zip(self.s.iter()) {
-            *out = u32::from(*ss);
-        }
-
         full_reduce(&mut self.h);
-        add(&mut self.h, &s32);
+
+        // redistribute into 4 words
+        self.h[0] |= self.h[1] << 26;
+        self.h[1] = (self.h[1] >> 6) | (self.h[2] << 20);
+        self.h[2] = (self.h[2] >> 12) | (self.h[3] << 14);
+        self.h[3] = (self.h[3] >> 18) | (self.h[4] << 8);
+
+        // add s with carry
+        fn add32(a: u32, b: u32) -> u64 {
+            (a as u64) + (b as u64)
+        }
+        let f = add32(self.h[0], self.s[0]);
+        self.h[0] = f as u32;
+        let f = add32(self.h[1], self.s[1]) + (f >> 32);
+        self.h[1] = f as u32;
+        let f = add32(self.h[2], self.s[2]) + (f >> 32);
+        self.h[2] = f as u32;
+        let f = add32(self.h[3], self.s[3]) + (f >> 32);
+        self.h[3] = f as u32;
 
         let mut r = [0u8; 16];
-        for (out, hh) in r.iter_mut().zip(self.h.iter()) {
-            *out = *hh as u8;
-        }
+        r[0..4].copy_from_slice(&self.h[0].to_le_bytes());
+        r[4..8].copy_from_slice(&self.h[1].to_le_bytes());
+        r[8..12].copy_from_slice(&self.h[2].to_le_bytes());
+        r[12..16].copy_from_slice(&self.h[3].to_le_bytes());
 
         r
     }
 
     fn process_whole_block(&mut self, inp: &[u8; 16]) {
         let block = [
-            u32::from(inp[0]),
-            u32::from(inp[1]),
-            u32::from(inp[2]),
-            u32::from(inp[3]),
-            u32::from(inp[4]),
-            u32::from(inp[5]),
-            u32::from(inp[6]),
-            u32::from(inp[7]),
-            u32::from(inp[8]),
-            u32::from(inp[9]),
-            u32::from(inp[10]),
-            u32::from(inp[11]),
-            u32::from(inp[12]),
-            u32::from(inp[13]),
-            u32::from(inp[14]),
-            u32::from(inp[15]),
-            1,
+            read32(&inp[0..4]) & 0x3ff_ffff,
+            (read32(&inp[3..7]) >> 2) & 0x3ff_ffff,
+            (read32(&inp[6..10]) >> 4) & 0x3ff_ffff,
+            (read32(&inp[9..13]) >> 6) & 0x3ff_ffff,
+            (read32(&inp[12..16]) >> 8) | (1 << 24),
         ];
         self.process_block(&block);
     }
 
     fn process_last_block(&mut self, inp: &[u8]) {
-        let mut block = [0u32; 17];
-        for (out, ii) in block.iter_mut().zip(inp.iter()) {
-            *out = u32::from(*ii);
-        }
-        block[inp.len()] = 0x01;
+        let mut bytes = [0u8; 16];
+        bytes[..inp.len()].copy_from_slice(inp);
+        bytes[inp.len()] = 0x01;
+
+        let block = [
+            read32(&bytes[0..4]) & 0x3ff_ffff,
+            (read32(&bytes[3..7]) >> 2) & 0x3ff_ffff,
+            (read32(&bytes[6..10]) >> 4) & 0x3ff_ffff,
+            (read32(&bytes[9..13]) >> 6) & 0x3ff_ffff,
+            (read32(&bytes[12..16]) >> 8),
+        ];
         self.process_block(&block);
     }
 
-    fn process_block(&mut self, block: &[u32; 17]) {
+    fn process_block(&mut self, block: &[u32; 5]) {
         add(&mut self.h, block);
-        mul(&mut self.h, &self.r);
+        mul(&mut self.h, &self.r, &self.r5);
     }
 }
 
-fn add(h: &mut [u32; 17], x: &[u32; 17]) {
-    let mut carry = 0;
-    for (hh, xx) in h.iter_mut().zip(x.iter()) {
-        carry += *hh + *xx;
-        *hh = carry & 0xff;
-        carry >>= 8;
-    }
+fn read32(bytes: &[u8]) -> u32 {
+    u32::from_le_bytes(bytes.try_into().unwrap())
 }
 
-fn mul(x: &mut [u32; 17], y: &[u32; 17]) {
-    let mut r = [0u32; 17];
-
-    for i in 0..17 {
-        let mut accum = 0;
-        for j in 0..=i {
-            accum += x[j] * y[i - j];
-        }
-
-        // Add in carries.  These get shifted 130 bits
-        // to the right, with a combination of byte indexing
-        // and shifting (136 bits right, then 6 bits left).
-        //
-        // nb. 5 << 6 is made up of two parts:
-        //   5: reduction of 2 ** 130 leaves a multiple 5
-        //   shift 6 places left
-        //     17 * 8: byte indexing shift (136 bits)
-        //     130: desired shift
-
-        for j in i + 1..17 {
-            accum += (5 << 6) * x[j] * y[i + 17 - j];
-        }
-
-        r[i] = accum;
-    }
-
-    min_reduce(&mut r);
-    *x = r;
+fn add(h: &mut [u32; 5], x: &[u32; 5]) {
+    h[0] = h[0].wrapping_add(x[0]);
+    h[1] = h[1].wrapping_add(x[1]);
+    h[2] = h[2].wrapping_add(x[2]);
+    h[3] = h[3].wrapping_add(x[3]);
+    h[4] = h[4].wrapping_add(x[4]);
 }
 
-fn min_reduce(x: &mut [u32; 17]) {
-    // Minimal reduction/carry chain.
-
-    let mut carry = 0;
-    for xx in x[..16].iter_mut() {
-        carry += *xx;
-        *xx = carry & 0xff;
-        carry >>= 8;
+fn mul(h: &mut [u32; 5], r: &[u32; 5], s: &[u32; 4]) {
+    fn mul32(a: u32, b: u32) -> u64 {
+        u64::from(a) * u64::from(b)
     }
 
-    // 2 ** 130 - 5 = 0x3fffffffffffffffffffffffffffffffb
-    //                 ^
-    // So 2 bits of carry are put into top word.
-    // Remaining bits get multiplied by 5 and carried back
-    // into bottom */
-    carry += x[16];
-    x[16] = carry & 0x03;
-    carry = 5 * (carry >> 2);
+    let d0 = mul32(h[0], r[0])
+        + mul32(h[1], s[3])
+        + mul32(h[2], s[2])
+        + mul32(h[3], s[1])
+        + mul32(h[4], s[0]);
+    let d1 = mul32(h[0], r[1])
+        + mul32(h[1], r[0])
+        + mul32(h[2], s[3])
+        + mul32(h[3], s[2])
+        + mul32(h[4], s[1]);
+    let d2 = mul32(h[0], r[2])
+        + mul32(h[1], r[1])
+        + mul32(h[2], r[0])
+        + mul32(h[3], s[3])
+        + mul32(h[4], s[2]);
+    let d3 = mul32(h[0], r[3])
+        + mul32(h[1], r[2])
+        + mul32(h[2], r[1])
+        + mul32(h[3], r[0])
+        + mul32(h[4], s[3]);
+    let d4 = mul32(h[0], r[4])
+        + mul32(h[1], r[3])
+        + mul32(h[2], r[2])
+        + mul32(h[3], r[1])
+        + mul32(h[4], r[0]);
 
-    for xx in x[..16].iter_mut() {
-        carry += *xx;
-        *xx = carry & 0xff;
-        carry >>= 8;
-    }
-
-    x[16] += carry;
+    // partial reduction
+    let carry = d0 >> 26;
+    h[0] = (d0 & 0x3ff_ffff) as u32;
+    let d1 = d1 + carry;
+    let carry = d1 >> 26;
+    h[1] = (d1 & 0x3ff_ffff) as u32;
+    let d2 = d2 + carry;
+    let carry = d2 >> 26;
+    h[2] = (d2 & 0x3ff_ffff) as u32;
+    let d3 = d3 + carry;
+    let carry = d3 >> 26;
+    h[3] = (d3 & 0x3ff_ffff) as u32;
+    let d4 = d4 + carry;
+    let carry = (d4 >> 26) as u32;
+    h[4] = (d4 & 0x3ff_ffff) as u32;
+    h[0] += carry * 5;
+    let carry = h[0] >> 26;
+    h[0] &= 0x3ff_ffff;
+    h[1] += carry;
 }
 
-fn full_reduce(x: &mut [u32; 17]) {
-    let mut xsub = *x;
-    add(&mut xsub, &NEGATIVE_1305);
+fn full_reduce(h: &mut [u32; 5]) {
+    min_reduce(h);
+    maybe_sub_130_5(h);
+}
 
-    // If x - (2 ** 130 - 5) is negative, then
-    // x didn't need reduction: we discard the results.
-    // Do this without branching.
-    let negative_mask = equal_mask(xsub[16] & 0x80, 0x80);
-    let positive_mask = negative_mask ^ 0xffffffff;
+fn min_reduce(h: &mut [u32; 5]) {
+    let carry = h[1] >> 26;
+    h[1] &= 0x3ffffff;
+    h[2] = h[2].wrapping_add(carry);
 
-    for (xx, xs) in x.iter_mut().zip(xsub.iter()) {
-        *xx = (*xx & negative_mask) | (*xs & positive_mask);
-    }
+    let carry = h[2] >> 26;
+    h[2] &= 0x3ffffff;
+    h[3] = h[3].wrapping_add(carry);
+
+    let carry = h[3] >> 26;
+    h[3] &= 0x3ffffff;
+    h[4] = h[4].wrapping_add(carry);
+
+    let carry = h[4] >> 26;
+    h[4] &= 0x3ffffff;
+    h[0] = h[0].wrapping_add(carry.wrapping_mul(5));
+
+    let carry = h[0] >> 26;
+    h[0] &= 0x3ffffff;
+    h[1] = h[1].wrapping_add(carry);
+}
+
+fn maybe_sub_130_5(h: &mut [u32; 5]) {
+    let g0 = h[0].wrapping_add(5);
+    let carry = g0 >> 26;
+    let g0 = g0 & 0x3ffffff;
+
+    let g1 = h[1].wrapping_add(carry);
+    let carry = g1 >> 26;
+    let g1 = g1 & 0x3ffffff;
+
+    let g2 = h[2].wrapping_add(carry);
+    let carry = g2 >> 26;
+    let g2 = g2 & 0x3ffffff;
+
+    let g3 = h[3].wrapping_add(carry);
+    let carry = g3 >> 26;
+    let g3 = g3 & 0x3ffffff;
+
+    let g4 = h[4].wrapping_add(carry).wrapping_sub(1 << 26);
+
+    let negative_mask = equal_mask(g4 & 0x80000000, 0x80000000);
+    let positive_mask = !negative_mask;
+
+    h[0] = (h[0] & negative_mask) | (g0 & positive_mask);
+    h[1] = (h[1] & negative_mask) | (g1 & positive_mask);
+    h[2] = (h[2] & negative_mask) | (g2 & positive_mask);
+    h[3] = (h[3] & negative_mask) | (g3 & positive_mask);
+    h[4] = (h[4] & negative_mask) | (g4 & positive_mask);
 }
 
 /// Produce 0xffffffff if x == y, zero
@@ -211,9 +256,6 @@ fn equal_mask(x: u32, y: u32) -> u32 {
     let diff_is_zero = !diff & diff.wrapping_sub(1);
     0u32.wrapping_sub(diff_is_zero >> 31)
 }
-
-/// This is - 2 ** 130 - 5 in twos complement, little endian
-const NEGATIVE_1305: [u32; 17] = [0x05, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xfc];
 
 #[cfg(test)]
 mod tests {
