@@ -88,11 +88,11 @@ We are grateful to:
 ### AEADs
 
 - [x] AES-GCM
-- [ ] chacha20-poly1305
+- [x] chacha20-poly1305
 
 ## Performance
 
-<table of perf status> 
+See: https://jbp.io/graviola/
 
 ## Architecture
 
@@ -119,37 +119,3 @@ Apache-2.0 OR ISC OR MIT-0.
 
 Because we have a mix of licenses, every file has a
 `SPDX-License-Identifier` comment.
-
-
-## Old: target feature set
-
-key exchange
-
-- ECDH with P256, P384
-- x25519
-
-sig verify
-
-- ECDSA with P256+SHA256, P256+SHA384, P384+SHA256, P384+SHA384
-- RSA with PSS-SHA256, PSS-SHA384, salt = hashlen
-- RSA with PKCS#1-SHA256, PKCS#1-SHA384
-- ed25519
-
-signing
-
-- same as verify
-
-aead
-
-- aes-gcm-128, aes-gcm-256
-- chacha20-poly1305
-
-hashes
-
-- sha256, sha384, sha512
-
-future targets:
-
-- hkdf construction
-- hpke construction
-- kyber kem
