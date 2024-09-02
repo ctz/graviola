@@ -4,6 +4,7 @@
 #![deny(unsafe_code)]
 
 pub mod aes_gcm;
+pub mod chacha20poly1305;
 pub mod p256;
 pub mod rng;
 pub mod rsa_priv;

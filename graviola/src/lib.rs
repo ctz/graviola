@@ -71,4 +71,5 @@ pub mod hash {
 
 pub use error::Error;
 pub use mid::aes_gcm;
+pub use mid::chacha20poly1305;
 pub use mid::rng::{RandomSource, SystemRandom};
