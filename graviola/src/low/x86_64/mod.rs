@@ -34,6 +34,7 @@ pub(crate) mod bignum_neg_p256;
 pub(crate) mod bignum_negmodinv;
 pub(crate) mod bignum_optsub;
 pub(crate) mod bignum_tomont_p256;
+pub(crate) mod chacha20;
 pub(crate) mod curve25519_x25519;
 pub(crate) mod curve25519_x25519base;
 pub(crate) mod ghash;

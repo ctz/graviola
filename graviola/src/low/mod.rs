@@ -7,7 +7,6 @@ mod macros;
 mod posint;
 
 pub(crate) use generic::blockwise::Blockwise;
-pub(crate) use generic::chacha20;
 pub(crate) use generic::ct_equal::ct_equal;
 pub(crate) use generic::poly1305;
 pub(crate) use posint::PosInt;
@@ -19,6 +18,7 @@ cfg_if::cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
         mod x86_64;
 
+        pub(crate) use x86_64::chacha20;
         pub(crate) use x86_64::aes::AesKey;
         pub(crate) use x86_64::aes_gcm;
         pub(crate) use x86_64::bignum_add::bignum_add;
@@ -104,6 +104,7 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::p256_montjmixadd::p256_montjmixadd;
         pub(crate) use aarch64::sha256::sha256_compress_blocks;
 
+        pub(crate) use generic::chacha20;
         pub(crate) use generic::aes_gcm;
         pub(crate) use generic::sha512::sha512_compress_blocks;
         pub(crate) use generic::optimise_barrier::optimise_barrier_u8;
