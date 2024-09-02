@@ -9,6 +9,7 @@ mod posint;
 pub(crate) use generic::blockwise::Blockwise;
 pub(crate) use generic::chacha20;
 pub(crate) use generic::ct_equal::ct_equal;
+pub(crate) use generic::poly1305;
 pub(crate) use posint::PosInt;
 
 #[cfg(test)]

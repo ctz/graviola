@@ -41,6 +41,14 @@ impl<const N: usize> Blockwise<N> {
         }
     }
 
+    pub(crate) fn peek_remaining(&self) -> Option<&[u8]> {
+        if self.used > 0 {
+            Some(&self.buffer[..self.used])
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn add_trailing(&mut self, trailing: &[u8]) {
         self.buffer[..trailing.len()].copy_from_slice(trailing);
         self.used += trailing.len();
