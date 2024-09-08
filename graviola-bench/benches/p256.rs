@@ -206,8 +206,10 @@ fn ecdsa_verify(c: &mut Criterion) {
     group.bench_function("graviola", |b| {
         use graviola::hash::Sha256;
         let public_key =
-            graviola::ecdsa::VerifyingKey::<graviola::ec::P256>::from_x962_uncompressed(public_key)
-                .unwrap();
+            graviola::ecdsa::VerifyingKey::<graviola::ecdsa::P256>::from_x962_uncompressed(
+                public_key,
+            )
+            .unwrap();
 
         b.iter(|| {
             public_key.verify::<Sha256>(&[message], signature).unwrap();
@@ -272,10 +274,10 @@ fn ecdsa_sign(c: &mut Criterion) {
     });
 
     group.bench_function("graviola", |b| {
-        use graviola::ec::{Curve, P256};
+        use graviola::ecdsa::{Curve, SigningKey, P256};
         use graviola::hash::Sha256;
         let private_key = P256::generate_random_key(&mut graviola::SystemRandom).unwrap();
-        let signing_key = graviola::ecdsa::SigningKey::<P256> { private_key };
+        let signing_key = SigningKey::<P256> { private_key };
 
         b.iter(|| {
             let mut signature = [0u8; 64];

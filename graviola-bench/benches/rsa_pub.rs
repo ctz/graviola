@@ -44,7 +44,7 @@ fn rsa2048_pkcs1_sha256_verify(c: &mut Criterion) {
 
     group.bench_function("graviola", |b| {
         let peer_public_key =
-            graviola::high::rsa::RsaPublicVerificationKey::from_pkcs1_der(public_key).unwrap();
+            graviola::rsa::RsaPublicVerificationKey::from_pkcs1_der(public_key).unwrap();
 
         b.iter(|| {
             black_box(

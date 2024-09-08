@@ -22,7 +22,7 @@ impl RandomSource for SystemRandom {
 /// Random generation from a slice.
 ///
 /// Returns an error once exhausted.  Intended only for testing.
-pub struct SliceRandomSource<'a>(pub &'a [u8]);
+pub(crate) struct SliceRandomSource<'a>(pub &'a [u8]);
 
 impl RandomSource for SliceRandomSource<'_> {
     fn fill(&mut self, out: &mut [u8]) -> Result<(), Error> {

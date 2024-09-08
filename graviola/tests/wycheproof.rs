@@ -1,15 +1,14 @@
 use serde::Deserialize;
 use std::fs::File;
 
-use graviola::aes_gcm;
-use graviola::chacha20poly1305;
-use graviola::ec::{P256, P384};
+use graviola::aead::{AesGcm, ChaCha20Poly1305};
 use graviola::ecdsa::VerifyingKey;
-use graviola::high::hash::{Sha256, Sha384, Sha512};
-use graviola::high::hmac::Hmac;
-use graviola::high::rsa;
+use graviola::ecdsa::{P256, P384};
+use graviola::hash::hmac::Hmac;
+use graviola::hash::{Sha256, Sha384, Sha512};
 use graviola::p256;
 use graviola::p384;
+use graviola::rsa;
 use graviola::x25519;
 use graviola::Error;
 
@@ -390,7 +389,7 @@ fn test_aesgcm() {
                 continue;
             }
 
-            let ctx = aes_gcm::AesGcm::new(&test.key);
+            let ctx = AesGcm::new(&test.key);
             let nonce = match test.iv.len() {
                 12 => test.iv.try_into().unwrap(),
                 _ => {
@@ -550,7 +549,7 @@ fn test_chacha20poly1305() {
                 continue;
             }
 
-            let ctx = chacha20poly1305::ChaCha20Poly1305::new(test.key.try_into().unwrap());
+            let ctx = ChaCha20Poly1305::new(test.key.try_into().unwrap());
             let nonce = test.iv.try_into().unwrap();
 
             // try decrypt

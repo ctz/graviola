@@ -39,12 +39,7 @@ fn test_rc_aes256_gcm(key: &aes_gcm::Aes256Gcm, nonce: &[u8; 12], aad: &[u8], pl
         .unwrap();
 }
 
-fn test_graviola_aes_gcm(
-    key: &graviola::aes_gcm::AesGcm,
-    nonce: &[u8; 12],
-    aad: &[u8],
-    plain: &[u8],
-) {
+fn test_graviola_aes_gcm(key: &graviola::aead::AesGcm, nonce: &[u8; 12], aad: &[u8], plain: &[u8]) {
     let mut ct = plain.to_vec();
     let mut tag = [0u8; 16];
     key.encrypt(nonce, aad, &mut ct, &mut tag);
@@ -89,7 +84,7 @@ fn aes128_gcm(c: &mut Criterion) {
             BenchmarkId::new("graviola", size_name),
             &input,
             |b, input| {
-                let key = graviola::aes_gcm::AesGcm::new(&key);
+                let key = graviola::aead::AesGcm::new(&key);
                 b.iter(|| test_graviola_aes_gcm(&key, &nonce, &aad, input));
             },
         );
@@ -135,7 +130,7 @@ fn aes256_gcm(c: &mut Criterion) {
             BenchmarkId::new("graviola", size_name),
             &input,
             |b, input| {
-                let key = graviola::aes_gcm::AesGcm::new(&key);
+                let key = graviola::aead::AesGcm::new(&key);
                 b.iter(|| test_graviola_aes_gcm(&key, &nonce, &aad, input));
             },
         );

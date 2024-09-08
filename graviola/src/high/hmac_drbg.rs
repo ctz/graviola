@@ -3,8 +3,8 @@
 
 use super::hash::{Hash, HashOutput};
 use super::hmac::Hmac;
+use crate::mid::rng::RandomSource;
 use crate::Error;
-use crate::RandomSource;
 
 use core::marker::PhantomData;
 

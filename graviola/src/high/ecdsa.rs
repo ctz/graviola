@@ -252,7 +252,7 @@ mod tests {
     use crate::high::curve::Curve;
     use crate::high::{curve, hash};
     use crate::mid::rng::SliceRandomSource;
-    use crate::SystemRandom;
+    use crate::mid::rng::SystemRandom;
 
     #[test]
     fn smoke_test_loading_keys() {

@@ -3,7 +3,7 @@
 
 use super::util::Array64x4;
 use crate::low;
-use crate::RandomSource;
+use crate::mid::rng::RandomSource;
 
 pub struct PrivateKey(Array64x4);
 

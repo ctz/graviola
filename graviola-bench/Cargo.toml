@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-graviola = { path = "../graviola" }
+graviola = { path = "../graviola", features = ["__internal_08eaf2eb"] }
 
 [dev-dependencies]
 aes-gcm = "0.10"

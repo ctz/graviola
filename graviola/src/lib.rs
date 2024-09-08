@@ -38,42 +38,57 @@ mod mid;
 /// High-level APIs.
 ///
 /// Examples: key encodings, high-level constructions.
-pub mod high;
+mod high;
 
 /// Errors.  Common to all layers.
 mod error;
 
 // vvv Public API
 
+#[cfg(feature = "__internal_08eaf2eb")]
 pub mod x25519 {
     pub use super::mid::x25519::{PrivateKey, PublicKey, SharedSecret};
 }
 
+#[cfg(feature = "__internal_08eaf2eb")]
 pub mod p256 {
     pub use super::mid::p256::{PrivateKey, PublicKey, SharedSecret};
 }
 
+#[cfg(feature = "__internal_08eaf2eb")]
 pub mod p384 {
     pub use super::mid::p384::{PrivateKey, PublicKey, SharedSecret};
 }
 
+#[cfg(feature = "__internal_08eaf2eb")]
+pub mod rsa {
+    pub use super::high::rsa::{RsaPrivateSigningKey, RsaPublicVerificationKey};
+}
+
+#[cfg(feature = "__internal_08eaf2eb")]
 pub mod ecdsa {
+    pub use super::high::curve::{Curve, P256, P384};
     pub use super::high::ecdsa::{SigningKey, VerifyingKey};
 }
 
-pub mod ec {
-    pub use super::high::curve::{Curve, P256, P384};
-}
-
+#[cfg(feature = "__internal_08eaf2eb")]
 pub mod sha2 {
     pub use super::mid::sha2::{Sha256Context, Sha384Context, Sha512Context};
 }
 
+#[cfg(feature = "__internal_08eaf2eb")]
 pub mod hash {
     pub use super::high::hash::{Hash, HashContext, HashOutput, Sha256, Sha384, Sha512};
+    pub use super::high::hmac;
 }
 
-pub use error::Error;
-pub use mid::aes_gcm;
-pub use mid::chacha20poly1305;
+#[cfg(feature = "__internal_08eaf2eb")]
+pub mod aead {
+    pub use super::mid::aes_gcm::AesGcm;
+    pub use super::mid::chacha20poly1305::ChaCha20Poly1305;
+}
+
+#[cfg(feature = "__internal_08eaf2eb")]
 pub use mid::rng::{RandomSource, SystemRandom};
+
+pub use error::Error;

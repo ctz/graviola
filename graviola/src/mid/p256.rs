@@ -3,8 +3,8 @@
 
 use super::util::Array64x4;
 use crate::low;
+use crate::mid::rng::RandomSource;
 use crate::Error;
-use crate::RandomSource;
 
 use core::fmt;
 

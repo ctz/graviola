@@ -4,8 +4,8 @@
 use crate::high::asn1;
 use crate::mid::p256;
 use crate::mid::p384;
+use crate::mid::rng::RandomSource;
 use crate::Error;
-use crate::RandomSource;
 
 pub trait Curve {
     type PrivateKey: PrivateKey<Self>;

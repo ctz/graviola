@@ -32,7 +32,7 @@ fn test_rc_chacha(
 }
 
 fn test_graviola_chacha(
-    key: &graviola::chacha20poly1305::ChaCha20Poly1305,
+    key: &graviola::aead::ChaCha20Poly1305,
     nonce: &[u8; 12],
     aad: &[u8],
     plain: &[u8],
@@ -81,7 +81,7 @@ fn bench_chacha20poly1305(c: &mut Criterion) {
             BenchmarkId::new("graviola", size_name),
             &input,
             |b, input| {
-                let key = graviola::chacha20poly1305::ChaCha20Poly1305::new(key);
+                let key = graviola::aead::ChaCha20Poly1305::new(key);
                 b.iter(|| test_graviola_chacha(&key, &nonce, &aad, input));
             },
         );
