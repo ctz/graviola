@@ -43,7 +43,7 @@ mod high;
 /// Errors.  Common to all layers.
 mod error;
 
-// vvv Public API
+// vvv Internal API
 
 #[cfg(feature = "__internal_08eaf2eb")]
 pub mod x25519 {
@@ -72,14 +72,10 @@ pub mod ecdsa {
 }
 
 #[cfg(feature = "__internal_08eaf2eb")]
-pub mod sha2 {
-    pub use super::mid::sha2::{Sha256Context, Sha384Context, Sha512Context};
-}
-
-#[cfg(feature = "__internal_08eaf2eb")]
 pub mod hash {
     pub use super::high::hash::{Hash, HashContext, HashOutput, Sha256, Sha384, Sha512};
     pub use super::high::hmac;
+    pub use super::mid::sha2;
 }
 
 #[cfg(feature = "__internal_08eaf2eb")]
@@ -89,6 +85,9 @@ pub mod aead {
 }
 
 #[cfg(feature = "__internal_08eaf2eb")]
-pub use mid::rng::{RandomSource, SystemRandom};
+pub mod rng {
+    pub use super::mid::rng::{RandomSource, SystemRandom};
+}
 
+// vvv Public API
 pub use error::Error;

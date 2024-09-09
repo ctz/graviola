@@ -105,6 +105,7 @@ pub trait HashContext: Clone {
     fn finish(self) -> HashOutput;
 }
 
+#[derive(Clone)]
 pub struct Sha256;
 
 impl Hash for Sha256 {
@@ -139,6 +140,7 @@ impl HashContext for Sha256Context {
     }
 }
 
+#[derive(Clone)]
 pub struct Sha384;
 
 impl Hash for Sha384 {

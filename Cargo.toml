@@ -3,4 +3,5 @@ resolver = "2"
 members = [
   "graviola",
   "graviola-bench",
+  "rustls-graviola",
 ]

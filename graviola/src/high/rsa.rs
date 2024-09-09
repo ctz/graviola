@@ -141,6 +141,10 @@ impl RsaPrivateSigningKey {
         RsaPublicVerificationKey(self.0.public_key())
     }
 
+    pub fn modulus_len_bytes(&self) -> usize {
+        self.0.public_key().modulus_len_bytes()
+    }
+
     pub fn sign_pkcs1_sha256<'a>(
         &self,
         signature: &'a mut [u8],
