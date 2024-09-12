@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
 use crate::mid::p256;
+use crate::mid::p384;
 use crate::Error;
 use crate::RandomSource;
 
@@ -93,6 +94,76 @@ impl PublicKey<P256> for p256::PublicKey {
 
 impl Scalar<P256> for p256::Scalar {
     const LEN_BYTES: usize = 32;
+
+    fn from_bytes_checked(bytes: &[u8]) -> Result<Self, Error> {
+        Self::from_bytes_checked(bytes)
+    }
+
+    fn from_bytes_reduced(bytes: &[u8]) -> Self {
+        Self::from_bytes_reduced(bytes).unwrap()
+    }
+
+    fn is_zero(&self) -> bool {
+        self.is_zero()
+    }
+
+    fn write_bytes(&self, target: &mut [u8]) {
+        target.copy_from_slice(&self.as_bytes());
+    }
+}
+
+pub struct P384;
+
+impl Curve for P384 {
+    type PrivateKey = p384::PrivateKey;
+    type PublicKey = p384::PublicKey;
+    type Scalar = p384::Scalar;
+
+    fn generate_random_key(rng: &mut dyn RandomSource) -> Result<p384::PrivateKey, Error> {
+        p384::PrivateKey::generate(rng)
+    }
+}
+
+impl PrivateKey<P384> for p384::PrivateKey {
+    fn encode<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error> {
+        if let Some(out) = out.get_mut(0..48) {
+            out.copy_from_slice(&self.as_bytes());
+            Ok(out)
+        } else {
+            Err(Error::OutOfRange)
+        }
+    }
+
+    fn public_key(&self) -> p384::PublicKey {
+        self.public_key()
+    }
+
+    fn raw_ecdsa_sign(&self, k: &Self, e: &p384::Scalar, r: &p384::Scalar) -> p384::Scalar {
+        self.raw_ecdsa_sign(k, e, r)
+    }
+}
+
+impl PublicKey<P384> for p384::PublicKey {
+    fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
+        Self::from_x962_uncompressed(bytes)
+    }
+
+    fn x_scalar(&self) -> p384::Scalar {
+        self.x_scalar()
+    }
+
+    fn raw_ecdsa_verify(
+        &self,
+        r: &p384::Scalar,
+        s: &p384::Scalar,
+        e: &p384::Scalar,
+    ) -> Result<(), Error> {
+        self.raw_ecdsa_verify(r, s, e)
+    }
+}
+
+impl Scalar<P384> for p384::Scalar {
+    const LEN_BYTES: usize = 48;
 
     fn from_bytes_checked(bytes: &[u8]) -> Result<Self, Error> {
         Self::from_bytes_checked(bytes)

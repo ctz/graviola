@@ -53,12 +53,16 @@ pub mod p256 {
     pub use super::mid::p256::{PrivateKey, PublicKey, SharedSecret};
 }
 
+pub mod p384 {
+    pub use super::mid::p384::{PrivateKey, PublicKey, SharedSecret};
+}
+
 pub mod ecdsa {
     pub use super::high::ecdsa::{SigningKey, VerifyingKey};
 }
 
 pub mod ec {
-    pub use super::high::curve::{Curve, P256};
+    pub use super::high::curve::{Curve, P256, P384};
 }
 
 pub mod sha2 {
