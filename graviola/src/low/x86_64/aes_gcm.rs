@@ -50,24 +50,23 @@ unsafe fn _cipher<const ENC: bool>(
             _mm_prefetch(blocks.as_ptr().add(0) as *const _, _MM_HINT_T0);
             _mm_prefetch(blocks.as_ptr().add(64) as *const _, _MM_HINT_T0);
 
-            let c1 = counter.add(COUNTER_1);
-            let c2 = counter.add(COUNTER_2);
-            let c3 = counter.add(COUNTER_3);
-            let c4 = counter.add(COUNTER_4);
-            let c5 = counter.add(COUNTER_5);
-            let c6 = counter.add(COUNTER_6);
-            let c7 = counter.add(COUNTER_7);
-            let c8 = counter.add(COUNTER_8);
-            counter = c8;
+            let c1 = counter.next();
+            let c2 = counter.next();
+            let c3 = counter.next();
+            let c4 = counter.next();
+            let c5 = counter.next();
+            let c6 = counter.next();
+            let c7 = counter.next();
+            let c8 = counter.next();
 
-            let mut c1 = _mm_xor_si128(c1.0, rk_first);
-            let mut c2 = _mm_xor_si128(c2.0, rk_first);
-            let mut c3 = _mm_xor_si128(c3.0, rk_first);
-            let mut c4 = _mm_xor_si128(c4.0, rk_first);
-            let mut c5 = _mm_xor_si128(c5.0, rk_first);
-            let mut c6 = _mm_xor_si128(c6.0, rk_first);
-            let mut c7 = _mm_xor_si128(c7.0, rk_first);
-            let mut c8 = _mm_xor_si128(c8.0, rk_first);
+            let mut c1 = _mm_xor_si128(c1, rk_first);
+            let mut c2 = _mm_xor_si128(c2, rk_first);
+            let mut c3 = _mm_xor_si128(c3, rk_first);
+            let mut c4 = _mm_xor_si128(c4, rk_first);
+            let mut c5 = _mm_xor_si128(c5, rk_first);
+            let mut c6 = _mm_xor_si128(c6, rk_first);
+            let mut c7 = _mm_xor_si128(c7, rk_first);
+            let mut c8 = _mm_xor_si128(c8, rk_first);
 
             for rk in rks {
                 c1 = _mm_aesenc_si128(c1, *rk);
@@ -167,10 +166,10 @@ unsafe fn _cipher<const ENC: bool>(
     {
         let mut blocks_iter = cipher_inout.chunks_exact_mut(16);
         for block in blocks_iter.by_ref() {
-            counter = counter.add(COUNTER_1);
+            let c1 = counter.next();
 
             unsafe {
-                let mut c1 = _mm_xor_si128(counter.0, rk_first);
+                let mut c1 = _mm_xor_si128(c1, rk_first);
 
                 for rk in rks {
                     c1 = _mm_aesenc_si128(c1, *rk);
@@ -178,9 +177,9 @@ unsafe fn _cipher<const ENC: bool>(
 
                 let c1 = _mm_aesenclast_si128(c1, rk_last);
 
-                let c1 = _mm_xor_si128(c1, _mm_loadu_si128(block.as_ptr().add(0) as *const _));
+                let c1 = _mm_xor_si128(c1, _mm_loadu_si128(block.as_ptr() as *const _));
 
-                _mm_storeu_si128(block.as_mut_ptr().add(0) as *mut _, c1);
+                _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
             }
         }
 
@@ -191,10 +190,10 @@ unsafe fn _cipher<const ENC: bool>(
             debug_assert!(len < 16);
             block[..len].copy_from_slice(cipher_inout);
 
-            counter = counter.add(COUNTER_1);
+            let c1 = counter.next();
 
             unsafe {
-                let mut c1 = _mm_xor_si128(counter.0, rk_first);
+                let mut c1 = _mm_xor_si128(c1, rk_first);
 
                 for rk in rks {
                     c1 = _mm_aesenc_si128(c1, *rk);
@@ -202,7 +201,8 @@ unsafe fn _cipher<const ENC: bool>(
 
                 let c1 = _mm_aesenclast_si128(c1, rk_last);
 
-                let c1 = _mm_xor_si128(c1, _mm_loadu_si128(block.as_ptr() as *const _));
+                let p1 = _mm_loadu_si128(block.as_ptr() as *const _);
+                let c1 = _mm_xor_si128(c1, p1);
 
                 _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
             }
@@ -216,28 +216,30 @@ unsafe fn _cipher<const ENC: bool>(
     }
 }
 
+/// This stores the next counter value, in big endian.
 #[derive(Clone, Copy, Debug)]
 struct Counter(__m128i);
 
 impl Counter {
     fn new(bytes: &[u8; 16]) -> Self {
-        Self(unsafe { _mm_lddqu_si128(bytes.as_ptr() as *const _) })
+        Self(unsafe {
+            let c = _mm_lddqu_si128(bytes.as_ptr() as *const _);
+            _mm_shuffle_epi8(c, BYTESWAP_EPI64)
+        })
     }
 
     #[must_use]
     #[inline]
-    fn add(&self, a: __m128i) -> Self {
-        Self(unsafe { _mm_add_epi32(self.0, a) })
+    fn next(&mut self) -> __m128i {
+        unsafe {
+            self.0 = _mm_add_epi32(self.0, COUNTER_1);
+            _mm_shuffle_epi8(self.0, BYTESWAP_EPI64)
+        }
     }
 }
 
-const COUNTER_1: __m128i = unsafe { mem::transmute(1u128 << 120) };
-const COUNTER_2: __m128i = unsafe { mem::transmute(2u128 << 120) };
-const COUNTER_3: __m128i = unsafe { mem::transmute(3u128 << 120) };
-const COUNTER_4: __m128i = unsafe { mem::transmute(4u128 << 120) };
-const COUNTER_5: __m128i = unsafe { mem::transmute(5u128 << 120) };
-const COUNTER_6: __m128i = unsafe { mem::transmute(6u128 << 120) };
-const COUNTER_7: __m128i = unsafe { mem::transmute(7u128 << 120) };
-const COUNTER_8: __m128i = unsafe { mem::transmute(8u128 << 120) };
+const COUNTER_1: __m128i = unsafe { mem::transmute(1u128 << 64) };
 
 const BYTESWAP: __m128i = unsafe { mem::transmute(0x00010203_04050607_08090a0b_0c0d0e0fu128) };
+const BYTESWAP_EPI64: __m128i =
+    unsafe { mem::transmute(0x08090a0b_0c0d0e0f_00010203_04050607u128) };

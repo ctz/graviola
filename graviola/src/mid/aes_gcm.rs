@@ -108,4 +108,31 @@ mod tests {
             b"\x58\xe2\xfc\xce\xfa\x7e\x30\x61\x36\x7f\x1d\x57\xa4\xe7\x45\x5a"
         );
     }
+
+    #[test]
+    fn long_encrypt_test() {
+        let t = AesGcm::new(&[b'k'; 16]);
+        let mut tag = [0u8; 16];
+        // not divisible by 128, 64, 16 to cover by-8, by-4, and trailing cases
+        let mut cipher = [b'p'; 4164];
+        t.encrypt(b"noncenonceno", b"aad", &mut cipher, &mut tag);
+
+        let expected = include_bytes!("../testdata/aes-gcm-ciphertext.bin");
+        let (expected_cipher, expected_tag) = expected.split_at(expected.len() - 16);
+        assert_eq!(expected_cipher, cipher);
+        assert_eq!(expected_tag, tag);
+    }
+
+    #[test]
+    fn long_decrypt_test() {
+        let t = AesGcm::new(&[b'k'; 16]);
+        let expected = include_bytes!("../testdata/aes-gcm-ciphertext.bin");
+        let (cipher, tag) = expected.split_at(expected.len() - 16);
+        let mut plain = cipher.to_vec();
+
+        t.decrypt(b"noncenonceno", b"aad", &mut plain, &tag)
+            .unwrap();
+
+        assert_eq!(plain, &[b'p'; 4164]);
+    }
 }
