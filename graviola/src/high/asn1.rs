@@ -352,6 +352,10 @@ pub struct Integer<'a> {
 }
 
 impl<'a> Integer<'a> {
+    pub(crate) fn new(twos_complement: &'a [u8]) -> Self {
+        Self { twos_complement }
+    }
+
     fn from_bytes(mut bytes: &'a [u8]) -> Self {
         static ZERO: &[u8] = &[0];
 

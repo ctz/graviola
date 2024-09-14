@@ -31,6 +31,37 @@ impl<C: Curve> SigningKey<C> {
         self.rfc6979_sign_with_random::<H>(message, &random, signature)
     }
 
+    /// ECDSA signing, returning a DER-encoded ASN.1 signature.
+    ///
+    /// This calls [`Self::sign()`] and then does a straightforward conversion
+    /// from fixed length to ASN.1 -- see that function's documentation for more.
+    pub fn sign_asn1<'a, H: Hash>(
+        &self,
+        message: &[&[u8]],
+        asn1_signature: &'a mut [u8],
+    ) -> Result<&'a [u8], Error> {
+        let mut fixed_sig = [0u8; MAX_SCALAR_LEN * 2];
+        let fixed_sig = self.sign::<H>(message, &mut fixed_sig)?;
+
+        Self::fixed_to_asn1(fixed_sig, asn1_signature)
+    }
+
+    fn fixed_to_asn1<'a>(
+        fixed_signature: &[u8],
+        asn1_signature: &'a mut [u8],
+    ) -> Result<&'a [u8], Error> {
+        let mut r = [0u8; MAX_SCALAR_LEN + 1];
+        let mut s = [0u8; MAX_SCALAR_LEN + 1];
+        let r = write_positive_int(&mut r, &fixed_signature[..C::Scalar::LEN_BYTES]);
+        let s = write_positive_int(&mut s, &fixed_signature[C::Scalar::LEN_BYTES..]);
+
+        let sig = asn1::pkix::EcdsaSigValue { r, s };
+        let sig_len = sig
+            .encode(&mut asn1::Encoder::new(asn1_signature))
+            .map_err(Error::Asn1Error)?;
+        Ok(&asn1_signature[..sig_len])
+    }
+
     /// This is RFC6979 deterministic ECDSA signing, _with added randomness_.
     ///
     /// What? Why?
@@ -178,6 +209,19 @@ fn write_fixed(out: &mut [u8], mut value: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
+fn write_positive_int<'a>(buf: &'a mut [u8], value: &[u8]) -> asn1::Integer<'a> {
+    let buf_len = if value[0] & 0x80 == 0x80 {
+        buf[0] = 0x00;
+        buf[1..value.len() + 1].copy_from_slice(value);
+        value.len() + 1
+    } else {
+        buf[..value.len()].copy_from_slice(value);
+        value.len()
+    };
+
+    asn1::Integer::new(&buf[..buf_len])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,7 +245,9 @@ mod tests {
         // from A.2.5.
         let mut rng = SliceRandomSource(b"\xC9\xAF\xA9\xD8\x45\xBA\x75\x16\x6B\x5C\x21\x57\x67\xB1\xD6\x93\x4E\x50\xC3\xDB\x36\xE8\x9B\x12\x7B\x8A\x62\x2B\x12\x0F\x67\x21");
         let private_key = curve::P256::generate_random_key(&mut rng).unwrap();
+        let public_key = private_key.public_key();
         let k = SigningKey::<curve::P256> { private_key };
+        let v = VerifyingKey::<curve::P256> { public_key };
         let mut signature = [0u8; 64];
 
         k.rfc6979_sign_with_random::<hash::Sha256>(&[b"sample"], &[], &mut signature)
@@ -216,6 +262,12 @@ mod tests {
                 0x4d, 0xc4, 0xab, 0x2f, 0x84, 0x3a, 0xcd, 0xa8,
             ]
         );
+        v.verify::<hash::Sha256>(&[b"sample"], &signature).unwrap();
+
+        let mut asn1_sig = [0u8; 128];
+        let asn1_sig = SigningKey::<curve::P256>::fixed_to_asn1(&signature, &mut asn1_sig).unwrap();
+        v.verify_asn1::<hash::Sha256>(&[b"sample"], &asn1_sig)
+            .unwrap();
 
         k.rfc6979_sign_with_random::<hash::Sha256>(&[b"test"], &[], &mut signature)
             .unwrap();
@@ -229,6 +281,12 @@ mod tests {
                 0x0c, 0xc8, 0x42, 0x50, 0xe4, 0x6f, 0x00, 0x83,
             ]
         );
+        v.verify::<hash::Sha256>(&[b"test"], &signature).unwrap();
+
+        let mut asn1_sig = [0u8; 128];
+        let asn1_sig = SigningKey::<curve::P256>::fixed_to_asn1(&signature, &mut asn1_sig).unwrap();
+        v.verify_asn1::<hash::Sha256>(&[b"test"], &asn1_sig)
+            .unwrap();
 
         k.rfc6979_sign_with_random::<hash::Sha512>(&[b"sample"], &[], &mut signature)
             .unwrap();
@@ -242,6 +300,12 @@ mod tests {
                 0x65, 0x54, 0xf6, 0x1f, 0xae, 0x33, 0x02, 0xfe,
             ]
         );
+        v.verify::<hash::Sha512>(&[b"sample"], &signature).unwrap();
+
+        let mut asn1_sig = [0u8; 128];
+        let asn1_sig = SigningKey::<curve::P256>::fixed_to_asn1(&signature, &mut asn1_sig).unwrap();
+        v.verify_asn1::<hash::Sha512>(&[b"sample"], &asn1_sig)
+            .unwrap();
 
         k.rfc6979_sign_with_random::<hash::Sha512>(&[b"test"], &[], &mut signature)
             .unwrap();
@@ -255,5 +319,11 @@ mod tests {
                 0x75, 0x19, 0xe8, 0x40, 0xd1, 0x19, 0x4e, 0x55,
             ]
         );
+        v.verify::<hash::Sha512>(&[b"test"], &signature).unwrap();
+
+        let mut asn1_sig = [0u8; 128];
+        let asn1_sig = SigningKey::<curve::P256>::fixed_to_asn1(&signature, &mut asn1_sig).unwrap();
+        v.verify_asn1::<hash::Sha512>(&[b"test"], &asn1_sig)
+            .unwrap();
     }
 }
