@@ -8,8 +8,7 @@
 *High quality*: Graviola incorporates assembler routines
 from the [s2n-bignum] project.  These have been formally proven
 to be memory safe, free of side channels (at the architectural level),
-and to correctly implement the desired mathematical operation.  They
-are also high performance: using (in part) [SLOTHY].
+and to correctly implement the desired mathematical operation.
 
 *Fast*: Graviola beats or is competitive with other cryptography
 libraries for Rust.  See [performance](#performance).
@@ -24,13 +23,13 @@ are not welcomed; please do not file issues or PRs.
 
 ## TODO list, and ideas
 
-- [ ] interdict cpuid usage and test all combinations
 - [x] aarch64 sha2 using intrinsics
+- [x] p384
+- [x] add CI for enforcing SPDX header
+- [ ] interdict cpuid usage and test all combinations
 - [ ] 4-wide ghash for aarch64
 - [ ] wide gcm for aarch64
-- [x] p384
 - [ ] source-based automated interleaving for intrinsic code
-- [ ] add CI for enforcing SPDX header
 
 ## Goals
 
@@ -38,14 +37,15 @@ are not welcomed; please do not file issues or PRs.
     - [x] `cargo build` takes less than one second, and requires only rustc
 - [x] Competitive performance (with *ring*, aws-lc-rs, and rustcrypto)
 - [x] Uses formally-verified assembler from other projects (where available)
-- [ ] Intended to provide algorithms in wide use on web
-- [ ] Intended for use as a rustls `CryptoProvider`
+- [x] Intended to provide algorithms in wide use on web
+- [x] Intended for use as a rustls `CryptoProvider`
 
 ## Limitations
 
-- `target_arch = "aarch64"` and `target_arch = "x86_64"` only
-    - aarch64 requires `aes` and `neon` CPU features.
-    - x86_64 requires `aes`, `ssse3` and `pclmulqdq` CPU features.
+`aarch64` and `x86_64` architectures only.
+
+- `aarch64` requires `aes` and `neon` CPU features.
+- `x86_64` requires `aes`, `ssse3` and `pclmulqdq` CPU features.
 
 ## Acknowledgements and Thanks
 
@@ -118,5 +118,4 @@ Graviola incorporates and redistributes code from:
 New code written for Graviola is licensed under
 Apache-2.0 OR ISC OR MIT-0.
 
-Because we have a mix of licenses, every file has a
-`SPDX-License-Identifier` comment.
+Every file has a `SPDX-License-Identifier` comment.
