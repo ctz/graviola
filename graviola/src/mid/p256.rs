@@ -938,203 +938,176 @@ const CURVE_ORDER_MM: [u64; 4] = [
     0x66e12d94f3d95620,
 ];
 
-const CURVE_GENERATOR: AffineMontPoint = AffineMontPoint {
-    xy: [
-        0x79e7_30d4_18a9_143c,
-        0x75ba_95fc_5fed_b601,
-        0x79fb_732b_7762_2510,
-        0x1890_5f76_a537_55c6,
-        0xddf2_5357_ce95_560a,
-        0x8b4a_b8e4_ba19_e45c,
-        0xd2e8_8688_dd21_f325,
-        0x8571_ff18_2588_5d85,
-    ],
-};
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::mem::size_of_val;
 
-#[test]
-fn generator_on_curve() {
-    println!("{CURVE_GENERATOR:x?}");
-    assert!(CURVE_GENERATOR.on_curve());
-    println!("demont {:x?}", CURVE_GENERATOR.as_bytes_uncompressed());
-}
+    const CURVE_GENERATOR: AffineMontPoint = AffineMontPoint {
+        xy: [
+            0x79e7_30d4_18a9_143c,
+            0x75ba_95fc_5fed_b601,
+            0x79fb_732b_7762_2510,
+            0x1890_5f76_a537_55c6,
+            0xddf2_5357_ce95_560a,
+            0x8b4a_b8e4_ba19_e45c,
+            0xd2e8_8688_dd21_f325,
+            0x8571_ff18_2588_5d85,
+        ],
+    };
 
-#[test]
-fn generate_key_1() {
-    let scalar = Scalar::small_u64(1);
-    let r = CURVE_GENERATOR.slow_multiply(&scalar);
-    println!("raw {:x?}", r);
-    println!("fmt {:x?}", r.as_bytes_uncompressed());
-}
+    #[test]
+    fn generator_on_curve() {
+        println!("{CURVE_GENERATOR:x?}");
+        assert!(CURVE_GENERATOR.on_curve());
+        println!("demont {:x?}", CURVE_GENERATOR.as_bytes_uncompressed());
+    }
 
-#[test]
-fn point_double() {
-    let mut p = JacobianMontPoint::from_affine(&CURVE_GENERATOR);
-    println!("p = {:x?}", p);
-    p = p.double();
-    println!("p2 = {:x?}", p);
-    println!("p2 aff = {:x?}", p.as_affine());
-    println!("enc = {:x?}", p.as_affine().as_bytes_uncompressed());
-}
+    #[test]
+    fn generate_key_1() {
+        let scalar = Scalar::small_u64(1);
+        let r = CURVE_GENERATOR.slow_multiply(&scalar);
+        println!("raw {:x?}", r);
+        println!("fmt {:x?}", r.as_bytes_uncompressed());
+    }
 
-#[test]
-fn generate_key_2() {
-    let scalar = Scalar::small_u64(2);
-    let r = CURVE_GENERATOR.slow_multiply(&scalar);
-    println!("raw {:x?}", r);
-    println!("fmt {:x?}", r.as_bytes_uncompressed());
-}
+    #[test]
+    fn point_double() {
+        let mut p = JacobianMontPoint::from_affine(&CURVE_GENERATOR);
+        println!("p = {:x?}", p);
+        p = p.double();
+        println!("p2 = {:x?}", p);
+        println!("p2 aff = {:x?}", p.as_affine());
+        println!("enc = {:x?}", p.as_affine().as_bytes_uncompressed());
+    }
 
-#[test]
-fn generate_key_3() {
-    let scalar = Scalar::small_u64(3);
-    let r = JacobianMontPoint::base_multiply(&scalar).as_affine();
-    println!("raw {:x?}", r);
-    println!("fmt {:x?}", r.as_bytes_uncompressed());
+    #[test]
+    fn generate_key_2() {
+        let scalar = Scalar::small_u64(2);
+        let r = CURVE_GENERATOR.slow_multiply(&scalar);
+        println!("raw {:x?}", r);
+        println!("fmt {:x?}", r.as_bytes_uncompressed());
+    }
 
-    let u = CURVE_GENERATOR.slow_multiply(&scalar);
-    println!("raw {:x?}", u);
-    println!("fmt {:x?}", u.as_bytes_uncompressed());
-}
+    #[test]
+    fn generate_key_3() {
+        let scalar = Scalar::small_u64(3);
+        let r = JacobianMontPoint::base_multiply(&scalar).as_affine();
+        println!("raw {:x?}", r);
+        println!("fmt {:x?}", r.as_bytes_uncompressed());
 
-#[test]
-fn generate_key_99999999() {
-    let scalar = Scalar::small_u64(99999999);
-    let r = JacobianMontPoint::base_multiply(&scalar).as_affine();
-    println!("raw {:x?}", r);
-    println!("fmt {:x?}", r.as_bytes_uncompressed());
+        let u = CURVE_GENERATOR.slow_multiply(&scalar);
+        println!("raw {:x?}", u);
+        println!("fmt {:x?}", u.as_bytes_uncompressed());
+    }
 
-    let u = CURVE_GENERATOR.slow_multiply(&scalar);
-    println!("raw {:x?}", u);
-    println!("fmt {:x?}", u.as_bytes_uncompressed());
-}
+    #[test]
+    fn generate_key_99999999() {
+        let scalar = Scalar::small_u64(99999999);
+        let r = JacobianMontPoint::base_multiply(&scalar).as_affine();
+        println!("raw {:x?}", r);
+        println!("fmt {:x?}", r.as_bytes_uncompressed());
 
-#[test]
-fn generate_key_known_answer() {
-    let bytes = b"\x1F\x55\x45\x23\x08\x50\x8C\x6B\x24\x37\x0F\x22\x1E\xF1\xB3\xF9\x54\x46\xBE\x4F\x8A\x4B\x42\x8A\x5B\x51\xB7\x10\xC2\x68\x4C\x03";
-    let private = PrivateKey::from_bytes(bytes).unwrap();
-    println!("priv = {:x?}", private);
-    let public = private.public_key();
-    println!("pub = {:x?}", public.as_bytes_uncompressed());
-    assert_eq!(&public.as_bytes_uncompressed(),
+        let u = CURVE_GENERATOR.slow_multiply(&scalar);
+        println!("raw {:x?}", u);
+        println!("fmt {:x?}", u.as_bytes_uncompressed());
+    }
+
+    #[test]
+    fn generate_key_known_answer() {
+        let bytes = b"\x1F\x55\x45\x23\x08\x50\x8C\x6B\x24\x37\x0F\x22\x1E\xF1\xB3\xF9\x54\x46\xBE\x4F\x8A\x4B\x42\x8A\x5B\x51\xB7\x10\xC2\x68\x4C\x03";
+        let private = PrivateKey::from_bytes(bytes).unwrap();
+        println!("priv = {:x?}", private);
+        let public = private.public_key();
+        println!("pub = {:x?}", public.as_bytes_uncompressed());
+        assert_eq!(&public.as_bytes_uncompressed(),
                b"\x04\xcb\x8a\x14\x1c\xd7\xe4\x07\xaf\x69\xa5\x01\x88\xe9\x1c\xe5\x5d\xcc\xfd\x33\x48\xda\xba\x4a\x9c\x46\x64\x33\x2e\x95\x59\xb6\x81\x44\xfc\x1a\x61\xd8\x41\xe4\xdb\x80\x1b\x33\x51\x20\x12\x1d\x0b\xa4\x84\xb3\xc9\x53\xb3\x1d\x35\x1d\x7f\xa2\x13\x97\xd1\x25\x47");
-}
+    }
 
-#[test]
-fn test_raw_ecdsa_sign() {
-    let private = PrivateKey::from_bytes(b"\xd1\xf6\xbc\xcc\x3e\x5a\x40\x1b\xcc\x2c\x21\xbe\x34\x90\xed\x38\xde\xf4\x93\x7f\x78\x06\x03\xf5\x2b\x23\xb9\xa6\xfa\x9c\xf6\x0e").unwrap();
-    let k = PrivateKey::from_bytes(b"\xe7\x95\x37\xa1\xd7\x55\x45\x1f\x8c\x3c\xbf\xf7\x84\xea\x5c\x1c\xdf\xe1\x6b\x1d\x13\xe7\xbf\xbb\x04\xd7\xfd\x90\x57\xee\xee\xf7").unwrap();
-    let e = Scalar::from_bytes_checked(b"\x2c\xf2\x4d\xba\x5f\xb0\xa3\x0e\x26\xe8\x3b\x2a\xc5\xb9\xe2\x9e\x1b\x16\x1e\x5c\x1f\xa7\x42\x5e\x73\x04\x33\x62\x93\x8b\x98\x24").unwrap();
-    let r = Scalar::from_bytes_checked(b"\x78\xee\x34\xc8\xb6\x52\x29\x54\x96\x19\x79\x45\x2e\x6e\x0c\xe0\x68\x5d\x40\x42\x38\x41\xef\xeb\x06\xfe\x3e\x3f\xf7\xb6\x5d\xf5").unwrap();
-    let s = private.raw_ecdsa_sign(&k, &e, &r);
-    assert_eq!(format!("{:02x?}", s.as_bytes()),
+    #[test]
+    fn test_raw_ecdsa_sign() {
+        let private = PrivateKey::from_bytes(b"\xd1\xf6\xbc\xcc\x3e\x5a\x40\x1b\xcc\x2c\x21\xbe\x34\x90\xed\x38\xde\xf4\x93\x7f\x78\x06\x03\xf5\x2b\x23\xb9\xa6\xfa\x9c\xf6\x0e").unwrap();
+        let k = PrivateKey::from_bytes(b"\xe7\x95\x37\xa1\xd7\x55\x45\x1f\x8c\x3c\xbf\xf7\x84\xea\x5c\x1c\xdf\xe1\x6b\x1d\x13\xe7\xbf\xbb\x04\xd7\xfd\x90\x57\xee\xee\xf7").unwrap();
+        let e = Scalar::from_bytes_checked(b"\x2c\xf2\x4d\xba\x5f\xb0\xa3\x0e\x26\xe8\x3b\x2a\xc5\xb9\xe2\x9e\x1b\x16\x1e\x5c\x1f\xa7\x42\x5e\x73\x04\x33\x62\x93\x8b\x98\x24").unwrap();
+        let r = Scalar::from_bytes_checked(b"\x78\xee\x34\xc8\xb6\x52\x29\x54\x96\x19\x79\x45\x2e\x6e\x0c\xe0\x68\x5d\x40\x42\x38\x41\xef\xeb\x06\xfe\x3e\x3f\xf7\xb6\x5d\xf5").unwrap();
+        let s = private.raw_ecdsa_sign(&k, &e, &r);
+        assert_eq!(format!("{:02x?}", s.as_bytes()),
                "[5b, c9, 8e, 7d, 28, 74, d0, 9d, e8, fb, da, 22, 34, 83, 24, 4f, a1, ba, a2, 6a, 71, 91, 4e, 8e, d4, 8f, 88, b8, 2d, 17, 0b, 4b]");
-}
-
-#[test]
-fn test_booth_recoded_w7() {
-    let s = Scalar::small_u64(0x3bce_3c3e_27d2_604b);
-    for (d, sign) in s.booth_recoded_w7() {
-        println!("{d:x} {sign:x}");
     }
-}
 
-#[test]
-fn private_key_in_range() {
-    assert_eq!(
-        PrivateKey::from_bytes(&[0u8; 32]).unwrap_err(),
-        Error::OutOfRange
-    );
-
-    // order rejected
-    assert_eq!(PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x51").unwrap_err(), Error::OutOfRange);
-
-    // order + 1 rejected
-    assert_eq!(PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x52").unwrap_err(), Error::OutOfRange);
-
-    // order - 1 is ok
-    PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x50").unwrap();
-}
-
-#[test]
-fn curve_field_elements_as_mont() {
-    const CURVE_A: FieldElement = FieldElement([
-        0xffff_ffff_ffff_fffc,
-        0x0000_0000_ffff_ffff,
-        0x0000_0000_0000_0000,
-        0xffff_ffff_0000_0001,
-    ]);
-    const CURVE_B: FieldElement = FieldElement([
-        0x3bce_3c3e_27d2_604b,
-        0x651d_06b0_cc53_b0f6,
-        0xb3eb_bd55_7698_86bc,
-        0x5ac6_35d8_aa3a_93e7,
-    ]);
-
-    println!("G.x = {:x?}", CURVE_GENERATOR.x().as_mont());
-    println!("G.y = {:x?}", CURVE_GENERATOR.y().as_mont());
-    println!("a = {:x?}", CURVE_A.as_mont());
-    println!("b = {:x?}", CURVE_B.as_mont());
-    let one = FieldElement([1, 0, 0, 0]);
-    println!("R = {:x?}", one.as_mont());
-    println!("R * R = {:x?}", one.as_mont().as_mont());
-
-    println!("montify n = {:016x?}", Scalar::montifier().0);
-}
-
-#[test]
-fn base_point_precomp_wnaf_7() {
-    let precomp = CURVE_GENERATOR.public_precomp_wnaf_7_slow();
-
-    println!("pub(super) static CURVE_GENERATOR_PRECOMP_WNAF_7: [[AffineMontPoint; 64]; 37] = [");
-    for w in 0..37 {
-        println!("    // 1G..64G << {}", w);
-        println!("    [");
-        for p in 0..64 {
-            println!("        AffineMontPoint {{ xy: [");
-            for j in 0..8 {
-                println!("            0x{:016x}, ", precomp[w][p].xy[j]);
-            }
-            println!("]}},");
+    #[test]
+    fn test_booth_recoded_w7() {
+        let s = Scalar::small_u64(0x3bce_3c3e_27d2_604b);
+        for (d, sign) in s.booth_recoded_w7() {
+            println!("{d:x} {sign:x}");
         }
-        println!("    ],");
     }
-    println!("];");
 
-    println!("");
-    println!("table size is {} bytes", core::mem::size_of_val(&precomp));
+    #[test]
+    fn private_key_in_range() {
+        assert_eq!(
+            PrivateKey::from_bytes(&[0u8; 32]).unwrap_err(),
+            Error::OutOfRange
+        );
+
+        // order rejected
+        assert_eq!(PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x51").unwrap_err(), Error::OutOfRange);
+
+        // order + 1 rejected
+        assert_eq!(PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x52").unwrap_err(), Error::OutOfRange);
+
+        // order - 1 is ok
+        PrivateKey::from_bytes(b"\xff\xff\xff\xff\x00\x00\x00\x00\xff\xff\xff\xff\xff\xff\xff\xff\xbc\xe6\xfa\xad\xa7\x17\x9e\x84\xf3\xb9\xca\xc2\xfc\x63\x25\x50").unwrap();
+    }
+
+    #[test]
+    fn curve_field_elements_as_mont() {
+        const CURVE_A: FieldElement = FieldElement([
+            0xffff_ffff_ffff_fffc,
+            0x0000_0000_ffff_ffff,
+            0x0000_0000_0000_0000,
+            0xffff_ffff_0000_0001,
+        ]);
+        const CURVE_B: FieldElement = FieldElement([
+            0x3bce_3c3e_27d2_604b,
+            0x651d_06b0_cc53_b0f6,
+            0xb3eb_bd55_7698_86bc,
+            0x5ac6_35d8_aa3a_93e7,
+        ]);
+
+        println!("G.x = {:x?}", CURVE_GENERATOR.x().as_mont());
+        println!("G.y = {:x?}", CURVE_GENERATOR.y().as_mont());
+        println!("a = {:x?}", CURVE_A.as_mont());
+        println!("b = {:x?}", CURVE_B.as_mont());
+        let one = FieldElement([1, 0, 0, 0]);
+        println!("R = {:x?}", one.as_mont());
+        println!("R * R = {:x?}", one.as_mont().as_mont());
+
+        println!("montify n = {:016x?}", Scalar::montifier().0);
+    }
+
+    #[test]
+    fn base_point_precomp_wnaf_7() {
+        let precomp = CURVE_GENERATOR.public_precomp_wnaf_7_slow();
+
+        println!(
+            "pub(super) static CURVE_GENERATOR_PRECOMP_WNAF_7: [[AffineMontPoint; 64]; 37] = ["
+        );
+        for w in 0..37 {
+            println!("    // 1G..64G << {}", w);
+            println!("    [");
+            for p in 0..64 {
+                println!("        AffineMontPoint {{ xy: [");
+                for j in 0..8 {
+                    println!("            0x{:016x}, ", precomp[w][p].xy[j]);
+                }
+                println!("]}},");
+            }
+            println!("    ],");
+        }
+        println!("];");
+
+        println!("");
+        println!("table size is {} bytes", size_of_val(&precomp));
+    }
 }
-
-/*
-// benchmarks for division by Z ^ 2 and Z ^ 3 in projective jacobian -> affine
-// conversions
-
-#[bench]
-fn bench_mont_inv(b: &mut test::Bencher) {
-    let z = FieldElement([
-        0xbbe4a6af9d2aac15,
-        0x169571c87433c8b9,
-        0xa5d10d11ba43e64b,
-        0x0ae3fe314b10bb0a,
-    ]);
-    b.iter(|| {
-        let z2 = z.mont_sqr();
-        let _z2_inv = test::black_box(z2.mont_inv());
-        let _z3_inv = test::black_box(z2.mont_mul(&z).mont_inv());
-    });
-}
-
-#[bench]
-fn bench_inv(b: &mut test::Bencher) {
-    let z = FieldElement([
-        0xbbe4a6af9d2aac15,
-        0x169571c87433c8b9,
-        0xa5d10d11ba43e64b,
-        0x0ae3fe314b10bb0a,
-    ]);
-    b.iter(|| {
-        let z2 = z.mont_sqr();
-        let _z2_inv = test::black_box(z2.demont().inv().as_mont());
-        let _z3_inv = test::black_box(z2.mont_mul(&z).demont().inv().as_mont());
-    });
-}
-*/
