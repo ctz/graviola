@@ -99,7 +99,7 @@ macro_rules! asn1_enum {
                     0x80..=0x7fff => 2,
                     0x8000..=0x7fffff => 3,
                     0x800000..=0x7fffffff => 4,
-                    _ => todo!(),
+                    _ => unimplemented!("extremely long asn1 object"),
                 };
                 $crate::high::asn1::encoded_length_for(byte_len)
             }
@@ -646,7 +646,7 @@ fn encoded_length_for(len: usize) -> usize {
         0x01_00..=0xff_ff => TAG + 1 + 2 + len,
         0x01_00_00..=0xff_ff_ff => TAG + 1 + 3 + len,
         0x01_00_00_00..=0xff_ff_ff_ff => TAG + 1 + 4 + len,
-        _ => todo!(),
+        _ => unimplemented!("extremely long asn1 object"),
     }
 }
 
