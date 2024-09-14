@@ -28,7 +28,7 @@ are not welcomed; please do not file issues or PRs.
 - [x] aarch64 sha2 using intrinsics
 - [ ] 4-wide ghash for aarch64
 - [ ] wide gcm for aarch64
-- [ ] p384
+- [x] p384
 - [ ] source-based automated interleaving for intrinsic code
 - [ ] add CI for enforcing SPDX header
 
@@ -36,7 +36,7 @@ are not welcomed; please do not file issues or PRs.
 
 - [x] Fast and simple compilation
     - [x] `cargo build` takes less than one second, and requires only rustc
-- [ ] Competitive performance (with *ring*, aws-lc-rs, and rustcrypto)
+- [x] Competitive performance (with *ring*, aws-lc-rs, and rustcrypto)
 - [x] Uses formally-verified assembler from other projects (where available)
 - [ ] Intended to provide algorithms in wide use on web
 - [ ] Intended for use as a rustls `CryptoProvider`
@@ -71,7 +71,7 @@ We are grateful to:
 - [x] RSA-PSS signing
 - [x] RSA-PKCS#1 signing
 - [x] ECDSA on P256 w/ SHA2
-  - [x] RFC6979 deterministic ECDSA with additional randomness.
+- [x] ECDSA on P384 w/ SHA2
 
 ### Hashing
 
@@ -84,6 +84,7 @@ We are grateful to:
 
 - [x] X25519
 - [x] P256
+- [x] P384
 
 ### AEADs
 
