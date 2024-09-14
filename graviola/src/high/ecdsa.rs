@@ -21,7 +21,11 @@ impl<C: Curve> SigningKey<C> {
     /// `signature` is the output buffer; `Error::WrongLength` is returned
     /// if it is not long enough.  The used prefix of this buffer is returned
     /// on success.
-    pub fn sign<H: Hash>(&self, message: &[&[u8]], signature: &mut [u8]) -> Result<(), Error> {
+    pub fn sign<'a, H: Hash>(
+        &self,
+        message: &[&[u8]],
+        signature: &'a mut [u8],
+    ) -> Result<&'a [u8], Error> {
         let mut random = [0u8; 16];
         SystemRandom.fill(&mut random)?;
         self.rfc6979_sign_with_random::<H>(message, &random, signature)
@@ -41,12 +45,12 @@ impl<C: Curve> SigningKey<C> {
     /// RFC6979 allows for this: see section 3.6:
     /// <https://datatracker.ietf.org/doc/html/rfc6979#section-3.6>.  And HMAC_DRBG
     /// also allows for it, it is the `personalization_string` input.
-    fn rfc6979_sign_with_random<H: Hash>(
+    fn rfc6979_sign_with_random<'a, H: Hash>(
         &self,
         message: &[&[u8]],
         random: &[u8],
-        signature: &mut [u8],
-    ) -> Result<(), Error> {
+        signature: &'a mut [u8],
+    ) -> Result<&'a [u8], Error> {
         let output = signature
             .get_mut(..C::Scalar::LEN_BYTES * 2)
             .ok_or(Error::WrongLength)?;
@@ -80,7 +84,7 @@ impl<C: Curve> SigningKey<C> {
 
         r.write_bytes(&mut output[..C::Scalar::LEN_BYTES]);
         s.write_bytes(&mut output[C::Scalar::LEN_BYTES..]);
-        Ok(())
+        Ok(&output[..C::Scalar::LEN_BYTES * 2])
     }
 }
 
@@ -188,7 +192,7 @@ mod tests {
         println!("public key {:?}", k.public_key().as_bytes_uncompressed());
         let k = SigningKey::<curve::P256> { private_key: k };
         let mut signature = [0u8; 64];
-        k.sign::<hash::Sha256>(&[b"hello"], &mut signature).unwrap();
+        let signature = k.sign::<hash::Sha256>(&[b"hello"], &mut signature).unwrap();
         println!("sig {:?}", signature);
     }
 
