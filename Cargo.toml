@@ -4,6 +4,3 @@ members = [
   "graviola",
   "graviola-bench",
 ]
-
-[profile.release]
-debug = "full"

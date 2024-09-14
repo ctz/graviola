@@ -4,6 +4,7 @@
 use core::fmt::Debug;
 use core::marker::PhantomData;
 use core::mem;
+use core::mem::size_of;
 
 macro_rules! _asn1_struct_ty(
     ([$context:literal] $($itty:ident)+) => { $crate::high::asn1::ContextConstructed<'a, $context, $crate::high::asn1::_asn1_struct_ty!($($itty)+)> };
@@ -277,7 +278,7 @@ impl ObjectId {
                 r.buf[r.used] = path[0] as u8;
                 r.used += 1;
             }
-            2.. => {
+            _ => {
                 r.buf[r.used] = (path[0] as u8) * 40 + (path[1] as u8);
                 r.used += 1;
 
@@ -619,7 +620,7 @@ impl<'a, 's> Encoder<'a> {
 
         match body_len {
             0..=0x7f => self.push(body_len as u8)?,
-            0x80.. => {
+            _ => {
                 let bytes = ((body_len.ilog2() + 1 + 7) / 8) as usize;
                 self.push(0x80 + bytes as u8)?;
                 let len_encoded = body_len.to_be_bytes();

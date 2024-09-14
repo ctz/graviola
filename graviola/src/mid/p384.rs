@@ -997,5 +997,5 @@ fn base_point_precomp_wnaf_5() {
     println!("];");
 
     println!("");
-    println!("table size is {} bytes", size_of_val(&precomp));
+    println!("table size is {} bytes", core::mem::size_of_val(&precomp));
 }
