@@ -1,6 +1,7 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use super::asn1::{self, Type};
 use super::curve::{Curve, PrivateKey, PublicKey, Scalar, MAX_SCALAR_LEN};
 use super::hash::{Hash, HashContext};
 use super::hmac_drbg::HmacDrbg;
@@ -125,6 +126,23 @@ impl<C: Curve> VerifyingKey<C> {
         // 4. - 8. in `raw_ecdsa_verify`
         self.public_key.raw_ecdsa_verify(&r, &s, &e)
     }
+
+    /// Verify an ECDSA ASN.1-encoded signature.
+    ///
+    /// This does a straightforward conversion from ASN.1 to fixed length,
+    /// and then calls [`Self::verify()`] -- see the documentation for more.
+    pub fn verify_asn1<H: Hash>(&self, message: &[&[u8]], signature: &[u8]) -> Result<(), Error> {
+        let sig =
+            asn1::pkix::EcdsaSigValue::from_bytes(signature).map_err(|_| Error::BadSignature)?;
+        if sig.r.is_negative() || sig.s.is_negative() {
+            return Err(Error::BadSignature);
+        }
+
+        let fixed = &mut [0u8; MAX_SCALAR_LEN * 2][..C::Scalar::LEN_BYTES * 2];
+        write_fixed(&mut fixed[..C::Scalar::LEN_BYTES], sig.r.as_ref())?;
+        write_fixed(&mut fixed[C::Scalar::LEN_BYTES..], sig.s.as_ref())?;
+        self.verify::<H>(message, fixed)
+    }
 }
 
 fn hash_to_scalar<C: Curve>(hash: &[u8]) -> Result<C::Scalar, Error> {
@@ -136,6 +154,24 @@ fn hash_to_scalar<C: Curve>(hash: &[u8]) -> Result<C::Scalar, Error> {
         hash
     };
     Ok(C::Scalar::from_bytes_reduced(hash))
+}
+
+fn write_fixed(out: &mut [u8], mut value: &[u8]) -> Result<(), Error> {
+    // strip (one) leading zero byte
+    if !value.is_empty() && value[0] == 0x00 {
+        value = &value[1..];
+    }
+
+    // if it doesn't fit, it is illegally larger than the largest scalar, so
+    // cannot be an integer mod n.
+    if out.len() < value.len() {
+        return Err(Error::BadSignature);
+    }
+
+    let (prefix, suffix) = out.split_at_mut(out.len() - value.len());
+    prefix.fill(0x00);
+    suffix.copy_from_slice(value);
+    Ok(())
 }
 
 #[cfg(test)]

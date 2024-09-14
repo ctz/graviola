@@ -552,7 +552,7 @@ impl<'a, 's> Parser<'a> {
                 }
                 Ok(len)
             }
-            _ => todo!(),
+            _ => Err(Error::UnsupportedLargeObjectLength),
         }
     }
 }
@@ -651,6 +651,7 @@ pub enum Error {
     IntegerOutOfRange,
     IllegalNull,
     UnsupportedLargeObjectId,
+    UnsupportedLargeObjectLength,
     UnhandledBitString,
 }
 

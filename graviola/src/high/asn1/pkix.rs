@@ -70,6 +70,13 @@ asn1_struct! {
     }
 }
 
+asn1_struct! {
+    EcdsaSigValue  ::=  SEQUENCE  {
+           r     INTEGER,
+           s     INTEGER
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -169,112 +169,106 @@ fn hmac_sha512_tests() {
 }
 
 #[test]
-fn test_verify_ecdsa_p256_sha256() {
-    let data_file = File::open(
-        "../thirdparty/wycheproof/testvectors_v1/ecdsa_secp256r1_sha256_p1363_test.json",
-    )
-    .expect("failed to open data file");
+fn test_verify_ecdsa_p256() {
+    for file in [
+        "ecdsa_secp256r1_sha256_p1363_test.json",
+        "ecdsa_secp256r1_sha256_test.json",
+        "ecdsa_secp256r1_sha512_p1363_test.json",
+        "ecdsa_secp256r1_sha512_test.json",
+    ] {
+        let data_file = File::open(format!("../thirdparty/wycheproof/testvectors_v1/{file}"))
+            .expect("failed to open data file");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+        let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
 
-    for group in tests.groups {
-        println!("group: {:?}", group.typ);
-        let public_key =
-            VerifyingKey::<P256>::from_x962_uncompressed(&group.public_key.uncompressed).unwrap();
+        for group in tests.groups {
+            println!("group: {:?}", group.typ);
+            let public_key =
+                VerifyingKey::<P256>::from_x962_uncompressed(&group.public_key.uncompressed)
+                    .unwrap();
 
-        for test in group.tests {
-            println!("  test {:?}", test);
+            for test in group.tests {
+                println!("  test {:?}", test);
 
-            let result = public_key.verify::<Sha256>(&[&test.msg], &test.sig);
+                let result = match (group.typ.as_ref(), group.sha.as_ref()) {
+                    ("EcdsaP1363Verify", "SHA-256") => {
+                        public_key.verify::<Sha256>(&[&test.msg], &test.sig)
+                    }
+                    ("EcdsaVerify", "SHA-256") => {
+                        public_key.verify_asn1::<Sha256>(&[&test.msg], &test.sig)
+                    }
+                    ("EcdsaP1363Verify", "SHA-512") => {
+                        public_key.verify::<Sha512>(&[&test.msg], &test.sig)
+                    }
+                    ("EcdsaVerify", "SHA-512") => {
+                        public_key.verify_asn1::<Sha512>(&[&test.msg], &test.sig)
+                    }
+                    _ => todo!("other ecdsa hashes"),
+                };
 
-            match (test.result, result) {
-                (ExpectedResult::Valid, Ok(())) => {}
-                (ExpectedResult::Invalid, Err(Error::BadSignature) | Err(Error::WrongLength)) => {}
-                _ => panic!("expected {:?} got {:?}", test.result, result),
+                match (test.result, result) {
+                    (ExpectedResult::Valid, Ok(())) => {}
+                    (
+                        ExpectedResult::Invalid,
+                        Err(Error::BadSignature) | Err(Error::WrongLength),
+                    ) => {}
+                    _ => panic!("expected {:?} got {:?}", test.result, result),
+                }
             }
         }
     }
 }
 
 #[test]
-fn test_verify_ecdsa_p256_sha512() {
-    let data_file = File::open(
-        "../thirdparty/wycheproof/testvectors_v1/ecdsa_secp256r1_sha512_p1363_test.json",
-    )
-    .expect("failed to open data file");
+fn test_verify_ecdsa_p384() {
+    for file in [
+        "ecdsa_secp384r1_sha256_test.json",
+        "ecdsa_secp384r1_sha384_p1363_test.json",
+        "ecdsa_secp384r1_sha384_test.json",
+        "ecdsa_secp384r1_sha512_p1363_test.json",
+        "ecdsa_secp384r1_sha512_test.json",
+    ] {
+        let data_file = File::open(format!("../thirdparty/wycheproof/testvectors_v1/{file}"))
+            .expect("failed to open data file");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+        let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
 
-    for group in tests.groups {
-        println!("group: {:?}", group.typ);
-        let public_key =
-            VerifyingKey::<P256>::from_x962_uncompressed(&group.public_key.uncompressed).unwrap();
+        for group in tests.groups {
+            println!("group: {:?}", group.typ);
+            let public_key =
+                VerifyingKey::<P384>::from_x962_uncompressed(&group.public_key.uncompressed)
+                    .unwrap();
 
-        for test in group.tests {
-            println!("  test {:?}", test);
+            for test in group.tests {
+                println!("  test {:?}", test);
 
-            let result = public_key.verify::<Sha512>(&[&test.msg], &test.sig);
+                let result = match (group.typ.as_ref(), group.sha.as_ref()) {
+                    ("EcdsaVerify", "SHA-256") => {
+                        public_key.verify_asn1::<Sha256>(&[&test.msg], &test.sig)
+                    }
+                    ("EcdsaP1363Verify", "SHA-384") => {
+                        public_key.verify::<Sha384>(&[&test.msg], &test.sig)
+                    }
+                    ("EcdsaVerify", "SHA-384") => {
+                        public_key.verify_asn1::<Sha384>(&[&test.msg], &test.sig)
+                    }
+                    ("EcdsaP1363Verify", "SHA-512") => {
+                        public_key.verify::<Sha512>(&[&test.msg], &test.sig)
+                    }
+                    ("EcdsaVerify", "SHA-512") => {
+                        public_key.verify_asn1::<Sha512>(&[&test.msg], &test.sig)
+                    }
+                    _ => todo!("other ecdsa hashes"),
+                };
 
-            match (test.result, result) {
-                (ExpectedResult::Valid, Ok(())) => {}
-                (ExpectedResult::Invalid, Err(Error::BadSignature) | Err(Error::WrongLength)) => {}
-                _ => panic!("expected {:?} got {:?}", test.result, result),
-            }
-        }
-    }
-}
-
-#[test]
-fn test_verify_ecdsa_p384_sha384() {
-    let data_file = File::open(
-        "../thirdparty/wycheproof/testvectors_v1/ecdsa_secp384r1_sha384_p1363_test.json",
-    )
-    .expect("failed to open data file");
-
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
-
-    for group in tests.groups {
-        println!("group: {:?}", group.typ);
-        let public_key =
-            VerifyingKey::<P384>::from_x962_uncompressed(&group.public_key.uncompressed).unwrap();
-
-        for test in group.tests {
-            println!("  test {:?}", test);
-
-            let result = public_key.verify::<Sha384>(&[&test.msg], &test.sig);
-
-            match (test.result, result) {
-                (ExpectedResult::Valid, Ok(())) => {}
-                (ExpectedResult::Invalid, Err(Error::BadSignature) | Err(Error::WrongLength)) => {}
-                _ => panic!("expected {:?} got {:?}", test.result, result),
-            }
-        }
-    }
-}
-
-#[test]
-fn test_verify_ecdsa_p384_sha512() {
-    let data_file = File::open(
-        "../thirdparty/wycheproof/testvectors_v1/ecdsa_secp384r1_sha512_p1363_test.json",
-    )
-    .expect("failed to open data file");
-
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
-
-    for group in tests.groups {
-        println!("group: {:?}", group.typ);
-        let public_key =
-            VerifyingKey::<P384>::from_x962_uncompressed(&group.public_key.uncompressed).unwrap();
-
-        for test in group.tests {
-            println!("  test {:?}", test);
-
-            let result = public_key.verify::<Sha512>(&[&test.msg], &test.sig);
-
-            match (test.result, result) {
-                (ExpectedResult::Valid, Ok(())) => {}
-                (ExpectedResult::Invalid, Err(Error::BadSignature) | Err(Error::WrongLength)) => {}
-                _ => panic!("expected {:?} got {:?}", test.result, result),
+                match (test.result, result) {
+                    (ExpectedResult::Valid, Ok(())) => {}
+                    (
+                        ExpectedResult::Invalid,
+                        Err(Error::BadSignature) | Err(Error::WrongLength),
+                    ) => {}
+                    _ => panic!("expected {:?} got {:?}", test.result, result),
+                }
             }
         }
     }
