@@ -79,6 +79,15 @@ impl RsaPrivateKey {
             return Err(Error::OutOfRange);
         }
 
+        // A note about blinding:
+        //
+        // In this library, we only perform RSA signatures, where `c` is
+        // public information, there is little use for base blinding.
+        //
+        // Exponent and modulus blinding are _also_ relatively unnecessary,
+        // since our `PosInt::mont_exp` is side-channel silent.
+        // See the commentary there for why I think that is the case.
+
         // i.   Let m_1 = c^dP mod p and m_2 = c^dQ mod q.
         // (do reductions of c first, so the mod exp can be done at
         // width of p or q rather than pq.)

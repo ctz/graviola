@@ -340,6 +340,9 @@ impl<const N: usize> PosInt<N> {
     ///
     /// `n_montifier` is `n.montifier()`.
     /// `n_0` is `n.mont_neg_inverse()`.
+    ///
+    /// This is done in a side-channel-free way, with respect to the values of `self`, `e`,
+    /// `n` and `n_0`.  The instruction trace depends only on `e.used` and `n.used`.
     pub(crate) fn mont_exp(&self, e: &Self, n: &Self, n_montifier: &Self, n_0: u64) -> Self {
         let mut accum = n.fixed_one().mont_mul(n_montifier, n, n_0);
 
@@ -372,15 +375,13 @@ impl<const N: usize> PosInt<N> {
         let t4 = t2.mont_sqr(n, n_0);
         table.extend_from_slice(t4.as_words());
 
-        // 5: self ^ 2 ^ 2
+        // (and so on)
         let t5 = t4.mont_mul(&t1, n, n_0);
         table.extend_from_slice(t5.as_words());
 
-        // 6: (self ^ 2 * self) ^ 2
         let t6 = t3.mont_sqr(n, n_0);
         table.extend_from_slice(t6.as_words());
 
-        // (and so on)
         let t7 = t6.mont_mul(&t1, n, n_0);
         table.extend_from_slice(t7.as_words());
 
@@ -416,6 +417,8 @@ impl<const N: usize> PosInt<N> {
         term.used = n.used;
 
         for bit in BitsMsbFirstIter::new(e.as_words()) {
+            // for the first exponent bit, `accum` is 1M;
+            // squaring this would be a waste of effort.
             let tmp = if first {
                 first = false;
                 accum.clone()
@@ -423,10 +426,15 @@ impl<const N: usize> PosInt<N> {
                 accum.mont_sqr(n, n_0)
             };
 
+            // accumulate exponent bits into the window.
             window = (window << 1) | bit;
             wcount += 1;
 
+            // until we have a full window of bits
             if wcount == 4 {
+                // and then use that to select the term from `table`;
+                // relying on `bignum_copy_row_from_table` being side-channel
+                // silent.
                 low::bignum_copy_row_from_table(
                     term.as_mut_words(),
                     table.as_slice(),
@@ -435,6 +443,7 @@ impl<const N: usize> PosInt<N> {
                     window,
                 );
 
+                // then multiply that in, mod n.
                 accum = tmp.mont_mul(&term, n, n_0);
                 wcount = 0;
                 window = 0;
