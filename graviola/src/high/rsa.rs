@@ -1,9 +1,9 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
-use crate::high::asn1::{pkix, Type};
+use crate::high::asn1::{self, pkix, Type};
 use crate::high::hash::{self, Hash};
-use crate::high::pkcs1;
+use crate::high::{pkcs1, pkcs8};
 use crate::low::PosInt;
 use crate::mid::rng::SystemRandom;
 use crate::mid::{rsa_priv, rsa_pub};
@@ -126,6 +126,15 @@ impl RsaPrivateSigningKey {
 
         let priv_key = rsa_priv::RsaPrivateKey::new(p, q, dp, dq, iqmp, n, e)?;
         Ok(Self(priv_key))
+    }
+
+    pub fn from_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
+        pkcs8::decode_pkcs8(
+            bytes,
+            &asn1::oid::rsaEncryption,
+            Some(asn1::Any::Null(asn1::Null)),
+        )
+        .and_then(Self::from_pkcs1_der)
     }
 
     pub fn public_key(&self) -> RsaPublicVerificationKey {
@@ -255,6 +264,14 @@ mod tests {
     fn pairwise_rsa2048_sign_verify() {
         let private_key =
             RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa2048.der")).unwrap();
+
+        check_all_algs(&mut [0u8; 256], &private_key, &private_key.public_key());
+    }
+
+    #[test]
+    fn pairwise_rsa2048_sign_verify_pkcs8() {
+        let private_key =
+            RsaPrivateSigningKey::from_pkcs8_der(include_bytes!("rsa/rsa2048.pkcs8.der")).unwrap();
 
         check_all_algs(&mut [0u8; 256], &private_key, &private_key.public_key());
     }

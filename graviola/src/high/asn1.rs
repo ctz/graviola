@@ -293,7 +293,7 @@ impl ObjectId {
                         r.buf[r.used] = item as u8;
                         r.used += 1;
                     } else {
-                        let mut chunks = (item.ilog2() + 6) / 7;
+                        let mut chunks = (item.ilog2() + 1 + 6) / 7;
 
                         while chunks > 1 {
                             chunks -= 1;
@@ -433,6 +433,10 @@ pub struct OctetString<'a> {
 impl<'a> OctetString<'a> {
     pub(crate) fn new(octets: &'a [u8]) -> Self {
         Self { octets }
+    }
+
+    pub(crate) fn into_octets(self) -> &'a [u8] {
+        self.octets
     }
 }
 
@@ -753,5 +757,13 @@ mod tests {
             .unwrap();
         buf.truncate(len);
         assert_eq!(&buf, encoding);
+    }
+
+    #[test]
+    fn test_encode_oid() {
+        assert_eq!(
+            ObjectId::from_path(&[1, 3, 132, 0, 34]).as_ref(),
+            &[0x2b, 0x81, 0x04, 0x00, 0x22,]
+        );
     }
 }

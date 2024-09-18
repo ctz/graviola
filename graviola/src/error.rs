@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
 /// All errors that may happen in this crate.
+#[non_exhaustive]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Error {
     /// Some slice was the wrong length.
@@ -27,4 +28,22 @@ pub enum Error {
 
     /// An ASN.1 encoding/decoding error.
     Asn1Error(crate::high::asn1::Error),
+
+    /// A key formatting/validation error.
+    KeyFormatError(KeyFormatError),
+}
+
+#[non_exhaustive]
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum KeyFormatError {
+    UnsupportedPkcs8Version,
+    MismatchedPkcs8Algorithm,
+    MismatchedPkcs8Parameters,
+    UnsupportedSec1Version,
+}
+
+impl From<KeyFormatError> for Error {
+    fn from(kfe: KeyFormatError) -> Self {
+        Self::KeyFormatError(kfe)
+    }
 }

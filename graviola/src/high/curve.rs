@@ -1,6 +1,7 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use crate::high::asn1;
 use crate::mid::p256;
 use crate::mid::p384;
 use crate::Error;
@@ -11,10 +12,14 @@ pub trait Curve {
     type PublicKey: PublicKey<Self>;
     type Scalar: Scalar<Self>;
 
+    fn oid() -> asn1::ObjectId;
     fn generate_random_key(rng: &mut dyn RandomSource) -> Result<Self::PrivateKey, Error>;
 }
 
 pub trait PrivateKey<C: Curve + ?Sized> {
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error>
+    where
+        Self: Sized;
     fn encode<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error>;
     fn public_key(&self) -> C::PublicKey;
     fn raw_ecdsa_sign(&self, k: &Self, e: &C::Scalar, r: &C::Scalar) -> C::Scalar;
@@ -49,12 +54,20 @@ impl Curve for P256 {
     type PublicKey = p256::PublicKey;
     type Scalar = p256::Scalar;
 
+    fn oid() -> asn1::ObjectId {
+        asn1::oid::id_prime256v1.clone()
+    }
+
     fn generate_random_key(rng: &mut dyn RandomSource) -> Result<p256::PrivateKey, Error> {
         p256::PrivateKey::generate(rng)
     }
 }
 
 impl PrivateKey<P256> for p256::PrivateKey {
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        Self::from_bytes(bytes)
+    }
+
     fn encode<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error> {
         if let Some(out) = out.get_mut(0..32) {
             out.copy_from_slice(&self.as_bytes());
@@ -119,12 +132,20 @@ impl Curve for P384 {
     type PublicKey = p384::PublicKey;
     type Scalar = p384::Scalar;
 
+    fn oid() -> asn1::ObjectId {
+        asn1::oid::secp384r1.clone()
+    }
+
     fn generate_random_key(rng: &mut dyn RandomSource) -> Result<p384::PrivateKey, Error> {
         p384::PrivateKey::generate(rng)
     }
 }
 
 impl PrivateKey<P384> for p384::PrivateKey {
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        Self::from_bytes(bytes)
+    }
+
     fn encode<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error> {
         if let Some(out) = out.get_mut(0..48) {
             out.copy_from_slice(&self.as_bytes());

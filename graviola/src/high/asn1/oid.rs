@@ -25,6 +25,12 @@ asn1_oid! {
 }
 
 asn1_oid! {
+    secp384r1 OBJECT IDENTIFIER ::= {
+        iso(1) identified_organization(3) certicom(132) curve(0) ansip384r1(34)
+    }
+}
+
+asn1_oid! {
     rsaEncryption OBJECT IDENTIFIER ::= {
         iso(1) member_body(2)
         us(840) rsadsi(113549) pkcs(1) 1 rsaEncryption(1)

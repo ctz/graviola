@@ -5,14 +5,38 @@ use super::asn1::{self, Type};
 use super::curve::{Curve, PrivateKey, PublicKey, Scalar, MAX_SCALAR_LEN};
 use super::hash::{Hash, HashContext};
 use super::hmac_drbg::HmacDrbg;
+use super::pkcs8;
+use crate::error::{Error, KeyFormatError};
 use crate::mid::rng::{RandomSource, SystemRandom};
-use crate::Error;
 
 pub struct SigningKey<C: Curve> {
     pub private_key: C::PrivateKey,
 }
 
 impl<C: Curve> SigningKey<C> {
+    /// Load an ECDSA private key in PKCS#8 format.
+    pub fn from_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
+        pkcs8::decode_pkcs8(
+            bytes,
+            &asn1::oid::id_ecPublicKey,
+            Some(asn1::Any::ObjectId(C::oid())),
+        )
+        .and_then(Self::from_sec1_der)
+    }
+
+    /// Load an ECDSA private key in SEC.1 format.
+    pub fn from_sec1_der(bytes: &[u8]) -> Result<Self, Error> {
+        let ecpk = asn1::pkix::EcPrivateKey::from_bytes(bytes).map_err(Error::Asn1Error)?;
+
+        if !matches!(ecpk.version, asn1::pkix::EcPrivateKeyVer::ecPrivkeyVer1) {
+            return Err(KeyFormatError::UnsupportedSec1Version.into());
+        }
+
+        Ok(Self {
+            private_key: C::PrivateKey::from_bytes(ecpk.privateKey.into_octets())?,
+        })
+    }
+
     /// ECDSA signing, returning a fixed-length signature.
     ///
     /// The `message` is hashed using `H`.  The message is a sequence of byte
@@ -229,6 +253,16 @@ mod tests {
     use crate::high::{curve, hash};
     use crate::mid::rng::SliceRandomSource;
     use crate::SystemRandom;
+
+    #[test]
+    fn smoke_test_loading_keys() {
+        SigningKey::<curve::P256>::from_pkcs8_der(include_bytes!("ecdsa/secp256r1.pkcs8.der"))
+            .unwrap();
+        SigningKey::<curve::P256>::from_sec1_der(include_bytes!("ecdsa/secp256r1.der")).unwrap();
+        SigningKey::<curve::P384>::from_pkcs8_der(include_bytes!("ecdsa/secp384r1.pkcs8.der"))
+            .unwrap();
+        SigningKey::<curve::P384>::from_sec1_der(include_bytes!("ecdsa/secp384r1.der")).unwrap();
+    }
 
     #[test]
     fn smoke_test_ecdsa_sign() {
