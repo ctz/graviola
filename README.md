@@ -91,6 +91,55 @@ We are grateful to:
 - [x] AES-GCM
 - [x] chacha20-poly1305
 
+## Assorted technical details
+
+### RSA
+All the arithmetic is provided by s2n-bignum.
+
+The RSA private operation always uses the CRT optimisation.
+
+Modular exponentiation uses 4-bit fixed exponent window, and the term is selected by
+the exponent bits from the table of base powers in a side-channel-free way.
+The private operation is always followed by the public operation to verify the result
+(and the result compared in a side-channel-free way).
+
+Only RSA signing and verification are provided.  Our policy on RSA encryption is:
+"These are not made. They should never be made. We will not make them. We will not help make them."
+
+### ECC
+All ECC field and scalar arithmetic are provided by s2n-bignum.
+
+P256 base point multiplication uses 7-bit exponent window in wNAF form (this costs a 148KB constant table).
+Variable point multiplication uses a 5-bit exponent window in wNAF form.
+
+P384 base and variable point multiplication both use a 5-bit exponent window in wNAF form.
+(This means we're leaving a some P384 base point performance on the table, in exchange for code space.
+P384 performance seems to be less important than P256.)
+
+ECDSA follows RFC6979 for generation of `k`, but adds additional non-critical random input.
+We do this to avoid the theoretical fragility of RFC6979 under fault conditions.
+This is allowed for by RFC6979, and the HMAC-DRBG that it builds on.
+The code is structured such that we pass the RFC6979 test vectors.
+
+These computations are notably side-channel-free:
+- The conditional y negation based on the wNAF sign
+- Selection of a term from the table of base multiples
+- Inversion of k in ECDSA signing
+
+X25519 directly uses the s2n-bignum implementation.
+
+### Symmetric cryptography
+SHA256 has straightforward implementations using hashing intrinsics
+(aka "SHA-NI" on x86_64, "sha" extension on aarch64) with runtime fallback to
+a pure Rust version if needed.
+
+SHA384/SHA512 on x86_64 has an AVX2 by-4 implementation.
+
+AES and GHASH always use intrinsics (there are no fallbacks).
+
+On x86_64, we have a by-8 AES-CTR and a by-4 GHASH (they are not currently
+interleaved; this is future work.)
+
 ## Performance
 
 See: https://jbp.io/graviola/
