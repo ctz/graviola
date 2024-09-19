@@ -169,7 +169,7 @@ impl AffineMontPoint {
 
     fn x_scalar(&self) -> Scalar {
         let bytes = self.as_bytes_uncompressed();
-        Scalar::from_bytes_reduced(&bytes[1..33]).unwrap()
+        Scalar::from_bytes_reduced(&bytes[1..49]).unwrap()
     }
 
     fn from_xy(x: FieldElement, y: FieldElement) -> Self {
@@ -634,7 +634,7 @@ impl Scalar {
         r
     }
 
-    /// Return 2^512 mod n, ie MM mod n
+    /// Return 2^768 mod n, ie MM mod n
     fn montifier() -> Self {
         let mut r = Self::default();
         let mut tmp = Self::default();
