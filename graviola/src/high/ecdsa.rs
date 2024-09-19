@@ -256,22 +256,62 @@ mod tests {
 
     #[test]
     fn smoke_test_loading_keys() {
-        SigningKey::<curve::P256>::from_pkcs8_der(include_bytes!("ecdsa/secp256r1.pkcs8.der"))
-            .unwrap();
-        SigningKey::<curve::P256>::from_sec1_der(include_bytes!("ecdsa/secp256r1.der")).unwrap();
-        SigningKey::<curve::P384>::from_pkcs8_der(include_bytes!("ecdsa/secp384r1.pkcs8.der"))
-            .unwrap();
-        SigningKey::<curve::P384>::from_sec1_der(include_bytes!("ecdsa/secp384r1.der")).unwrap();
+        check_sign_verify::<curve::P256>(
+            SigningKey::<curve::P256>::from_pkcs8_der(include_bytes!("ecdsa/secp256r1.pkcs8.der"))
+                .unwrap()
+                .private_key,
+        );
+        check_sign_verify::<curve::P256>(
+            SigningKey::<curve::P256>::from_sec1_der(include_bytes!("ecdsa/secp256r1.der"))
+                .unwrap()
+                .private_key,
+        );
+        check_sign_verify::<curve::P384>(
+            SigningKey::<curve::P384>::from_pkcs8_der(include_bytes!("ecdsa/secp384r1.pkcs8.der"))
+                .unwrap()
+                .private_key,
+        );
+        check_sign_verify::<curve::P384>(
+            SigningKey::<curve::P384>::from_sec1_der(include_bytes!("ecdsa/secp384r1.der"))
+                .unwrap()
+                .private_key,
+        );
     }
 
     #[test]
     fn smoke_test_ecdsa_sign() {
         let k = curve::P256::generate_random_key(&mut SystemRandom).unwrap();
-        println!("public key {:?}", k.public_key().as_bytes_uncompressed());
-        let k = SigningKey::<curve::P256> { private_key: k };
-        let mut signature = [0u8; 64];
-        let signature = k.sign::<hash::Sha256>(&[b"hello"], &mut signature).unwrap();
-        println!("sig {:?}", signature);
+        check_sign_verify::<curve::P256>(k);
+
+        let k = curve::P384::generate_random_key(&mut SystemRandom).unwrap();
+        check_sign_verify::<curve::P384>(k);
+    }
+
+    fn check_sign_verify<C: Curve>(private_key: C::PrivateKey) {
+        let public_key = private_key.public_key();
+        let sk = SigningKey::<C> { private_key };
+        let vk = VerifyingKey::<C> { public_key };
+
+        let mut buffer = [0u8; 256];
+        let message = [&b"hello"[..], &b"world"[..]];
+
+        let signature = sk.sign::<hash::Sha256>(&message, &mut buffer).unwrap();
+        vk.verify::<hash::Sha256>(&message, signature).unwrap();
+
+        let signature = sk.sign::<hash::Sha384>(&message, &mut buffer).unwrap();
+        vk.verify::<hash::Sha384>(&message, signature).unwrap();
+
+        let signature = sk.sign::<hash::Sha512>(&message, &mut buffer).unwrap();
+        vk.verify::<hash::Sha512>(&message, signature).unwrap();
+
+        let signature = sk.sign_asn1::<hash::Sha256>(&message, &mut buffer).unwrap();
+        vk.verify_asn1::<hash::Sha256>(&message, signature).unwrap();
+
+        let signature = sk.sign_asn1::<hash::Sha384>(&message, &mut buffer).unwrap();
+        vk.verify_asn1::<hash::Sha384>(&message, signature).unwrap();
+
+        let signature = sk.sign_asn1::<hash::Sha512>(&message, &mut buffer).unwrap();
+        vk.verify_asn1::<hash::Sha512>(&message, signature).unwrap();
     }
 
     #[test]
