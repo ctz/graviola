@@ -82,7 +82,7 @@ fn x25519(c: &mut Criterion) {
     group.bench_function("graviola", |b| {
         b.iter(|| {
             let our_private_key =
-                graviola::x25519::PrivateKey::generate(&mut graviola::SystemRandom).unwrap();
+                graviola::x25519::PrivateKey::generate(&mut graviola::rng::SystemRandom).unwrap();
             let our_public_key = our_private_key.public_key();
             black_box(our_public_key);
 
