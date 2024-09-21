@@ -1,0 +1,43 @@
+$ go version
+go version go1.23.1 darwin/arm64
+
+$ go test crypto/rsa -bench BenchmarkSignPKCS1v15/2048 -benchtime 5s
+goos: darwin
+goarch: arm64
+pkg: crypto/rsa
+cpu: Apple M2
+BenchmarkSignPKCS1v15/2048-8         	    7352	    817871 ns/op
+PASS
+ok  	crypto/rsa	7.359s
+
+
+$ go test crypto/rsa -bench BenchmarkVerifyPKCS1v15/2048 -benchtime 5s
+goos: darwin
+goarch: arm64
+pkg: crypto/rsa
+cpu: Apple M2
+BenchmarkVerifyPKCS1v15/2048-8         	  234218	     25621 ns/op
+PASS
+ok  	crypto/rsa	7.238s
+
+
+$ go test crypto/cipher -bench BenchmarkAESGCM/Open-256-8192 -benchtime 5s
+goos: darwin
+goarch: arm64
+pkg: crypto/cipher
+cpu: Apple M2
+BenchmarkAESGCM/Open-256-8192-8         	 5140339	      1165 ns/op	7031.26 MB/s	       0 B/op	       0 allocs/op
+PASS
+ok  	crypto/cipher	7.443s
+
+
+$ go test crypto/ecdh -bench BenchmarkECDH/X25519 -benchtime 5s
+goos: darwin
+goarch: arm64
+pkg: crypto/ecdh
+cpu: Apple M2
+BenchmarkECDH/X25519-8         	   78638	     75013 ns/op	     368 B/op	       9 allocs/op
+PASS
+ok  	crypto/ecdh	7.393s
+
+
