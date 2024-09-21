@@ -29,7 +29,7 @@ pub(crate) fn decrypt(
     unsafe { _cipher::<false>(key, ghash, initial_counter, aad, cipher_inout) }
 }
 
-#[target_feature(enable = "aes,ssse3,pclmulqdq")]
+#[target_feature(enable = "aes,ssse3,pclmulqdq,avx")]
 unsafe fn _cipher<const ENC: bool>(
     key: &AesKey,
     ghash: &mut Ghash<'_>,

@@ -119,7 +119,7 @@ macro_rules! expand_128 {
     };
 }
 
-#[target_feature(enable = "aes")]
+#[target_feature(enable = "aes,avx")]
 unsafe fn aes128_expand(key: &[u8; 16], out: &mut [__m128i; 11]) {
     unsafe {
         let mut t1 = _mm_lddqu_si128(key.as_ptr() as *const _);
@@ -174,7 +174,7 @@ macro_rules! expand_256 {
     };
 }
 
-#[target_feature(enable = "aes")]
+#[target_feature(enable = "aes,avx")]
 unsafe fn aes256_expand(key: &[u8; 32], out: &mut [__m128i; 15]) {
     let mut t1 = _mm_lddqu_si128(key.as_ptr() as *const _);
     let mut t3 = _mm_lddqu_si128(key[16..].as_ptr() as *const _);
@@ -198,7 +198,7 @@ unsafe fn aes256_expand(key: &[u8; 32], out: &mut [__m128i; 15]) {
     expand_256!(Odd, 0x40, t1, t3, out[14]);
 }
 
-#[target_feature(enable = "aes")]
+#[target_feature(enable = "aes,avx")]
 unsafe fn aes128_block(round_keys: &[__m128i; 11], block_inout: &mut [u8]) {
     let block = _mm_lddqu_si128(block_inout.as_ptr() as *const _);
     let block = _mm_xor_si128(block, round_keys[0]);
@@ -215,7 +215,7 @@ unsafe fn aes128_block(round_keys: &[__m128i; 11], block_inout: &mut [u8]) {
     _mm_storeu_si128(block_inout.as_mut_ptr() as *mut _, block);
 }
 
-#[target_feature(enable = "aes")]
+#[target_feature(enable = "aes,avx")]
 unsafe fn aes256_block(round_keys: &[__m128i; 15], block_inout: &mut [u8]) {
     let block = _mm_lddqu_si128(block_inout.as_ptr() as *const _);
     let block = _mm_xor_si128(block, round_keys[0]);

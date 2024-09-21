@@ -120,7 +120,7 @@ impl<'a> Ghash<'a> {
 }
 
 #[inline]
-#[target_feature(enable = "pclmulqdq")]
+#[target_feature(enable = "pclmulqdq,avx")]
 unsafe fn _mul(a: __m128i, b: __m128i) -> __m128i {
     // This is almost verbatim from "Intel® Carry-Less Multiplication
     // Instruction and its Usage for Computing the GCM Mode"
@@ -172,7 +172,7 @@ unsafe fn _mul(a: __m128i, b: __m128i) -> __m128i {
 }
 
 #[inline]
-#[target_feature(enable = "pclmulqdq")]
+#[target_feature(enable = "pclmulqdq,avx")]
 pub(crate) unsafe fn _mul4(
     h1: __m128i,
     h2: __m128i,
