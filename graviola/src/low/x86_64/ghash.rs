@@ -119,6 +119,7 @@ impl<'a> Ghash<'a> {
     }
 }
 
+#[inline]
 #[target_feature(enable = "pclmulqdq")]
 unsafe fn _mul(a: __m128i, b: __m128i) -> __m128i {
     // This is almost verbatim from "Intel® Carry-Less Multiplication
@@ -170,6 +171,7 @@ unsafe fn _mul(a: __m128i, b: __m128i) -> __m128i {
     }
 }
 
+#[inline]
 #[target_feature(enable = "pclmulqdq")]
 pub(crate) unsafe fn _mul4(
     h1: __m128i,
