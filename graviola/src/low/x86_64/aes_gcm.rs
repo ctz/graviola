@@ -131,29 +131,7 @@ unsafe fn _cipher<const ENC: bool>(
             let a8 = _mm_shuffle_epi8(a8, BYTESWAP);
 
             let a1 = _mm_xor_si128(ghash.current, a1);
-            let a1 = ghash::_mul4(
-                ghash.table.h,
-                ghash.table.h2,
-                ghash.table.h3,
-                ghash.table.h4,
-                a4,
-                a3,
-                a2,
-                a1,
-            );
-
-            let a5 = _mm_xor_si128(a1, a5);
-            let a5 = ghash::_mul4(
-                ghash.table.h,
-                ghash.table.h2,
-                ghash.table.h3,
-                ghash.table.h4,
-                a8,
-                a7,
-                a6,
-                a5,
-            );
-            ghash.current = a5;
+            ghash.current = ghash::_mul8(&ghash.table.powers, a1, a2, a3, a4, a5, a6, a7, a8);
         }
     }
 

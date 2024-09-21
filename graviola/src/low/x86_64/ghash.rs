@@ -9,21 +9,22 @@ use core::arch::x86_64::*;
 use core::mem;
 
 pub(crate) struct GhashTable {
-    /// H, H^2, H^3, H^4
-    pub(crate) h: __m128i,
-    pub(crate) h2: __m128i,
-    pub(crate) h3: __m128i,
-    pub(crate) h4: __m128i,
+    /// H, H^2, H^3, H^4, ... H^7
+    pub(crate) powers: [__m128i; 8],
 }
 
 impl GhashTable {
     pub(crate) fn new(h: u128) -> Self {
+        let mut powers = [zero(); 8];
         let h = u128_to_m128i(h);
-        let h2 = unsafe { _mul(h, h) };
-        let h3 = unsafe { _mul(h2, h) };
-        let h4 = unsafe { _mul(h3, h) };
+        powers[0] = h;
+        powers[1] = unsafe { _mul(h, h) };
 
-        Self { h, h2, h3, h4 }
+        for i in 2..8 {
+            powers[i] = unsafe { _mul(powers[i - 1], h) };
+        }
+
+        Self { powers }
     }
 }
 
@@ -97,7 +98,7 @@ impl<'a> Ghash<'a> {
     fn one_block(&mut self, block: __m128i) {
         unsafe {
             self.current = _mm_xor_si128(self.current, block);
-            self.current = _mul(self.current, self.table.h);
+            self.current = _mul(self.current, self.table.powers[0]);
         }
     }
 
@@ -105,16 +106,7 @@ impl<'a> Ghash<'a> {
     pub(crate) fn four_blocks(&mut self, b1: __m128i, b2: __m128i, b3: __m128i, b4: __m128i) {
         unsafe {
             let b1 = _mm_xor_si128(self.current, b1);
-            self.current = _mul4(
-                self.table.h,
-                self.table.h2,
-                self.table.h3,
-                self.table.h4,
-                b4,
-                b3,
-                b2,
-                b1,
-            );
+            self.current = _mul4(&self.table.powers, b4, b3, b2, b1);
         }
     }
 }
@@ -174,10 +166,7 @@ unsafe fn _mul(a: __m128i, b: __m128i) -> __m128i {
 #[inline]
 #[target_feature(enable = "pclmulqdq,avx")]
 pub(crate) unsafe fn _mul4(
-    h1: __m128i,
-    h2: __m128i,
-    h3: __m128i,
-    h4: __m128i,
+    powers: &[__m128i; 8],
     x1: __m128i,
     x2: __m128i,
     x3: __m128i,
@@ -188,6 +177,11 @@ pub(crate) unsafe fn _mul4(
     // figure 8.
     //
     // algorithm by Krzysztof Jankowski, Pierre Laurent - Intel
+
+    let h1 = powers[0];
+    let h2 = powers[1];
+    let h3 = powers[2];
+    let h4 = powers[3];
 
     let h1_x1_lo = _mm_clmulepi64_si128(h1, x1, 0x00);
     let h2_x2_lo = _mm_clmulepi64_si128(h2, x2, 0x00);
@@ -274,4 +268,22 @@ pub(crate) unsafe fn _mul4(
     let tmp2 = _mm_xor_si128(tmp2, tmp8);
     let tmp3 = _mm_xor_si128(tmp3, tmp2);
     _mm_xor_si128(tmp6, tmp3)
+}
+
+#[inline]
+#[target_feature(enable = "pclmulqdq")]
+pub(crate) unsafe fn _mul8(
+    powers: &[__m128i; 8],
+    x1: __m128i,
+    x2: __m128i,
+    x3: __m128i,
+    x4: __m128i,
+    x5: __m128i,
+    x6: __m128i,
+    x7: __m128i,
+    x8: __m128i,
+) -> __m128i {
+    let s4 = _mul4(powers, x4, x3, x2, x1);
+    let x5 = _mm_xor_si128(x5, s4);
+    _mul4(powers, x8, x7, x6, x5)
 }
