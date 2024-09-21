@@ -5,7 +5,7 @@ import json
 from io import StringIO
 
 archs = "aarch64 x86_64".split()
-impls = "aws-lc-rs dalek ring graviola rustcrypto".split()
+impls = "aws-lc-rs dalek ring graviola rustcrypto golang".split()
 which = {
     ("rsa2048-pkcs1-sha256-verify",): {
         "name": "RSA2048 signature verification",
@@ -19,10 +19,10 @@ which = {
         "name": "X25519 key agreement",
         "format": lambda v: "<data value='{0}'>{0:,.5g}</data> kx/sec".format(v),
     },
-    ("aes256-gcm", "16KB"): {
-        "name": "AES256-GCM encryption (16KB wide)",
+    ("aes256-gcm", "8KB"): {
+        "name": "AES256-GCM encryption (8KB wide)",
         "format": lambda v: "<data value='{0}'>{1:,.03g}</data> GiB/sec".format(
-            v, v * 16384 / (1024 * 1024 * 1024)
+            v, v * 8192 / (1024 * 1024 * 1024)
         ),
     },
 }

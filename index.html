@@ -9,7 +9,7 @@ td.graviola {
   border: 1px solid rgba(96,127,0,0.5);
   border-radius: 15px;
 }
-td.aws-lc-rs, td.ring, td.rustcrypto, td.dalek {
+td.aws-lc-rs, td.ring, td.rustcrypto, td.dalek, td.golang {
   border: 1px solid silver;
   border-radius: 15px;
 }
@@ -32,11 +32,11 @@ These categories are chosen as being typically used for TLS traffic on the web.
 
 <!-- begin headlines -->
 <h2>aarch64</h2>
-<h3>AES256-GCM encryption (16KB wide)</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
-<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='369436.70097326906'>5.64</data> GiB/sec</td>
-<td class='ring'><h3>🥈 ring</h3><data value='368793.13280523237'>5.63</data> GiB/sec</td>
-<td class='graviola'><h3>🥉 graviola</h3><data value='112630.856468363'>1.72</data> GiB/sec</td>
-<td class='rustcrypto'><h3>  rustcrypto</h3><data value='8811.96468801879'>0.134</data> GiB/sec</td>
+<h3>AES256-GCM encryption (8KB wide)</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
+<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='719833.7497632139'>5.49</data> GiB/sec</td>
+<td class='ring'><h3>🥈 ring</h3><data value='715179.2708512419'>5.46</data> GiB/sec</td>
+<td class='graviola'><h3>🥉 graviola</h3><data value='235644.74646869517'>1.8</data> GiB/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='17529.876758087357'>0.134</data> GiB/sec</td>
 </tr></table>
 <h3>RSA2048 signature verification</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
 <td class='ring'><h3>🥇 ring</h3><data value='57590.57019738074'>57,591</data> sigs/sec</td>
@@ -57,22 +57,25 @@ These categories are chosen as being typically used for TLS traffic on the web.
 <td class='dalek'><h3>  dalek</h3><data value='23958.18164070457'>23,958</data> kx/sec</td>
 </tr></table>
 <h2>x86_64</h2>
-<h3>AES256-GCM encryption (16KB wide)</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
-<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='696883.6183302173'>10.6</data> GiB/sec</td>
-<td class='ring'><h3>🥈 ring</h3><data value='340580.88203129673'>5.2</data> GiB/sec</td>
-<td class='graviola'><h3>🥉 graviola</h3><data value='219599.85278799248'>3.35</data> GiB/sec</td>
-<td class='rustcrypto'><h3>  rustcrypto</h3><data value='116623.38817782325'>1.78</data> GiB/sec</td>
+<h3>AES256-GCM encryption (8KB wide)</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
+<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='1286911.849733135'>9.82</data> GiB/sec</td>
+<td class='golang'><h3>🥈 golang</h3><data value='773993.8080495356'>5.91</data> GiB/sec</td>
+<td class='ring'><h3>🥉 ring</h3><data value='649878.7567838754'>4.96</data> GiB/sec</td>
+<td class='graviola'><h3>  graviola</h3><data value='432397.32710571453'>3.3</data> GiB/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='234043.9322681685'>1.79</data> GiB/sec</td>
 </tr></table>
 <h3>RSA2048 signature verification</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
 <td class='graviola'><h3>🥇 graviola</h3><data value='82028.83655427006'>82,029</data> sigs/sec</td>
 <td class='aws-lc-rs'><h3>🥈 aws-lc-rs</h3><data value='76401.04099956703'>76,401</data> sigs/sec</td>
 <td class='ring'><h3>🥉 ring</h3><data value='63588.98461997382'>63,589</data> sigs/sec</td>
+<td class='golang'><h3>  golang</h3><data value='45705.928058869235'>45,706</data> sigs/sec</td>
 <td class='rustcrypto'><h3>  rustcrypto</h3><data value='7339.840167307138'>7,339.8</data> sigs/sec</td>
 </tr></table>
 <h3>RSA2048 signing</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
 <td class='ring'><h3>🥇 ring</h3><data value='2359.521023315932'>2,359.5</data> sigs/sec</td>
 <td class='aws-lc-rs'><h3>🥈 aws-lc-rs</h3><data value='2297.854312251676'>2,297.9</data> sigs/sec</td>
 <td class='graviola'><h3>🥉 graviola</h3><data value='2026.7907830057177'>2,026.8</data> sigs/sec</td>
+<td class='golang'><h3>  golang</h3><data value='1347.3402829145125'>1,347.3</data> sigs/sec</td>
 <td class='rustcrypto'><h3>  rustcrypto</h3><data value='857.1613449827456'>857.16</data> sigs/sec</td>
 </tr></table>
 <h3>X25519 key agreement</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
@@ -80,6 +83,7 @@ These categories are chosen as being typically used for TLS traffic on the web.
 <td class='graviola'><h3>🥈 graviola</h3><data value='42061.28739401236'>42,061</data> kx/sec</td>
 <td class='dalek'><h3>🥉 dalek</h3><data value='19948.84163074661'>19,949</data> kx/sec</td>
 <td class='ring'><h3>  ring</h3><data value='19457.133322156802'>19,457</data> kx/sec</td>
+<td class='golang'><h3>  golang</h3><data value='14132.278123233464'>14,132</data> kx/sec</td>
 </tr></table>
 <!-- end headlines -->
 
