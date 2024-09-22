@@ -4,6 +4,8 @@
 //! Refs.
 //! - <https://www.intel.com/content/dam/www/public/us/en/documents/software-support/enabling-high-performance-gcm.pdf>
 //! - <https://www.intel.com/content/dam/develop/external/us/en/documents/clmul-wp-rev-2-02-2014-04-20.pdf>
+//! - <https://patchwork.kernel.org/project/linux-crypto/patch/20240527075626.142576-3-ebiggers@kernel.org/>
+//!   (especially, as we're using the arithmetic from this implementation)
 
 use core::arch::x86_64::*;
 use core::mem;
@@ -11,32 +13,32 @@ use core::mem;
 pub(crate) struct GhashTable {
     /// H, H^2, H^3, H^4, ... H^7
     pub(crate) powers: [__m128i; 8],
+
+    /// `powers_xor[i]` is `powers[i].lo64 ^ powers[i].hi64`
+    ///
+    /// This can be used directly in the middle Karatsuba term.
+    pub(crate) powers_xor: [__m128i; 8],
 }
 
 impl GhashTable {
     pub(crate) fn new(h: u128) -> Self {
         let mut powers = [zero(); 8];
+        let mut powers_xor = powers;
         let h = u128_to_m128i(h);
-        powers[0] = h;
-        powers[1] = unsafe { _mul(h, h) };
 
-        for i in 2..8 {
+        let h = unsafe { gf128_big_endian(h) };
+        powers[0] = h;
+
+        for i in 1..8 {
             powers[i] = unsafe { _mul(powers[i - 1], h) };
         }
 
-        Self { powers }
+        for i in 0..8 {
+            powers_xor[i] = unsafe { xor_halves(powers[i]) };
+        }
+
+        Self { powers, powers_xor }
     }
-}
-
-#[inline]
-fn zero() -> __m128i {
-    unsafe { _mm_setzero_si128() }
-}
-
-#[inline]
-fn u128_to_m128i(v: u128) -> __m128i {
-    // safety: sizeof(u128) == sizeof(__m128i), all bits have same meaning
-    unsafe { mem::transmute(v) }
 }
 
 pub(crate) struct Ghash<'a> {
@@ -56,22 +58,30 @@ impl<'a> Ghash<'a> {
     ///
     /// `bytes` is zero-padded, if required.
     pub(crate) fn add(&mut self, bytes: &[u8]) {
-        let mut four_blocks = bytes.chunks_exact(64);
+        let mut eight_blocks = bytes.chunks_exact(128);
 
-        for chunk4 in four_blocks.by_ref() {
-            let u1 = u128::from_be_bytes(chunk4[0..16].try_into().unwrap());
-            let u2 = u128::from_be_bytes(chunk4[16..32].try_into().unwrap());
-            let u3 = u128::from_be_bytes(chunk4[32..48].try_into().unwrap());
-            let u4 = u128::from_be_bytes(chunk4[48..64].try_into().unwrap());
-            self.four_blocks(
+        for chunk8 in eight_blocks.by_ref() {
+            let u1 = u128::from_be_bytes(chunk8[0..16].try_into().unwrap());
+            let u2 = u128::from_be_bytes(chunk8[16..32].try_into().unwrap());
+            let u3 = u128::from_be_bytes(chunk8[32..48].try_into().unwrap());
+            let u4 = u128::from_be_bytes(chunk8[48..64].try_into().unwrap());
+            let u5 = u128::from_be_bytes(chunk8[64..80].try_into().unwrap());
+            let u6 = u128::from_be_bytes(chunk8[80..96].try_into().unwrap());
+            let u7 = u128::from_be_bytes(chunk8[96..112].try_into().unwrap());
+            let u8 = u128::from_be_bytes(chunk8[112..128].try_into().unwrap());
+            self.eight_blocks(
                 u128_to_m128i(u1),
                 u128_to_m128i(u2),
                 u128_to_m128i(u3),
                 u128_to_m128i(u4),
+                u128_to_m128i(u5),
+                u128_to_m128i(u6),
+                u128_to_m128i(u7),
+                u128_to_m128i(u8),
             );
         }
 
-        let bytes = four_blocks.remainder();
+        let bytes = eight_blocks.remainder();
         let mut whole_blocks = bytes.chunks_exact(16);
 
         for chunk in whole_blocks.by_ref() {
@@ -91,8 +101,11 @@ impl<'a> Ghash<'a> {
 
     pub(crate) fn into_bytes(self) -> [u8; 16] {
         let mut out: i128 = 0;
-        unsafe { _mm_store_si128(&mut out as *mut i128 as *mut __m128i, self.current) };
-        out.to_be_bytes()
+        unsafe {
+            let reverse = _mm_shuffle_epi8(self.current, BYTESWAP);
+            _mm_store_si128(&mut out as *mut i128 as *mut __m128i, reverse)
+        };
+        out.to_le_bytes()
     }
 
     fn one_block(&mut self, block: __m128i) {
@@ -103,177 +116,71 @@ impl<'a> Ghash<'a> {
     }
 
     #[inline]
-    pub(crate) fn four_blocks(&mut self, b1: __m128i, b2: __m128i, b3: __m128i, b4: __m128i) {
+    pub(crate) fn eight_blocks(
+        &mut self,
+        b1: __m128i,
+        b2: __m128i,
+        b3: __m128i,
+        b4: __m128i,
+        b5: __m128i,
+        b6: __m128i,
+        b7: __m128i,
+        b8: __m128i,
+    ) {
         unsafe {
             let b1 = _mm_xor_si128(self.current, b1);
-            self.current = _mul4(&self.table.powers, b4, b3, b2, b1);
+            self.current = _mul8(self.table, b1, b2, b3, b4, b5, b6, b7, b8);
         }
     }
+}
+
+macro_rules! mul {
+    ($lo:ident, $mi:ident, $hi:ident, $x:ident, $h:expr, $hx:expr) => {
+        let tlo = _mm_clmulepi64_si128($x, $h, 0x00);
+        $lo = _mm_xor_si128(tlo, $lo);
+
+        let xx = _mm_shuffle_epi32($x, 0b01_00_11_10);
+        let xx = _mm_xor_si128(xx, $x);
+
+        let thi = _mm_clmulepi64_si128($x, $h, 0x11);
+        $hi = _mm_xor_si128(thi, $hi);
+
+        let tmi = _mm_clmulepi64_si128(xx, $hx, 0x00);
+        $mi = _mm_xor_si128(tmi, $mi);
+    };
+}
+
+macro_rules! reduce {
+    ($lo:ident, $mi:ident, $hi:ident) => {{
+        let $mi = _mm_xor_si128($mi, $lo);
+        let $mi = _mm_xor_si128($mi, $hi);
+
+        let ls = _mm_shuffle_epi32($lo, 0b01_00_11_10);
+        let $lo = _mm_clmulepi64_si128(GF128_POLY_HI, $lo, 0x00);
+        let $mi = _mm_xor_si128($mi, ls);
+        let $mi = _mm_xor_si128($mi, $lo);
+
+        let ms = _mm_shuffle_epi32($mi, 0b01_00_11_10);
+        let $mi = _mm_clmulepi64_si128(GF128_POLY_HI, $mi, 0x00);
+        let $hi = _mm_xor_si128($hi, ms);
+        let $hi = _mm_xor_si128($hi, $mi);
+        $hi
+    }};
 }
 
 #[inline]
 #[target_feature(enable = "pclmulqdq,avx")]
 unsafe fn _mul(a: __m128i, b: __m128i) -> __m128i {
-    // This is almost verbatim from "Intel® Carry-Less Multiplication
-    // Instruction and its Usage for Computing the GCM Mode"
-    // figure 5.
-
-    unsafe {
-        let t3 = _mm_clmulepi64_si128(a, b, 0x00);
-        let t4 = _mm_clmulepi64_si128(a, b, 0x10);
-        let t5 = _mm_clmulepi64_si128(a, b, 0x01);
-        let t6 = _mm_clmulepi64_si128(a, b, 0x11);
-
-        let t4 = _mm_xor_si128(t4, t5);
-        let t5 = _mm_slli_si128(t4, 8);
-        let t4 = _mm_srli_si128(t4, 8);
-        let t3 = _mm_xor_si128(t3, t5);
-        let t6 = _mm_xor_si128(t6, t4);
-
-        let t7 = _mm_srli_epi32(t3, 31);
-        let t8 = _mm_srli_epi32(t6, 31);
-        let t3 = _mm_slli_epi32(t3, 1);
-        let t6 = _mm_slli_epi32(t6, 1);
-
-        let t9 = _mm_srli_si128(t7, 12);
-        let t8 = _mm_slli_si128(t8, 4);
-        let t7 = _mm_slli_si128(t7, 4);
-        let t3 = _mm_or_si128(t3, t7);
-        let t6 = _mm_or_si128(t6, t8);
-        let t6 = _mm_or_si128(t6, t9);
-
-        let t7 = _mm_slli_epi32(t3, 31);
-        let t8 = _mm_slli_epi32(t3, 30);
-        let t9 = _mm_slli_epi32(t3, 25);
-
-        let t7 = _mm_xor_si128(t7, t8);
-        let t7 = _mm_xor_si128(t7, t9);
-        let t8 = _mm_srli_si128(t7, 4);
-        let t7 = _mm_slli_si128(t7, 12);
-        let t3 = _mm_xor_si128(t3, t7);
-
-        let t2 = _mm_srli_epi32(t3, 1);
-        let t4 = _mm_srli_epi32(t3, 2);
-        let t5 = _mm_srli_epi32(t3, 7);
-        let t2 = _mm_xor_si128(t2, t4);
-        let t2 = _mm_xor_si128(t2, t5);
-        let t2 = _mm_xor_si128(t2, t8);
-        let t3 = _mm_xor_si128(t3, t2);
-        _mm_xor_si128(t6, t3)
-    }
+    let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
+    let bx = xor_halves(b);
+    mul!(lo, mi, hi, a, b, bx);
+    reduce!(lo, mi, hi)
 }
 
 #[inline]
 #[target_feature(enable = "pclmulqdq,avx")]
-pub(crate) unsafe fn _mul4(
-    powers: &[__m128i; 8],
-    x1: __m128i,
-    x2: __m128i,
-    x3: __m128i,
-    x4: __m128i,
-) -> __m128i {
-    // This is almost verbatim from "Intel® Carry-Less Multiplication
-    // Instruction and its Usage for Computing the GCM Mode"
-    // figure 8.
-    //
-    // algorithm by Krzysztof Jankowski, Pierre Laurent - Intel
-
-    let h1 = powers[0];
-    let h2 = powers[1];
-    let h3 = powers[2];
-    let h4 = powers[3];
-
-    let h1_x1_lo = _mm_clmulepi64_si128(h1, x1, 0x00);
-    let h2_x2_lo = _mm_clmulepi64_si128(h2, x2, 0x00);
-    let h3_x3_lo = _mm_clmulepi64_si128(h3, x3, 0x00);
-    let h4_x4_lo = _mm_clmulepi64_si128(h4, x4, 0x00);
-
-    let lo = _mm_xor_si128(h1_x1_lo, h2_x2_lo);
-    let lo = _mm_xor_si128(lo, h3_x3_lo);
-    let lo = _mm_xor_si128(lo, h4_x4_lo);
-
-    let h1_x1_hi = _mm_clmulepi64_si128(h1, x1, 0x11);
-    let h2_x2_hi = _mm_clmulepi64_si128(h2, x2, 0x11);
-    let h3_x3_hi = _mm_clmulepi64_si128(h3, x3, 0x11);
-    let h4_x4_hi = _mm_clmulepi64_si128(h4, x4, 0x11);
-
-    let hi = _mm_xor_si128(h1_x1_hi, h2_x2_hi);
-    let hi = _mm_xor_si128(hi, h3_x3_hi);
-    let hi = _mm_xor_si128(hi, h4_x4_hi);
-
-    let tmp0 = _mm_shuffle_epi32(h1, 0b01_00_11_10);
-    let tmp4 = _mm_shuffle_epi32(x1, 0b01_00_11_10);
-    let tmp0 = _mm_xor_si128(tmp0, h1);
-    let tmp4 = _mm_xor_si128(tmp4, x1);
-    let tmp1 = _mm_shuffle_epi32(h2, 0b01_00_11_10);
-    let tmp5 = _mm_shuffle_epi32(x2, 0b01_00_11_10);
-    let tmp1 = _mm_xor_si128(tmp1, h2);
-    let tmp5 = _mm_xor_si128(tmp5, x2);
-    let tmp2 = _mm_shuffle_epi32(h3, 0b01_00_11_10);
-    let tmp6 = _mm_shuffle_epi32(x3, 0b01_00_11_10);
-    let tmp2 = _mm_xor_si128(tmp2, h3);
-    let tmp6 = _mm_xor_si128(tmp6, x3);
-    let tmp3 = _mm_shuffle_epi32(h4, 0b01_00_11_10);
-    let tmp7 = _mm_shuffle_epi32(x4, 0b01_00_11_10);
-    let tmp3 = _mm_xor_si128(tmp3, h4);
-    let tmp7 = _mm_xor_si128(tmp7, x4);
-
-    let tmp0 = _mm_clmulepi64_si128(tmp0, tmp4, 0x00);
-    let tmp1 = _mm_clmulepi64_si128(tmp1, tmp5, 0x00);
-    let tmp2 = _mm_clmulepi64_si128(tmp2, tmp6, 0x00);
-    let tmp3 = _mm_clmulepi64_si128(tmp3, tmp7, 0x00);
-
-    let tmp0 = _mm_xor_si128(tmp0, lo);
-    let tmp0 = _mm_xor_si128(tmp0, hi);
-    let tmp0 = _mm_xor_si128(tmp1, tmp0);
-    let tmp0 = _mm_xor_si128(tmp2, tmp0);
-    let tmp0 = _mm_xor_si128(tmp3, tmp0);
-
-    let tmp4 = _mm_slli_si128(tmp0, 8);
-    let tmp0 = _mm_srli_si128(tmp0, 8);
-
-    let lo = _mm_xor_si128(tmp4, lo);
-    let hi = _mm_xor_si128(tmp0, hi);
-
-    let tmp3 = lo;
-    let tmp6 = hi;
-
-    let tmp7 = _mm_srli_epi32(tmp3, 31);
-    let tmp8 = _mm_srli_epi32(tmp6, 31);
-    let tmp3 = _mm_slli_epi32(tmp3, 1);
-    let tmp6 = _mm_slli_epi32(tmp6, 1);
-
-    let tmp9 = _mm_srli_si128(tmp7, 12);
-    let tmp8 = _mm_slli_si128(tmp8, 4);
-    let tmp7 = _mm_slli_si128(tmp7, 4);
-    let tmp3 = _mm_or_si128(tmp3, tmp7);
-    let tmp6 = _mm_or_si128(tmp6, tmp8);
-    let tmp6 = _mm_or_si128(tmp6, tmp9);
-
-    let tmp7 = _mm_slli_epi32(tmp3, 31);
-    let tmp8 = _mm_slli_epi32(tmp3, 30);
-    let tmp9 = _mm_slli_epi32(tmp3, 25);
-
-    let tmp7 = _mm_xor_si128(tmp7, tmp8);
-    let tmp7 = _mm_xor_si128(tmp7, tmp9);
-    let tmp8 = _mm_srli_si128(tmp7, 4);
-    let tmp7 = _mm_slli_si128(tmp7, 12);
-    let tmp3 = _mm_xor_si128(tmp3, tmp7);
-
-    let tmp2 = _mm_srli_epi32(tmp3, 1);
-    let tmp4 = _mm_srli_epi32(tmp3, 2);
-    let tmp5 = _mm_srli_epi32(tmp3, 7);
-    let tmp2 = _mm_xor_si128(tmp2, tmp4);
-    let tmp2 = _mm_xor_si128(tmp2, tmp5);
-    let tmp2 = _mm_xor_si128(tmp2, tmp8);
-    let tmp3 = _mm_xor_si128(tmp3, tmp2);
-    _mm_xor_si128(tmp6, tmp3)
-}
-
-#[inline]
-#[target_feature(enable = "pclmulqdq")]
 pub(crate) unsafe fn _mul8(
-    powers: &[__m128i; 8],
+    table: &GhashTable,
     x1: __m128i,
     x2: __m128i,
     x3: __m128i,
@@ -283,7 +190,101 @@ pub(crate) unsafe fn _mul8(
     x7: __m128i,
     x8: __m128i,
 ) -> __m128i {
-    let s4 = _mul4(powers, x4, x3, x2, x1);
-    let x5 = _mm_xor_si128(x5, s4);
-    _mul4(powers, x8, x7, x6, x5)
+    let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
+    mul!(lo, mi, hi, x1, table.powers[7], table.powers_xor[7]);
+    mul!(lo, mi, hi, x2, table.powers[6], table.powers_xor[6]);
+    mul!(lo, mi, hi, x3, table.powers[5], table.powers_xor[5]);
+    mul!(lo, mi, hi, x4, table.powers[4], table.powers_xor[4]);
+    mul!(lo, mi, hi, x5, table.powers[3], table.powers_xor[3]);
+    mul!(lo, mi, hi, x6, table.powers[2], table.powers_xor[2]);
+    mul!(lo, mi, hi, x7, table.powers[1], table.powers_xor[1]);
+    mul!(lo, mi, hi, x8, table.powers[0], table.powers_xor[0]);
+    reduce!(lo, mi, hi)
+}
+
+#[target_feature(enable = "pclmulqdq,avx")]
+unsafe fn gf128_big_endian(h: __m128i) -> __m128i {
+    // takes a raw hash subkey, and arranges that it can
+    // be used in big endian ordering.
+    let t = _mm_shuffle_epi32(h, 0b11_01_00_11);
+    let t = _mm_srai_epi32(t, 31);
+    let h = _mm_add_epi64(h, h);
+    let t = _mm_and_si128(GF128_POLY_CARRY_MASK, t);
+    _mm_xor_si128(h, t)
+}
+
+#[target_feature(enable = "pclmulqdq,avx")]
+unsafe fn xor_halves(h: __m128i) -> __m128i {
+    let hx = _mm_shuffle_epi32(h, 0b01_00_11_10);
+    _mm_xor_si128(hx, h)
+}
+
+#[inline]
+fn zero() -> __m128i {
+    unsafe { _mm_setzero_si128() }
+}
+
+#[inline]
+fn u128_to_m128i(v: u128) -> __m128i {
+    // safety: sizeof(u128) == sizeof(__m128i), all bits have same meaning
+    unsafe { mem::transmute(v) }
+}
+
+const BYTESWAP: __m128i = unsafe { mem::transmute(0x00010203_04050607_08090a0b_0c0d0e0fu128) };
+
+/// The high half of the ghash polynomial R, rotated left by one
+///
+/// R is 0xe100..00u128
+///
+/// We need this in a __m128i, but only the bottom 64-bits are used.
+const GF128_POLY_HI: __m128i = unsafe { mem::transmute(0xc2000000_00000000u128) };
+
+/// This is, again, R rotated left by one, but with a 2^64 term
+const GF128_POLY_CARRY_MASK: __m128i =
+    unsafe { mem::transmute(0xc2000000_00000001_00000000_00000001u128) };
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::low::generic::ghash as model;
+
+    #[test]
+    fn pairwise() {
+        check(0, b"");
+        check(0, b"hello");
+        check(1, b"");
+        check(1, b"hello");
+        let k = 0x00112233_44556677_8899aabb_ccddeeffu128;
+        check(k, b"hello");
+        check(k, b"hello world!");
+        check(k, &[b'a'; 32]);
+        check(k, &[b'b'; 64]);
+        check(k, &[b'c'; 512 + 64 + 32 + 16]);
+
+        let mut pattern = [0; 512 + 64 + 32 + 16];
+        for (i, p) in pattern.iter_mut().enumerate() {
+            *p = i as u8;
+        }
+        check(k, &pattern);
+    }
+
+    fn check(key: u128, input: &[u8]) {
+        println!("check: input={input:02x?}");
+        let ta = GhashTable::new(key);
+        let tb = model::GhashTable::new(key);
+        let mut a = Ghash::new(&ta);
+        let mut b = model::Ghash::new(&tb);
+        a.add(input);
+        b.add(input);
+
+        let fa = a.into_bytes();
+        let fb = b.into_bytes();
+
+        if fa != fb {
+            panic!(
+                "for input: {:02x?}:\n\n impl  {:02x?}\n    !=\nmodel  {:02x?}",
+                input, fa, fb
+            );
+        }
+    }
 }
