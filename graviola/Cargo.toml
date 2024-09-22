@@ -7,7 +7,7 @@ license = "Apache-2.0 OR ISC or MIT-0"
 readme = "../README.md"
 description = "graviola is a modern, fast cryptography library"
 categories = ["network-programming", "cryptography"]
-rust-version = "1.70"
+rust-version = "1.72"
 
 [features]
 default = []
