@@ -266,6 +266,12 @@ mod tests {
             *p = i as u8;
         }
         check(k, &pattern);
+
+        let k = 0xffeeeedd_ffeeeedd_ff0000dd_ff0000ddu128;
+        for (i, p) in pattern.iter_mut().enumerate() {
+            *p = 0xf0 | (i & 0xf) as u8;
+        }
+        check(k, &pattern);
     }
 
     fn check(key: u128, input: &[u8]) {

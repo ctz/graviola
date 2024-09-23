@@ -26,9 +26,8 @@ are not welcomed; please do not file issues or PRs.
 - [x] aarch64 sha2 using intrinsics
 - [x] p384
 - [x] add CI for enforcing SPDX header
+- [x] 8-wide ghash for aarch64
 - [ ] interdict cpuid usage and test all combinations
-- [ ] 4-wide ghash for aarch64
-- [ ] wide gcm for aarch64
 - [ ] source-based automated interleaving for intrinsic code
 
 ## Goals
