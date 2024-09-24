@@ -12,12 +12,12 @@ use core::mem;
 
 pub(crate) struct GhashTable {
     /// H, H^2, H^3, H^4, ... H^7
-    pub(crate) powers: [__m128i; 8],
+    powers: [__m128i; 8],
 
     /// `powers_xor[i]` is `powers[i].lo64 ^ powers[i].hi64`
     ///
     /// This can be used directly in the middle Karatsuba term.
-    pub(crate) powers_xor: [__m128i; 8],
+    powers_xor: [__m128i; 8],
 }
 
 impl GhashTable {
