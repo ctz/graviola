@@ -21,15 +21,6 @@ needed: just the Rust compiler.  Compiles in less than one second.
 Active development.  Do not use.  Currently external contributions
 are not welcomed; please do not file issues or PRs.
 
-## TODO list, and ideas
-
-- [x] aarch64 sha2 using intrinsics
-- [x] p384
-- [x] add CI for enforcing SPDX header
-- [x] 8-wide ghash for aarch64
-- [ ] interdict cpuid usage and test all combinations
-- [ ] source-based automated interleaving for intrinsic code
-
 ## Goals
 
 - [x] Fast and simple compilation
@@ -43,8 +34,8 @@ are not welcomed; please do not file issues or PRs.
 
 `aarch64` and `x86_64` architectures only.
 
-- `aarch64` requires `aes` and `neon` CPU features.
-- `x86_64` requires `aes`, `ssse3` and `pclmulqdq` CPU features.
+- `aarch64` requires `aes`, `sha2`, `pmull`, and `neon` CPU features.
+- `x86_64` requires `aes`, `ssse3` `avx`, `avx2`, `bmi2`, and `pclmulqdq` CPU features.
 
 ## Acknowledgements and Thanks
 
