@@ -17,6 +17,14 @@ use crate::low::macros::*;
 // Standard ARM ABI: X0 = p3, X1 = p1
 // ----------------------------------------------------------------------------
 
+// This is functionally equivalent to p384_montjdouble in unopt/p384_montjdouble.S.
+// This is the result of doing the following sequence of optimizations:
+//   1. Function inlining
+//   2. Eliminating redundant load/store instructions
+//   3. Folding (add addr, const) + load/store
+// Function inlining is done manually. The second and third optimizations are
+// done by a script.
+
 // Size of individual field elements
 
 macro_rules! NUMSIZE {
@@ -25,1036 +33,7 @@ macro_rules! NUMSIZE {
     };
 }
 
-// Stable homes for input arguments during main code sequence
-
-macro_rules! input_z {
-    () => {
-        Q!("x25")
-    };
-}
-macro_rules! input_x {
-    () => {
-        Q!("x26")
-    };
-}
-
-// Pointer-offset pairs for inputs and outputs
-
-macro_rules! x_1 { () => { Q!(input_x!() ", #0") } }
-macro_rules! y_1 { () => { Q!(input_x!() ", # " NUMSIZE!()) } }
-macro_rules! z_1 { () => { Q!(input_x!() ", # (2 * " NUMSIZE!() ")") } }
-
-macro_rules! x_3 { () => { Q!(input_z!() ", #0") } }
-macro_rules! y_3 { () => { Q!(input_z!() ", # " NUMSIZE!()) } }
-macro_rules! z_3 { () => { Q!(input_z!() ", # (2 * " NUMSIZE!() ")") } }
-
-// Pointer-offset pairs for temporaries, with some aliasing
-// NSPACE is the total stack needed for these temporaries
-
-macro_rules! z2 { () => { Q!("sp, # (" NUMSIZE!() "* 0)") } }
-macro_rules! y2 { () => { Q!("sp, # (" NUMSIZE!() "* 1)") } }
-macro_rules! x2p { () => { Q!("sp, # (" NUMSIZE!() "* 2)") } }
-macro_rules! xy2 { () => { Q!("sp, # (" NUMSIZE!() "* 3)") } }
-
-macro_rules! y4 { () => { Q!("sp, # (" NUMSIZE!() "* 4)") } }
-macro_rules! t2 { () => { Q!("sp, # (" NUMSIZE!() "* 4)") } }
-
-macro_rules! dx2 { () => { Q!("sp, # (" NUMSIZE!() "* 5)") } }
-macro_rules! t1 { () => { Q!("sp, # (" NUMSIZE!() "* 5)") } }
-
-macro_rules! d { () => { Q!("sp, # (" NUMSIZE!() "* 6)") } }
-macro_rules! x4p { () => { Q!("sp, # (" NUMSIZE!() "* 6)") } }
-
 macro_rules! NSPACE { () => { Q!("# (" NUMSIZE!() "* 7)") } }
-
-// Corresponds exactly to bignum_montmul_p384
-
-macro_rules! montmul_p384 {
-    ($P0:expr, $P1:expr, $P2:expr) => { Q!(
-        "ldp x3, x4, [" $P1 "];\n"
-        "ldp x5, x6, [" $P1 "+ 16];\n"
-        "ldp x7, x8, [" $P1 "+ 32];\n"
-        "ldp x9, x10, [" $P2 "];\n"
-        "ldp x11, x12, [" $P2 "+ 16];\n"
-        "ldp x13, x14, [" $P2 "+ 32];\n"
-        "mul x15, x3, x9;\n"
-        "mul x21, x4, x10;\n"
-        "mul x22, x5, x11;\n"
-        "umulh x23, x3, x9;\n"
-        "umulh x24, x4, x10;\n"
-        "umulh x1, x5, x11;\n"
-        "adds x23, x23, x21;\n"
-        "adcs x24, x24, x22;\n"
-        "adc x1, x1, xzr;\n"
-        "adds x16, x23, x15;\n"
-        "adcs x17, x24, x23;\n"
-        "adcs x19, x1, x24;\n"
-        "adc x20, x1, xzr;\n"
-        "adds x17, x17, x15;\n"
-        "adcs x19, x19, x23;\n"
-        "adcs x20, x20, x24;\n"
-        "adc x1, x1, xzr;\n"
-        "subs x24, x3, x4;\n"
-        "cneg x24, x24, lo;\n"
-        "csetm x23, lo;\n"
-        "subs x22, x10, x9;\n"
-        "cneg x22, x22, lo;\n"
-        "mul x21, x24, x22;\n"
-        "umulh x22, x24, x22;\n"
-        "cinv x23, x23, lo;\n"
-        "eor x21, x21, x23;\n"
-        "eor x22, x22, x23;\n"
-        "cmn x23, #1;\n"
-        "adcs x16, x16, x21;\n"
-        "adcs x17, x17, x22;\n"
-        "adcs x19, x19, x23;\n"
-        "adcs x20, x20, x23;\n"
-        "adc x1, x1, x23;\n"
-        "subs x24, x3, x5;\n"
-        "cneg x24, x24, lo;\n"
-        "csetm x23, lo;\n"
-        "subs x22, x11, x9;\n"
-        "cneg x22, x22, lo;\n"
-        "mul x21, x24, x22;\n"
-        "umulh x22, x24, x22;\n"
-        "cinv x23, x23, lo;\n"
-        "eor x21, x21, x23;\n"
-        "eor x22, x22, x23;\n"
-        "cmn x23, #1;\n"
-        "adcs x17, x17, x21;\n"
-        "adcs x19, x19, x22;\n"
-        "adcs x20, x20, x23;\n"
-        "adc x1, x1, x23;\n"
-        "subs x24, x4, x5;\n"
-        "cneg x24, x24, lo;\n"
-        "csetm x23, lo;\n"
-        "subs x22, x11, x10;\n"
-        "cneg x22, x22, lo;\n"
-        "mul x21, x24, x22;\n"
-        "umulh x22, x24, x22;\n"
-        "cinv x23, x23, lo;\n"
-        "eor x21, x21, x23;\n"
-        "eor x22, x22, x23;\n"
-        "cmn x23, #1;\n"
-        "adcs x19, x19, x21;\n"
-        "adcs x20, x20, x22;\n"
-        "adc x1, x1, x23;\n"
-        "lsl x23, x15, #32;\n"
-        "add x15, x23, x15;\n"
-        "lsr x23, x15, #32;\n"
-        "subs x23, x23, x15;\n"
-        "sbc x22, x15, xzr;\n"
-        "extr x23, x22, x23, #32;\n"
-        "lsr x22, x22, #32;\n"
-        "adds x22, x22, x15;\n"
-        "adc x21, xzr, xzr;\n"
-        "subs x16, x16, x23;\n"
-        "sbcs x17, x17, x22;\n"
-        "sbcs x19, x19, x21;\n"
-        "sbcs x20, x20, xzr;\n"
-        "sbcs x1, x1, xzr;\n"
-        "sbc x15, x15, xzr;\n"
-        "lsl x23, x16, #32;\n"
-        "add x16, x23, x16;\n"
-        "lsr x23, x16, #32;\n"
-        "subs x23, x23, x16;\n"
-        "sbc x22, x16, xzr;\n"
-        "extr x23, x22, x23, #32;\n"
-        "lsr x22, x22, #32;\n"
-        "adds x22, x22, x16;\n"
-        "adc x21, xzr, xzr;\n"
-        "subs x17, x17, x23;\n"
-        "sbcs x19, x19, x22;\n"
-        "sbcs x20, x20, x21;\n"
-        "sbcs x1, x1, xzr;\n"
-        "sbcs x15, x15, xzr;\n"
-        "sbc x16, x16, xzr;\n"
-        "lsl x23, x17, #32;\n"
-        "add x17, x23, x17;\n"
-        "lsr x23, x17, #32;\n"
-        "subs x23, x23, x17;\n"
-        "sbc x22, x17, xzr;\n"
-        "extr x23, x22, x23, #32;\n"
-        "lsr x22, x22, #32;\n"
-        "adds x22, x22, x17;\n"
-        "adc x21, xzr, xzr;\n"
-        "subs x19, x19, x23;\n"
-        "sbcs x20, x20, x22;\n"
-        "sbcs x1, x1, x21;\n"
-        "sbcs x15, x15, xzr;\n"
-        "sbcs x16, x16, xzr;\n"
-        "sbc x17, x17, xzr;\n"
-        "stp x19, x20, [" $P0 "];\n"
-        "stp x1, x15, [" $P0 "+ 16];\n"
-        "stp x16, x17, [" $P0 "+ 32];\n"
-        "mul x15, x6, x12;\n"
-        "mul x21, x7, x13;\n"
-        "mul x22, x8, x14;\n"
-        "umulh x23, x6, x12;\n"
-        "umulh x24, x7, x13;\n"
-        "umulh x1, x8, x14;\n"
-        "adds x23, x23, x21;\n"
-        "adcs x24, x24, x22;\n"
-        "adc x1, x1, xzr;\n"
-        "adds x16, x23, x15;\n"
-        "adcs x17, x24, x23;\n"
-        "adcs x19, x1, x24;\n"
-        "adc x20, x1, xzr;\n"
-        "adds x17, x17, x15;\n"
-        "adcs x19, x19, x23;\n"
-        "adcs x20, x20, x24;\n"
-        "adc x1, x1, xzr;\n"
-        "subs x24, x6, x7;\n"
-        "cneg x24, x24, lo;\n"
-        "csetm x23, lo;\n"
-        "subs x22, x13, x12;\n"
-        "cneg x22, x22, lo;\n"
-        "mul x21, x24, x22;\n"
-        "umulh x22, x24, x22;\n"
-        "cinv x23, x23, lo;\n"
-        "eor x21, x21, x23;\n"
-        "eor x22, x22, x23;\n"
-        "cmn x23, #1;\n"
-        "adcs x16, x16, x21;\n"
-        "adcs x17, x17, x22;\n"
-        "adcs x19, x19, x23;\n"
-        "adcs x20, x20, x23;\n"
-        "adc x1, x1, x23;\n"
-        "subs x24, x6, x8;\n"
-        "cneg x24, x24, lo;\n"
-        "csetm x23, lo;\n"
-        "subs x22, x14, x12;\n"
-        "cneg x22, x22, lo;\n"
-        "mul x21, x24, x22;\n"
-        "umulh x22, x24, x22;\n"
-        "cinv x23, x23, lo;\n"
-        "eor x21, x21, x23;\n"
-        "eor x22, x22, x23;\n"
-        "cmn x23, #1;\n"
-        "adcs x17, x17, x21;\n"
-        "adcs x19, x19, x22;\n"
-        "adcs x20, x20, x23;\n"
-        "adc x1, x1, x23;\n"
-        "subs x24, x7, x8;\n"
-        "cneg x24, x24, lo;\n"
-        "csetm x23, lo;\n"
-        "subs x22, x14, x13;\n"
-        "cneg x22, x22, lo;\n"
-        "mul x21, x24, x22;\n"
-        "umulh x22, x24, x22;\n"
-        "cinv x23, x23, lo;\n"
-        "eor x21, x21, x23;\n"
-        "eor x22, x22, x23;\n"
-        "cmn x23, #1;\n"
-        "adcs x19, x19, x21;\n"
-        "adcs x20, x20, x22;\n"
-        "adc x1, x1, x23;\n"
-        "subs x6, x6, x3;\n"
-        "sbcs x7, x7, x4;\n"
-        "sbcs x8, x8, x5;\n"
-        "ngc x3, xzr;\n"
-        "cmn x3, #1;\n"
-        "eor x6, x6, x3;\n"
-        "adcs x6, x6, xzr;\n"
-        "eor x7, x7, x3;\n"
-        "adcs x7, x7, xzr;\n"
-        "eor x8, x8, x3;\n"
-        "adc x8, x8, xzr;\n"
-        "subs x9, x9, x12;\n"
-        "sbcs x10, x10, x13;\n"
-        "sbcs x11, x11, x14;\n"
-        "ngc x14, xzr;\n"
-        "cmn x14, #1;\n"
-        "eor x9, x9, x14;\n"
-        "adcs x9, x9, xzr;\n"
-        "eor x10, x10, x14;\n"
-        "adcs x10, x10, xzr;\n"
-        "eor x11, x11, x14;\n"
-        "adc x11, x11, xzr;\n"
-        "eor x14, x3, x14;\n"
-        "ldp x21, x22, [" $P0 "];\n"
-        "adds x15, x15, x21;\n"
-        "adcs x16, x16, x22;\n"
-        "ldp x21, x22, [" $P0 "+ 16];\n"
-        "adcs x17, x17, x21;\n"
-        "adcs x19, x19, x22;\n"
-        "ldp x21, x22, [" $P0 "+ 32];\n"
-        "adcs x20, x20, x21;\n"
-        "adcs x1, x1, x22;\n"
-        "adc x2, xzr, xzr;\n"
-        "stp x15, x16, [" $P0 "];\n"
-        "stp x17, x19, [" $P0 "+ 16];\n"
-        "stp x20, x1, [" $P0 "+ 32];\n"
-        "mul x15, x6, x9;\n"
-        "mul x21, x7, x10;\n"
-        "mul x22, x8, x11;\n"
-        "umulh x23, x6, x9;\n"
-        "umulh x24, x7, x10;\n"
-        "umulh x1, x8, x11;\n"
-        "adds x23, x23, x21;\n"
-        "adcs x24, x24, x22;\n"
-        "adc x1, x1, xzr;\n"
-        "adds x16, x23, x15;\n"
-        "adcs x17, x24, x23;\n"
-        "adcs x19, x1, x24;\n"
-        "adc x20, x1, xzr;\n"
-        "adds x17, x17, x15;\n"
-        "adcs x19, x19, x23;\n"
-        "adcs x20, x20, x24;\n"
-        "adc x1, x1, xzr;\n"
-        "subs x24, x6, x7;\n"
-        "cneg x24, x24, lo;\n"
-        "csetm x23, lo;\n"
-        "subs x22, x10, x9;\n"
-        "cneg x22, x22, lo;\n"
-        "mul x21, x24, x22;\n"
-        "umulh x22, x24, x22;\n"
-        "cinv x23, x23, lo;\n"
-        "eor x21, x21, x23;\n"
-        "eor x22, x22, x23;\n"
-        "cmn x23, #1;\n"
-        "adcs x16, x16, x21;\n"
-        "adcs x17, x17, x22;\n"
-        "adcs x19, x19, x23;\n"
-        "adcs x20, x20, x23;\n"
-        "adc x1, x1, x23;\n"
-        "subs x24, x6, x8;\n"
-        "cneg x24, x24, lo;\n"
-        "csetm x23, lo;\n"
-        "subs x22, x11, x9;\n"
-        "cneg x22, x22, lo;\n"
-        "mul x21, x24, x22;\n"
-        "umulh x22, x24, x22;\n"
-        "cinv x23, x23, lo;\n"
-        "eor x21, x21, x23;\n"
-        "eor x22, x22, x23;\n"
-        "cmn x23, #1;\n"
-        "adcs x17, x17, x21;\n"
-        "adcs x19, x19, x22;\n"
-        "adcs x20, x20, x23;\n"
-        "adc x1, x1, x23;\n"
-        "subs x24, x7, x8;\n"
-        "cneg x24, x24, lo;\n"
-        "csetm x23, lo;\n"
-        "subs x22, x11, x10;\n"
-        "cneg x22, x22, lo;\n"
-        "mul x21, x24, x22;\n"
-        "umulh x22, x24, x22;\n"
-        "cinv x23, x23, lo;\n"
-        "eor x21, x21, x23;\n"
-        "eor x22, x22, x23;\n"
-        "cmn x23, #1;\n"
-        "adcs x19, x19, x21;\n"
-        "adcs x20, x20, x22;\n"
-        "adc x1, x1, x23;\n"
-        "ldp x3, x4, [" $P0 "];\n"
-        "ldp x5, x6, [" $P0 "+ 16];\n"
-        "ldp x7, x8, [" $P0 "+ 32];\n"
-        "cmn x14, #1;\n"
-        "eor x15, x15, x14;\n"
-        "adcs x15, x15, x3;\n"
-        "eor x16, x16, x14;\n"
-        "adcs x16, x16, x4;\n"
-        "eor x17, x17, x14;\n"
-        "adcs x17, x17, x5;\n"
-        "eor x19, x19, x14;\n"
-        "adcs x19, x19, x6;\n"
-        "eor x20, x20, x14;\n"
-        "adcs x20, x20, x7;\n"
-        "eor x1, x1, x14;\n"
-        "adcs x1, x1, x8;\n"
-        "adcs x9, x14, x2;\n"
-        "adcs x10, x14, xzr;\n"
-        "adcs x11, x14, xzr;\n"
-        "adc x12, x14, xzr;\n"
-        "adds x19, x19, x3;\n"
-        "adcs x20, x20, x4;\n"
-        "adcs x1, x1, x5;\n"
-        "adcs x9, x9, x6;\n"
-        "adcs x10, x10, x7;\n"
-        "adcs x11, x11, x8;\n"
-        "adc x12, x12, x2;\n"
-        "lsl x23, x15, #32;\n"
-        "add x15, x23, x15;\n"
-        "lsr x23, x15, #32;\n"
-        "subs x23, x23, x15;\n"
-        "sbc x22, x15, xzr;\n"
-        "extr x23, x22, x23, #32;\n"
-        "lsr x22, x22, #32;\n"
-        "adds x22, x22, x15;\n"
-        "adc x21, xzr, xzr;\n"
-        "subs x16, x16, x23;\n"
-        "sbcs x17, x17, x22;\n"
-        "sbcs x19, x19, x21;\n"
-        "sbcs x20, x20, xzr;\n"
-        "sbcs x1, x1, xzr;\n"
-        "sbc x15, x15, xzr;\n"
-        "lsl x23, x16, #32;\n"
-        "add x16, x23, x16;\n"
-        "lsr x23, x16, #32;\n"
-        "subs x23, x23, x16;\n"
-        "sbc x22, x16, xzr;\n"
-        "extr x23, x22, x23, #32;\n"
-        "lsr x22, x22, #32;\n"
-        "adds x22, x22, x16;\n"
-        "adc x21, xzr, xzr;\n"
-        "subs x17, x17, x23;\n"
-        "sbcs x19, x19, x22;\n"
-        "sbcs x20, x20, x21;\n"
-        "sbcs x1, x1, xzr;\n"
-        "sbcs x15, x15, xzr;\n"
-        "sbc x16, x16, xzr;\n"
-        "lsl x23, x17, #32;\n"
-        "add x17, x23, x17;\n"
-        "lsr x23, x17, #32;\n"
-        "subs x23, x23, x17;\n"
-        "sbc x22, x17, xzr;\n"
-        "extr x23, x22, x23, #32;\n"
-        "lsr x22, x22, #32;\n"
-        "adds x22, x22, x17;\n"
-        "adc x21, xzr, xzr;\n"
-        "subs x19, x19, x23;\n"
-        "sbcs x20, x20, x22;\n"
-        "sbcs x1, x1, x21;\n"
-        "sbcs x15, x15, xzr;\n"
-        "sbcs x16, x16, xzr;\n"
-        "sbc x17, x17, xzr;\n"
-        "adds x9, x9, x15;\n"
-        "adcs x10, x10, x16;\n"
-        "adcs x11, x11, x17;\n"
-        "adc x12, x12, xzr;\n"
-        "add x22, x12, #1;\n"
-        "lsl x21, x22, #32;\n"
-        "subs x24, x22, x21;\n"
-        "sbc x21, x21, xzr;\n"
-        "adds x19, x19, x24;\n"
-        "adcs x20, x20, x21;\n"
-        "adcs x1, x1, x22;\n"
-        "adcs x9, x9, xzr;\n"
-        "adcs x10, x10, xzr;\n"
-        "adcs x11, x11, xzr;\n"
-        "csetm x22, lo;\n"
-        "mov x23, #4294967295;\n"
-        "and x23, x23, x22;\n"
-        "adds x19, x19, x23;\n"
-        "eor x23, x23, x22;\n"
-        "adcs x20, x20, x23;\n"
-        "mov x23, #-2;\n"
-        "and x23, x23, x22;\n"
-        "adcs x1, x1, x23;\n"
-        "adcs x9, x9, x22;\n"
-        "adcs x10, x10, x22;\n"
-        "adc x11, x11, x22;\n"
-        "stp x19, x20, [" $P0 "];\n"
-        "stp x1, x9, [" $P0 "+ 16];\n"
-        "stp x10, x11, [" $P0 "+ 32]"
-    )}
-}
-
-// Corresponds exactly to bignum_montsqr_p384
-
-macro_rules! montsqr_p384 {
-    ($P0:expr, $P1:expr) => { Q!(
-        "ldp x2, x3, [" $P1 "];\n"
-        "ldp x4, x5, [" $P1 "+ 16];\n"
-        "ldp x6, x7, [" $P1 "+ 32];\n"
-        "mul x14, x2, x3;\n"
-        "mul x15, x2, x4;\n"
-        "mul x16, x3, x4;\n"
-        "mul x8, x2, x2;\n"
-        "mul x10, x3, x3;\n"
-        "mul x12, x4, x4;\n"
-        "umulh x17, x2, x3;\n"
-        "adds x15, x15, x17;\n"
-        "umulh x17, x2, x4;\n"
-        "adcs x16, x16, x17;\n"
-        "umulh x17, x3, x4;\n"
-        "adcs x17, x17, xzr;\n"
-        "umulh x9, x2, x2;\n"
-        "umulh x11, x3, x3;\n"
-        "umulh x13, x4, x4;\n"
-        "adds x14, x14, x14;\n"
-        "adcs x15, x15, x15;\n"
-        "adcs x16, x16, x16;\n"
-        "adcs x17, x17, x17;\n"
-        "adc x13, x13, xzr;\n"
-        "adds x9, x9, x14;\n"
-        "adcs x10, x10, x15;\n"
-        "adcs x11, x11, x16;\n"
-        "adcs x12, x12, x17;\n"
-        "adc x13, x13, xzr;\n"
-        "lsl x16, x8, #32;\n"
-        "add x8, x16, x8;\n"
-        "lsr x16, x8, #32;\n"
-        "subs x16, x16, x8;\n"
-        "sbc x15, x8, xzr;\n"
-        "extr x16, x15, x16, #32;\n"
-        "lsr x15, x15, #32;\n"
-        "adds x15, x15, x8;\n"
-        "adc x14, xzr, xzr;\n"
-        "subs x9, x9, x16;\n"
-        "sbcs x10, x10, x15;\n"
-        "sbcs x11, x11, x14;\n"
-        "sbcs x12, x12, xzr;\n"
-        "sbcs x13, x13, xzr;\n"
-        "sbc x8, x8, xzr;\n"
-        "lsl x16, x9, #32;\n"
-        "add x9, x16, x9;\n"
-        "lsr x16, x9, #32;\n"
-        "subs x16, x16, x9;\n"
-        "sbc x15, x9, xzr;\n"
-        "extr x16, x15, x16, #32;\n"
-        "lsr x15, x15, #32;\n"
-        "adds x15, x15, x9;\n"
-        "adc x14, xzr, xzr;\n"
-        "subs x10, x10, x16;\n"
-        "sbcs x11, x11, x15;\n"
-        "sbcs x12, x12, x14;\n"
-        "sbcs x13, x13, xzr;\n"
-        "sbcs x8, x8, xzr;\n"
-        "sbc x9, x9, xzr;\n"
-        "lsl x16, x10, #32;\n"
-        "add x10, x16, x10;\n"
-        "lsr x16, x10, #32;\n"
-        "subs x16, x16, x10;\n"
-        "sbc x15, x10, xzr;\n"
-        "extr x16, x15, x16, #32;\n"
-        "lsr x15, x15, #32;\n"
-        "adds x15, x15, x10;\n"
-        "adc x14, xzr, xzr;\n"
-        "subs x11, x11, x16;\n"
-        "sbcs x12, x12, x15;\n"
-        "sbcs x13, x13, x14;\n"
-        "sbcs x8, x8, xzr;\n"
-        "sbcs x9, x9, xzr;\n"
-        "sbc x10, x10, xzr;\n"
-        "stp x11, x12, [" $P0 "];\n"
-        "stp x13, x8, [" $P0 "+ 16];\n"
-        "stp x9, x10, [" $P0 "+ 32];\n"
-        "mul x8, x2, x5;\n"
-        "mul x14, x3, x6;\n"
-        "mul x15, x4, x7;\n"
-        "umulh x16, x2, x5;\n"
-        "umulh x17, x3, x6;\n"
-        "umulh x1, x4, x7;\n"
-        "adds x16, x16, x14;\n"
-        "adcs x17, x17, x15;\n"
-        "adc x1, x1, xzr;\n"
-        "adds x9, x16, x8;\n"
-        "adcs x10, x17, x16;\n"
-        "adcs x11, x1, x17;\n"
-        "adc x12, x1, xzr;\n"
-        "adds x10, x10, x8;\n"
-        "adcs x11, x11, x16;\n"
-        "adcs x12, x12, x17;\n"
-        "adc x13, x1, xzr;\n"
-        "subs x17, x2, x3;\n"
-        "cneg x17, x17, lo;\n"
-        "csetm x14, lo;\n"
-        "subs x15, x6, x5;\n"
-        "cneg x15, x15, lo;\n"
-        "mul x16, x17, x15;\n"
-        "umulh x15, x17, x15;\n"
-        "cinv x14, x14, lo;\n"
-        "eor x16, x16, x14;\n"
-        "eor x15, x15, x14;\n"
-        "cmn x14, #1;\n"
-        "adcs x9, x9, x16;\n"
-        "adcs x10, x10, x15;\n"
-        "adcs x11, x11, x14;\n"
-        "adcs x12, x12, x14;\n"
-        "adc x13, x13, x14;\n"
-        "subs x17, x2, x4;\n"
-        "cneg x17, x17, lo;\n"
-        "csetm x14, lo;\n"
-        "subs x15, x7, x5;\n"
-        "cneg x15, x15, lo;\n"
-        "mul x16, x17, x15;\n"
-        "umulh x15, x17, x15;\n"
-        "cinv x14, x14, lo;\n"
-        "eor x16, x16, x14;\n"
-        "eor x15, x15, x14;\n"
-        "cmn x14, #1;\n"
-        "adcs x10, x10, x16;\n"
-        "adcs x11, x11, x15;\n"
-        "adcs x12, x12, x14;\n"
-        "adc x13, x13, x14;\n"
-        "subs x17, x3, x4;\n"
-        "cneg x17, x17, lo;\n"
-        "csetm x14, lo;\n"
-        "subs x15, x7, x6;\n"
-        "cneg x15, x15, lo;\n"
-        "mul x16, x17, x15;\n"
-        "umulh x15, x17, x15;\n"
-        "cinv x14, x14, lo;\n"
-        "eor x16, x16, x14;\n"
-        "eor x15, x15, x14;\n"
-        "cmn x14, #1;\n"
-        "adcs x11, x11, x16;\n"
-        "adcs x12, x12, x15;\n"
-        "adc x13, x13, x14;\n"
-        "adds x8, x8, x8;\n"
-        "adcs x9, x9, x9;\n"
-        "adcs x10, x10, x10;\n"
-        "adcs x11, x11, x11;\n"
-        "adcs x12, x12, x12;\n"
-        "adcs x13, x13, x13;\n"
-        "adc x17, xzr, xzr;\n"
-        "ldp x2, x3, [" $P0 "];\n"
-        "adds x8, x8, x2;\n"
-        "adcs x9, x9, x3;\n"
-        "ldp x2, x3, [" $P0 "+ 16];\n"
-        "adcs x10, x10, x2;\n"
-        "adcs x11, x11, x3;\n"
-        "ldp x2, x3, [" $P0 "+ 32];\n"
-        "adcs x12, x12, x2;\n"
-        "adcs x13, x13, x3;\n"
-        "adc x17, x17, xzr;\n"
-        "lsl x4, x8, #32;\n"
-        "add x8, x4, x8;\n"
-        "lsr x4, x8, #32;\n"
-        "subs x4, x4, x8;\n"
-        "sbc x3, x8, xzr;\n"
-        "extr x4, x3, x4, #32;\n"
-        "lsr x3, x3, #32;\n"
-        "adds x3, x3, x8;\n"
-        "adc x2, xzr, xzr;\n"
-        "subs x9, x9, x4;\n"
-        "sbcs x10, x10, x3;\n"
-        "sbcs x11, x11, x2;\n"
-        "sbcs x12, x12, xzr;\n"
-        "sbcs x13, x13, xzr;\n"
-        "sbc x8, x8, xzr;\n"
-        "lsl x4, x9, #32;\n"
-        "add x9, x4, x9;\n"
-        "lsr x4, x9, #32;\n"
-        "subs x4, x4, x9;\n"
-        "sbc x3, x9, xzr;\n"
-        "extr x4, x3, x4, #32;\n"
-        "lsr x3, x3, #32;\n"
-        "adds x3, x3, x9;\n"
-        "adc x2, xzr, xzr;\n"
-        "subs x10, x10, x4;\n"
-        "sbcs x11, x11, x3;\n"
-        "sbcs x12, x12, x2;\n"
-        "sbcs x13, x13, xzr;\n"
-        "sbcs x8, x8, xzr;\n"
-        "sbc x9, x9, xzr;\n"
-        "lsl x4, x10, #32;\n"
-        "add x10, x4, x10;\n"
-        "lsr x4, x10, #32;\n"
-        "subs x4, x4, x10;\n"
-        "sbc x3, x10, xzr;\n"
-        "extr x4, x3, x4, #32;\n"
-        "lsr x3, x3, #32;\n"
-        "adds x3, x3, x10;\n"
-        "adc x2, xzr, xzr;\n"
-        "subs x11, x11, x4;\n"
-        "sbcs x12, x12, x3;\n"
-        "sbcs x13, x13, x2;\n"
-        "sbcs x8, x8, xzr;\n"
-        "sbcs x9, x9, xzr;\n"
-        "sbc x10, x10, xzr;\n"
-        "adds x17, x17, x8;\n"
-        "adcs x8, x9, xzr;\n"
-        "adcs x9, x10, xzr;\n"
-        "adcs x10, xzr, xzr;\n"
-        "mul x1, x5, x5;\n"
-        "adds x11, x11, x1;\n"
-        "mul x14, x6, x6;\n"
-        "mul x15, x7, x7;\n"
-        "umulh x1, x5, x5;\n"
-        "adcs x12, x12, x1;\n"
-        "umulh x1, x6, x6;\n"
-        "adcs x13, x13, x14;\n"
-        "adcs x17, x17, x1;\n"
-        "umulh x1, x7, x7;\n"
-        "adcs x8, x8, x15;\n"
-        "adcs x9, x9, x1;\n"
-        "adc x10, x10, xzr;\n"
-        "mul x1, x5, x6;\n"
-        "mul x14, x5, x7;\n"
-        "mul x15, x6, x7;\n"
-        "umulh x16, x5, x6;\n"
-        "adds x14, x14, x16;\n"
-        "umulh x16, x5, x7;\n"
-        "adcs x15, x15, x16;\n"
-        "umulh x16, x6, x7;\n"
-        "adc x16, x16, xzr;\n"
-        "adds x1, x1, x1;\n"
-        "adcs x14, x14, x14;\n"
-        "adcs x15, x15, x15;\n"
-        "adcs x16, x16, x16;\n"
-        "adc x5, xzr, xzr;\n"
-        "adds x12, x12, x1;\n"
-        "adcs x13, x13, x14;\n"
-        "adcs x17, x17, x15;\n"
-        "adcs x8, x8, x16;\n"
-        "adcs x9, x9, x5;\n"
-        "adc x10, x10, xzr;\n"
-        "mov x1, #-4294967295;\n"
-        "mov x14, #4294967295;\n"
-        "mov x15, #1;\n"
-        "cmn x11, x1;\n"
-        "adcs xzr, x12, x14;\n"
-        "adcs xzr, x13, x15;\n"
-        "adcs xzr, x17, xzr;\n"
-        "adcs xzr, x8, xzr;\n"
-        "adcs xzr, x9, xzr;\n"
-        "adc x10, x10, xzr;\n"
-        "neg x10, x10;\n"
-        "and x1, x1, x10;\n"
-        "adds x11, x11, x1;\n"
-        "and x14, x14, x10;\n"
-        "adcs x12, x12, x14;\n"
-        "and x15, x15, x10;\n"
-        "adcs x13, x13, x15;\n"
-        "adcs x17, x17, xzr;\n"
-        "adcs x8, x8, xzr;\n"
-        "adc x9, x9, xzr;\n"
-        "stp x11, x12, [" $P0 "];\n"
-        "stp x13, x17, [" $P0 "+ 16];\n"
-        "stp x8, x9, [" $P0 "+ 32]"
-    )}
-}
-
-// Corresponds exactly to bignum_sub_p384
-
-macro_rules! sub_p384 {
-    ($P0:expr, $P1:expr, $P2:expr) => { Q!(
-        "ldp x5, x6, [" $P1 "];\n"
-        "ldp x4, x3, [" $P2 "];\n"
-        "subs x5, x5, x4;\n"
-        "sbcs x6, x6, x3;\n"
-        "ldp x7, x8, [" $P1 "+ 16];\n"
-        "ldp x4, x3, [" $P2 "+ 16];\n"
-        "sbcs x7, x7, x4;\n"
-        "sbcs x8, x8, x3;\n"
-        "ldp x9, x10, [" $P1 "+ 32];\n"
-        "ldp x4, x3, [" $P2 "+ 32];\n"
-        "sbcs x9, x9, x4;\n"
-        "sbcs x10, x10, x3;\n"
-        "csetm x3, lo;\n"
-        "mov x4, #4294967295;\n"
-        "and x4, x4, x3;\n"
-        "adds x5, x5, x4;\n"
-        "eor x4, x4, x3;\n"
-        "adcs x6, x6, x4;\n"
-        "mov x4, #-2;\n"
-        "and x4, x4, x3;\n"
-        "adcs x7, x7, x4;\n"
-        "adcs x8, x8, x3;\n"
-        "adcs x9, x9, x3;\n"
-        "adc x10, x10, x3;\n"
-        "stp x5, x6, [" $P0 "];\n"
-        "stp x7, x8, [" $P0 "+ 16];\n"
-        "stp x9, x10, [" $P0 "+ 32]"
-    )}
-}
-
-// Corresponds exactly to bignum_add_p384
-
-macro_rules! add_p384 {
-    ($P0:expr, $P1:expr, $P2:expr) => { Q!(
-        "ldp x5, x6, [" $P1 "];\n"
-        "ldp x4, x3, [" $P2 "];\n"
-        "adds x5, x5, x4;\n"
-        "adcs x6, x6, x3;\n"
-        "ldp x7, x8, [" $P1 "+ 16];\n"
-        "ldp x4, x3, [" $P2 "+ 16];\n"
-        "adcs x7, x7, x4;\n"
-        "adcs x8, x8, x3;\n"
-        "ldp x9, x10, [" $P1 "+ 32];\n"
-        "ldp x4, x3, [" $P2 "+ 32];\n"
-        "adcs x9, x9, x4;\n"
-        "adcs x10, x10, x3;\n"
-        "adc x3, xzr, xzr;\n"
-        "mov x4, #0xffffffff;\n"
-        "cmp x5, x4;\n"
-        "mov x4, #0xffffffff00000000;\n"
-        "sbcs xzr, x6, x4;\n"
-        "mov x4, #0xfffffffffffffffe;\n"
-        "sbcs xzr, x7, x4;\n"
-        "adcs xzr, x8, xzr;\n"
-        "adcs xzr, x9, xzr;\n"
-        "adcs xzr, x10, xzr;\n"
-        "adcs x3, x3, xzr;\n"
-        "csetm x3, ne;\n"
-        "mov x4, #0xffffffff;\n"
-        "and x4, x4, x3;\n"
-        "subs x5, x5, x4;\n"
-        "eor x4, x4, x3;\n"
-        "sbcs x6, x6, x4;\n"
-        "mov x4, #0xfffffffffffffffe;\n"
-        "and x4, x4, x3;\n"
-        "sbcs x7, x7, x4;\n"
-        "sbcs x8, x8, x3;\n"
-        "sbcs x9, x9, x3;\n"
-        "sbc x10, x10, x3;\n"
-        "stp x5, x6, [" $P0 "];\n"
-        "stp x7, x8, [" $P0 "+ 16];\n"
-        "stp x9, x10, [" $P0 "+ 32]"
-    )}
-}
-
-// P0 = 4 * P1 - P2
-
-macro_rules! cmsub41_p384 {
-    ($P0:expr, $P1:expr, $P2:expr) => { Q!(
-        "ldp x1, x2, [" $P1 "];\n"
-        "ldp x3, x4, [" $P1 "+ 16];\n"
-        "ldp x5, x6, [" $P1 "+ 32];\n"
-        "lsl x0, x1, #2;\n"
-        "ldp x7, x8, [" $P2 "];\n"
-        "subs x0, x0, x7;\n"
-        "extr x1, x2, x1, #62;\n"
-        "sbcs x1, x1, x8;\n"
-        "ldp x7, x8, [" $P2 "+ 16];\n"
-        "extr x2, x3, x2, #62;\n"
-        "sbcs x2, x2, x7;\n"
-        "extr x3, x4, x3, #62;\n"
-        "sbcs x3, x3, x8;\n"
-        "extr x4, x5, x4, #62;\n"
-        "ldp x7, x8, [" $P2 "+ 32];\n"
-        "sbcs x4, x4, x7;\n"
-        "extr x5, x6, x5, #62;\n"
-        "sbcs x5, x5, x8;\n"
-        "lsr x6, x6, #62;\n"
-        "adc x6, x6, xzr;\n"
-        "lsl x7, x6, #32;\n"
-        "subs x8, x6, x7;\n"
-        "sbc x7, x7, xzr;\n"
-        "adds x0, x0, x8;\n"
-        "adcs x1, x1, x7;\n"
-        "adcs x2, x2, x6;\n"
-        "adcs x3, x3, xzr;\n"
-        "adcs x4, x4, xzr;\n"
-        "adcs x5, x5, xzr;\n"
-        "csetm x8, cc;\n"
-        "mov x9, #0xffffffff;\n"
-        "and x9, x9, x8;\n"
-        "adds x0, x0, x9;\n"
-        "eor x9, x9, x8;\n"
-        "adcs x1, x1, x9;\n"
-        "mov x9, #0xfffffffffffffffe;\n"
-        "and x9, x9, x8;\n"
-        "adcs x2, x2, x9;\n"
-        "adcs x3, x3, x8;\n"
-        "adcs x4, x4, x8;\n"
-        "adc x5, x5, x8;\n"
-        "stp x0, x1, [" $P0 "];\n"
-        "stp x2, x3, [" $P0 "+ 16];\n"
-        "stp x4, x5, [" $P0 "+ 32]"
-    )}
-}
-
-// P0 = C * P1 - D * P2
-
-macro_rules! cmsub_p384 {
-    ($P0:expr, $C:expr, $P1:expr, $D:expr, $P2:expr) => { Q!(
-        "ldp x0, x1, [" $P2 "];\n"
-        "mov x6, #0x00000000ffffffff;\n"
-        "subs x6, x6, x0;\n"
-        "mov x7, #0xffffffff00000000;\n"
-        "sbcs x7, x7, x1;\n"
-        "ldp x0, x1, [" $P2 "+ 16];\n"
-        "mov x8, #0xfffffffffffffffe;\n"
-        "sbcs x8, x8, x0;\n"
-        "mov x13, #0xffffffffffffffff;\n"
-        "sbcs x9, x13, x1;\n"
-        "ldp x0, x1, [" $P2 "+ 32];\n"
-        "sbcs x10, x13, x0;\n"
-        "sbc x11, x13, x1;\n"
-        "mov x12, " $D ";\n"
-        "mul x0, x12, x6;\n"
-        "mul x1, x12, x7;\n"
-        "mul x2, x12, x8;\n"
-        "mul x3, x12, x9;\n"
-        "mul x4, x12, x10;\n"
-        "mul x5, x12, x11;\n"
-        "umulh x6, x12, x6;\n"
-        "umulh x7, x12, x7;\n"
-        "umulh x8, x12, x8;\n"
-        "umulh x9, x12, x9;\n"
-        "umulh x10, x12, x10;\n"
-        "umulh x12, x12, x11;\n"
-        "adds x1, x1, x6;\n"
-        "adcs x2, x2, x7;\n"
-        "adcs x3, x3, x8;\n"
-        "adcs x4, x4, x9;\n"
-        "adcs x5, x5, x10;\n"
-        "mov x6, #1;\n"
-        "adc x6, x12, x6;\n"
-        "ldp x8, x9, [" $P1 "];\n"
-        "ldp x10, x11, [" $P1 "+ 16];\n"
-        "ldp x12, x13, [" $P1 "+ 32];\n"
-        "mov x14, " $C ";\n"
-        "mul x15, x14, x8;\n"
-        "umulh x8, x14, x8;\n"
-        "adds x0, x0, x15;\n"
-        "mul x15, x14, x9;\n"
-        "umulh x9, x14, x9;\n"
-        "adcs x1, x1, x15;\n"
-        "mul x15, x14, x10;\n"
-        "umulh x10, x14, x10;\n"
-        "adcs x2, x2, x15;\n"
-        "mul x15, x14, x11;\n"
-        "umulh x11, x14, x11;\n"
-        "adcs x3, x3, x15;\n"
-        "mul x15, x14, x12;\n"
-        "umulh x12, x14, x12;\n"
-        "adcs x4, x4, x15;\n"
-        "mul x15, x14, x13;\n"
-        "umulh x13, x14, x13;\n"
-        "adcs x5, x5, x15;\n"
-        "adc x6, x6, xzr;\n"
-        "adds x1, x1, x8;\n"
-        "adcs x2, x2, x9;\n"
-        "adcs x3, x3, x10;\n"
-        "adcs x4, x4, x11;\n"
-        "adcs x5, x5, x12;\n"
-        "adcs x6, x6, x13;\n"
-        "lsl x7, x6, #32;\n"
-        "subs x8, x6, x7;\n"
-        "sbc x7, x7, xzr;\n"
-        "adds x0, x0, x8;\n"
-        "adcs x1, x1, x7;\n"
-        "adcs x2, x2, x6;\n"
-        "adcs x3, x3, xzr;\n"
-        "adcs x4, x4, xzr;\n"
-        "adcs x5, x5, xzr;\n"
-        "csetm x6, cc;\n"
-        "mov x7, #0xffffffff;\n"
-        "and x7, x7, x6;\n"
-        "adds x0, x0, x7;\n"
-        "eor x7, x7, x6;\n"
-        "adcs x1, x1, x7;\n"
-        "mov x7, #0xfffffffffffffffe;\n"
-        "and x7, x7, x6;\n"
-        "adcs x2, x2, x7;\n"
-        "adcs x3, x3, x6;\n"
-        "adcs x4, x4, x6;\n"
-        "adc x5, x5, x6;\n"
-        "stp x0, x1, [" $P0 "];\n"
-        "stp x2, x3, [" $P0 "+ 16];\n"
-        "stp x4, x5, [" $P0 "+ 32]"
-    )}
-}
-
-// A weak version of add that only guarantees sum in 6 digits
-
-macro_rules! weakadd_p384 {
-    ($P0:expr, $P1:expr, $P2:expr) => { Q!(
-        "ldp x5, x6, [" $P1 "];\n"
-        "ldp x4, x3, [" $P2 "];\n"
-        "adds x5, x5, x4;\n"
-        "adcs x6, x6, x3;\n"
-        "ldp x7, x8, [" $P1 "+ 16];\n"
-        "ldp x4, x3, [" $P2 "+ 16];\n"
-        "adcs x7, x7, x4;\n"
-        "adcs x8, x8, x3;\n"
-        "ldp x9, x10, [" $P1 "+ 32];\n"
-        "ldp x4, x3, [" $P2 "+ 32];\n"
-        "adcs x9, x9, x4;\n"
-        "adcs x10, x10, x3;\n"
-        "csetm x3, cs;\n"
-        "mov x4, #0xffffffff;\n"
-        "and x4, x4, x3;\n"
-        "subs x5, x5, x4;\n"
-        "eor x4, x4, x3;\n"
-        "sbcs x6, x6, x4;\n"
-        "mov x4, #0xfffffffffffffffe;\n"
-        "and x4, x4, x3;\n"
-        "sbcs x7, x7, x4;\n"
-        "sbcs x8, x8, x3;\n"
-        "sbcs x9, x9, x3;\n"
-        "sbc x10, x10, x3;\n"
-        "stp x5, x6, [" $P0 "];\n"
-        "stp x7, x8, [" $P0 "+ 16];\n"
-        "stp x9, x10, [" $P0 "+ 32]"
-    )}
-}
-
-// P0 = 3 * P1 - 8 * P2
-
-macro_rules! cmsub38_p384 {
-    ($P0:expr, $P1:expr, $P2:expr) => { Q!(
-        "ldp x0, x1, [" $P2 "];\n"
-        "mov x6, #0x00000000ffffffff;\n"
-        "subs x6, x6, x0;\n"
-        "mov x7, #0xffffffff00000000;\n"
-        "sbcs x7, x7, x1;\n"
-        "ldp x0, x1, [" $P2 "+ 16];\n"
-        "mov x8, #0xfffffffffffffffe;\n"
-        "sbcs x8, x8, x0;\n"
-        "mov x13, #0xffffffffffffffff;\n"
-        "sbcs x9, x13, x1;\n"
-        "ldp x0, x1, [" $P2 "+ 32];\n"
-        "sbcs x10, x13, x0;\n"
-        "sbc x11, x13, x1;\n"
-        "lsl x0, x6, #3;\n"
-        "extr x1, x7, x6, #61;\n"
-        "extr x2, x8, x7, #61;\n"
-        "extr x3, x9, x8, #61;\n"
-        "extr x4, x10, x9, #61;\n"
-        "extr x5, x11, x10, #61;\n"
-        "lsr x6, x11, #61;\n"
-        "add x6, x6, #1;\n"
-        "ldp x8, x9, [" $P1 "];\n"
-        "ldp x10, x11, [" $P1 "+ 16];\n"
-        "ldp x12, x13, [" $P1 "+ 32];\n"
-        "mov x14, 3;\n"
-        "mul x15, x14, x8;\n"
-        "umulh x8, x14, x8;\n"
-        "adds x0, x0, x15;\n"
-        "mul x15, x14, x9;\n"
-        "umulh x9, x14, x9;\n"
-        "adcs x1, x1, x15;\n"
-        "mul x15, x14, x10;\n"
-        "umulh x10, x14, x10;\n"
-        "adcs x2, x2, x15;\n"
-        "mul x15, x14, x11;\n"
-        "umulh x11, x14, x11;\n"
-        "adcs x3, x3, x15;\n"
-        "mul x15, x14, x12;\n"
-        "umulh x12, x14, x12;\n"
-        "adcs x4, x4, x15;\n"
-        "mul x15, x14, x13;\n"
-        "umulh x13, x14, x13;\n"
-        "adcs x5, x5, x15;\n"
-        "adc x6, x6, xzr;\n"
-        "adds x1, x1, x8;\n"
-        "adcs x2, x2, x9;\n"
-        "adcs x3, x3, x10;\n"
-        "adcs x4, x4, x11;\n"
-        "adcs x5, x5, x12;\n"
-        "adcs x6, x6, x13;\n"
-        "lsl x7, x6, #32;\n"
-        "subs x8, x6, x7;\n"
-        "sbc x7, x7, xzr;\n"
-        "adds x0, x0, x8;\n"
-        "adcs x1, x1, x7;\n"
-        "adcs x2, x2, x6;\n"
-        "adcs x3, x3, xzr;\n"
-        "adcs x4, x4, xzr;\n"
-        "adcs x5, x5, xzr;\n"
-        "csetm x6, cc;\n"
-        "mov x7, #0xffffffff;\n"
-        "and x7, x7, x6;\n"
-        "adds x0, x0, x7;\n"
-        "eor x7, x7, x6;\n"
-        "adcs x1, x1, x7;\n"
-        "mov x7, #0xfffffffffffffffe;\n"
-        "and x7, x7, x6;\n"
-        "adcs x2, x2, x7;\n"
-        "adcs x3, x3, x6;\n"
-        "adcs x4, x4, x6;\n"
-        "adc x5, x5, x6;\n"
-        "stp x0, x1, [" $P0 "];\n"
-        "stp x2, x3, [" $P0 "+ 16];\n"
-        "stp x4, x5, [" $P0 "+ 32]"
-    )}
-}
 
 pub fn p384_montjdouble(p3: &mut [u64; 18], p1: &[u64; 18]) {
     unsafe {
@@ -1063,66 +42,3099 @@ pub fn p384_montjdouble(p3: &mut [u64; 18], p1: &[u64; 18]) {
 
         // Save regs and make room on stack for temporary variables
 
-        Q!("    sub             " "sp, sp, " NSPACE!() "+ 64"),
+        Q!("    sub             " "sp, sp, " NSPACE!() "+ 80"),
         Q!("    stp             " "x19, x20, [sp, " NSPACE!() "]"),
         Q!("    stp             " "x21, x22, [sp, " NSPACE!() "+ 16]"),
         Q!("    stp             " "x23, x24, [sp, " NSPACE!() "+ 32]"),
         Q!("    stp             " "x25, x26, [sp, " NSPACE!() "+ 48]"),
+        Q!("    stp             " "x27, xzr, [sp, " NSPACE!() "+ 64]"),
 
-        // Move the input arguments to stable places
-
-        Q!("    mov             " input_z!() ", x0"),
-        Q!("    mov             " input_x!() ", x1"),
-
-        // Main code, just a sequence of basic field operations
-
-        // z2 = z^2
-        // y2 = y^2
-
-        montsqr_p384!(z2!(), z_1!()),
-        montsqr_p384!(y2!(), y_1!()),
-
-        // x2p = x^2 - z^4 = (x + z^2) * (x - z^2)
-
-        weakadd_p384!(t1!(), x_1!(), z2!()),
-        sub_p384!(t2!(), x_1!(), z2!()),
-        montmul_p384!(x2p!(), t1!(), t2!()),
-
-        // t1 = y + z
-        // x4p = x2p^2
-        // xy2 = x * y^2
-
-        add_p384!(t1!(), y_1!(), z_1!()),
-        montsqr_p384!(x4p!(), x2p!()),
-        montmul_p384!(xy2!(), x_1!(), y2!()),
-
-        // t2 = (y + z)^2
-
-        montsqr_p384!(t2!(), t1!()),
-
-        // d = 12 * xy2 - 9 * x4p
-        // t1 = y^2 + 2 * y * z
-
-        cmsub_p384!(d!(), "12", xy2!(), "9", x4p!()),
-        sub_p384!(t1!(), t2!(), z2!()),
-
-        // y4 = y^4
-
-        montsqr_p384!(y4!(), y2!()),
-
-        // z_3' = 2 * y * z
-        // dx2 = d * x2p
-
-        sub_p384!(z_3!(), t1!(), y2!()),
-        montmul_p384!(dx2!(), d!(), x2p!()),
-
-        // x' = 4 * xy2 - d
-
-        cmsub41_p384!(x_3!(), xy2!(), d!()),
-
-        // y' = 3 * dx2 - 8 * y4
-
-        cmsub38_p384!(y_3!(), dx2!(), y4!()),
+        Q!("    mov             " "x25, x0"),
+        Q!("    mov             " "x26, x1"),
+        Q!("    mov             " "x0, sp"),
+        Q!("    ldr             " "q1, [x26, #96]"),
+        Q!("    ldp             " "x9, x2, [x26, #96]"),
+        Q!("    ldr             " "q0, [x26, #96]"),
+        Q!("    ldp             " "x4, x6, [x26, #112]"),
+        Q!("    rev64           " "v21.4s, v1.4s"),
+        Q!("    uzp2            " "v28.4s, v1.4s, v1.4s"),
+        Q!("    umulh           " "x7, x9, x2"),
+        Q!("    xtn             " "v17.2s, v1.2d"),
+        Q!("    mul             " "v27.4s, v21.4s, v0.4s"),
+        Q!("    ldr             " "q20, [x26, #128]"),
+        Q!("    xtn             " "v30.2s, v0.2d"),
+        Q!("    ldr             " "q1, [x26, #128]"),
+        Q!("    uzp2            " "v31.4s, v0.4s, v0.4s"),
+        Q!("    ldp             " "x5, x10, [x26, #128]"),
+        Q!("    umulh           " "x8, x9, x4"),
+        Q!("    uaddlp          " "v3.2d, v27.4s"),
+        Q!("    umull           " "v16.2d, v30.2s, v17.2s"),
+        Q!("    mul             " "x16, x9, x4"),
+        Q!("    umull           " "v27.2d, v30.2s, v28.2s"),
+        Q!("    shrn            " "v0.2s, v20.2d, #32"),
+        Q!("    xtn             " "v7.2s, v20.2d"),
+        Q!("    shl             " "v20.2d, v3.2d, #32"),
+        Q!("    umull           " "v3.2d, v31.2s, v28.2s"),
+        Q!("    mul             " "x3, x2, x4"),
+        Q!("    umlal           " "v20.2d, v30.2s, v17.2s"),
+        Q!("    umull           " "v22.2d, v7.2s, v0.2s"),
+        Q!("    usra            " "v27.2d, v16.2d, #32"),
+        Q!("    umulh           " "x11, x2, x4"),
+        Q!("    movi            " "v21.2d, #0xffffffff"),
+        Q!("    uzp2            " "v28.4s, v1.4s, v1.4s"),
+        Q!("    adds            " "x15, x16, x7"),
+        Q!("    and             " "v5.16b, v27.16b, v21.16b"),
+        Q!("    adcs            " "x3, x3, x8"),
+        Q!("    usra            " "v3.2d, v27.2d, #32"),
+        Q!("    dup             " "v29.2d, x6"),
+        Q!("    adcs            " "x16, x11, xzr"),
+        Q!("    mov             " "x14, v20.d[0]"),
+        Q!("    umlal           " "v5.2d, v31.2s, v17.2s"),
+        Q!("    mul             " "x8, x9, x2"),
+        Q!("    mov             " "x7, v20.d[1]"),
+        Q!("    shl             " "v19.2d, v22.2d, #33"),
+        Q!("    xtn             " "v25.2s, v29.2d"),
+        Q!("    rev64           " "v31.4s, v1.4s"),
+        Q!("    lsl             " "x13, x14, #32"),
+        Q!("    uzp2            " "v6.4s, v29.4s, v29.4s"),
+        Q!("    umlal           " "v19.2d, v7.2s, v7.2s"),
+        Q!("    usra            " "v3.2d, v5.2d, #32"),
+        Q!("    adds            " "x1, x8, x8"),
+        Q!("    umulh           " "x8, x4, x4"),
+        Q!("    add             " "x12, x13, x14"),
+        Q!("    mul             " "v17.4s, v31.4s, v29.4s"),
+        Q!("    xtn             " "v4.2s, v1.2d"),
+        Q!("    adcs            " "x14, x15, x15"),
+        Q!("    lsr             " "x13, x12, #32"),
+        Q!("    adcs            " "x15, x3, x3"),
+        Q!("    umull           " "v31.2d, v25.2s, v28.2s"),
+        Q!("    adcs            " "x11, x16, x16"),
+        Q!("    umull           " "v21.2d, v25.2s, v4.2s"),
+        Q!("    mov             " "x17, v3.d[0]"),
+        Q!("    umull           " "v18.2d, v6.2s, v28.2s"),
+        Q!("    adc             " "x16, x8, xzr"),
+        Q!("    uaddlp          " "v16.2d, v17.4s"),
+        Q!("    movi            " "v1.2d, #0xffffffff"),
+        Q!("    subs            " "x13, x13, x12"),
+        Q!("    usra            " "v31.2d, v21.2d, #32"),
+        Q!("    sbc             " "x8, x12, xzr"),
+        Q!("    adds            " "x17, x17, x1"),
+        Q!("    mul             " "x1, x4, x4"),
+        Q!("    shl             " "v28.2d, v16.2d, #32"),
+        Q!("    mov             " "x3, v3.d[1]"),
+        Q!("    adcs            " "x14, x7, x14"),
+        Q!("    extr            " "x7, x8, x13, #32"),
+        Q!("    adcs            " "x13, x3, x15"),
+        Q!("    and             " "v3.16b, v31.16b, v1.16b"),
+        Q!("    adcs            " "x11, x1, x11"),
+        Q!("    lsr             " "x1, x8, #32"),
+        Q!("    umlal           " "v3.2d, v6.2s, v4.2s"),
+        Q!("    usra            " "v18.2d, v31.2d, #32"),
+        Q!("    adc             " "x3, x16, xzr"),
+        Q!("    adds            " "x1, x1, x12"),
+        Q!("    umlal           " "v28.2d, v25.2s, v4.2s"),
+        Q!("    adc             " "x16, xzr, xzr"),
+        Q!("    subs            " "x15, x17, x7"),
+        Q!("    sbcs            " "x7, x14, x1"),
+        Q!("    lsl             " "x1, x15, #32"),
+        Q!("    sbcs            " "x16, x13, x16"),
+        Q!("    add             " "x8, x1, x15"),
+        Q!("    usra            " "v18.2d, v3.2d, #32"),
+        Q!("    sbcs            " "x14, x11, xzr"),
+        Q!("    lsr             " "x1, x8, #32"),
+        Q!("    sbcs            " "x17, x3, xzr"),
+        Q!("    sbc             " "x11, x12, xzr"),
+        Q!("    subs            " "x13, x1, x8"),
+        Q!("    umulh           " "x12, x4, x10"),
+        Q!("    sbc             " "x1, x8, xzr"),
+        Q!("    extr            " "x13, x1, x13, #32"),
+        Q!("    lsr             " "x1, x1, #32"),
+        Q!("    adds            " "x15, x1, x8"),
+        Q!("    adc             " "x1, xzr, xzr"),
+        Q!("    subs            " "x7, x7, x13"),
+        Q!("    sbcs            " "x13, x16, x15"),
+        Q!("    lsl             " "x3, x7, #32"),
+        Q!("    umulh           " "x16, x2, x5"),
+        Q!("    sbcs            " "x15, x14, x1"),
+        Q!("    add             " "x7, x3, x7"),
+        Q!("    sbcs            " "x3, x17, xzr"),
+        Q!("    lsr             " "x1, x7, #32"),
+        Q!("    sbcs            " "x14, x11, xzr"),
+        Q!("    sbc             " "x11, x8, xzr"),
+        Q!("    subs            " "x8, x1, x7"),
+        Q!("    sbc             " "x1, x7, xzr"),
+        Q!("    extr            " "x8, x1, x8, #32"),
+        Q!("    lsr             " "x1, x1, #32"),
+        Q!("    adds            " "x1, x1, x7"),
+        Q!("    adc             " "x17, xzr, xzr"),
+        Q!("    subs            " "x13, x13, x8"),
+        Q!("    umulh           " "x8, x9, x6"),
+        Q!("    sbcs            " "x1, x15, x1"),
+        Q!("    sbcs            " "x15, x3, x17"),
+        Q!("    sbcs            " "x3, x14, xzr"),
+        Q!("    mul             " "x17, x2, x5"),
+        Q!("    sbcs            " "x11, x11, xzr"),
+        Q!("    stp             " "x13, x1, [x0]"),
+        Q!("    sbc             " "x14, x7, xzr"),
+        Q!("    mul             " "x7, x4, x10"),
+        Q!("    subs            " "x1, x9, x2"),
+        Q!("    stp             " "x15, x3, [x0, #16]"),
+        Q!("    csetm           " "x15, cc"),
+        Q!("    cneg            " "x1, x1, cc"),
+        Q!("    stp             " "x11, x14, [x0, #32]"),
+        Q!("    mul             " "x14, x9, x6"),
+        Q!("    adds            " "x17, x8, x17"),
+        Q!("    adcs            " "x7, x16, x7"),
+        Q!("    adc             " "x13, x12, xzr"),
+        Q!("    subs            " "x12, x5, x6"),
+        Q!("    cneg            " "x3, x12, cc"),
+        Q!("    cinv            " "x16, x15, cc"),
+        Q!("    mul             " "x8, x1, x3"),
+        Q!("    umulh           " "x1, x1, x3"),
+        Q!("    eor             " "x12, x8, x16"),
+        Q!("    adds            " "x11, x17, x14"),
+        Q!("    adcs            " "x3, x7, x17"),
+        Q!("    adcs            " "x15, x13, x7"),
+        Q!("    adc             " "x8, x13, xzr"),
+        Q!("    adds            " "x3, x3, x14"),
+        Q!("    adcs            " "x15, x15, x17"),
+        Q!("    adcs            " "x17, x8, x7"),
+        Q!("    eor             " "x1, x1, x16"),
+        Q!("    adc             " "x13, x13, xzr"),
+        Q!("    subs            " "x9, x9, x4"),
+        Q!("    csetm           " "x8, cc"),
+        Q!("    cneg            " "x9, x9, cc"),
+        Q!("    subs            " "x4, x2, x4"),
+        Q!("    cneg            " "x4, x4, cc"),
+        Q!("    csetm           " "x7, cc"),
+        Q!("    subs            " "x2, x10, x6"),
+        Q!("    cinv            " "x8, x8, cc"),
+        Q!("    cneg            " "x2, x2, cc"),
+        Q!("    cmn             " "x16, #0x1"),
+        Q!("    adcs            " "x11, x11, x12"),
+        Q!("    mul             " "x12, x9, x2"),
+        Q!("    adcs            " "x3, x3, x1"),
+        Q!("    adcs            " "x15, x15, x16"),
+        Q!("    umulh           " "x9, x9, x2"),
+        Q!("    adcs            " "x17, x17, x16"),
+        Q!("    adc             " "x13, x13, x16"),
+        Q!("    subs            " "x1, x10, x5"),
+        Q!("    cinv            " "x2, x7, cc"),
+        Q!("    cneg            " "x1, x1, cc"),
+        Q!("    eor             " "x9, x9, x8"),
+        Q!("    cmn             " "x8, #0x1"),
+        Q!("    eor             " "x7, x12, x8"),
+        Q!("    mul             " "x12, x4, x1"),
+        Q!("    adcs            " "x3, x3, x7"),
+        Q!("    adcs            " "x7, x15, x9"),
+        Q!("    adcs            " "x15, x17, x8"),
+        Q!("    ldp             " "x9, x17, [x0, #16]"),
+        Q!("    umulh           " "x4, x4, x1"),
+        Q!("    adc             " "x8, x13, x8"),
+        Q!("    cmn             " "x2, #0x1"),
+        Q!("    eor             " "x1, x12, x2"),
+        Q!("    adcs            " "x1, x7, x1"),
+        Q!("    ldp             " "x7, x16, [x0]"),
+        Q!("    eor             " "x12, x4, x2"),
+        Q!("    adcs            " "x4, x15, x12"),
+        Q!("    ldp             " "x15, x12, [x0, #32]"),
+        Q!("    adc             " "x8, x8, x2"),
+        Q!("    adds            " "x13, x14, x14"),
+        Q!("    umulh           " "x14, x5, x10"),
+        Q!("    adcs            " "x2, x11, x11"),
+        Q!("    adcs            " "x3, x3, x3"),
+        Q!("    adcs            " "x1, x1, x1"),
+        Q!("    adcs            " "x4, x4, x4"),
+        Q!("    adcs            " "x11, x8, x8"),
+        Q!("    adc             " "x8, xzr, xzr"),
+        Q!("    adds            " "x13, x13, x7"),
+        Q!("    adcs            " "x2, x2, x16"),
+        Q!("    mul             " "x16, x5, x10"),
+        Q!("    adcs            " "x3, x3, x9"),
+        Q!("    adcs            " "x1, x1, x17"),
+        Q!("    umulh           " "x5, x5, x5"),
+        Q!("    lsl             " "x9, x13, #32"),
+        Q!("    add             " "x9, x9, x13"),
+        Q!("    adcs            " "x4, x4, x15"),
+        Q!("    mov             " "x13, v28.d[1]"),
+        Q!("    adcs            " "x15, x11, x12"),
+        Q!("    lsr             " "x7, x9, #32"),
+        Q!("    adc             " "x11, x8, xzr"),
+        Q!("    subs            " "x7, x7, x9"),
+        Q!("    umulh           " "x10, x10, x10"),
+        Q!("    sbc             " "x17, x9, xzr"),
+        Q!("    extr            " "x7, x17, x7, #32"),
+        Q!("    lsr             " "x17, x17, #32"),
+        Q!("    adds            " "x17, x17, x9"),
+        Q!("    adc             " "x12, xzr, xzr"),
+        Q!("    subs            " "x8, x2, x7"),
+        Q!("    sbcs            " "x17, x3, x17"),
+        Q!("    lsl             " "x7, x8, #32"),
+        Q!("    sbcs            " "x2, x1, x12"),
+        Q!("    add             " "x3, x7, x8"),
+        Q!("    sbcs            " "x12, x4, xzr"),
+        Q!("    lsr             " "x1, x3, #32"),
+        Q!("    sbcs            " "x7, x15, xzr"),
+        Q!("    sbc             " "x15, x9, xzr"),
+        Q!("    subs            " "x1, x1, x3"),
+        Q!("    sbc             " "x4, x3, xzr"),
+        Q!("    lsr             " "x9, x4, #32"),
+        Q!("    extr            " "x8, x4, x1, #32"),
+        Q!("    adds            " "x9, x9, x3"),
+        Q!("    adc             " "x4, xzr, xzr"),
+        Q!("    subs            " "x1, x17, x8"),
+        Q!("    lsl             " "x17, x1, #32"),
+        Q!("    sbcs            " "x8, x2, x9"),
+        Q!("    sbcs            " "x9, x12, x4"),
+        Q!("    add             " "x17, x17, x1"),
+        Q!("    mov             " "x1, v18.d[1]"),
+        Q!("    lsr             " "x2, x17, #32"),
+        Q!("    sbcs            " "x7, x7, xzr"),
+        Q!("    mov             " "x12, v18.d[0]"),
+        Q!("    sbcs            " "x15, x15, xzr"),
+        Q!("    sbc             " "x3, x3, xzr"),
+        Q!("    subs            " "x4, x2, x17"),
+        Q!("    sbc             " "x2, x17, xzr"),
+        Q!("    adds            " "x12, x13, x12"),
+        Q!("    adcs            " "x16, x16, x1"),
+        Q!("    lsr             " "x13, x2, #32"),
+        Q!("    extr            " "x1, x2, x4, #32"),
+        Q!("    adc             " "x2, x14, xzr"),
+        Q!("    adds            " "x4, x13, x17"),
+        Q!("    mul             " "x13, x6, x6"),
+        Q!("    adc             " "x14, xzr, xzr"),
+        Q!("    subs            " "x1, x8, x1"),
+        Q!("    sbcs            " "x4, x9, x4"),
+        Q!("    mov             " "x9, v28.d[0]"),
+        Q!("    sbcs            " "x7, x7, x14"),
+        Q!("    sbcs            " "x8, x15, xzr"),
+        Q!("    sbcs            " "x3, x3, xzr"),
+        Q!("    sbc             " "x14, x17, xzr"),
+        Q!("    adds            " "x17, x9, x9"),
+        Q!("    adcs            " "x12, x12, x12"),
+        Q!("    mov             " "x15, v19.d[0]"),
+        Q!("    adcs            " "x9, x16, x16"),
+        Q!("    umulh           " "x6, x6, x6"),
+        Q!("    adcs            " "x16, x2, x2"),
+        Q!("    adc             " "x2, xzr, xzr"),
+        Q!("    adds            " "x11, x11, x8"),
+        Q!("    adcs            " "x3, x3, xzr"),
+        Q!("    adcs            " "x14, x14, xzr"),
+        Q!("    adcs            " "x8, xzr, xzr"),
+        Q!("    adds            " "x13, x1, x13"),
+        Q!("    mov             " "x1, v19.d[1]"),
+        Q!("    adcs            " "x6, x4, x6"),
+        Q!("    mov             " "x4, #0xffffffff"),
+        Q!("    adcs            " "x15, x7, x15"),
+        Q!("    adcs            " "x7, x11, x5"),
+        Q!("    adcs            " "x1, x3, x1"),
+        Q!("    adcs            " "x14, x14, x10"),
+        Q!("    adc             " "x11, x8, xzr"),
+        Q!("    adds            " "x6, x6, x17"),
+        Q!("    adcs            " "x8, x15, x12"),
+        Q!("    adcs            " "x3, x7, x9"),
+        Q!("    adcs            " "x15, x1, x16"),
+        Q!("    mov             " "x16, #0xffffffff00000001"),
+        Q!("    adcs            " "x14, x14, x2"),
+        Q!("    mov             " "x2, #0x1"),
+        Q!("    adc             " "x17, x11, xzr"),
+        Q!("    cmn             " "x13, x16"),
+        Q!("    adcs            " "xzr, x6, x4"),
+        Q!("    adcs            " "xzr, x8, x2"),
+        Q!("    adcs            " "xzr, x3, xzr"),
+        Q!("    adcs            " "xzr, x15, xzr"),
+        Q!("    adcs            " "xzr, x14, xzr"),
+        Q!("    adc             " "x1, x17, xzr"),
+        Q!("    neg             " "x9, x1"),
+        Q!("    and             " "x1, x16, x9"),
+        Q!("    adds            " "x11, x13, x1"),
+        Q!("    and             " "x13, x4, x9"),
+        Q!("    adcs            " "x5, x6, x13"),
+        Q!("    and             " "x1, x2, x9"),
+        Q!("    adcs            " "x7, x8, x1"),
+        Q!("    stp             " "x11, x5, [x0]"),
+        Q!("    adcs            " "x11, x3, xzr"),
+        Q!("    adcs            " "x2, x15, xzr"),
+        Q!("    stp             " "x7, x11, [x0, #16]"),
+        Q!("    adc             " "x17, x14, xzr"),
+        Q!("    stp             " "x2, x17, [x0, #32]"),
+        Q!("    ldr             " "q1, [x26, #48]"),
+        Q!("    ldp             " "x9, x2, [x26, #48]"),
+        Q!("    ldr             " "q0, [x26, #48]"),
+        Q!("    ldp             " "x4, x6, [x26, #64]"),
+        Q!("    rev64           " "v21.4s, v1.4s"),
+        Q!("    uzp2            " "v28.4s, v1.4s, v1.4s"),
+        Q!("    umulh           " "x7, x9, x2"),
+        Q!("    xtn             " "v17.2s, v1.2d"),
+        Q!("    mul             " "v27.4s, v21.4s, v0.4s"),
+        Q!("    ldr             " "q20, [x26, #80]"),
+        Q!("    xtn             " "v30.2s, v0.2d"),
+        Q!("    ldr             " "q1, [x26, #80]"),
+        Q!("    uzp2            " "v31.4s, v0.4s, v0.4s"),
+        Q!("    ldp             " "x5, x10, [x26, #80]"),
+        Q!("    umulh           " "x8, x9, x4"),
+        Q!("    uaddlp          " "v3.2d, v27.4s"),
+        Q!("    umull           " "v16.2d, v30.2s, v17.2s"),
+        Q!("    mul             " "x16, x9, x4"),
+        Q!("    umull           " "v27.2d, v30.2s, v28.2s"),
+        Q!("    shrn            " "v0.2s, v20.2d, #32"),
+        Q!("    xtn             " "v7.2s, v20.2d"),
+        Q!("    shl             " "v20.2d, v3.2d, #32"),
+        Q!("    umull           " "v3.2d, v31.2s, v28.2s"),
+        Q!("    mul             " "x3, x2, x4"),
+        Q!("    umlal           " "v20.2d, v30.2s, v17.2s"),
+        Q!("    umull           " "v22.2d, v7.2s, v0.2s"),
+        Q!("    usra            " "v27.2d, v16.2d, #32"),
+        Q!("    umulh           " "x11, x2, x4"),
+        Q!("    movi            " "v21.2d, #0xffffffff"),
+        Q!("    uzp2            " "v28.4s, v1.4s, v1.4s"),
+        Q!("    adds            " "x15, x16, x7"),
+        Q!("    and             " "v5.16b, v27.16b, v21.16b"),
+        Q!("    adcs            " "x3, x3, x8"),
+        Q!("    usra            " "v3.2d, v27.2d, #32"),
+        Q!("    dup             " "v29.2d, x6"),
+        Q!("    adcs            " "x16, x11, xzr"),
+        Q!("    mov             " "x14, v20.d[0]"),
+        Q!("    umlal           " "v5.2d, v31.2s, v17.2s"),
+        Q!("    mul             " "x8, x9, x2"),
+        Q!("    mov             " "x7, v20.d[1]"),
+        Q!("    shl             " "v19.2d, v22.2d, #33"),
+        Q!("    xtn             " "v25.2s, v29.2d"),
+        Q!("    rev64           " "v31.4s, v1.4s"),
+        Q!("    lsl             " "x13, x14, #32"),
+        Q!("    uzp2            " "v6.4s, v29.4s, v29.4s"),
+        Q!("    umlal           " "v19.2d, v7.2s, v7.2s"),
+        Q!("    usra            " "v3.2d, v5.2d, #32"),
+        Q!("    adds            " "x1, x8, x8"),
+        Q!("    umulh           " "x8, x4, x4"),
+        Q!("    add             " "x12, x13, x14"),
+        Q!("    mul             " "v17.4s, v31.4s, v29.4s"),
+        Q!("    xtn             " "v4.2s, v1.2d"),
+        Q!("    adcs            " "x14, x15, x15"),
+        Q!("    lsr             " "x13, x12, #32"),
+        Q!("    adcs            " "x15, x3, x3"),
+        Q!("    umull           " "v31.2d, v25.2s, v28.2s"),
+        Q!("    adcs            " "x11, x16, x16"),
+        Q!("    umull           " "v21.2d, v25.2s, v4.2s"),
+        Q!("    mov             " "x17, v3.d[0]"),
+        Q!("    umull           " "v18.2d, v6.2s, v28.2s"),
+        Q!("    adc             " "x16, x8, xzr"),
+        Q!("    uaddlp          " "v16.2d, v17.4s"),
+        Q!("    movi            " "v1.2d, #0xffffffff"),
+        Q!("    subs            " "x13, x13, x12"),
+        Q!("    usra            " "v31.2d, v21.2d, #32"),
+        Q!("    sbc             " "x8, x12, xzr"),
+        Q!("    adds            " "x17, x17, x1"),
+        Q!("    mul             " "x1, x4, x4"),
+        Q!("    shl             " "v28.2d, v16.2d, #32"),
+        Q!("    mov             " "x3, v3.d[1]"),
+        Q!("    adcs            " "x14, x7, x14"),
+        Q!("    extr            " "x7, x8, x13, #32"),
+        Q!("    adcs            " "x13, x3, x15"),
+        Q!("    and             " "v3.16b, v31.16b, v1.16b"),
+        Q!("    adcs            " "x11, x1, x11"),
+        Q!("    lsr             " "x1, x8, #32"),
+        Q!("    umlal           " "v3.2d, v6.2s, v4.2s"),
+        Q!("    usra            " "v18.2d, v31.2d, #32"),
+        Q!("    adc             " "x3, x16, xzr"),
+        Q!("    adds            " "x1, x1, x12"),
+        Q!("    umlal           " "v28.2d, v25.2s, v4.2s"),
+        Q!("    adc             " "x16, xzr, xzr"),
+        Q!("    subs            " "x15, x17, x7"),
+        Q!("    sbcs            " "x7, x14, x1"),
+        Q!("    lsl             " "x1, x15, #32"),
+        Q!("    sbcs            " "x16, x13, x16"),
+        Q!("    add             " "x8, x1, x15"),
+        Q!("    usra            " "v18.2d, v3.2d, #32"),
+        Q!("    sbcs            " "x14, x11, xzr"),
+        Q!("    lsr             " "x1, x8, #32"),
+        Q!("    sbcs            " "x17, x3, xzr"),
+        Q!("    sbc             " "x11, x12, xzr"),
+        Q!("    subs            " "x13, x1, x8"),
+        Q!("    umulh           " "x12, x4, x10"),
+        Q!("    sbc             " "x1, x8, xzr"),
+        Q!("    extr            " "x13, x1, x13, #32"),
+        Q!("    lsr             " "x1, x1, #32"),
+        Q!("    adds            " "x15, x1, x8"),
+        Q!("    adc             " "x1, xzr, xzr"),
+        Q!("    subs            " "x7, x7, x13"),
+        Q!("    sbcs            " "x13, x16, x15"),
+        Q!("    lsl             " "x3, x7, #32"),
+        Q!("    umulh           " "x16, x2, x5"),
+        Q!("    sbcs            " "x15, x14, x1"),
+        Q!("    add             " "x7, x3, x7"),
+        Q!("    sbcs            " "x3, x17, xzr"),
+        Q!("    lsr             " "x1, x7, #32"),
+        Q!("    sbcs            " "x14, x11, xzr"),
+        Q!("    sbc             " "x11, x8, xzr"),
+        Q!("    subs            " "x8, x1, x7"),
+        Q!("    sbc             " "x1, x7, xzr"),
+        Q!("    extr            " "x8, x1, x8, #32"),
+        Q!("    lsr             " "x1, x1, #32"),
+        Q!("    adds            " "x1, x1, x7"),
+        Q!("    adc             " "x17, xzr, xzr"),
+        Q!("    subs            " "x13, x13, x8"),
+        Q!("    umulh           " "x8, x9, x6"),
+        Q!("    sbcs            " "x1, x15, x1"),
+        Q!("    sbcs            " "x15, x3, x17"),
+        Q!("    sbcs            " "x3, x14, xzr"),
+        Q!("    mul             " "x17, x2, x5"),
+        Q!("    sbcs            " "x11, x11, xzr"),
+        Q!("    stp             " "x13, x1, [sp, #48]"),
+        Q!("    sbc             " "x14, x7, xzr"),
+        Q!("    mul             " "x7, x4, x10"),
+        Q!("    subs            " "x1, x9, x2"),
+        Q!("    stp             " "x15, x3, [sp, #64]"),
+        Q!("    csetm           " "x15, cc"),
+        Q!("    cneg            " "x1, x1, cc"),
+        Q!("    stp             " "x11, x14, [sp, #80]"),
+        Q!("    mul             " "x14, x9, x6"),
+        Q!("    adds            " "x17, x8, x17"),
+        Q!("    adcs            " "x7, x16, x7"),
+        Q!("    adc             " "x13, x12, xzr"),
+        Q!("    subs            " "x12, x5, x6"),
+        Q!("    cneg            " "x3, x12, cc"),
+        Q!("    cinv            " "x16, x15, cc"),
+        Q!("    mul             " "x8, x1, x3"),
+        Q!("    umulh           " "x1, x1, x3"),
+        Q!("    eor             " "x12, x8, x16"),
+        Q!("    adds            " "x11, x17, x14"),
+        Q!("    adcs            " "x3, x7, x17"),
+        Q!("    adcs            " "x15, x13, x7"),
+        Q!("    adc             " "x8, x13, xzr"),
+        Q!("    adds            " "x3, x3, x14"),
+        Q!("    adcs            " "x15, x15, x17"),
+        Q!("    adcs            " "x17, x8, x7"),
+        Q!("    eor             " "x1, x1, x16"),
+        Q!("    adc             " "x13, x13, xzr"),
+        Q!("    subs            " "x9, x9, x4"),
+        Q!("    csetm           " "x8, cc"),
+        Q!("    cneg            " "x9, x9, cc"),
+        Q!("    subs            " "x4, x2, x4"),
+        Q!("    cneg            " "x4, x4, cc"),
+        Q!("    csetm           " "x7, cc"),
+        Q!("    subs            " "x2, x10, x6"),
+        Q!("    cinv            " "x8, x8, cc"),
+        Q!("    cneg            " "x2, x2, cc"),
+        Q!("    cmn             " "x16, #0x1"),
+        Q!("    adcs            " "x11, x11, x12"),
+        Q!("    mul             " "x12, x9, x2"),
+        Q!("    adcs            " "x3, x3, x1"),
+        Q!("    adcs            " "x15, x15, x16"),
+        Q!("    umulh           " "x9, x9, x2"),
+        Q!("    adcs            " "x17, x17, x16"),
+        Q!("    adc             " "x13, x13, x16"),
+        Q!("    subs            " "x1, x10, x5"),
+        Q!("    cinv            " "x2, x7, cc"),
+        Q!("    cneg            " "x1, x1, cc"),
+        Q!("    eor             " "x9, x9, x8"),
+        Q!("    cmn             " "x8, #0x1"),
+        Q!("    eor             " "x7, x12, x8"),
+        Q!("    mul             " "x12, x4, x1"),
+        Q!("    adcs            " "x3, x3, x7"),
+        Q!("    adcs            " "x7, x15, x9"),
+        Q!("    adcs            " "x15, x17, x8"),
+        Q!("    ldp             " "x9, x17, [sp, #64]"),
+        Q!("    umulh           " "x4, x4, x1"),
+        Q!("    adc             " "x8, x13, x8"),
+        Q!("    cmn             " "x2, #0x1"),
+        Q!("    eor             " "x1, x12, x2"),
+        Q!("    adcs            " "x1, x7, x1"),
+        Q!("    ldp             " "x7, x16, [sp, #48]"),
+        Q!("    eor             " "x12, x4, x2"),
+        Q!("    adcs            " "x4, x15, x12"),
+        Q!("    ldp             " "x15, x12, [sp, #80]"),
+        Q!("    adc             " "x8, x8, x2"),
+        Q!("    adds            " "x13, x14, x14"),
+        Q!("    umulh           " "x14, x5, x10"),
+        Q!("    adcs            " "x2, x11, x11"),
+        Q!("    adcs            " "x3, x3, x3"),
+        Q!("    adcs            " "x1, x1, x1"),
+        Q!("    adcs            " "x4, x4, x4"),
+        Q!("    adcs            " "x11, x8, x8"),
+        Q!("    adc             " "x8, xzr, xzr"),
+        Q!("    adds            " "x13, x13, x7"),
+        Q!("    adcs            " "x2, x2, x16"),
+        Q!("    mul             " "x16, x5, x10"),
+        Q!("    adcs            " "x3, x3, x9"),
+        Q!("    adcs            " "x1, x1, x17"),
+        Q!("    umulh           " "x5, x5, x5"),
+        Q!("    lsl             " "x9, x13, #32"),
+        Q!("    add             " "x9, x9, x13"),
+        Q!("    adcs            " "x4, x4, x15"),
+        Q!("    mov             " "x13, v28.d[1]"),
+        Q!("    adcs            " "x15, x11, x12"),
+        Q!("    lsr             " "x7, x9, #32"),
+        Q!("    adc             " "x11, x8, xzr"),
+        Q!("    subs            " "x7, x7, x9"),
+        Q!("    umulh           " "x10, x10, x10"),
+        Q!("    sbc             " "x17, x9, xzr"),
+        Q!("    extr            " "x7, x17, x7, #32"),
+        Q!("    lsr             " "x17, x17, #32"),
+        Q!("    adds            " "x17, x17, x9"),
+        Q!("    adc             " "x12, xzr, xzr"),
+        Q!("    subs            " "x8, x2, x7"),
+        Q!("    sbcs            " "x17, x3, x17"),
+        Q!("    lsl             " "x7, x8, #32"),
+        Q!("    sbcs            " "x2, x1, x12"),
+        Q!("    add             " "x3, x7, x8"),
+        Q!("    sbcs            " "x12, x4, xzr"),
+        Q!("    lsr             " "x1, x3, #32"),
+        Q!("    sbcs            " "x7, x15, xzr"),
+        Q!("    sbc             " "x15, x9, xzr"),
+        Q!("    subs            " "x1, x1, x3"),
+        Q!("    sbc             " "x4, x3, xzr"),
+        Q!("    lsr             " "x9, x4, #32"),
+        Q!("    extr            " "x8, x4, x1, #32"),
+        Q!("    adds            " "x9, x9, x3"),
+        Q!("    adc             " "x4, xzr, xzr"),
+        Q!("    subs            " "x1, x17, x8"),
+        Q!("    lsl             " "x17, x1, #32"),
+        Q!("    sbcs            " "x8, x2, x9"),
+        Q!("    sbcs            " "x9, x12, x4"),
+        Q!("    add             " "x17, x17, x1"),
+        Q!("    mov             " "x1, v18.d[1]"),
+        Q!("    lsr             " "x2, x17, #32"),
+        Q!("    sbcs            " "x7, x7, xzr"),
+        Q!("    mov             " "x12, v18.d[0]"),
+        Q!("    sbcs            " "x15, x15, xzr"),
+        Q!("    sbc             " "x3, x3, xzr"),
+        Q!("    subs            " "x4, x2, x17"),
+        Q!("    sbc             " "x2, x17, xzr"),
+        Q!("    adds            " "x12, x13, x12"),
+        Q!("    adcs            " "x16, x16, x1"),
+        Q!("    lsr             " "x13, x2, #32"),
+        Q!("    extr            " "x1, x2, x4, #32"),
+        Q!("    adc             " "x2, x14, xzr"),
+        Q!("    adds            " "x4, x13, x17"),
+        Q!("    mul             " "x13, x6, x6"),
+        Q!("    adc             " "x14, xzr, xzr"),
+        Q!("    subs            " "x1, x8, x1"),
+        Q!("    sbcs            " "x4, x9, x4"),
+        Q!("    mov             " "x9, v28.d[0]"),
+        Q!("    sbcs            " "x7, x7, x14"),
+        Q!("    sbcs            " "x8, x15, xzr"),
+        Q!("    sbcs            " "x3, x3, xzr"),
+        Q!("    sbc             " "x14, x17, xzr"),
+        Q!("    adds            " "x17, x9, x9"),
+        Q!("    adcs            " "x12, x12, x12"),
+        Q!("    mov             " "x15, v19.d[0]"),
+        Q!("    adcs            " "x9, x16, x16"),
+        Q!("    umulh           " "x6, x6, x6"),
+        Q!("    adcs            " "x16, x2, x2"),
+        Q!("    adc             " "x2, xzr, xzr"),
+        Q!("    adds            " "x11, x11, x8"),
+        Q!("    adcs            " "x3, x3, xzr"),
+        Q!("    adcs            " "x14, x14, xzr"),
+        Q!("    adcs            " "x8, xzr, xzr"),
+        Q!("    adds            " "x13, x1, x13"),
+        Q!("    mov             " "x1, v19.d[1]"),
+        Q!("    adcs            " "x6, x4, x6"),
+        Q!("    mov             " "x4, #0xffffffff"),
+        Q!("    adcs            " "x15, x7, x15"),
+        Q!("    adcs            " "x7, x11, x5"),
+        Q!("    adcs            " "x1, x3, x1"),
+        Q!("    adcs            " "x14, x14, x10"),
+        Q!("    adc             " "x11, x8, xzr"),
+        Q!("    adds            " "x6, x6, x17"),
+        Q!("    adcs            " "x8, x15, x12"),
+        Q!("    adcs            " "x3, x7, x9"),
+        Q!("    adcs            " "x15, x1, x16"),
+        Q!("    mov             " "x16, #0xffffffff00000001"),
+        Q!("    adcs            " "x14, x14, x2"),
+        Q!("    mov             " "x2, #0x1"),
+        Q!("    adc             " "x17, x11, xzr"),
+        Q!("    cmn             " "x13, x16"),
+        Q!("    adcs            " "xzr, x6, x4"),
+        Q!("    adcs            " "xzr, x8, x2"),
+        Q!("    adcs            " "xzr, x3, xzr"),
+        Q!("    adcs            " "xzr, x15, xzr"),
+        Q!("    adcs            " "xzr, x14, xzr"),
+        Q!("    adc             " "x1, x17, xzr"),
+        Q!("    neg             " "x9, x1"),
+        Q!("    and             " "x1, x16, x9"),
+        Q!("    adds            " "x11, x13, x1"),
+        Q!("    and             " "x13, x4, x9"),
+        Q!("    adcs            " "x5, x6, x13"),
+        Q!("    and             " "x1, x2, x9"),
+        Q!("    adcs            " "x7, x8, x1"),
+        Q!("    stp             " "x11, x5, [sp, #48]"),
+        Q!("    adcs            " "x11, x3, xzr"),
+        Q!("    adcs            " "x2, x15, xzr"),
+        Q!("    stp             " "x7, x11, [sp, #64]"),
+        Q!("    adc             " "x17, x14, xzr"),
+        Q!("    stp             " "x2, x17, [sp, #80]"),
+        Q!("    ldp             " "x5, x6, [x26]"),
+        Q!("    ldp             " "x4, x3, [sp]"),
+        Q!("    adds            " "x5, x5, x4"),
+        Q!("    adcs            " "x6, x6, x3"),
+        Q!("    ldp             " "x7, x8, [x26, #16]"),
+        Q!("    ldp             " "x4, x3, [sp, #16]"),
+        Q!("    adcs            " "x7, x7, x4"),
+        Q!("    adcs            " "x8, x8, x3"),
+        Q!("    ldp             " "x9, x10, [x26, #32]"),
+        Q!("    ldp             " "x4, x3, [sp, #32]"),
+        Q!("    adcs            " "x9, x9, x4"),
+        Q!("    adcs            " "x10, x10, x3"),
+        Q!("    csetm           " "x3, cs"),
+        Q!("    mov             " "x4, #0xffffffff"),
+        Q!("    and             " "x4, x4, x3"),
+        Q!("    subs            " "x5, x5, x4"),
+        Q!("    eor             " "x4, x4, x3"),
+        Q!("    sbcs            " "x6, x6, x4"),
+        Q!("    mov             " "x4, #0xfffffffffffffffe"),
+        Q!("    and             " "x4, x4, x3"),
+        Q!("    sbcs            " "x7, x7, x4"),
+        Q!("    sbcs            " "x8, x8, x3"),
+        Q!("    sbcs            " "x9, x9, x3"),
+        Q!("    sbc             " "x10, x10, x3"),
+        Q!("    stp             " "x5, x6, [sp, #240]"),
+        Q!("    stp             " "x7, x8, [sp, #256]"),
+        Q!("    stp             " "x9, x10, [sp, #272]"),
+        Q!("    mov             " "x2, sp"),
+        Q!("    ldp             " "x5, x6, [x26, #0]"),
+        Q!("    ldp             " "x4, x3, [x2]"),
+        Q!("    subs            " "x5, x5, x4"),
+        Q!("    sbcs            " "x6, x6, x3"),
+        Q!("    ldp             " "x7, x8, [x26, #16]"),
+        Q!("    ldp             " "x4, x3, [x2, #16]"),
+        Q!("    sbcs            " "x7, x7, x4"),
+        Q!("    sbcs            " "x8, x8, x3"),
+        Q!("    ldp             " "x9, x10, [x26, #32]"),
+        Q!("    ldp             " "x4, x3, [x2, #32]"),
+        Q!("    sbcs            " "x9, x9, x4"),
+        Q!("    sbcs            " "x10, x10, x3"),
+        Q!("    csetm           " "x3, cc"),
+        Q!("    mov             " "x4, #0xffffffff"),
+        Q!("    and             " "x4, x4, x3"),
+        Q!("    adds            " "x13, x5, x4"),
+        Q!("    eor             " "x4, x4, x3"),
+        Q!("    adcs            " "x23, x6, x4"),
+        Q!("    mov             " "x4, #0xfffffffffffffffe"),
+        Q!("    and             " "x4, x4, x3"),
+        Q!("    adcs            " "x7, x7, x4"),
+        Q!("    adcs            " "x8, x8, x3"),
+        Q!("    adcs            " "x9, x9, x3"),
+        Q!("    adc             " "x10, x10, x3"),
+        Q!("    stp             " "x13, x23, [sp, #192]"),
+        Q!("    stp             " "x7, x8, [sp, #208]"),
+        Q!("    stp             " "x9, x10, [sp, #224]"),
+        Q!("    ldr             " "q3, [sp, #240]"),
+        Q!("    ldr             " "q25, [sp, #192]"),
+        Q!("    ldp             " "x3, x21, [sp, #240]"),
+        Q!("    rev64           " "v23.4s, v25.4s"),
+        Q!("    uzp1            " "v17.4s, v25.4s, v3.4s"),
+        Q!("    umulh           " "x15, x3, x13"),
+        Q!("    mul             " "v6.4s, v23.4s, v3.4s"),
+        Q!("    uzp1            " "v3.4s, v3.4s, v3.4s"),
+        Q!("    ldr             " "q27, [sp, #224]"),
+        Q!("    ldp             " "x8, x24, [sp, #256]"),
+        Q!("    subs            " "x6, x3, x21"),
+        Q!("    ldr             " "q0, [sp, #272]"),
+        Q!("    movi            " "v23.2d, #0xffffffff"),
+        Q!("    csetm           " "x10, cc"),
+        Q!("    umulh           " "x19, x21, x23"),
+        Q!("    rev64           " "v4.4s, v27.4s"),
+        Q!("    uzp2            " "v25.4s, v27.4s, v27.4s"),
+        Q!("    cneg            " "x4, x6, cc"),
+        Q!("    subs            " "x7, x23, x13"),
+        Q!("    xtn             " "v22.2s, v0.2d"),
+        Q!("    xtn             " "v24.2s, v27.2d"),
+        Q!("    cneg            " "x20, x7, cc"),
+        Q!("    ldp             " "x6, x14, [sp, #208]"),
+        Q!("    mul             " "v27.4s, v4.4s, v0.4s"),
+        Q!("    uaddlp          " "v20.2d, v6.4s"),
+        Q!("    cinv            " "x5, x10, cc"),
+        Q!("    mul             " "x16, x4, x20"),
+        Q!("    uzp2            " "v6.4s, v0.4s, v0.4s"),
+        Q!("    umull           " "v21.2d, v22.2s, v25.2s"),
+        Q!("    shl             " "v0.2d, v20.2d, #32"),
+        Q!("    umlal           " "v0.2d, v3.2s, v17.2s"),
+        Q!("    mul             " "x22, x8, x6"),
+        Q!("    umull           " "v1.2d, v6.2s, v25.2s"),
+        Q!("    subs            " "x12, x3, x8"),
+        Q!("    umull           " "v20.2d, v22.2s, v24.2s"),
+        Q!("    cneg            " "x17, x12, cc"),
+        Q!("    umulh           " "x9, x8, x6"),
+        Q!("    mov             " "x12, v0.d[1]"),
+        Q!("    eor             " "x11, x16, x5"),
+        Q!("    mov             " "x7, v0.d[0]"),
+        Q!("    csetm           " "x10, cc"),
+        Q!("    usra            " "v21.2d, v20.2d, #32"),
+        Q!("    adds            " "x15, x15, x12"),
+        Q!("    adcs            " "x12, x19, x22"),
+        Q!("    umulh           " "x20, x4, x20"),
+        Q!("    adc             " "x19, x9, xzr"),
+        Q!("    usra            " "v1.2d, v21.2d, #32"),
+        Q!("    adds            " "x22, x15, x7"),
+        Q!("    and             " "v26.16b, v21.16b, v23.16b"),
+        Q!("    adcs            " "x16, x12, x15"),
+        Q!("    uaddlp          " "v25.2d, v27.4s"),
+        Q!("    adcs            " "x9, x19, x12"),
+        Q!("    umlal           " "v26.2d, v6.2s, v24.2s"),
+        Q!("    adc             " "x4, x19, xzr"),
+        Q!("    adds            " "x16, x16, x7"),
+        Q!("    shl             " "v27.2d, v25.2d, #32"),
+        Q!("    adcs            " "x9, x9, x15"),
+        Q!("    adcs            " "x4, x4, x12"),
+        Q!("    eor             " "x12, x20, x5"),
+        Q!("    adc             " "x15, x19, xzr"),
+        Q!("    subs            " "x20, x6, x13"),
+        Q!("    cneg            " "x20, x20, cc"),
+        Q!("    cinv            " "x10, x10, cc"),
+        Q!("    cmn             " "x5, #0x1"),
+        Q!("    mul             " "x19, x17, x20"),
+        Q!("    adcs            " "x11, x22, x11"),
+        Q!("    adcs            " "x12, x16, x12"),
+        Q!("    adcs            " "x9, x9, x5"),
+        Q!("    umulh           " "x17, x17, x20"),
+        Q!("    adcs            " "x22, x4, x5"),
+        Q!("    adc             " "x5, x15, x5"),
+        Q!("    subs            " "x16, x21, x8"),
+        Q!("    cneg            " "x20, x16, cc"),
+        Q!("    eor             " "x19, x19, x10"),
+        Q!("    csetm           " "x4, cc"),
+        Q!("    subs            " "x16, x6, x23"),
+        Q!("    cneg            " "x16, x16, cc"),
+        Q!("    umlal           " "v27.2d, v22.2s, v24.2s"),
+        Q!("    mul             " "x15, x20, x16"),
+        Q!("    cinv            " "x4, x4, cc"),
+        Q!("    cmn             " "x10, #0x1"),
+        Q!("    usra            " "v1.2d, v26.2d, #32"),
+        Q!("    adcs            " "x19, x12, x19"),
+        Q!("    eor             " "x17, x17, x10"),
+        Q!("    adcs            " "x9, x9, x17"),
+        Q!("    adcs            " "x22, x22, x10"),
+        Q!("    lsl             " "x12, x7, #32"),
+        Q!("    umulh           " "x20, x20, x16"),
+        Q!("    eor             " "x16, x15, x4"),
+        Q!("    ldp             " "x15, x17, [sp, #224]"),
+        Q!("    add             " "x2, x12, x7"),
+        Q!("    adc             " "x7, x5, x10"),
+        Q!("    ldp             " "x5, x10, [sp, #272]"),
+        Q!("    lsr             " "x1, x2, #32"),
+        Q!("    eor             " "x12, x20, x4"),
+        Q!("    subs            " "x1, x1, x2"),
+        Q!("    sbc             " "x20, x2, xzr"),
+        Q!("    cmn             " "x4, #0x1"),
+        Q!("    adcs            " "x9, x9, x16"),
+        Q!("    extr            " "x1, x20, x1, #32"),
+        Q!("    lsr             " "x20, x20, #32"),
+        Q!("    adcs            " "x22, x22, x12"),
+        Q!("    adc             " "x16, x7, x4"),
+        Q!("    adds            " "x12, x20, x2"),
+        Q!("    umulh           " "x7, x24, x14"),
+        Q!("    adc             " "x4, xzr, xzr"),
+        Q!("    subs            " "x1, x11, x1"),
+        Q!("    sbcs            " "x20, x19, x12"),
+        Q!("    sbcs            " "x12, x9, x4"),
+        Q!("    lsl             " "x9, x1, #32"),
+        Q!("    add             " "x1, x9, x1"),
+        Q!("    sbcs            " "x9, x22, xzr"),
+        Q!("    mul             " "x22, x24, x14"),
+        Q!("    sbcs            " "x16, x16, xzr"),
+        Q!("    lsr             " "x4, x1, #32"),
+        Q!("    sbc             " "x19, x2, xzr"),
+        Q!("    subs            " "x4, x4, x1"),
+        Q!("    sbc             " "x11, x1, xzr"),
+        Q!("    extr            " "x2, x11, x4, #32"),
+        Q!("    lsr             " "x4, x11, #32"),
+        Q!("    adds            " "x4, x4, x1"),
+        Q!("    adc             " "x11, xzr, xzr"),
+        Q!("    subs            " "x2, x20, x2"),
+        Q!("    sbcs            " "x4, x12, x4"),
+        Q!("    sbcs            " "x20, x9, x11"),
+        Q!("    lsl             " "x12, x2, #32"),
+        Q!("    add             " "x2, x12, x2"),
+        Q!("    sbcs            " "x9, x16, xzr"),
+        Q!("    lsr             " "x11, x2, #32"),
+        Q!("    sbcs            " "x19, x19, xzr"),
+        Q!("    sbc             " "x1, x1, xzr"),
+        Q!("    subs            " "x16, x11, x2"),
+        Q!("    sbc             " "x12, x2, xzr"),
+        Q!("    extr            " "x16, x12, x16, #32"),
+        Q!("    lsr             " "x12, x12, #32"),
+        Q!("    adds            " "x11, x12, x2"),
+        Q!("    adc             " "x12, xzr, xzr"),
+        Q!("    subs            " "x16, x4, x16"),
+        Q!("    mov             " "x4, v27.d[0]"),
+        Q!("    sbcs            " "x11, x20, x11"),
+        Q!("    sbcs            " "x20, x9, x12"),
+        Q!("    stp             " "x16, x11, [sp, #96]"),
+        Q!("    sbcs            " "x11, x19, xzr"),
+        Q!("    sbcs            " "x9, x1, xzr"),
+        Q!("    stp             " "x20, x11, [sp, #112]"),
+        Q!("    mov             " "x1, v1.d[0]"),
+        Q!("    sbc             " "x20, x2, xzr"),
+        Q!("    subs            " "x12, x24, x5"),
+        Q!("    mov             " "x11, v27.d[1]"),
+        Q!("    cneg            " "x16, x12, cc"),
+        Q!("    csetm           " "x2, cc"),
+        Q!("    subs            " "x19, x15, x14"),
+        Q!("    mov             " "x12, v1.d[1]"),
+        Q!("    cinv            " "x2, x2, cc"),
+        Q!("    cneg            " "x19, x19, cc"),
+        Q!("    stp             " "x9, x20, [sp, #128]"),
+        Q!("    mul             " "x9, x16, x19"),
+        Q!("    adds            " "x4, x7, x4"),
+        Q!("    adcs            " "x11, x1, x11"),
+        Q!("    adc             " "x1, x12, xzr"),
+        Q!("    adds            " "x20, x4, x22"),
+        Q!("    umulh           " "x19, x16, x19"),
+        Q!("    adcs            " "x7, x11, x4"),
+        Q!("    eor             " "x16, x9, x2"),
+        Q!("    adcs            " "x9, x1, x11"),
+        Q!("    adc             " "x12, x1, xzr"),
+        Q!("    adds            " "x7, x7, x22"),
+        Q!("    adcs            " "x4, x9, x4"),
+        Q!("    adcs            " "x9, x12, x11"),
+        Q!("    adc             " "x12, x1, xzr"),
+        Q!("    cmn             " "x2, #0x1"),
+        Q!("    eor             " "x1, x19, x2"),
+        Q!("    adcs            " "x11, x20, x16"),
+        Q!("    adcs            " "x19, x7, x1"),
+        Q!("    adcs            " "x1, x4, x2"),
+        Q!("    adcs            " "x20, x9, x2"),
+        Q!("    adc             " "x2, x12, x2"),
+        Q!("    subs            " "x12, x24, x10"),
+        Q!("    cneg            " "x16, x12, cc"),
+        Q!("    csetm           " "x12, cc"),
+        Q!("    subs            " "x9, x17, x14"),
+        Q!("    cinv            " "x12, x12, cc"),
+        Q!("    cneg            " "x9, x9, cc"),
+        Q!("    subs            " "x3, x24, x3"),
+        Q!("    sbcs            " "x21, x5, x21"),
+        Q!("    mul             " "x24, x16, x9"),
+        Q!("    sbcs            " "x4, x10, x8"),
+        Q!("    ngc             " "x8, xzr"),
+        Q!("    subs            " "x10, x5, x10"),
+        Q!("    eor             " "x5, x24, x12"),
+        Q!("    csetm           " "x7, cc"),
+        Q!("    cneg            " "x24, x10, cc"),
+        Q!("    subs            " "x10, x17, x15"),
+        Q!("    cinv            " "x7, x7, cc"),
+        Q!("    cneg            " "x10, x10, cc"),
+        Q!("    subs            " "x14, x13, x14"),
+        Q!("    sbcs            " "x15, x23, x15"),
+        Q!("    eor             " "x13, x21, x8"),
+        Q!("    mul             " "x23, x24, x10"),
+        Q!("    sbcs            " "x17, x6, x17"),
+        Q!("    eor             " "x6, x3, x8"),
+        Q!("    ngc             " "x21, xzr"),
+        Q!("    umulh           " "x9, x16, x9"),
+        Q!("    cmn             " "x8, #0x1"),
+        Q!("    eor             " "x3, x23, x7"),
+        Q!("    adcs            " "x23, x6, xzr"),
+        Q!("    adcs            " "x13, x13, xzr"),
+        Q!("    eor             " "x16, x4, x8"),
+        Q!("    adc             " "x16, x16, xzr"),
+        Q!("    eor             " "x4, x17, x21"),
+        Q!("    umulh           " "x17, x24, x10"),
+        Q!("    cmn             " "x21, #0x1"),
+        Q!("    eor             " "x24, x14, x21"),
+        Q!("    eor             " "x6, x15, x21"),
+        Q!("    adcs            " "x15, x24, xzr"),
+        Q!("    adcs            " "x14, x6, xzr"),
+        Q!("    adc             " "x6, x4, xzr"),
+        Q!("    cmn             " "x12, #0x1"),
+        Q!("    eor             " "x4, x9, x12"),
+        Q!("    adcs            " "x19, x19, x5"),
+        Q!("    umulh           " "x5, x23, x15"),
+        Q!("    adcs            " "x1, x1, x4"),
+        Q!("    adcs            " "x10, x20, x12"),
+        Q!("    eor             " "x4, x17, x7"),
+        Q!("    ldp             " "x20, x9, [sp, #96]"),
+        Q!("    adc             " "x2, x2, x12"),
+        Q!("    cmn             " "x7, #0x1"),
+        Q!("    adcs            " "x12, x1, x3"),
+        Q!("    ldp             " "x17, x24, [sp, #112]"),
+        Q!("    mul             " "x1, x16, x6"),
+        Q!("    adcs            " "x3, x10, x4"),
+        Q!("    adc             " "x2, x2, x7"),
+        Q!("    ldp             " "x7, x4, [sp, #128]"),
+        Q!("    adds            " "x20, x22, x20"),
+        Q!("    mul             " "x10, x13, x14"),
+        Q!("    adcs            " "x11, x11, x9"),
+        Q!("    eor             " "x9, x8, x21"),
+        Q!("    adcs            " "x21, x19, x17"),
+        Q!("    stp             " "x20, x11, [sp, #96]"),
+        Q!("    adcs            " "x12, x12, x24"),
+        Q!("    mul             " "x8, x23, x15"),
+        Q!("    adcs            " "x3, x3, x7"),
+        Q!("    stp             " "x21, x12, [sp, #112]"),
+        Q!("    adcs            " "x12, x2, x4"),
+        Q!("    adc             " "x19, xzr, xzr"),
+        Q!("    subs            " "x21, x23, x16"),
+        Q!("    umulh           " "x2, x16, x6"),
+        Q!("    stp             " "x3, x12, [sp, #128]"),
+        Q!("    cneg            " "x3, x21, cc"),
+        Q!("    csetm           " "x24, cc"),
+        Q!("    umulh           " "x11, x13, x14"),
+        Q!("    subs            " "x21, x13, x16"),
+        Q!("    eor             " "x7, x8, x9"),
+        Q!("    cneg            " "x17, x21, cc"),
+        Q!("    csetm           " "x16, cc"),
+        Q!("    subs            " "x21, x6, x15"),
+        Q!("    cneg            " "x22, x21, cc"),
+        Q!("    cinv            " "x21, x24, cc"),
+        Q!("    subs            " "x20, x23, x13"),
+        Q!("    umulh           " "x12, x3, x22"),
+        Q!("    cneg            " "x23, x20, cc"),
+        Q!("    csetm           " "x24, cc"),
+        Q!("    subs            " "x20, x14, x15"),
+        Q!("    cinv            " "x24, x24, cc"),
+        Q!("    mul             " "x22, x3, x22"),
+        Q!("    cneg            " "x3, x20, cc"),
+        Q!("    subs            " "x13, x6, x14"),
+        Q!("    cneg            " "x20, x13, cc"),
+        Q!("    cinv            " "x15, x16, cc"),
+        Q!("    adds            " "x13, x5, x10"),
+        Q!("    mul             " "x4, x23, x3"),
+        Q!("    adcs            " "x11, x11, x1"),
+        Q!("    adc             " "x14, x2, xzr"),
+        Q!("    adds            " "x5, x13, x8"),
+        Q!("    adcs            " "x16, x11, x13"),
+        Q!("    umulh           " "x23, x23, x3"),
+        Q!("    adcs            " "x3, x14, x11"),
+        Q!("    adc             " "x1, x14, xzr"),
+        Q!("    adds            " "x10, x16, x8"),
+        Q!("    adcs            " "x6, x3, x13"),
+        Q!("    adcs            " "x8, x1, x11"),
+        Q!("    umulh           " "x13, x17, x20"),
+        Q!("    eor             " "x1, x4, x24"),
+        Q!("    adc             " "x4, x14, xzr"),
+        Q!("    cmn             " "x24, #0x1"),
+        Q!("    adcs            " "x1, x5, x1"),
+        Q!("    eor             " "x16, x23, x24"),
+        Q!("    eor             " "x11, x1, x9"),
+        Q!("    adcs            " "x23, x10, x16"),
+        Q!("    eor             " "x2, x22, x21"),
+        Q!("    adcs            " "x3, x6, x24"),
+        Q!("    mul             " "x14, x17, x20"),
+        Q!("    eor             " "x17, x13, x15"),
+        Q!("    adcs            " "x13, x8, x24"),
+        Q!("    adc             " "x8, x4, x24"),
+        Q!("    cmn             " "x21, #0x1"),
+        Q!("    adcs            " "x6, x23, x2"),
+        Q!("    mov             " "x16, #0xfffffffffffffffe"),
+        Q!("    eor             " "x20, x12, x21"),
+        Q!("    adcs            " "x20, x3, x20"),
+        Q!("    eor             " "x23, x14, x15"),
+        Q!("    adcs            " "x2, x13, x21"),
+        Q!("    adc             " "x8, x8, x21"),
+        Q!("    cmn             " "x15, #0x1"),
+        Q!("    ldp             " "x5, x4, [sp, #96]"),
+        Q!("    ldp             " "x21, x12, [sp, #112]"),
+        Q!("    adcs            " "x22, x20, x23"),
+        Q!("    eor             " "x23, x22, x9"),
+        Q!("    adcs            " "x17, x2, x17"),
+        Q!("    adc             " "x22, x8, x15"),
+        Q!("    cmn             " "x9, #0x1"),
+        Q!("    adcs            " "x15, x7, x5"),
+        Q!("    ldp             " "x10, x14, [sp, #128]"),
+        Q!("    eor             " "x1, x6, x9"),
+        Q!("    lsl             " "x2, x15, #32"),
+        Q!("    adcs            " "x8, x11, x4"),
+        Q!("    adcs            " "x13, x1, x21"),
+        Q!("    eor             " "x1, x22, x9"),
+        Q!("    adcs            " "x24, x23, x12"),
+        Q!("    eor             " "x11, x17, x9"),
+        Q!("    adcs            " "x23, x11, x10"),
+        Q!("    adcs            " "x7, x1, x14"),
+        Q!("    adcs            " "x17, x9, x19"),
+        Q!("    adcs            " "x20, x9, xzr"),
+        Q!("    add             " "x1, x2, x15"),
+        Q!("    lsr             " "x3, x1, #32"),
+        Q!("    adcs            " "x11, x9, xzr"),
+        Q!("    adc             " "x9, x9, xzr"),
+        Q!("    subs            " "x3, x3, x1"),
+        Q!("    sbc             " "x6, x1, xzr"),
+        Q!("    adds            " "x24, x24, x5"),
+        Q!("    adcs            " "x4, x23, x4"),
+        Q!("    extr            " "x3, x6, x3, #32"),
+        Q!("    lsr             " "x6, x6, #32"),
+        Q!("    adcs            " "x21, x7, x21"),
+        Q!("    adcs            " "x15, x17, x12"),
+        Q!("    adcs            " "x7, x20, x10"),
+        Q!("    adcs            " "x20, x11, x14"),
+        Q!("    mov             " "x14, #0xffffffff"),
+        Q!("    adc             " "x22, x9, x19"),
+        Q!("    adds            " "x12, x6, x1"),
+        Q!("    adc             " "x10, xzr, xzr"),
+        Q!("    subs            " "x3, x8, x3"),
+        Q!("    sbcs            " "x12, x13, x12"),
+        Q!("    lsl             " "x9, x3, #32"),
+        Q!("    add             " "x3, x9, x3"),
+        Q!("    sbcs            " "x10, x24, x10"),
+        Q!("    sbcs            " "x24, x4, xzr"),
+        Q!("    lsr             " "x9, x3, #32"),
+        Q!("    sbcs            " "x21, x21, xzr"),
+        Q!("    sbc             " "x1, x1, xzr"),
+        Q!("    subs            " "x9, x9, x3"),
+        Q!("    sbc             " "x13, x3, xzr"),
+        Q!("    extr            " "x9, x13, x9, #32"),
+        Q!("    lsr             " "x13, x13, #32"),
+        Q!("    adds            " "x13, x13, x3"),
+        Q!("    adc             " "x6, xzr, xzr"),
+        Q!("    subs            " "x12, x12, x9"),
+        Q!("    sbcs            " "x17, x10, x13"),
+        Q!("    lsl             " "x2, x12, #32"),
+        Q!("    sbcs            " "x10, x24, x6"),
+        Q!("    add             " "x9, x2, x12"),
+        Q!("    sbcs            " "x6, x21, xzr"),
+        Q!("    lsr             " "x5, x9, #32"),
+        Q!("    sbcs            " "x21, x1, xzr"),
+        Q!("    sbc             " "x13, x3, xzr"),
+        Q!("    subs            " "x8, x5, x9"),
+        Q!("    sbc             " "x19, x9, xzr"),
+        Q!("    lsr             " "x12, x19, #32"),
+        Q!("    extr            " "x3, x19, x8, #32"),
+        Q!("    adds            " "x8, x12, x9"),
+        Q!("    adc             " "x1, xzr, xzr"),
+        Q!("    subs            " "x2, x17, x3"),
+        Q!("    sbcs            " "x12, x10, x8"),
+        Q!("    sbcs            " "x5, x6, x1"),
+        Q!("    sbcs            " "x3, x21, xzr"),
+        Q!("    sbcs            " "x19, x13, xzr"),
+        Q!("    sbc             " "x24, x9, xzr"),
+        Q!("    adds            " "x23, x15, x3"),
+        Q!("    adcs            " "x8, x7, x19"),
+        Q!("    adcs            " "x11, x20, x24"),
+        Q!("    adc             " "x9, x22, xzr"),
+        Q!("    add             " "x24, x9, #0x1"),
+        Q!("    lsl             " "x7, x24, #32"),
+        Q!("    subs            " "x21, x24, x7"),
+        Q!("    sbc             " "x10, x7, xzr"),
+        Q!("    adds            " "x6, x2, x21"),
+        Q!("    adcs            " "x7, x12, x10"),
+        Q!("    adcs            " "x24, x5, x24"),
+        Q!("    adcs            " "x13, x23, xzr"),
+        Q!("    adcs            " "x8, x8, xzr"),
+        Q!("    adcs            " "x15, x11, xzr"),
+        Q!("    csetm           " "x23, cc"),
+        Q!("    and             " "x11, x16, x23"),
+        Q!("    and             " "x20, x14, x23"),
+        Q!("    adds            " "x22, x6, x20"),
+        Q!("    eor             " "x3, x20, x23"),
+        Q!("    adcs            " "x5, x7, x3"),
+        Q!("    adcs            " "x14, x24, x11"),
+        Q!("    stp             " "x22, x5, [sp, #96]"),
+        Q!("    adcs            " "x5, x13, x23"),
+        Q!("    adcs            " "x21, x8, x23"),
+        Q!("    stp             " "x14, x5, [sp, #112]"),
+        Q!("    adc             " "x12, x15, x23"),
+        Q!("    stp             " "x21, x12, [sp, #128]"),
+        Q!("    ldp             " "x5, x6, [x26, #48]"),
+        Q!("    ldp             " "x4, x3, [x26, #96]"),
+        Q!("    adds            " "x5, x5, x4"),
+        Q!("    adcs            " "x6, x6, x3"),
+        Q!("    ldp             " "x7, x8, [x26, #64]"),
+        Q!("    ldp             " "x4, x3, [x26, #112]"),
+        Q!("    adcs            " "x7, x7, x4"),
+        Q!("    adcs            " "x8, x8, x3"),
+        Q!("    ldp             " "x9, x10, [x26, #80]"),
+        Q!("    ldp             " "x4, x3, [x26, #128]"),
+        Q!("    adcs            " "x9, x9, x4"),
+        Q!("    adcs            " "x10, x10, x3"),
+        Q!("    adc             " "x3, xzr, xzr"),
+        Q!("    mov             " "x4, #0xffffffff"),
+        Q!("    cmp             " "x5, x4"),
+        Q!("    mov             " "x4, #0xffffffff00000000"),
+        Q!("    sbcs            " "xzr, x6, x4"),
+        Q!("    mov             " "x4, #0xfffffffffffffffe"),
+        Q!("    sbcs            " "xzr, x7, x4"),
+        Q!("    adcs            " "xzr, x8, xzr"),
+        Q!("    adcs            " "xzr, x9, xzr"),
+        Q!("    adcs            " "xzr, x10, xzr"),
+        Q!("    adcs            " "x3, x3, xzr"),
+        Q!("    csetm           " "x3, ne"),
+        Q!("    mov             " "x4, #0xffffffff"),
+        Q!("    and             " "x4, x4, x3"),
+        Q!("    subs            " "x5, x5, x4"),
+        Q!("    eor             " "x4, x4, x3"),
+        Q!("    sbcs            " "x6, x6, x4"),
+        Q!("    mov             " "x4, #0xfffffffffffffffe"),
+        Q!("    and             " "x4, x4, x3"),
+        Q!("    sbcs            " "x7, x7, x4"),
+        Q!("    sbcs            " "x8, x8, x3"),
+        Q!("    sbcs            " "x9, x9, x3"),
+        Q!("    sbc             " "x10, x10, x3"),
+        Q!("    stp             " "x5, x6, [sp, #240]"),
+        Q!("    stp             " "x7, x8, [sp, #256]"),
+        Q!("    stp             " "x9, x10, [sp, #272]"),
+        Q!("    ldr             " "q1, [sp, #96]"),
+        Q!("    ldp             " "x9, x2, [sp, #96]"),
+        Q!("    ldr             " "q0, [sp, #96]"),
+        Q!("    ldp             " "x4, x6, [sp, #112]"),
+        Q!("    rev64           " "v21.4s, v1.4s"),
+        Q!("    uzp2            " "v28.4s, v1.4s, v1.4s"),
+        Q!("    umulh           " "x7, x9, x2"),
+        Q!("    xtn             " "v17.2s, v1.2d"),
+        Q!("    mul             " "v27.4s, v21.4s, v0.4s"),
+        Q!("    ldr             " "q20, [sp, #128]"),
+        Q!("    xtn             " "v30.2s, v0.2d"),
+        Q!("    ldr             " "q1, [sp, #128]"),
+        Q!("    uzp2            " "v31.4s, v0.4s, v0.4s"),
+        Q!("    ldp             " "x5, x10, [sp, #128]"),
+        Q!("    umulh           " "x8, x9, x4"),
+        Q!("    uaddlp          " "v3.2d, v27.4s"),
+        Q!("    umull           " "v16.2d, v30.2s, v17.2s"),
+        Q!("    mul             " "x16, x9, x4"),
+        Q!("    umull           " "v27.2d, v30.2s, v28.2s"),
+        Q!("    shrn            " "v0.2s, v20.2d, #32"),
+        Q!("    xtn             " "v7.2s, v20.2d"),
+        Q!("    shl             " "v20.2d, v3.2d, #32"),
+        Q!("    umull           " "v3.2d, v31.2s, v28.2s"),
+        Q!("    mul             " "x3, x2, x4"),
+        Q!("    umlal           " "v20.2d, v30.2s, v17.2s"),
+        Q!("    umull           " "v22.2d, v7.2s, v0.2s"),
+        Q!("    usra            " "v27.2d, v16.2d, #32"),
+        Q!("    umulh           " "x11, x2, x4"),
+        Q!("    movi            " "v21.2d, #0xffffffff"),
+        Q!("    uzp2            " "v28.4s, v1.4s, v1.4s"),
+        Q!("    adds            " "x15, x16, x7"),
+        Q!("    and             " "v5.16b, v27.16b, v21.16b"),
+        Q!("    adcs            " "x3, x3, x8"),
+        Q!("    usra            " "v3.2d, v27.2d, #32"),
+        Q!("    dup             " "v29.2d, x6"),
+        Q!("    adcs            " "x16, x11, xzr"),
+        Q!("    mov             " "x14, v20.d[0]"),
+        Q!("    umlal           " "v5.2d, v31.2s, v17.2s"),
+        Q!("    mul             " "x8, x9, x2"),
+        Q!("    mov             " "x7, v20.d[1]"),
+        Q!("    shl             " "v19.2d, v22.2d, #33"),
+        Q!("    xtn             " "v25.2s, v29.2d"),
+        Q!("    rev64           " "v31.4s, v1.4s"),
+        Q!("    lsl             " "x13, x14, #32"),
+        Q!("    uzp2            " "v6.4s, v29.4s, v29.4s"),
+        Q!("    umlal           " "v19.2d, v7.2s, v7.2s"),
+        Q!("    usra            " "v3.2d, v5.2d, #32"),
+        Q!("    adds            " "x1, x8, x8"),
+        Q!("    umulh           " "x8, x4, x4"),
+        Q!("    add             " "x12, x13, x14"),
+        Q!("    mul             " "v17.4s, v31.4s, v29.4s"),
+        Q!("    xtn             " "v4.2s, v1.2d"),
+        Q!("    adcs            " "x14, x15, x15"),
+        Q!("    lsr             " "x13, x12, #32"),
+        Q!("    adcs            " "x15, x3, x3"),
+        Q!("    umull           " "v31.2d, v25.2s, v28.2s"),
+        Q!("    adcs            " "x11, x16, x16"),
+        Q!("    umull           " "v21.2d, v25.2s, v4.2s"),
+        Q!("    mov             " "x17, v3.d[0]"),
+        Q!("    umull           " "v18.2d, v6.2s, v28.2s"),
+        Q!("    adc             " "x16, x8, xzr"),
+        Q!("    uaddlp          " "v16.2d, v17.4s"),
+        Q!("    movi            " "v1.2d, #0xffffffff"),
+        Q!("    subs            " "x13, x13, x12"),
+        Q!("    usra            " "v31.2d, v21.2d, #32"),
+        Q!("    sbc             " "x8, x12, xzr"),
+        Q!("    adds            " "x17, x17, x1"),
+        Q!("    mul             " "x1, x4, x4"),
+        Q!("    shl             " "v28.2d, v16.2d, #32"),
+        Q!("    mov             " "x3, v3.d[1]"),
+        Q!("    adcs            " "x14, x7, x14"),
+        Q!("    extr            " "x7, x8, x13, #32"),
+        Q!("    adcs            " "x13, x3, x15"),
+        Q!("    and             " "v3.16b, v31.16b, v1.16b"),
+        Q!("    adcs            " "x11, x1, x11"),
+        Q!("    lsr             " "x1, x8, #32"),
+        Q!("    umlal           " "v3.2d, v6.2s, v4.2s"),
+        Q!("    usra            " "v18.2d, v31.2d, #32"),
+        Q!("    adc             " "x3, x16, xzr"),
+        Q!("    adds            " "x1, x1, x12"),
+        Q!("    umlal           " "v28.2d, v25.2s, v4.2s"),
+        Q!("    adc             " "x16, xzr, xzr"),
+        Q!("    subs            " "x15, x17, x7"),
+        Q!("    sbcs            " "x7, x14, x1"),
+        Q!("    lsl             " "x1, x15, #32"),
+        Q!("    sbcs            " "x16, x13, x16"),
+        Q!("    add             " "x8, x1, x15"),
+        Q!("    usra            " "v18.2d, v3.2d, #32"),
+        Q!("    sbcs            " "x14, x11, xzr"),
+        Q!("    lsr             " "x1, x8, #32"),
+        Q!("    sbcs            " "x17, x3, xzr"),
+        Q!("    sbc             " "x11, x12, xzr"),
+        Q!("    subs            " "x13, x1, x8"),
+        Q!("    umulh           " "x12, x4, x10"),
+        Q!("    sbc             " "x1, x8, xzr"),
+        Q!("    extr            " "x13, x1, x13, #32"),
+        Q!("    lsr             " "x1, x1, #32"),
+        Q!("    adds            " "x15, x1, x8"),
+        Q!("    adc             " "x1, xzr, xzr"),
+        Q!("    subs            " "x7, x7, x13"),
+        Q!("    sbcs            " "x13, x16, x15"),
+        Q!("    lsl             " "x3, x7, #32"),
+        Q!("    umulh           " "x16, x2, x5"),
+        Q!("    sbcs            " "x15, x14, x1"),
+        Q!("    add             " "x7, x3, x7"),
+        Q!("    sbcs            " "x3, x17, xzr"),
+        Q!("    lsr             " "x1, x7, #32"),
+        Q!("    sbcs            " "x14, x11, xzr"),
+        Q!("    sbc             " "x11, x8, xzr"),
+        Q!("    subs            " "x8, x1, x7"),
+        Q!("    sbc             " "x1, x7, xzr"),
+        Q!("    extr            " "x8, x1, x8, #32"),
+        Q!("    lsr             " "x1, x1, #32"),
+        Q!("    adds            " "x1, x1, x7"),
+        Q!("    adc             " "x17, xzr, xzr"),
+        Q!("    subs            " "x13, x13, x8"),
+        Q!("    umulh           " "x8, x9, x6"),
+        Q!("    sbcs            " "x1, x15, x1"),
+        Q!("    sbcs            " "x15, x3, x17"),
+        Q!("    sbcs            " "x3, x14, xzr"),
+        Q!("    mul             " "x17, x2, x5"),
+        Q!("    sbcs            " "x11, x11, xzr"),
+        Q!("    stp             " "x13, x1, [sp, #288]"),
+        Q!("    sbc             " "x14, x7, xzr"),
+        Q!("    mul             " "x7, x4, x10"),
+        Q!("    subs            " "x1, x9, x2"),
+        Q!("    stp             " "x15, x3, [sp, #304]"),
+        Q!("    csetm           " "x15, cc"),
+        Q!("    cneg            " "x1, x1, cc"),
+        Q!("    stp             " "x11, x14, [sp, #320]"),
+        Q!("    mul             " "x14, x9, x6"),
+        Q!("    adds            " "x17, x8, x17"),
+        Q!("    adcs            " "x7, x16, x7"),
+        Q!("    adc             " "x13, x12, xzr"),
+        Q!("    subs            " "x12, x5, x6"),
+        Q!("    cneg            " "x3, x12, cc"),
+        Q!("    cinv            " "x16, x15, cc"),
+        Q!("    mul             " "x8, x1, x3"),
+        Q!("    umulh           " "x1, x1, x3"),
+        Q!("    eor             " "x12, x8, x16"),
+        Q!("    adds            " "x11, x17, x14"),
+        Q!("    adcs            " "x3, x7, x17"),
+        Q!("    adcs            " "x15, x13, x7"),
+        Q!("    adc             " "x8, x13, xzr"),
+        Q!("    adds            " "x3, x3, x14"),
+        Q!("    adcs            " "x15, x15, x17"),
+        Q!("    adcs            " "x17, x8, x7"),
+        Q!("    eor             " "x1, x1, x16"),
+        Q!("    adc             " "x13, x13, xzr"),
+        Q!("    subs            " "x9, x9, x4"),
+        Q!("    csetm           " "x8, cc"),
+        Q!("    cneg            " "x9, x9, cc"),
+        Q!("    subs            " "x4, x2, x4"),
+        Q!("    cneg            " "x4, x4, cc"),
+        Q!("    csetm           " "x7, cc"),
+        Q!("    subs            " "x2, x10, x6"),
+        Q!("    cinv            " "x8, x8, cc"),
+        Q!("    cneg            " "x2, x2, cc"),
+        Q!("    cmn             " "x16, #0x1"),
+        Q!("    adcs            " "x11, x11, x12"),
+        Q!("    mul             " "x12, x9, x2"),
+        Q!("    adcs            " "x3, x3, x1"),
+        Q!("    adcs            " "x15, x15, x16"),
+        Q!("    umulh           " "x9, x9, x2"),
+        Q!("    adcs            " "x17, x17, x16"),
+        Q!("    adc             " "x13, x13, x16"),
+        Q!("    subs            " "x1, x10, x5"),
+        Q!("    cinv            " "x2, x7, cc"),
+        Q!("    cneg            " "x1, x1, cc"),
+        Q!("    eor             " "x9, x9, x8"),
+        Q!("    cmn             " "x8, #0x1"),
+        Q!("    eor             " "x7, x12, x8"),
+        Q!("    mul             " "x12, x4, x1"),
+        Q!("    adcs            " "x3, x3, x7"),
+        Q!("    adcs            " "x7, x15, x9"),
+        Q!("    adcs            " "x15, x17, x8"),
+        Q!("    ldp             " "x9, x17, [sp, #304]"),
+        Q!("    umulh           " "x4, x4, x1"),
+        Q!("    adc             " "x8, x13, x8"),
+        Q!("    cmn             " "x2, #0x1"),
+        Q!("    eor             " "x1, x12, x2"),
+        Q!("    adcs            " "x1, x7, x1"),
+        Q!("    ldp             " "x7, x16, [sp, #288]"),
+        Q!("    eor             " "x12, x4, x2"),
+        Q!("    adcs            " "x4, x15, x12"),
+        Q!("    ldp             " "x15, x12, [sp, #320]"),
+        Q!("    adc             " "x8, x8, x2"),
+        Q!("    adds            " "x13, x14, x14"),
+        Q!("    umulh           " "x14, x5, x10"),
+        Q!("    adcs            " "x2, x11, x11"),
+        Q!("    adcs            " "x3, x3, x3"),
+        Q!("    adcs            " "x1, x1, x1"),
+        Q!("    adcs            " "x4, x4, x4"),
+        Q!("    adcs            " "x11, x8, x8"),
+        Q!("    adc             " "x8, xzr, xzr"),
+        Q!("    adds            " "x13, x13, x7"),
+        Q!("    adcs            " "x2, x2, x16"),
+        Q!("    mul             " "x16, x5, x10"),
+        Q!("    adcs            " "x3, x3, x9"),
+        Q!("    adcs            " "x1, x1, x17"),
+        Q!("    umulh           " "x5, x5, x5"),
+        Q!("    lsl             " "x9, x13, #32"),
+        Q!("    add             " "x9, x9, x13"),
+        Q!("    adcs            " "x4, x4, x15"),
+        Q!("    mov             " "x13, v28.d[1]"),
+        Q!("    adcs            " "x15, x11, x12"),
+        Q!("    lsr             " "x7, x9, #32"),
+        Q!("    adc             " "x11, x8, xzr"),
+        Q!("    subs            " "x7, x7, x9"),
+        Q!("    umulh           " "x10, x10, x10"),
+        Q!("    sbc             " "x17, x9, xzr"),
+        Q!("    extr            " "x7, x17, x7, #32"),
+        Q!("    lsr             " "x17, x17, #32"),
+        Q!("    adds            " "x17, x17, x9"),
+        Q!("    adc             " "x12, xzr, xzr"),
+        Q!("    subs            " "x8, x2, x7"),
+        Q!("    sbcs            " "x17, x3, x17"),
+        Q!("    lsl             " "x7, x8, #32"),
+        Q!("    sbcs            " "x2, x1, x12"),
+        Q!("    add             " "x3, x7, x8"),
+        Q!("    sbcs            " "x12, x4, xzr"),
+        Q!("    lsr             " "x1, x3, #32"),
+        Q!("    sbcs            " "x7, x15, xzr"),
+        Q!("    sbc             " "x15, x9, xzr"),
+        Q!("    subs            " "x1, x1, x3"),
+        Q!("    sbc             " "x4, x3, xzr"),
+        Q!("    lsr             " "x9, x4, #32"),
+        Q!("    extr            " "x8, x4, x1, #32"),
+        Q!("    adds            " "x9, x9, x3"),
+        Q!("    adc             " "x4, xzr, xzr"),
+        Q!("    subs            " "x1, x17, x8"),
+        Q!("    lsl             " "x17, x1, #32"),
+        Q!("    sbcs            " "x8, x2, x9"),
+        Q!("    sbcs            " "x9, x12, x4"),
+        Q!("    add             " "x17, x17, x1"),
+        Q!("    mov             " "x1, v18.d[1]"),
+        Q!("    lsr             " "x2, x17, #32"),
+        Q!("    sbcs            " "x7, x7, xzr"),
+        Q!("    mov             " "x12, v18.d[0]"),
+        Q!("    sbcs            " "x15, x15, xzr"),
+        Q!("    sbc             " "x3, x3, xzr"),
+        Q!("    subs            " "x4, x2, x17"),
+        Q!("    sbc             " "x2, x17, xzr"),
+        Q!("    adds            " "x12, x13, x12"),
+        Q!("    adcs            " "x16, x16, x1"),
+        Q!("    lsr             " "x13, x2, #32"),
+        Q!("    extr            " "x1, x2, x4, #32"),
+        Q!("    adc             " "x2, x14, xzr"),
+        Q!("    adds            " "x4, x13, x17"),
+        Q!("    mul             " "x13, x6, x6"),
+        Q!("    adc             " "x14, xzr, xzr"),
+        Q!("    subs            " "x1, x8, x1"),
+        Q!("    sbcs            " "x4, x9, x4"),
+        Q!("    mov             " "x9, v28.d[0]"),
+        Q!("    sbcs            " "x7, x7, x14"),
+        Q!("    sbcs            " "x8, x15, xzr"),
+        Q!("    sbcs            " "x3, x3, xzr"),
+        Q!("    sbc             " "x14, x17, xzr"),
+        Q!("    adds            " "x17, x9, x9"),
+        Q!("    adcs            " "x12, x12, x12"),
+        Q!("    mov             " "x15, v19.d[0]"),
+        Q!("    adcs            " "x9, x16, x16"),
+        Q!("    umulh           " "x6, x6, x6"),
+        Q!("    adcs            " "x16, x2, x2"),
+        Q!("    adc             " "x2, xzr, xzr"),
+        Q!("    adds            " "x11, x11, x8"),
+        Q!("    adcs            " "x3, x3, xzr"),
+        Q!("    adcs            " "x14, x14, xzr"),
+        Q!("    adcs            " "x8, xzr, xzr"),
+        Q!("    adds            " "x13, x1, x13"),
+        Q!("    mov             " "x1, v19.d[1]"),
+        Q!("    adcs            " "x6, x4, x6"),
+        Q!("    mov             " "x4, #0xffffffff"),
+        Q!("    adcs            " "x15, x7, x15"),
+        Q!("    adcs            " "x7, x11, x5"),
+        Q!("    adcs            " "x1, x3, x1"),
+        Q!("    adcs            " "x14, x14, x10"),
+        Q!("    adc             " "x11, x8, xzr"),
+        Q!("    adds            " "x6, x6, x17"),
+        Q!("    adcs            " "x8, x15, x12"),
+        Q!("    adcs            " "x3, x7, x9"),
+        Q!("    adcs            " "x15, x1, x16"),
+        Q!("    mov             " "x16, #0xffffffff00000001"),
+        Q!("    adcs            " "x14, x14, x2"),
+        Q!("    mov             " "x2, #0x1"),
+        Q!("    adc             " "x17, x11, xzr"),
+        Q!("    cmn             " "x13, x16"),
+        Q!("    adcs            " "xzr, x6, x4"),
+        Q!("    adcs            " "xzr, x8, x2"),
+        Q!("    adcs            " "xzr, x3, xzr"),
+        Q!("    adcs            " "xzr, x15, xzr"),
+        Q!("    adcs            " "xzr, x14, xzr"),
+        Q!("    adc             " "x1, x17, xzr"),
+        Q!("    neg             " "x9, x1"),
+        Q!("    and             " "x1, x16, x9"),
+        Q!("    adds            " "x11, x13, x1"),
+        Q!("    and             " "x13, x4, x9"),
+        Q!("    adcs            " "x5, x6, x13"),
+        Q!("    and             " "x1, x2, x9"),
+        Q!("    adcs            " "x7, x8, x1"),
+        Q!("    stp             " "x11, x5, [sp, #288]"),
+        Q!("    adcs            " "x11, x3, xzr"),
+        Q!("    adcs            " "x2, x15, xzr"),
+        Q!("    stp             " "x7, x11, [sp, #304]"),
+        Q!("    adc             " "x17, x14, xzr"),
+        Q!("    stp             " "x2, x17, [sp, #320]"),
+        Q!("    ldr             " "q3, [x26, #0]"),
+        Q!("    ldr             " "q25, [sp, #48]"),
+        Q!("    ldp             " "x13, x23, [sp, #48]"),
+        Q!("    ldp             " "x3, x21, [x26, #0]"),
+        Q!("    rev64           " "v23.4s, v25.4s"),
+        Q!("    uzp1            " "v17.4s, v25.4s, v3.4s"),
+        Q!("    umulh           " "x15, x3, x13"),
+        Q!("    mul             " "v6.4s, v23.4s, v3.4s"),
+        Q!("    uzp1            " "v3.4s, v3.4s, v3.4s"),
+        Q!("    ldr             " "q27, [sp, #80]"),
+        Q!("    ldp             " "x8, x24, [x26, #16]"),
+        Q!("    subs            " "x6, x3, x21"),
+        Q!("    ldr             " "q0, [x26, #32]"),
+        Q!("    movi            " "v23.2d, #0xffffffff"),
+        Q!("    csetm           " "x10, cc"),
+        Q!("    umulh           " "x19, x21, x23"),
+        Q!("    rev64           " "v4.4s, v27.4s"),
+        Q!("    uzp2            " "v25.4s, v27.4s, v27.4s"),
+        Q!("    cneg            " "x4, x6, cc"),
+        Q!("    subs            " "x7, x23, x13"),
+        Q!("    xtn             " "v22.2s, v0.2d"),
+        Q!("    xtn             " "v24.2s, v27.2d"),
+        Q!("    cneg            " "x20, x7, cc"),
+        Q!("    ldp             " "x6, x14, [sp, #64]"),
+        Q!("    mul             " "v27.4s, v4.4s, v0.4s"),
+        Q!("    uaddlp          " "v20.2d, v6.4s"),
+        Q!("    cinv            " "x5, x10, cc"),
+        Q!("    mul             " "x16, x4, x20"),
+        Q!("    uzp2            " "v6.4s, v0.4s, v0.4s"),
+        Q!("    umull           " "v21.2d, v22.2s, v25.2s"),
+        Q!("    shl             " "v0.2d, v20.2d, #32"),
+        Q!("    umlal           " "v0.2d, v3.2s, v17.2s"),
+        Q!("    mul             " "x22, x8, x6"),
+        Q!("    umull           " "v1.2d, v6.2s, v25.2s"),
+        Q!("    subs            " "x12, x3, x8"),
+        Q!("    umull           " "v20.2d, v22.2s, v24.2s"),
+        Q!("    cneg            " "x17, x12, cc"),
+        Q!("    umulh           " "x9, x8, x6"),
+        Q!("    mov             " "x12, v0.d[1]"),
+        Q!("    eor             " "x11, x16, x5"),
+        Q!("    mov             " "x7, v0.d[0]"),
+        Q!("    csetm           " "x10, cc"),
+        Q!("    usra            " "v21.2d, v20.2d, #32"),
+        Q!("    adds            " "x15, x15, x12"),
+        Q!("    adcs            " "x12, x19, x22"),
+        Q!("    umulh           " "x20, x4, x20"),
+        Q!("    adc             " "x19, x9, xzr"),
+        Q!("    usra            " "v1.2d, v21.2d, #32"),
+        Q!("    adds            " "x22, x15, x7"),
+        Q!("    and             " "v26.16b, v21.16b, v23.16b"),
+        Q!("    adcs            " "x16, x12, x15"),
+        Q!("    uaddlp          " "v25.2d, v27.4s"),
+        Q!("    adcs            " "x9, x19, x12"),
+        Q!("    umlal           " "v26.2d, v6.2s, v24.2s"),
+        Q!("    adc             " "x4, x19, xzr"),
+        Q!("    adds            " "x16, x16, x7"),
+        Q!("    shl             " "v27.2d, v25.2d, #32"),
+        Q!("    adcs            " "x9, x9, x15"),
+        Q!("    adcs            " "x4, x4, x12"),
+        Q!("    eor             " "x12, x20, x5"),
+        Q!("    adc             " "x15, x19, xzr"),
+        Q!("    subs            " "x20, x6, x13"),
+        Q!("    cneg            " "x20, x20, cc"),
+        Q!("    cinv            " "x10, x10, cc"),
+        Q!("    cmn             " "x5, #0x1"),
+        Q!("    mul             " "x19, x17, x20"),
+        Q!("    adcs            " "x11, x22, x11"),
+        Q!("    adcs            " "x12, x16, x12"),
+        Q!("    adcs            " "x9, x9, x5"),
+        Q!("    umulh           " "x17, x17, x20"),
+        Q!("    adcs            " "x22, x4, x5"),
+        Q!("    adc             " "x5, x15, x5"),
+        Q!("    subs            " "x16, x21, x8"),
+        Q!("    cneg            " "x20, x16, cc"),
+        Q!("    eor             " "x19, x19, x10"),
+        Q!("    csetm           " "x4, cc"),
+        Q!("    subs            " "x16, x6, x23"),
+        Q!("    cneg            " "x16, x16, cc"),
+        Q!("    umlal           " "v27.2d, v22.2s, v24.2s"),
+        Q!("    mul             " "x15, x20, x16"),
+        Q!("    cinv            " "x4, x4, cc"),
+        Q!("    cmn             " "x10, #0x1"),
+        Q!("    usra            " "v1.2d, v26.2d, #32"),
+        Q!("    adcs            " "x19, x12, x19"),
+        Q!("    eor             " "x17, x17, x10"),
+        Q!("    adcs            " "x9, x9, x17"),
+        Q!("    adcs            " "x22, x22, x10"),
+        Q!("    lsl             " "x12, x7, #32"),
+        Q!("    umulh           " "x20, x20, x16"),
+        Q!("    eor             " "x16, x15, x4"),
+        Q!("    ldp             " "x15, x17, [sp, #80]"),
+        Q!("    add             " "x2, x12, x7"),
+        Q!("    adc             " "x7, x5, x10"),
+        Q!("    ldp             " "x5, x10, [x26, #32]"),
+        Q!("    lsr             " "x1, x2, #32"),
+        Q!("    eor             " "x12, x20, x4"),
+        Q!("    subs            " "x1, x1, x2"),
+        Q!("    sbc             " "x20, x2, xzr"),
+        Q!("    cmn             " "x4, #0x1"),
+        Q!("    adcs            " "x9, x9, x16"),
+        Q!("    extr            " "x1, x20, x1, #32"),
+        Q!("    lsr             " "x20, x20, #32"),
+        Q!("    adcs            " "x22, x22, x12"),
+        Q!("    adc             " "x16, x7, x4"),
+        Q!("    adds            " "x12, x20, x2"),
+        Q!("    umulh           " "x7, x24, x14"),
+        Q!("    adc             " "x4, xzr, xzr"),
+        Q!("    subs            " "x1, x11, x1"),
+        Q!("    sbcs            " "x20, x19, x12"),
+        Q!("    sbcs            " "x12, x9, x4"),
+        Q!("    lsl             " "x9, x1, #32"),
+        Q!("    add             " "x1, x9, x1"),
+        Q!("    sbcs            " "x9, x22, xzr"),
+        Q!("    mul             " "x22, x24, x14"),
+        Q!("    sbcs            " "x16, x16, xzr"),
+        Q!("    lsr             " "x4, x1, #32"),
+        Q!("    sbc             " "x19, x2, xzr"),
+        Q!("    subs            " "x4, x4, x1"),
+        Q!("    sbc             " "x11, x1, xzr"),
+        Q!("    extr            " "x2, x11, x4, #32"),
+        Q!("    lsr             " "x4, x11, #32"),
+        Q!("    adds            " "x4, x4, x1"),
+        Q!("    adc             " "x11, xzr, xzr"),
+        Q!("    subs            " "x2, x20, x2"),
+        Q!("    sbcs            " "x4, x12, x4"),
+        Q!("    sbcs            " "x20, x9, x11"),
+        Q!("    lsl             " "x12, x2, #32"),
+        Q!("    add             " "x2, x12, x2"),
+        Q!("    sbcs            " "x9, x16, xzr"),
+        Q!("    lsr             " "x11, x2, #32"),
+        Q!("    sbcs            " "x19, x19, xzr"),
+        Q!("    sbc             " "x1, x1, xzr"),
+        Q!("    subs            " "x16, x11, x2"),
+        Q!("    sbc             " "x12, x2, xzr"),
+        Q!("    extr            " "x16, x12, x16, #32"),
+        Q!("    lsr             " "x12, x12, #32"),
+        Q!("    adds            " "x11, x12, x2"),
+        Q!("    adc             " "x12, xzr, xzr"),
+        Q!("    subs            " "x26, x4, x16"),
+        Q!("    mov             " "x4, v27.d[0]"),
+        Q!("    sbcs            " "x27, x20, x11"),
+        Q!("    sbcs            " "x20, x9, x12"),
+        Q!("    sbcs            " "x11, x19, xzr"),
+        Q!("    sbcs            " "x9, x1, xzr"),
+        Q!("    stp             " "x20, x11, [sp, #160]"),
+        Q!("    mov             " "x1, v1.d[0]"),
+        Q!("    sbc             " "x20, x2, xzr"),
+        Q!("    subs            " "x12, x24, x5"),
+        Q!("    mov             " "x11, v27.d[1]"),
+        Q!("    cneg            " "x16, x12, cc"),
+        Q!("    csetm           " "x2, cc"),
+        Q!("    subs            " "x19, x15, x14"),
+        Q!("    mov             " "x12, v1.d[1]"),
+        Q!("    cinv            " "x2, x2, cc"),
+        Q!("    cneg            " "x19, x19, cc"),
+        Q!("    stp             " "x9, x20, [sp, #176]"),
+        Q!("    mul             " "x9, x16, x19"),
+        Q!("    adds            " "x4, x7, x4"),
+        Q!("    adcs            " "x11, x1, x11"),
+        Q!("    adc             " "x1, x12, xzr"),
+        Q!("    adds            " "x20, x4, x22"),
+        Q!("    umulh           " "x19, x16, x19"),
+        Q!("    adcs            " "x7, x11, x4"),
+        Q!("    eor             " "x16, x9, x2"),
+        Q!("    adcs            " "x9, x1, x11"),
+        Q!("    adc             " "x12, x1, xzr"),
+        Q!("    adds            " "x7, x7, x22"),
+        Q!("    adcs            " "x4, x9, x4"),
+        Q!("    adcs            " "x9, x12, x11"),
+        Q!("    adc             " "x12, x1, xzr"),
+        Q!("    cmn             " "x2, #0x1"),
+        Q!("    eor             " "x1, x19, x2"),
+        Q!("    adcs            " "x11, x20, x16"),
+        Q!("    adcs            " "x19, x7, x1"),
+        Q!("    adcs            " "x1, x4, x2"),
+        Q!("    adcs            " "x20, x9, x2"),
+        Q!("    adc             " "x2, x12, x2"),
+        Q!("    subs            " "x12, x24, x10"),
+        Q!("    cneg            " "x16, x12, cc"),
+        Q!("    csetm           " "x12, cc"),
+        Q!("    subs            " "x9, x17, x14"),
+        Q!("    cinv            " "x12, x12, cc"),
+        Q!("    cneg            " "x9, x9, cc"),
+        Q!("    subs            " "x3, x24, x3"),
+        Q!("    sbcs            " "x21, x5, x21"),
+        Q!("    mul             " "x24, x16, x9"),
+        Q!("    sbcs            " "x4, x10, x8"),
+        Q!("    ngc             " "x8, xzr"),
+        Q!("    subs            " "x10, x5, x10"),
+        Q!("    eor             " "x5, x24, x12"),
+        Q!("    csetm           " "x7, cc"),
+        Q!("    cneg            " "x24, x10, cc"),
+        Q!("    subs            " "x10, x17, x15"),
+        Q!("    cinv            " "x7, x7, cc"),
+        Q!("    cneg            " "x10, x10, cc"),
+        Q!("    subs            " "x14, x13, x14"),
+        Q!("    sbcs            " "x15, x23, x15"),
+        Q!("    eor             " "x13, x21, x8"),
+        Q!("    mul             " "x23, x24, x10"),
+        Q!("    sbcs            " "x17, x6, x17"),
+        Q!("    eor             " "x6, x3, x8"),
+        Q!("    ngc             " "x21, xzr"),
+        Q!("    umulh           " "x9, x16, x9"),
+        Q!("    cmn             " "x8, #0x1"),
+        Q!("    eor             " "x3, x23, x7"),
+        Q!("    adcs            " "x23, x6, xzr"),
+        Q!("    adcs            " "x13, x13, xzr"),
+        Q!("    eor             " "x16, x4, x8"),
+        Q!("    adc             " "x16, x16, xzr"),
+        Q!("    eor             " "x4, x17, x21"),
+        Q!("    umulh           " "x17, x24, x10"),
+        Q!("    cmn             " "x21, #0x1"),
+        Q!("    eor             " "x24, x14, x21"),
+        Q!("    eor             " "x6, x15, x21"),
+        Q!("    adcs            " "x15, x24, xzr"),
+        Q!("    adcs            " "x14, x6, xzr"),
+        Q!("    adc             " "x6, x4, xzr"),
+        Q!("    cmn             " "x12, #0x1"),
+        Q!("    eor             " "x4, x9, x12"),
+        Q!("    adcs            " "x19, x19, x5"),
+        Q!("    umulh           " "x5, x23, x15"),
+        Q!("    adcs            " "x1, x1, x4"),
+        Q!("    adcs            " "x10, x20, x12"),
+        Q!("    eor             " "x4, x17, x7"),
+        Q!("    adc             " "x2, x2, x12"),
+        Q!("    cmn             " "x7, #0x1"),
+        Q!("    adcs            " "x12, x1, x3"),
+        Q!("    ldp             " "x17, x24, [sp, #160]"),
+        Q!("    mul             " "x1, x16, x6"),
+        Q!("    adcs            " "x3, x10, x4"),
+        Q!("    adc             " "x2, x2, x7"),
+        Q!("    ldp             " "x7, x4, [sp, #176]"),
+        Q!("    adds            " "x20, x22, x26"),
+        Q!("    mul             " "x10, x13, x14"),
+        Q!("    adcs            " "x11, x11, x27"),
+        Q!("    eor             " "x9, x8, x21"),
+        Q!("    adcs            " "x26, x19, x17"),
+        Q!("    stp             " "x20, x11, [sp, #144]"),
+        Q!("    adcs            " "x27, x12, x24"),
+        Q!("    mul             " "x8, x23, x15"),
+        Q!("    adcs            " "x3, x3, x7"),
+        Q!("    adcs            " "x12, x2, x4"),
+        Q!("    adc             " "x19, xzr, xzr"),
+        Q!("    subs            " "x21, x23, x16"),
+        Q!("    umulh           " "x2, x16, x6"),
+        Q!("    stp             " "x3, x12, [sp, #176]"),
+        Q!("    cneg            " "x3, x21, cc"),
+        Q!("    csetm           " "x24, cc"),
+        Q!("    umulh           " "x11, x13, x14"),
+        Q!("    subs            " "x21, x13, x16"),
+        Q!("    eor             " "x7, x8, x9"),
+        Q!("    cneg            " "x17, x21, cc"),
+        Q!("    csetm           " "x16, cc"),
+        Q!("    subs            " "x21, x6, x15"),
+        Q!("    cneg            " "x22, x21, cc"),
+        Q!("    cinv            " "x21, x24, cc"),
+        Q!("    subs            " "x20, x23, x13"),
+        Q!("    umulh           " "x12, x3, x22"),
+        Q!("    cneg            " "x23, x20, cc"),
+        Q!("    csetm           " "x24, cc"),
+        Q!("    subs            " "x20, x14, x15"),
+        Q!("    cinv            " "x24, x24, cc"),
+        Q!("    mul             " "x22, x3, x22"),
+        Q!("    cneg            " "x3, x20, cc"),
+        Q!("    subs            " "x13, x6, x14"),
+        Q!("    cneg            " "x20, x13, cc"),
+        Q!("    cinv            " "x15, x16, cc"),
+        Q!("    adds            " "x13, x5, x10"),
+        Q!("    mul             " "x4, x23, x3"),
+        Q!("    adcs            " "x11, x11, x1"),
+        Q!("    adc             " "x14, x2, xzr"),
+        Q!("    adds            " "x5, x13, x8"),
+        Q!("    adcs            " "x16, x11, x13"),
+        Q!("    umulh           " "x23, x23, x3"),
+        Q!("    adcs            " "x3, x14, x11"),
+        Q!("    adc             " "x1, x14, xzr"),
+        Q!("    adds            " "x10, x16, x8"),
+        Q!("    adcs            " "x6, x3, x13"),
+        Q!("    adcs            " "x8, x1, x11"),
+        Q!("    umulh           " "x13, x17, x20"),
+        Q!("    eor             " "x1, x4, x24"),
+        Q!("    adc             " "x4, x14, xzr"),
+        Q!("    cmn             " "x24, #0x1"),
+        Q!("    adcs            " "x1, x5, x1"),
+        Q!("    eor             " "x16, x23, x24"),
+        Q!("    eor             " "x11, x1, x9"),
+        Q!("    adcs            " "x23, x10, x16"),
+        Q!("    eor             " "x2, x22, x21"),
+        Q!("    adcs            " "x3, x6, x24"),
+        Q!("    mul             " "x14, x17, x20"),
+        Q!("    eor             " "x17, x13, x15"),
+        Q!("    adcs            " "x13, x8, x24"),
+        Q!("    adc             " "x8, x4, x24"),
+        Q!("    cmn             " "x21, #0x1"),
+        Q!("    adcs            " "x6, x23, x2"),
+        Q!("    mov             " "x16, #0xfffffffffffffffe"),
+        Q!("    eor             " "x20, x12, x21"),
+        Q!("    adcs            " "x20, x3, x20"),
+        Q!("    eor             " "x23, x14, x15"),
+        Q!("    adcs            " "x2, x13, x21"),
+        Q!("    adc             " "x8, x8, x21"),
+        Q!("    cmn             " "x15, #0x1"),
+        Q!("    ldp             " "x5, x4, [sp, #144]"),
+        Q!("    adcs            " "x22, x20, x23"),
+        Q!("    eor             " "x23, x22, x9"),
+        Q!("    adcs            " "x17, x2, x17"),
+        Q!("    adc             " "x22, x8, x15"),
+        Q!("    cmn             " "x9, #0x1"),
+        Q!("    adcs            " "x15, x7, x5"),
+        Q!("    ldp             " "x10, x14, [sp, #176]"),
+        Q!("    eor             " "x1, x6, x9"),
+        Q!("    lsl             " "x2, x15, #32"),
+        Q!("    adcs            " "x8, x11, x4"),
+        Q!("    adcs            " "x13, x1, x26"),
+        Q!("    eor             " "x1, x22, x9"),
+        Q!("    adcs            " "x24, x23, x27"),
+        Q!("    eor             " "x11, x17, x9"),
+        Q!("    adcs            " "x23, x11, x10"),
+        Q!("    adcs            " "x7, x1, x14"),
+        Q!("    adcs            " "x17, x9, x19"),
+        Q!("    adcs            " "x20, x9, xzr"),
+        Q!("    add             " "x1, x2, x15"),
+        Q!("    lsr             " "x3, x1, #32"),
+        Q!("    adcs            " "x11, x9, xzr"),
+        Q!("    adc             " "x9, x9, xzr"),
+        Q!("    subs            " "x3, x3, x1"),
+        Q!("    sbc             " "x6, x1, xzr"),
+        Q!("    adds            " "x24, x24, x5"),
+        Q!("    adcs            " "x4, x23, x4"),
+        Q!("    extr            " "x3, x6, x3, #32"),
+        Q!("    lsr             " "x6, x6, #32"),
+        Q!("    adcs            " "x21, x7, x26"),
+        Q!("    adcs            " "x15, x17, x27"),
+        Q!("    adcs            " "x7, x20, x10"),
+        Q!("    adcs            " "x20, x11, x14"),
+        Q!("    mov             " "x14, #0xffffffff"),
+        Q!("    adc             " "x22, x9, x19"),
+        Q!("    adds            " "x12, x6, x1"),
+        Q!("    adc             " "x10, xzr, xzr"),
+        Q!("    subs            " "x3, x8, x3"),
+        Q!("    sbcs            " "x12, x13, x12"),
+        Q!("    lsl             " "x9, x3, #32"),
+        Q!("    add             " "x3, x9, x3"),
+        Q!("    sbcs            " "x10, x24, x10"),
+        Q!("    sbcs            " "x24, x4, xzr"),
+        Q!("    lsr             " "x9, x3, #32"),
+        Q!("    sbcs            " "x21, x21, xzr"),
+        Q!("    sbc             " "x1, x1, xzr"),
+        Q!("    subs            " "x9, x9, x3"),
+        Q!("    sbc             " "x13, x3, xzr"),
+        Q!("    extr            " "x9, x13, x9, #32"),
+        Q!("    lsr             " "x13, x13, #32"),
+        Q!("    adds            " "x13, x13, x3"),
+        Q!("    adc             " "x6, xzr, xzr"),
+        Q!("    subs            " "x12, x12, x9"),
+        Q!("    sbcs            " "x17, x10, x13"),
+        Q!("    lsl             " "x2, x12, #32"),
+        Q!("    sbcs            " "x10, x24, x6"),
+        Q!("    add             " "x9, x2, x12"),
+        Q!("    sbcs            " "x6, x21, xzr"),
+        Q!("    lsr             " "x5, x9, #32"),
+        Q!("    sbcs            " "x21, x1, xzr"),
+        Q!("    sbc             " "x13, x3, xzr"),
+        Q!("    subs            " "x8, x5, x9"),
+        Q!("    sbc             " "x19, x9, xzr"),
+        Q!("    lsr             " "x12, x19, #32"),
+        Q!("    extr            " "x3, x19, x8, #32"),
+        Q!("    adds            " "x8, x12, x9"),
+        Q!("    adc             " "x1, xzr, xzr"),
+        Q!("    subs            " "x2, x17, x3"),
+        Q!("    sbcs            " "x12, x10, x8"),
+        Q!("    sbcs            " "x5, x6, x1"),
+        Q!("    sbcs            " "x3, x21, xzr"),
+        Q!("    sbcs            " "x19, x13, xzr"),
+        Q!("    sbc             " "x24, x9, xzr"),
+        Q!("    adds            " "x23, x15, x3"),
+        Q!("    adcs            " "x8, x7, x19"),
+        Q!("    adcs            " "x11, x20, x24"),
+        Q!("    adc             " "x9, x22, xzr"),
+        Q!("    add             " "x24, x9, #0x1"),
+        Q!("    lsl             " "x7, x24, #32"),
+        Q!("    subs            " "x21, x24, x7"),
+        Q!("    sbc             " "x10, x7, xzr"),
+        Q!("    adds            " "x6, x2, x21"),
+        Q!("    adcs            " "x7, x12, x10"),
+        Q!("    adcs            " "x24, x5, x24"),
+        Q!("    adcs            " "x13, x23, xzr"),
+        Q!("    adcs            " "x8, x8, xzr"),
+        Q!("    adcs            " "x15, x11, xzr"),
+        Q!("    csetm           " "x23, cc"),
+        Q!("    and             " "x11, x16, x23"),
+        Q!("    and             " "x20, x14, x23"),
+        Q!("    adds            " "x22, x6, x20"),
+        Q!("    eor             " "x3, x20, x23"),
+        Q!("    adcs            " "x5, x7, x3"),
+        Q!("    adcs            " "x14, x24, x11"),
+        Q!("    stp             " "x22, x5, [sp, #144]"),
+        Q!("    adcs            " "x5, x13, x23"),
+        Q!("    adcs            " "x21, x8, x23"),
+        Q!("    stp             " "x14, x5, [sp, #160]"),
+        Q!("    adc             " "x12, x15, x23"),
+        Q!("    stp             " "x21, x12, [sp, #176]"),
+        Q!("    ldr             " "q1, [sp, #240]"),
+        Q!("    ldp             " "x9, x2, [sp, #240]"),
+        Q!("    ldr             " "q0, [sp, #240]"),
+        Q!("    ldp             " "x4, x6, [sp, #256]"),
+        Q!("    rev64           " "v21.4s, v1.4s"),
+        Q!("    uzp2            " "v28.4s, v1.4s, v1.4s"),
+        Q!("    umulh           " "x7, x9, x2"),
+        Q!("    xtn             " "v17.2s, v1.2d"),
+        Q!("    mul             " "v27.4s, v21.4s, v0.4s"),
+        Q!("    ldr             " "q20, [sp, #272]"),
+        Q!("    xtn             " "v30.2s, v0.2d"),
+        Q!("    ldr             " "q1, [sp, #272]"),
+        Q!("    uzp2            " "v31.4s, v0.4s, v0.4s"),
+        Q!("    ldp             " "x5, x10, [sp, #272]"),
+        Q!("    umulh           " "x8, x9, x4"),
+        Q!("    uaddlp          " "v3.2d, v27.4s"),
+        Q!("    umull           " "v16.2d, v30.2s, v17.2s"),
+        Q!("    mul             " "x16, x9, x4"),
+        Q!("    umull           " "v27.2d, v30.2s, v28.2s"),
+        Q!("    shrn            " "v0.2s, v20.2d, #32"),
+        Q!("    xtn             " "v7.2s, v20.2d"),
+        Q!("    shl             " "v20.2d, v3.2d, #32"),
+        Q!("    umull           " "v3.2d, v31.2s, v28.2s"),
+        Q!("    mul             " "x3, x2, x4"),
+        Q!("    umlal           " "v20.2d, v30.2s, v17.2s"),
+        Q!("    umull           " "v22.2d, v7.2s, v0.2s"),
+        Q!("    usra            " "v27.2d, v16.2d, #32"),
+        Q!("    umulh           " "x11, x2, x4"),
+        Q!("    movi            " "v21.2d, #0xffffffff"),
+        Q!("    uzp2            " "v28.4s, v1.4s, v1.4s"),
+        Q!("    adds            " "x15, x16, x7"),
+        Q!("    and             " "v5.16b, v27.16b, v21.16b"),
+        Q!("    adcs            " "x3, x3, x8"),
+        Q!("    usra            " "v3.2d, v27.2d, #32"),
+        Q!("    dup             " "v29.2d, x6"),
+        Q!("    adcs            " "x16, x11, xzr"),
+        Q!("    mov             " "x14, v20.d[0]"),
+        Q!("    umlal           " "v5.2d, v31.2s, v17.2s"),
+        Q!("    mul             " "x8, x9, x2"),
+        Q!("    mov             " "x7, v20.d[1]"),
+        Q!("    shl             " "v19.2d, v22.2d, #33"),
+        Q!("    xtn             " "v25.2s, v29.2d"),
+        Q!("    rev64           " "v31.4s, v1.4s"),
+        Q!("    lsl             " "x13, x14, #32"),
+        Q!("    uzp2            " "v6.4s, v29.4s, v29.4s"),
+        Q!("    umlal           " "v19.2d, v7.2s, v7.2s"),
+        Q!("    usra            " "v3.2d, v5.2d, #32"),
+        Q!("    adds            " "x1, x8, x8"),
+        Q!("    umulh           " "x8, x4, x4"),
+        Q!("    add             " "x12, x13, x14"),
+        Q!("    mul             " "v17.4s, v31.4s, v29.4s"),
+        Q!("    xtn             " "v4.2s, v1.2d"),
+        Q!("    adcs            " "x14, x15, x15"),
+        Q!("    lsr             " "x13, x12, #32"),
+        Q!("    adcs            " "x15, x3, x3"),
+        Q!("    umull           " "v31.2d, v25.2s, v28.2s"),
+        Q!("    adcs            " "x11, x16, x16"),
+        Q!("    umull           " "v21.2d, v25.2s, v4.2s"),
+        Q!("    mov             " "x17, v3.d[0]"),
+        Q!("    umull           " "v18.2d, v6.2s, v28.2s"),
+        Q!("    adc             " "x16, x8, xzr"),
+        Q!("    uaddlp          " "v16.2d, v17.4s"),
+        Q!("    movi            " "v1.2d, #0xffffffff"),
+        Q!("    subs            " "x13, x13, x12"),
+        Q!("    usra            " "v31.2d, v21.2d, #32"),
+        Q!("    sbc             " "x8, x12, xzr"),
+        Q!("    adds            " "x17, x17, x1"),
+        Q!("    mul             " "x1, x4, x4"),
+        Q!("    shl             " "v28.2d, v16.2d, #32"),
+        Q!("    mov             " "x3, v3.d[1]"),
+        Q!("    adcs            " "x14, x7, x14"),
+        Q!("    extr            " "x7, x8, x13, #32"),
+        Q!("    adcs            " "x13, x3, x15"),
+        Q!("    and             " "v3.16b, v31.16b, v1.16b"),
+        Q!("    adcs            " "x11, x1, x11"),
+        Q!("    lsr             " "x1, x8, #32"),
+        Q!("    umlal           " "v3.2d, v6.2s, v4.2s"),
+        Q!("    usra            " "v18.2d, v31.2d, #32"),
+        Q!("    adc             " "x3, x16, xzr"),
+        Q!("    adds            " "x1, x1, x12"),
+        Q!("    umlal           " "v28.2d, v25.2s, v4.2s"),
+        Q!("    adc             " "x16, xzr, xzr"),
+        Q!("    subs            " "x15, x17, x7"),
+        Q!("    sbcs            " "x7, x14, x1"),
+        Q!("    lsl             " "x1, x15, #32"),
+        Q!("    sbcs            " "x16, x13, x16"),
+        Q!("    add             " "x8, x1, x15"),
+        Q!("    usra            " "v18.2d, v3.2d, #32"),
+        Q!("    sbcs            " "x14, x11, xzr"),
+        Q!("    lsr             " "x1, x8, #32"),
+        Q!("    sbcs            " "x17, x3, xzr"),
+        Q!("    sbc             " "x11, x12, xzr"),
+        Q!("    subs            " "x13, x1, x8"),
+        Q!("    umulh           " "x12, x4, x10"),
+        Q!("    sbc             " "x1, x8, xzr"),
+        Q!("    extr            " "x13, x1, x13, #32"),
+        Q!("    lsr             " "x1, x1, #32"),
+        Q!("    adds            " "x15, x1, x8"),
+        Q!("    adc             " "x1, xzr, xzr"),
+        Q!("    subs            " "x7, x7, x13"),
+        Q!("    sbcs            " "x13, x16, x15"),
+        Q!("    lsl             " "x3, x7, #32"),
+        Q!("    umulh           " "x16, x2, x5"),
+        Q!("    sbcs            " "x15, x14, x1"),
+        Q!("    add             " "x7, x3, x7"),
+        Q!("    sbcs            " "x3, x17, xzr"),
+        Q!("    lsr             " "x1, x7, #32"),
+        Q!("    sbcs            " "x14, x11, xzr"),
+        Q!("    sbc             " "x11, x8, xzr"),
+        Q!("    subs            " "x8, x1, x7"),
+        Q!("    sbc             " "x1, x7, xzr"),
+        Q!("    extr            " "x8, x1, x8, #32"),
+        Q!("    lsr             " "x1, x1, #32"),
+        Q!("    adds            " "x1, x1, x7"),
+        Q!("    adc             " "x17, xzr, xzr"),
+        Q!("    subs            " "x13, x13, x8"),
+        Q!("    umulh           " "x8, x9, x6"),
+        Q!("    sbcs            " "x1, x15, x1"),
+        Q!("    sbcs            " "x19, x3, x17"),
+        Q!("    sbcs            " "x20, x14, xzr"),
+        Q!("    mul             " "x17, x2, x5"),
+        Q!("    sbcs            " "x11, x11, xzr"),
+        Q!("    stp             " "x13, x1, [sp, #192]"),
+        Q!("    sbc             " "x14, x7, xzr"),
+        Q!("    mul             " "x7, x4, x10"),
+        Q!("    subs            " "x1, x9, x2"),
+        Q!("    csetm           " "x15, cc"),
+        Q!("    cneg            " "x1, x1, cc"),
+        Q!("    stp             " "x11, x14, [sp, #224]"),
+        Q!("    mul             " "x14, x9, x6"),
+        Q!("    adds            " "x17, x8, x17"),
+        Q!("    adcs            " "x7, x16, x7"),
+        Q!("    adc             " "x13, x12, xzr"),
+        Q!("    subs            " "x12, x5, x6"),
+        Q!("    cneg            " "x3, x12, cc"),
+        Q!("    cinv            " "x16, x15, cc"),
+        Q!("    mul             " "x8, x1, x3"),
+        Q!("    umulh           " "x1, x1, x3"),
+        Q!("    eor             " "x12, x8, x16"),
+        Q!("    adds            " "x11, x17, x14"),
+        Q!("    adcs            " "x3, x7, x17"),
+        Q!("    adcs            " "x15, x13, x7"),
+        Q!("    adc             " "x8, x13, xzr"),
+        Q!("    adds            " "x3, x3, x14"),
+        Q!("    adcs            " "x15, x15, x17"),
+        Q!("    adcs            " "x17, x8, x7"),
+        Q!("    eor             " "x1, x1, x16"),
+        Q!("    adc             " "x13, x13, xzr"),
+        Q!("    subs            " "x9, x9, x4"),
+        Q!("    csetm           " "x8, cc"),
+        Q!("    cneg            " "x9, x9, cc"),
+        Q!("    subs            " "x4, x2, x4"),
+        Q!("    cneg            " "x4, x4, cc"),
+        Q!("    csetm           " "x7, cc"),
+        Q!("    subs            " "x2, x10, x6"),
+        Q!("    cinv            " "x8, x8, cc"),
+        Q!("    cneg            " "x2, x2, cc"),
+        Q!("    cmn             " "x16, #0x1"),
+        Q!("    adcs            " "x11, x11, x12"),
+        Q!("    mul             " "x12, x9, x2"),
+        Q!("    adcs            " "x3, x3, x1"),
+        Q!("    adcs            " "x15, x15, x16"),
+        Q!("    umulh           " "x9, x9, x2"),
+        Q!("    adcs            " "x17, x17, x16"),
+        Q!("    adc             " "x13, x13, x16"),
+        Q!("    subs            " "x1, x10, x5"),
+        Q!("    cinv            " "x2, x7, cc"),
+        Q!("    cneg            " "x1, x1, cc"),
+        Q!("    eor             " "x9, x9, x8"),
+        Q!("    cmn             " "x8, #0x1"),
+        Q!("    eor             " "x7, x12, x8"),
+        Q!("    mul             " "x12, x4, x1"),
+        Q!("    adcs            " "x3, x3, x7"),
+        Q!("    adcs            " "x7, x15, x9"),
+        Q!("    adcs            " "x15, x17, x8"),
+        Q!("    umulh           " "x4, x4, x1"),
+        Q!("    adc             " "x8, x13, x8"),
+        Q!("    cmn             " "x2, #0x1"),
+        Q!("    eor             " "x1, x12, x2"),
+        Q!("    adcs            " "x1, x7, x1"),
+        Q!("    ldp             " "x7, x16, [sp, #192]"),
+        Q!("    eor             " "x12, x4, x2"),
+        Q!("    adcs            " "x4, x15, x12"),
+        Q!("    ldp             " "x15, x12, [sp, #224]"),
+        Q!("    adc             " "x8, x8, x2"),
+        Q!("    adds            " "x13, x14, x14"),
+        Q!("    umulh           " "x14, x5, x10"),
+        Q!("    adcs            " "x2, x11, x11"),
+        Q!("    adcs            " "x3, x3, x3"),
+        Q!("    adcs            " "x1, x1, x1"),
+        Q!("    adcs            " "x4, x4, x4"),
+        Q!("    adcs            " "x11, x8, x8"),
+        Q!("    adc             " "x8, xzr, xzr"),
+        Q!("    adds            " "x13, x13, x7"),
+        Q!("    adcs            " "x2, x2, x16"),
+        Q!("    mul             " "x16, x5, x10"),
+        Q!("    adcs            " "x3, x3, x19"),
+        Q!("    adcs            " "x1, x1, x20"),
+        Q!("    umulh           " "x5, x5, x5"),
+        Q!("    lsl             " "x9, x13, #32"),
+        Q!("    add             " "x9, x9, x13"),
+        Q!("    adcs            " "x4, x4, x15"),
+        Q!("    mov             " "x13, v28.d[1]"),
+        Q!("    adcs            " "x15, x11, x12"),
+        Q!("    lsr             " "x7, x9, #32"),
+        Q!("    adc             " "x11, x8, xzr"),
+        Q!("    subs            " "x7, x7, x9"),
+        Q!("    umulh           " "x10, x10, x10"),
+        Q!("    sbc             " "x17, x9, xzr"),
+        Q!("    extr            " "x7, x17, x7, #32"),
+        Q!("    lsr             " "x17, x17, #32"),
+        Q!("    adds            " "x17, x17, x9"),
+        Q!("    adc             " "x12, xzr, xzr"),
+        Q!("    subs            " "x8, x2, x7"),
+        Q!("    sbcs            " "x17, x3, x17"),
+        Q!("    lsl             " "x7, x8, #32"),
+        Q!("    sbcs            " "x2, x1, x12"),
+        Q!("    add             " "x3, x7, x8"),
+        Q!("    sbcs            " "x12, x4, xzr"),
+        Q!("    lsr             " "x1, x3, #32"),
+        Q!("    sbcs            " "x7, x15, xzr"),
+        Q!("    sbc             " "x15, x9, xzr"),
+        Q!("    subs            " "x1, x1, x3"),
+        Q!("    sbc             " "x4, x3, xzr"),
+        Q!("    lsr             " "x9, x4, #32"),
+        Q!("    extr            " "x8, x4, x1, #32"),
+        Q!("    adds            " "x9, x9, x3"),
+        Q!("    adc             " "x4, xzr, xzr"),
+        Q!("    subs            " "x1, x17, x8"),
+        Q!("    lsl             " "x17, x1, #32"),
+        Q!("    sbcs            " "x8, x2, x9"),
+        Q!("    sbcs            " "x9, x12, x4"),
+        Q!("    add             " "x17, x17, x1"),
+        Q!("    mov             " "x1, v18.d[1]"),
+        Q!("    lsr             " "x2, x17, #32"),
+        Q!("    sbcs            " "x7, x7, xzr"),
+        Q!("    mov             " "x12, v18.d[0]"),
+        Q!("    sbcs            " "x15, x15, xzr"),
+        Q!("    sbc             " "x3, x3, xzr"),
+        Q!("    subs            " "x4, x2, x17"),
+        Q!("    sbc             " "x2, x17, xzr"),
+        Q!("    adds            " "x12, x13, x12"),
+        Q!("    adcs            " "x16, x16, x1"),
+        Q!("    lsr             " "x13, x2, #32"),
+        Q!("    extr            " "x1, x2, x4, #32"),
+        Q!("    adc             " "x2, x14, xzr"),
+        Q!("    adds            " "x4, x13, x17"),
+        Q!("    mul             " "x13, x6, x6"),
+        Q!("    adc             " "x14, xzr, xzr"),
+        Q!("    subs            " "x1, x8, x1"),
+        Q!("    sbcs            " "x4, x9, x4"),
+        Q!("    mov             " "x9, v28.d[0]"),
+        Q!("    sbcs            " "x7, x7, x14"),
+        Q!("    sbcs            " "x8, x15, xzr"),
+        Q!("    sbcs            " "x3, x3, xzr"),
+        Q!("    sbc             " "x14, x17, xzr"),
+        Q!("    adds            " "x17, x9, x9"),
+        Q!("    adcs            " "x12, x12, x12"),
+        Q!("    mov             " "x15, v19.d[0]"),
+        Q!("    adcs            " "x9, x16, x16"),
+        Q!("    umulh           " "x6, x6, x6"),
+        Q!("    adcs            " "x16, x2, x2"),
+        Q!("    adc             " "x2, xzr, xzr"),
+        Q!("    adds            " "x11, x11, x8"),
+        Q!("    adcs            " "x3, x3, xzr"),
+        Q!("    adcs            " "x14, x14, xzr"),
+        Q!("    adcs            " "x8, xzr, xzr"),
+        Q!("    adds            " "x13, x1, x13"),
+        Q!("    mov             " "x1, v19.d[1]"),
+        Q!("    adcs            " "x6, x4, x6"),
+        Q!("    mov             " "x4, #0xffffffff"),
+        Q!("    adcs            " "x15, x7, x15"),
+        Q!("    adcs            " "x7, x11, x5"),
+        Q!("    adcs            " "x1, x3, x1"),
+        Q!("    adcs            " "x14, x14, x10"),
+        Q!("    adc             " "x11, x8, xzr"),
+        Q!("    adds            " "x6, x6, x17"),
+        Q!("    adcs            " "x8, x15, x12"),
+        Q!("    adcs            " "x3, x7, x9"),
+        Q!("    adcs            " "x15, x1, x16"),
+        Q!("    mov             " "x16, #0xffffffff00000001"),
+        Q!("    adcs            " "x14, x14, x2"),
+        Q!("    mov             " "x2, #0x1"),
+        Q!("    adc             " "x17, x11, xzr"),
+        Q!("    cmn             " "x13, x16"),
+        Q!("    adcs            " "xzr, x6, x4"),
+        Q!("    adcs            " "xzr, x8, x2"),
+        Q!("    adcs            " "xzr, x3, xzr"),
+        Q!("    adcs            " "xzr, x15, xzr"),
+        Q!("    adcs            " "xzr, x14, xzr"),
+        Q!("    adc             " "x1, x17, xzr"),
+        Q!("    neg             " "x9, x1"),
+        Q!("    and             " "x1, x16, x9"),
+        Q!("    adds            " "x19, x13, x1"),
+        Q!("    and             " "x13, x4, x9"),
+        Q!("    adcs            " "x20, x6, x13"),
+        Q!("    and             " "x1, x2, x9"),
+        Q!("    adcs            " "x7, x8, x1"),
+        Q!("    adcs            " "x11, x3, xzr"),
+        Q!("    adcs            " "x2, x15, xzr"),
+        Q!("    stp             " "x7, x11, [sp, #208]"),
+        Q!("    adc             " "x17, x14, xzr"),
+        Q!("    stp             " "x2, x17, [sp, #224]"),
+        Q!("    ldp             " "x0, x1, [sp, #288]"),
+        Q!("    mov             " "x6, #0xffffffff"),
+        Q!("    subs            " "x6, x6, x0"),
+        Q!("    mov             " "x7, #0xffffffff00000000"),
+        Q!("    sbcs            " "x7, x7, x1"),
+        Q!("    ldp             " "x0, x1, [sp, #304]"),
+        Q!("    mov             " "x8, #0xfffffffffffffffe"),
+        Q!("    sbcs            " "x8, x8, x0"),
+        Q!("    mov             " "x13, #0xffffffffffffffff"),
+        Q!("    sbcs            " "x9, x13, x1"),
+        Q!("    ldp             " "x0, x1, [sp, #320]"),
+        Q!("    sbcs            " "x10, x13, x0"),
+        Q!("    sbc             " "x11, x13, x1"),
+        Q!("    mov             " "x12, #0x9"),
+        Q!("    mul             " "x0, x12, x6"),
+        Q!("    mul             " "x1, x12, x7"),
+        Q!("    mul             " "x2, x12, x8"),
+        Q!("    mul             " "x3, x12, x9"),
+        Q!("    mul             " "x4, x12, x10"),
+        Q!("    mul             " "x5, x12, x11"),
+        Q!("    umulh           " "x6, x12, x6"),
+        Q!("    umulh           " "x7, x12, x7"),
+        Q!("    umulh           " "x8, x12, x8"),
+        Q!("    umulh           " "x9, x12, x9"),
+        Q!("    umulh           " "x10, x12, x10"),
+        Q!("    umulh           " "x12, x12, x11"),
+        Q!("    adds            " "x1, x1, x6"),
+        Q!("    adcs            " "x2, x2, x7"),
+        Q!("    adcs            " "x3, x3, x8"),
+        Q!("    adcs            " "x4, x4, x9"),
+        Q!("    adcs            " "x5, x5, x10"),
+        Q!("    mov             " "x6, #0x1"),
+        Q!("    adc             " "x6, x12, x6"),
+        Q!("    ldp             " "x8, x9, [sp, #144]"),
+        Q!("    ldp             " "x10, x11, [sp, #160]"),
+        Q!("    ldp             " "x12, x13, [sp, #176]"),
+        Q!("    mov             " "x14, #0xc"),
+        Q!("    mul             " "x15, x14, x8"),
+        Q!("    umulh           " "x8, x14, x8"),
+        Q!("    adds            " "x0, x0, x15"),
+        Q!("    mul             " "x15, x14, x9"),
+        Q!("    umulh           " "x9, x14, x9"),
+        Q!("    adcs            " "x1, x1, x15"),
+        Q!("    mul             " "x15, x14, x10"),
+        Q!("    umulh           " "x10, x14, x10"),
+        Q!("    adcs            " "x2, x2, x15"),
+        Q!("    mul             " "x15, x14, x11"),
+        Q!("    umulh           " "x11, x14, x11"),
+        Q!("    adcs            " "x3, x3, x15"),
+        Q!("    mul             " "x15, x14, x12"),
+        Q!("    umulh           " "x12, x14, x12"),
+        Q!("    adcs            " "x4, x4, x15"),
+        Q!("    mul             " "x15, x14, x13"),
+        Q!("    umulh           " "x13, x14, x13"),
+        Q!("    adcs            " "x5, x5, x15"),
+        Q!("    adc             " "x6, x6, xzr"),
+        Q!("    adds            " "x1, x1, x8"),
+        Q!("    adcs            " "x2, x2, x9"),
+        Q!("    adcs            " "x3, x3, x10"),
+        Q!("    adcs            " "x4, x4, x11"),
+        Q!("    adcs            " "x5, x5, x12"),
+        Q!("    adcs            " "x6, x6, x13"),
+        Q!("    lsl             " "x7, x6, #32"),
+        Q!("    subs            " "x8, x6, x7"),
+        Q!("    sbc             " "x7, x7, xzr"),
+        Q!("    adds            " "x0, x0, x8"),
+        Q!("    adcs            " "x1, x1, x7"),
+        Q!("    adcs            " "x2, x2, x6"),
+        Q!("    adcs            " "x3, x3, xzr"),
+        Q!("    adcs            " "x4, x4, xzr"),
+        Q!("    adcs            " "x5, x5, xzr"),
+        Q!("    csetm           " "x6, cc"),
+        Q!("    mov             " "x7, #0xffffffff"),
+        Q!("    and             " "x7, x7, x6"),
+        Q!("    adds            " "x0, x0, x7"),
+        Q!("    eor             " "x7, x7, x6"),
+        Q!("    adcs            " "x1, x1, x7"),
+        Q!("    mov             " "x7, #0xfffffffffffffffe"),
+        Q!("    and             " "x7, x7, x6"),
+        Q!("    adcs            " "x2, x2, x7"),
+        Q!("    adcs            " "x3, x3, x6"),
+        Q!("    adcs            " "x4, x4, x6"),
+        Q!("    adc             " "x5, x5, x6"),
+        Q!("    stp             " "x0, x1, [sp, #288]"),
+        Q!("    stp             " "x2, x3, [sp, #304]"),
+        Q!("    stp             " "x4, x5, [sp, #320]"),
+        Q!("    mov             " "x2, sp"),
+        Q!("    ldp             " "x4, x3, [x2]"),
+        Q!("    subs            " "x5, x19, x4"),
+        Q!("    sbcs            " "x6, x20, x3"),
+        Q!("    ldp             " "x7, x8, [sp, #208]"),
+        Q!("    ldp             " "x4, x3, [x2, #16]"),
+        Q!("    sbcs            " "x7, x7, x4"),
+        Q!("    sbcs            " "x8, x8, x3"),
+        Q!("    ldp             " "x9, x10, [sp, #224]"),
+        Q!("    ldp             " "x4, x3, [x2, #32]"),
+        Q!("    sbcs            " "x9, x9, x4"),
+        Q!("    sbcs            " "x10, x10, x3"),
+        Q!("    csetm           " "x3, cc"),
+        Q!("    mov             " "x4, #0xffffffff"),
+        Q!("    and             " "x4, x4, x3"),
+        Q!("    adds            " "x5, x5, x4"),
+        Q!("    eor             " "x4, x4, x3"),
+        Q!("    adcs            " "x6, x6, x4"),
+        Q!("    mov             " "x4, #0xfffffffffffffffe"),
+        Q!("    and             " "x4, x4, x3"),
+        Q!("    adcs            " "x7, x7, x4"),
+        Q!("    adcs            " "x8, x8, x3"),
+        Q!("    adcs            " "x9, x9, x3"),
+        Q!("    adc             " "x10, x10, x3"),
+        Q!("    stp             " "x5, x6, [sp, #240]"),
+        Q!("    stp             " "x7, x8, [sp, #256]"),
+        Q!("    stp             " "x9, x10, [sp, #272]"),
+        Q!("    ldr             " "q1, [sp, #48]"),
+        Q!("    ldp             " "x9, x2, [sp, #48]"),
+        Q!("    ldr             " "q0, [sp, #48]"),
+        Q!("    ldp             " "x4, x6, [sp, #64]"),
+        Q!("    rev64           " "v21.4s, v1.4s"),
+        Q!("    uzp2            " "v28.4s, v1.4s, v1.4s"),
+        Q!("    umulh           " "x7, x9, x2"),
+        Q!("    xtn             " "v17.2s, v1.2d"),
+        Q!("    mul             " "v27.4s, v21.4s, v0.4s"),
+        Q!("    ldr             " "q20, [sp, #80]"),
+        Q!("    xtn             " "v30.2s, v0.2d"),
+        Q!("    ldr             " "q1, [sp, #80]"),
+        Q!("    uzp2            " "v31.4s, v0.4s, v0.4s"),
+        Q!("    ldp             " "x5, x10, [sp, #80]"),
+        Q!("    umulh           " "x8, x9, x4"),
+        Q!("    uaddlp          " "v3.2d, v27.4s"),
+        Q!("    umull           " "v16.2d, v30.2s, v17.2s"),
+        Q!("    mul             " "x16, x9, x4"),
+        Q!("    umull           " "v27.2d, v30.2s, v28.2s"),
+        Q!("    shrn            " "v0.2s, v20.2d, #32"),
+        Q!("    xtn             " "v7.2s, v20.2d"),
+        Q!("    shl             " "v20.2d, v3.2d, #32"),
+        Q!("    umull           " "v3.2d, v31.2s, v28.2s"),
+        Q!("    mul             " "x3, x2, x4"),
+        Q!("    umlal           " "v20.2d, v30.2s, v17.2s"),
+        Q!("    umull           " "v22.2d, v7.2s, v0.2s"),
+        Q!("    usra            " "v27.2d, v16.2d, #32"),
+        Q!("    umulh           " "x11, x2, x4"),
+        Q!("    movi            " "v21.2d, #0xffffffff"),
+        Q!("    uzp2            " "v28.4s, v1.4s, v1.4s"),
+        Q!("    adds            " "x15, x16, x7"),
+        Q!("    and             " "v5.16b, v27.16b, v21.16b"),
+        Q!("    adcs            " "x3, x3, x8"),
+        Q!("    usra            " "v3.2d, v27.2d, #32"),
+        Q!("    dup             " "v29.2d, x6"),
+        Q!("    adcs            " "x16, x11, xzr"),
+        Q!("    mov             " "x14, v20.d[0]"),
+        Q!("    umlal           " "v5.2d, v31.2s, v17.2s"),
+        Q!("    mul             " "x8, x9, x2"),
+        Q!("    mov             " "x7, v20.d[1]"),
+        Q!("    shl             " "v19.2d, v22.2d, #33"),
+        Q!("    xtn             " "v25.2s, v29.2d"),
+        Q!("    rev64           " "v31.4s, v1.4s"),
+        Q!("    lsl             " "x13, x14, #32"),
+        Q!("    uzp2            " "v6.4s, v29.4s, v29.4s"),
+        Q!("    umlal           " "v19.2d, v7.2s, v7.2s"),
+        Q!("    usra            " "v3.2d, v5.2d, #32"),
+        Q!("    adds            " "x1, x8, x8"),
+        Q!("    umulh           " "x8, x4, x4"),
+        Q!("    add             " "x12, x13, x14"),
+        Q!("    mul             " "v17.4s, v31.4s, v29.4s"),
+        Q!("    xtn             " "v4.2s, v1.2d"),
+        Q!("    adcs            " "x14, x15, x15"),
+        Q!("    lsr             " "x13, x12, #32"),
+        Q!("    adcs            " "x15, x3, x3"),
+        Q!("    umull           " "v31.2d, v25.2s, v28.2s"),
+        Q!("    adcs            " "x11, x16, x16"),
+        Q!("    umull           " "v21.2d, v25.2s, v4.2s"),
+        Q!("    mov             " "x17, v3.d[0]"),
+        Q!("    umull           " "v18.2d, v6.2s, v28.2s"),
+        Q!("    adc             " "x16, x8, xzr"),
+        Q!("    uaddlp          " "v16.2d, v17.4s"),
+        Q!("    movi            " "v1.2d, #0xffffffff"),
+        Q!("    subs            " "x13, x13, x12"),
+        Q!("    usra            " "v31.2d, v21.2d, #32"),
+        Q!("    sbc             " "x8, x12, xzr"),
+        Q!("    adds            " "x17, x17, x1"),
+        Q!("    mul             " "x1, x4, x4"),
+        Q!("    shl             " "v28.2d, v16.2d, #32"),
+        Q!("    mov             " "x3, v3.d[1]"),
+        Q!("    adcs            " "x14, x7, x14"),
+        Q!("    extr            " "x7, x8, x13, #32"),
+        Q!("    adcs            " "x13, x3, x15"),
+        Q!("    and             " "v3.16b, v31.16b, v1.16b"),
+        Q!("    adcs            " "x11, x1, x11"),
+        Q!("    lsr             " "x1, x8, #32"),
+        Q!("    umlal           " "v3.2d, v6.2s, v4.2s"),
+        Q!("    usra            " "v18.2d, v31.2d, #32"),
+        Q!("    adc             " "x3, x16, xzr"),
+        Q!("    adds            " "x1, x1, x12"),
+        Q!("    umlal           " "v28.2d, v25.2s, v4.2s"),
+        Q!("    adc             " "x16, xzr, xzr"),
+        Q!("    subs            " "x15, x17, x7"),
+        Q!("    sbcs            " "x7, x14, x1"),
+        Q!("    lsl             " "x1, x15, #32"),
+        Q!("    sbcs            " "x16, x13, x16"),
+        Q!("    add             " "x8, x1, x15"),
+        Q!("    usra            " "v18.2d, v3.2d, #32"),
+        Q!("    sbcs            " "x14, x11, xzr"),
+        Q!("    lsr             " "x1, x8, #32"),
+        Q!("    sbcs            " "x17, x3, xzr"),
+        Q!("    sbc             " "x11, x12, xzr"),
+        Q!("    subs            " "x13, x1, x8"),
+        Q!("    umulh           " "x12, x4, x10"),
+        Q!("    sbc             " "x1, x8, xzr"),
+        Q!("    extr            " "x13, x1, x13, #32"),
+        Q!("    lsr             " "x1, x1, #32"),
+        Q!("    adds            " "x15, x1, x8"),
+        Q!("    adc             " "x1, xzr, xzr"),
+        Q!("    subs            " "x7, x7, x13"),
+        Q!("    sbcs            " "x13, x16, x15"),
+        Q!("    lsl             " "x3, x7, #32"),
+        Q!("    umulh           " "x16, x2, x5"),
+        Q!("    sbcs            " "x15, x14, x1"),
+        Q!("    add             " "x7, x3, x7"),
+        Q!("    sbcs            " "x3, x17, xzr"),
+        Q!("    lsr             " "x1, x7, #32"),
+        Q!("    sbcs            " "x14, x11, xzr"),
+        Q!("    sbc             " "x11, x8, xzr"),
+        Q!("    subs            " "x8, x1, x7"),
+        Q!("    sbc             " "x1, x7, xzr"),
+        Q!("    extr            " "x8, x1, x8, #32"),
+        Q!("    lsr             " "x1, x1, #32"),
+        Q!("    adds            " "x1, x1, x7"),
+        Q!("    adc             " "x17, xzr, xzr"),
+        Q!("    subs            " "x13, x13, x8"),
+        Q!("    umulh           " "x8, x9, x6"),
+        Q!("    sbcs            " "x1, x15, x1"),
+        Q!("    sbcs            " "x19, x3, x17"),
+        Q!("    sbcs            " "x20, x14, xzr"),
+        Q!("    mul             " "x17, x2, x5"),
+        Q!("    sbcs            " "x11, x11, xzr"),
+        Q!("    stp             " "x13, x1, [sp, #192]"),
+        Q!("    sbc             " "x14, x7, xzr"),
+        Q!("    mul             " "x7, x4, x10"),
+        Q!("    subs            " "x1, x9, x2"),
+        Q!("    csetm           " "x15, cc"),
+        Q!("    cneg            " "x1, x1, cc"),
+        Q!("    stp             " "x11, x14, [sp, #224]"),
+        Q!("    mul             " "x14, x9, x6"),
+        Q!("    adds            " "x17, x8, x17"),
+        Q!("    adcs            " "x7, x16, x7"),
+        Q!("    adc             " "x13, x12, xzr"),
+        Q!("    subs            " "x12, x5, x6"),
+        Q!("    cneg            " "x3, x12, cc"),
+        Q!("    cinv            " "x16, x15, cc"),
+        Q!("    mul             " "x8, x1, x3"),
+        Q!("    umulh           " "x1, x1, x3"),
+        Q!("    eor             " "x12, x8, x16"),
+        Q!("    adds            " "x11, x17, x14"),
+        Q!("    adcs            " "x3, x7, x17"),
+        Q!("    adcs            " "x15, x13, x7"),
+        Q!("    adc             " "x8, x13, xzr"),
+        Q!("    adds            " "x3, x3, x14"),
+        Q!("    adcs            " "x15, x15, x17"),
+        Q!("    adcs            " "x17, x8, x7"),
+        Q!("    eor             " "x1, x1, x16"),
+        Q!("    adc             " "x13, x13, xzr"),
+        Q!("    subs            " "x9, x9, x4"),
+        Q!("    csetm           " "x8, cc"),
+        Q!("    cneg            " "x9, x9, cc"),
+        Q!("    subs            " "x4, x2, x4"),
+        Q!("    cneg            " "x4, x4, cc"),
+        Q!("    csetm           " "x7, cc"),
+        Q!("    subs            " "x2, x10, x6"),
+        Q!("    cinv            " "x8, x8, cc"),
+        Q!("    cneg            " "x2, x2, cc"),
+        Q!("    cmn             " "x16, #0x1"),
+        Q!("    adcs            " "x11, x11, x12"),
+        Q!("    mul             " "x12, x9, x2"),
+        Q!("    adcs            " "x3, x3, x1"),
+        Q!("    adcs            " "x15, x15, x16"),
+        Q!("    umulh           " "x9, x9, x2"),
+        Q!("    adcs            " "x17, x17, x16"),
+        Q!("    adc             " "x13, x13, x16"),
+        Q!("    subs            " "x1, x10, x5"),
+        Q!("    cinv            " "x2, x7, cc"),
+        Q!("    cneg            " "x1, x1, cc"),
+        Q!("    eor             " "x9, x9, x8"),
+        Q!("    cmn             " "x8, #0x1"),
+        Q!("    eor             " "x7, x12, x8"),
+        Q!("    mul             " "x12, x4, x1"),
+        Q!("    adcs            " "x3, x3, x7"),
+        Q!("    adcs            " "x7, x15, x9"),
+        Q!("    adcs            " "x15, x17, x8"),
+        Q!("    umulh           " "x4, x4, x1"),
+        Q!("    adc             " "x8, x13, x8"),
+        Q!("    cmn             " "x2, #0x1"),
+        Q!("    eor             " "x1, x12, x2"),
+        Q!("    adcs            " "x1, x7, x1"),
+        Q!("    ldp             " "x7, x16, [sp, #192]"),
+        Q!("    eor             " "x12, x4, x2"),
+        Q!("    adcs            " "x4, x15, x12"),
+        Q!("    ldp             " "x15, x12, [sp, #224]"),
+        Q!("    adc             " "x8, x8, x2"),
+        Q!("    adds            " "x13, x14, x14"),
+        Q!("    umulh           " "x14, x5, x10"),
+        Q!("    adcs            " "x2, x11, x11"),
+        Q!("    adcs            " "x3, x3, x3"),
+        Q!("    adcs            " "x1, x1, x1"),
+        Q!("    adcs            " "x4, x4, x4"),
+        Q!("    adcs            " "x11, x8, x8"),
+        Q!("    adc             " "x8, xzr, xzr"),
+        Q!("    adds            " "x13, x13, x7"),
+        Q!("    adcs            " "x2, x2, x16"),
+        Q!("    mul             " "x16, x5, x10"),
+        Q!("    adcs            " "x3, x3, x19"),
+        Q!("    adcs            " "x1, x1, x20"),
+        Q!("    umulh           " "x5, x5, x5"),
+        Q!("    lsl             " "x9, x13, #32"),
+        Q!("    add             " "x9, x9, x13"),
+        Q!("    adcs            " "x4, x4, x15"),
+        Q!("    mov             " "x13, v28.d[1]"),
+        Q!("    adcs            " "x15, x11, x12"),
+        Q!("    lsr             " "x7, x9, #32"),
+        Q!("    adc             " "x11, x8, xzr"),
+        Q!("    subs            " "x7, x7, x9"),
+        Q!("    umulh           " "x10, x10, x10"),
+        Q!("    sbc             " "x17, x9, xzr"),
+        Q!("    extr            " "x7, x17, x7, #32"),
+        Q!("    lsr             " "x17, x17, #32"),
+        Q!("    adds            " "x17, x17, x9"),
+        Q!("    adc             " "x12, xzr, xzr"),
+        Q!("    subs            " "x8, x2, x7"),
+        Q!("    sbcs            " "x17, x3, x17"),
+        Q!("    lsl             " "x7, x8, #32"),
+        Q!("    sbcs            " "x2, x1, x12"),
+        Q!("    add             " "x3, x7, x8"),
+        Q!("    sbcs            " "x12, x4, xzr"),
+        Q!("    lsr             " "x1, x3, #32"),
+        Q!("    sbcs            " "x7, x15, xzr"),
+        Q!("    sbc             " "x15, x9, xzr"),
+        Q!("    subs            " "x1, x1, x3"),
+        Q!("    sbc             " "x4, x3, xzr"),
+        Q!("    lsr             " "x9, x4, #32"),
+        Q!("    extr            " "x8, x4, x1, #32"),
+        Q!("    adds            " "x9, x9, x3"),
+        Q!("    adc             " "x4, xzr, xzr"),
+        Q!("    subs            " "x1, x17, x8"),
+        Q!("    lsl             " "x17, x1, #32"),
+        Q!("    sbcs            " "x8, x2, x9"),
+        Q!("    sbcs            " "x9, x12, x4"),
+        Q!("    add             " "x17, x17, x1"),
+        Q!("    mov             " "x1, v18.d[1]"),
+        Q!("    lsr             " "x2, x17, #32"),
+        Q!("    sbcs            " "x7, x7, xzr"),
+        Q!("    mov             " "x12, v18.d[0]"),
+        Q!("    sbcs            " "x15, x15, xzr"),
+        Q!("    sbc             " "x3, x3, xzr"),
+        Q!("    subs            " "x4, x2, x17"),
+        Q!("    sbc             " "x2, x17, xzr"),
+        Q!("    adds            " "x12, x13, x12"),
+        Q!("    adcs            " "x16, x16, x1"),
+        Q!("    lsr             " "x13, x2, #32"),
+        Q!("    extr            " "x1, x2, x4, #32"),
+        Q!("    adc             " "x2, x14, xzr"),
+        Q!("    adds            " "x4, x13, x17"),
+        Q!("    mul             " "x13, x6, x6"),
+        Q!("    adc             " "x14, xzr, xzr"),
+        Q!("    subs            " "x1, x8, x1"),
+        Q!("    sbcs            " "x4, x9, x4"),
+        Q!("    mov             " "x9, v28.d[0]"),
+        Q!("    sbcs            " "x7, x7, x14"),
+        Q!("    sbcs            " "x8, x15, xzr"),
+        Q!("    sbcs            " "x3, x3, xzr"),
+        Q!("    sbc             " "x14, x17, xzr"),
+        Q!("    adds            " "x17, x9, x9"),
+        Q!("    adcs            " "x12, x12, x12"),
+        Q!("    mov             " "x15, v19.d[0]"),
+        Q!("    adcs            " "x9, x16, x16"),
+        Q!("    umulh           " "x6, x6, x6"),
+        Q!("    adcs            " "x16, x2, x2"),
+        Q!("    adc             " "x2, xzr, xzr"),
+        Q!("    adds            " "x11, x11, x8"),
+        Q!("    adcs            " "x3, x3, xzr"),
+        Q!("    adcs            " "x14, x14, xzr"),
+        Q!("    adcs            " "x8, xzr, xzr"),
+        Q!("    adds            " "x13, x1, x13"),
+        Q!("    mov             " "x1, v19.d[1]"),
+        Q!("    adcs            " "x6, x4, x6"),
+        Q!("    mov             " "x4, #0xffffffff"),
+        Q!("    adcs            " "x15, x7, x15"),
+        Q!("    adcs            " "x7, x11, x5"),
+        Q!("    adcs            " "x1, x3, x1"),
+        Q!("    adcs            " "x14, x14, x10"),
+        Q!("    adc             " "x11, x8, xzr"),
+        Q!("    adds            " "x6, x6, x17"),
+        Q!("    adcs            " "x8, x15, x12"),
+        Q!("    adcs            " "x3, x7, x9"),
+        Q!("    adcs            " "x15, x1, x16"),
+        Q!("    mov             " "x16, #0xffffffff00000001"),
+        Q!("    adcs            " "x14, x14, x2"),
+        Q!("    mov             " "x2, #0x1"),
+        Q!("    adc             " "x17, x11, xzr"),
+        Q!("    cmn             " "x13, x16"),
+        Q!("    adcs            " "xzr, x6, x4"),
+        Q!("    adcs            " "xzr, x8, x2"),
+        Q!("    adcs            " "xzr, x3, xzr"),
+        Q!("    adcs            " "xzr, x15, xzr"),
+        Q!("    adcs            " "xzr, x14, xzr"),
+        Q!("    adc             " "x1, x17, xzr"),
+        Q!("    neg             " "x9, x1"),
+        Q!("    and             " "x1, x16, x9"),
+        Q!("    adds            " "x11, x13, x1"),
+        Q!("    and             " "x13, x4, x9"),
+        Q!("    adcs            " "x5, x6, x13"),
+        Q!("    and             " "x1, x2, x9"),
+        Q!("    adcs            " "x7, x8, x1"),
+        Q!("    stp             " "x11, x5, [sp, #192]"),
+        Q!("    adcs            " "x11, x3, xzr"),
+        Q!("    adcs            " "x2, x15, xzr"),
+        Q!("    stp             " "x7, x11, [sp, #208]"),
+        Q!("    adc             " "x17, x14, xzr"),
+        Q!("    stp             " "x2, x17, [sp, #224]"),
+        Q!("    ldp             " "x5, x6, [sp, #240]"),
+        Q!("    ldp             " "x4, x3, [sp, #48]"),
+        Q!("    subs            " "x5, x5, x4"),
+        Q!("    sbcs            " "x6, x6, x3"),
+        Q!("    ldp             " "x7, x8, [sp, #256]"),
+        Q!("    ldp             " "x4, x3, [sp, #64]"),
+        Q!("    sbcs            " "x7, x7, x4"),
+        Q!("    sbcs            " "x8, x8, x3"),
+        Q!("    ldp             " "x9, x10, [sp, #272]"),
+        Q!("    ldp             " "x4, x3, [sp, #80]"),
+        Q!("    sbcs            " "x9, x9, x4"),
+        Q!("    sbcs            " "x10, x10, x3"),
+        Q!("    csetm           " "x3, cc"),
+        Q!("    mov             " "x4, #0xffffffff"),
+        Q!("    and             " "x4, x4, x3"),
+        Q!("    adds            " "x5, x5, x4"),
+        Q!("    eor             " "x4, x4, x3"),
+        Q!("    adcs            " "x6, x6, x4"),
+        Q!("    mov             " "x4, #0xfffffffffffffffe"),
+        Q!("    and             " "x4, x4, x3"),
+        Q!("    adcs            " "x7, x7, x4"),
+        Q!("    adcs            " "x8, x8, x3"),
+        Q!("    adcs            " "x9, x9, x3"),
+        Q!("    adc             " "x10, x10, x3"),
+        Q!("    stp             " "x5, x6, [x25, #96]"),
+        Q!("    stp             " "x7, x8, [x25, #112]"),
+        Q!("    stp             " "x9, x10, [x25, #128]"),
+        Q!("    ldr             " "q3, [sp, #288]"),
+        Q!("    ldr             " "q25, [sp, #96]"),
+        Q!("    ldp             " "x13, x23, [sp, #96]"),
+        Q!("    ldp             " "x3, x21, [sp, #288]"),
+        Q!("    rev64           " "v23.4s, v25.4s"),
+        Q!("    uzp1            " "v17.4s, v25.4s, v3.4s"),
+        Q!("    umulh           " "x15, x3, x13"),
+        Q!("    mul             " "v6.4s, v23.4s, v3.4s"),
+        Q!("    uzp1            " "v3.4s, v3.4s, v3.4s"),
+        Q!("    ldr             " "q27, [sp, #128]"),
+        Q!("    ldp             " "x8, x24, [sp, #304]"),
+        Q!("    subs            " "x6, x3, x21"),
+        Q!("    ldr             " "q0, [sp, #320]"),
+        Q!("    movi            " "v23.2d, #0xffffffff"),
+        Q!("    csetm           " "x10, cc"),
+        Q!("    umulh           " "x19, x21, x23"),
+        Q!("    rev64           " "v4.4s, v27.4s"),
+        Q!("    uzp2            " "v25.4s, v27.4s, v27.4s"),
+        Q!("    cneg            " "x4, x6, cc"),
+        Q!("    subs            " "x7, x23, x13"),
+        Q!("    xtn             " "v22.2s, v0.2d"),
+        Q!("    xtn             " "v24.2s, v27.2d"),
+        Q!("    cneg            " "x20, x7, cc"),
+        Q!("    ldp             " "x6, x14, [sp, #112]"),
+        Q!("    mul             " "v27.4s, v4.4s, v0.4s"),
+        Q!("    uaddlp          " "v20.2d, v6.4s"),
+        Q!("    cinv            " "x5, x10, cc"),
+        Q!("    mul             " "x16, x4, x20"),
+        Q!("    uzp2            " "v6.4s, v0.4s, v0.4s"),
+        Q!("    umull           " "v21.2d, v22.2s, v25.2s"),
+        Q!("    shl             " "v0.2d, v20.2d, #32"),
+        Q!("    umlal           " "v0.2d, v3.2s, v17.2s"),
+        Q!("    mul             " "x22, x8, x6"),
+        Q!("    umull           " "v1.2d, v6.2s, v25.2s"),
+        Q!("    subs            " "x12, x3, x8"),
+        Q!("    umull           " "v20.2d, v22.2s, v24.2s"),
+        Q!("    cneg            " "x17, x12, cc"),
+        Q!("    umulh           " "x9, x8, x6"),
+        Q!("    mov             " "x12, v0.d[1]"),
+        Q!("    eor             " "x11, x16, x5"),
+        Q!("    mov             " "x7, v0.d[0]"),
+        Q!("    csetm           " "x10, cc"),
+        Q!("    usra            " "v21.2d, v20.2d, #32"),
+        Q!("    adds            " "x15, x15, x12"),
+        Q!("    adcs            " "x12, x19, x22"),
+        Q!("    umulh           " "x20, x4, x20"),
+        Q!("    adc             " "x19, x9, xzr"),
+        Q!("    usra            " "v1.2d, v21.2d, #32"),
+        Q!("    adds            " "x22, x15, x7"),
+        Q!("    and             " "v26.16b, v21.16b, v23.16b"),
+        Q!("    adcs            " "x16, x12, x15"),
+        Q!("    uaddlp          " "v25.2d, v27.4s"),
+        Q!("    adcs            " "x9, x19, x12"),
+        Q!("    umlal           " "v26.2d, v6.2s, v24.2s"),
+        Q!("    adc             " "x4, x19, xzr"),
+        Q!("    adds            " "x16, x16, x7"),
+        Q!("    shl             " "v27.2d, v25.2d, #32"),
+        Q!("    adcs            " "x9, x9, x15"),
+        Q!("    adcs            " "x4, x4, x12"),
+        Q!("    eor             " "x12, x20, x5"),
+        Q!("    adc             " "x15, x19, xzr"),
+        Q!("    subs            " "x20, x6, x13"),
+        Q!("    cneg            " "x20, x20, cc"),
+        Q!("    cinv            " "x10, x10, cc"),
+        Q!("    cmn             " "x5, #0x1"),
+        Q!("    mul             " "x19, x17, x20"),
+        Q!("    adcs            " "x11, x22, x11"),
+        Q!("    adcs            " "x12, x16, x12"),
+        Q!("    adcs            " "x9, x9, x5"),
+        Q!("    umulh           " "x17, x17, x20"),
+        Q!("    adcs            " "x22, x4, x5"),
+        Q!("    adc             " "x5, x15, x5"),
+        Q!("    subs            " "x16, x21, x8"),
+        Q!("    cneg            " "x20, x16, cc"),
+        Q!("    eor             " "x19, x19, x10"),
+        Q!("    csetm           " "x4, cc"),
+        Q!("    subs            " "x16, x6, x23"),
+        Q!("    cneg            " "x16, x16, cc"),
+        Q!("    umlal           " "v27.2d, v22.2s, v24.2s"),
+        Q!("    mul             " "x15, x20, x16"),
+        Q!("    cinv            " "x4, x4, cc"),
+        Q!("    cmn             " "x10, #0x1"),
+        Q!("    usra            " "v1.2d, v26.2d, #32"),
+        Q!("    adcs            " "x19, x12, x19"),
+        Q!("    eor             " "x17, x17, x10"),
+        Q!("    adcs            " "x9, x9, x17"),
+        Q!("    adcs            " "x22, x22, x10"),
+        Q!("    lsl             " "x12, x7, #32"),
+        Q!("    umulh           " "x20, x20, x16"),
+        Q!("    eor             " "x16, x15, x4"),
+        Q!("    ldp             " "x15, x17, [sp, #128]"),
+        Q!("    add             " "x2, x12, x7"),
+        Q!("    adc             " "x7, x5, x10"),
+        Q!("    ldp             " "x5, x10, [sp, #320]"),
+        Q!("    lsr             " "x1, x2, #32"),
+        Q!("    eor             " "x12, x20, x4"),
+        Q!("    subs            " "x1, x1, x2"),
+        Q!("    sbc             " "x20, x2, xzr"),
+        Q!("    cmn             " "x4, #0x1"),
+        Q!("    adcs            " "x9, x9, x16"),
+        Q!("    extr            " "x1, x20, x1, #32"),
+        Q!("    lsr             " "x20, x20, #32"),
+        Q!("    adcs            " "x22, x22, x12"),
+        Q!("    adc             " "x16, x7, x4"),
+        Q!("    adds            " "x12, x20, x2"),
+        Q!("    umulh           " "x7, x24, x14"),
+        Q!("    adc             " "x4, xzr, xzr"),
+        Q!("    subs            " "x1, x11, x1"),
+        Q!("    sbcs            " "x20, x19, x12"),
+        Q!("    sbcs            " "x12, x9, x4"),
+        Q!("    lsl             " "x9, x1, #32"),
+        Q!("    add             " "x1, x9, x1"),
+        Q!("    sbcs            " "x9, x22, xzr"),
+        Q!("    mul             " "x22, x24, x14"),
+        Q!("    sbcs            " "x16, x16, xzr"),
+        Q!("    lsr             " "x4, x1, #32"),
+        Q!("    sbc             " "x19, x2, xzr"),
+        Q!("    subs            " "x4, x4, x1"),
+        Q!("    sbc             " "x11, x1, xzr"),
+        Q!("    extr            " "x2, x11, x4, #32"),
+        Q!("    lsr             " "x4, x11, #32"),
+        Q!("    adds            " "x4, x4, x1"),
+        Q!("    adc             " "x11, xzr, xzr"),
+        Q!("    subs            " "x2, x20, x2"),
+        Q!("    sbcs            " "x4, x12, x4"),
+        Q!("    sbcs            " "x20, x9, x11"),
+        Q!("    lsl             " "x12, x2, #32"),
+        Q!("    add             " "x2, x12, x2"),
+        Q!("    sbcs            " "x9, x16, xzr"),
+        Q!("    lsr             " "x11, x2, #32"),
+        Q!("    sbcs            " "x19, x19, xzr"),
+        Q!("    sbc             " "x1, x1, xzr"),
+        Q!("    subs            " "x16, x11, x2"),
+        Q!("    sbc             " "x12, x2, xzr"),
+        Q!("    extr            " "x16, x12, x16, #32"),
+        Q!("    lsr             " "x12, x12, #32"),
+        Q!("    adds            " "x11, x12, x2"),
+        Q!("    adc             " "x12, xzr, xzr"),
+        Q!("    subs            " "x26, x4, x16"),
+        Q!("    mov             " "x4, v27.d[0]"),
+        Q!("    sbcs            " "x27, x20, x11"),
+        Q!("    sbcs            " "x20, x9, x12"),
+        Q!("    sbcs            " "x11, x19, xzr"),
+        Q!("    sbcs            " "x9, x1, xzr"),
+        Q!("    stp             " "x20, x11, [sp, #256]"),
+        Q!("    mov             " "x1, v1.d[0]"),
+        Q!("    sbc             " "x20, x2, xzr"),
+        Q!("    subs            " "x12, x24, x5"),
+        Q!("    mov             " "x11, v27.d[1]"),
+        Q!("    cneg            " "x16, x12, cc"),
+        Q!("    csetm           " "x2, cc"),
+        Q!("    subs            " "x19, x15, x14"),
+        Q!("    mov             " "x12, v1.d[1]"),
+        Q!("    cinv            " "x2, x2, cc"),
+        Q!("    cneg            " "x19, x19, cc"),
+        Q!("    stp             " "x9, x20, [sp, #272]"),
+        Q!("    mul             " "x9, x16, x19"),
+        Q!("    adds            " "x4, x7, x4"),
+        Q!("    adcs            " "x11, x1, x11"),
+        Q!("    adc             " "x1, x12, xzr"),
+        Q!("    adds            " "x20, x4, x22"),
+        Q!("    umulh           " "x19, x16, x19"),
+        Q!("    adcs            " "x7, x11, x4"),
+        Q!("    eor             " "x16, x9, x2"),
+        Q!("    adcs            " "x9, x1, x11"),
+        Q!("    adc             " "x12, x1, xzr"),
+        Q!("    adds            " "x7, x7, x22"),
+        Q!("    adcs            " "x4, x9, x4"),
+        Q!("    adcs            " "x9, x12, x11"),
+        Q!("    adc             " "x12, x1, xzr"),
+        Q!("    cmn             " "x2, #0x1"),
+        Q!("    eor             " "x1, x19, x2"),
+        Q!("    adcs            " "x11, x20, x16"),
+        Q!("    adcs            " "x19, x7, x1"),
+        Q!("    adcs            " "x1, x4, x2"),
+        Q!("    adcs            " "x20, x9, x2"),
+        Q!("    adc             " "x2, x12, x2"),
+        Q!("    subs            " "x12, x24, x10"),
+        Q!("    cneg            " "x16, x12, cc"),
+        Q!("    csetm           " "x12, cc"),
+        Q!("    subs            " "x9, x17, x14"),
+        Q!("    cinv            " "x12, x12, cc"),
+        Q!("    cneg            " "x9, x9, cc"),
+        Q!("    subs            " "x3, x24, x3"),
+        Q!("    sbcs            " "x21, x5, x21"),
+        Q!("    mul             " "x24, x16, x9"),
+        Q!("    sbcs            " "x4, x10, x8"),
+        Q!("    ngc             " "x8, xzr"),
+        Q!("    subs            " "x10, x5, x10"),
+        Q!("    eor             " "x5, x24, x12"),
+        Q!("    csetm           " "x7, cc"),
+        Q!("    cneg            " "x24, x10, cc"),
+        Q!("    subs            " "x10, x17, x15"),
+        Q!("    cinv            " "x7, x7, cc"),
+        Q!("    cneg            " "x10, x10, cc"),
+        Q!("    subs            " "x14, x13, x14"),
+        Q!("    sbcs            " "x15, x23, x15"),
+        Q!("    eor             " "x13, x21, x8"),
+        Q!("    mul             " "x23, x24, x10"),
+        Q!("    sbcs            " "x17, x6, x17"),
+        Q!("    eor             " "x6, x3, x8"),
+        Q!("    ngc             " "x21, xzr"),
+        Q!("    umulh           " "x9, x16, x9"),
+        Q!("    cmn             " "x8, #0x1"),
+        Q!("    eor             " "x3, x23, x7"),
+        Q!("    adcs            " "x23, x6, xzr"),
+        Q!("    adcs            " "x13, x13, xzr"),
+        Q!("    eor             " "x16, x4, x8"),
+        Q!("    adc             " "x16, x16, xzr"),
+        Q!("    eor             " "x4, x17, x21"),
+        Q!("    umulh           " "x17, x24, x10"),
+        Q!("    cmn             " "x21, #0x1"),
+        Q!("    eor             " "x24, x14, x21"),
+        Q!("    eor             " "x6, x15, x21"),
+        Q!("    adcs            " "x15, x24, xzr"),
+        Q!("    adcs            " "x14, x6, xzr"),
+        Q!("    adc             " "x6, x4, xzr"),
+        Q!("    cmn             " "x12, #0x1"),
+        Q!("    eor             " "x4, x9, x12"),
+        Q!("    adcs            " "x19, x19, x5"),
+        Q!("    umulh           " "x5, x23, x15"),
+        Q!("    adcs            " "x1, x1, x4"),
+        Q!("    adcs            " "x10, x20, x12"),
+        Q!("    eor             " "x4, x17, x7"),
+        Q!("    adc             " "x2, x2, x12"),
+        Q!("    cmn             " "x7, #0x1"),
+        Q!("    adcs            " "x12, x1, x3"),
+        Q!("    ldp             " "x17, x24, [sp, #256]"),
+        Q!("    mul             " "x1, x16, x6"),
+        Q!("    adcs            " "x3, x10, x4"),
+        Q!("    adc             " "x2, x2, x7"),
+        Q!("    ldp             " "x7, x4, [sp, #272]"),
+        Q!("    adds            " "x20, x22, x26"),
+        Q!("    mul             " "x10, x13, x14"),
+        Q!("    adcs            " "x11, x11, x27"),
+        Q!("    eor             " "x9, x8, x21"),
+        Q!("    adcs            " "x26, x19, x17"),
+        Q!("    stp             " "x20, x11, [sp, #240]"),
+        Q!("    adcs            " "x27, x12, x24"),
+        Q!("    mul             " "x8, x23, x15"),
+        Q!("    adcs            " "x3, x3, x7"),
+        Q!("    adcs            " "x12, x2, x4"),
+        Q!("    adc             " "x19, xzr, xzr"),
+        Q!("    subs            " "x21, x23, x16"),
+        Q!("    umulh           " "x2, x16, x6"),
+        Q!("    stp             " "x3, x12, [sp, #272]"),
+        Q!("    cneg            " "x3, x21, cc"),
+        Q!("    csetm           " "x24, cc"),
+        Q!("    umulh           " "x11, x13, x14"),
+        Q!("    subs            " "x21, x13, x16"),
+        Q!("    eor             " "x7, x8, x9"),
+        Q!("    cneg            " "x17, x21, cc"),
+        Q!("    csetm           " "x16, cc"),
+        Q!("    subs            " "x21, x6, x15"),
+        Q!("    cneg            " "x22, x21, cc"),
+        Q!("    cinv            " "x21, x24, cc"),
+        Q!("    subs            " "x20, x23, x13"),
+        Q!("    umulh           " "x12, x3, x22"),
+        Q!("    cneg            " "x23, x20, cc"),
+        Q!("    csetm           " "x24, cc"),
+        Q!("    subs            " "x20, x14, x15"),
+        Q!("    cinv            " "x24, x24, cc"),
+        Q!("    mul             " "x22, x3, x22"),
+        Q!("    cneg            " "x3, x20, cc"),
+        Q!("    subs            " "x13, x6, x14"),
+        Q!("    cneg            " "x20, x13, cc"),
+        Q!("    cinv            " "x15, x16, cc"),
+        Q!("    adds            " "x13, x5, x10"),
+        Q!("    mul             " "x4, x23, x3"),
+        Q!("    adcs            " "x11, x11, x1"),
+        Q!("    adc             " "x14, x2, xzr"),
+        Q!("    adds            " "x5, x13, x8"),
+        Q!("    adcs            " "x16, x11, x13"),
+        Q!("    umulh           " "x23, x23, x3"),
+        Q!("    adcs            " "x3, x14, x11"),
+        Q!("    adc             " "x1, x14, xzr"),
+        Q!("    adds            " "x10, x16, x8"),
+        Q!("    adcs            " "x6, x3, x13"),
+        Q!("    adcs            " "x8, x1, x11"),
+        Q!("    umulh           " "x13, x17, x20"),
+        Q!("    eor             " "x1, x4, x24"),
+        Q!("    adc             " "x4, x14, xzr"),
+        Q!("    cmn             " "x24, #0x1"),
+        Q!("    adcs            " "x1, x5, x1"),
+        Q!("    eor             " "x16, x23, x24"),
+        Q!("    eor             " "x11, x1, x9"),
+        Q!("    adcs            " "x23, x10, x16"),
+        Q!("    eor             " "x2, x22, x21"),
+        Q!("    adcs            " "x3, x6, x24"),
+        Q!("    mul             " "x14, x17, x20"),
+        Q!("    eor             " "x17, x13, x15"),
+        Q!("    adcs            " "x13, x8, x24"),
+        Q!("    adc             " "x8, x4, x24"),
+        Q!("    cmn             " "x21, #0x1"),
+        Q!("    adcs            " "x6, x23, x2"),
+        Q!("    mov             " "x16, #0xfffffffffffffffe"),
+        Q!("    eor             " "x20, x12, x21"),
+        Q!("    adcs            " "x20, x3, x20"),
+        Q!("    eor             " "x23, x14, x15"),
+        Q!("    adcs            " "x2, x13, x21"),
+        Q!("    adc             " "x8, x8, x21"),
+        Q!("    cmn             " "x15, #0x1"),
+        Q!("    ldp             " "x5, x4, [sp, #240]"),
+        Q!("    adcs            " "x22, x20, x23"),
+        Q!("    eor             " "x23, x22, x9"),
+        Q!("    adcs            " "x17, x2, x17"),
+        Q!("    adc             " "x22, x8, x15"),
+        Q!("    cmn             " "x9, #0x1"),
+        Q!("    adcs            " "x15, x7, x5"),
+        Q!("    ldp             " "x10, x14, [sp, #272]"),
+        Q!("    eor             " "x1, x6, x9"),
+        Q!("    lsl             " "x2, x15, #32"),
+        Q!("    adcs            " "x8, x11, x4"),
+        Q!("    adcs            " "x13, x1, x26"),
+        Q!("    eor             " "x1, x22, x9"),
+        Q!("    adcs            " "x24, x23, x27"),
+        Q!("    eor             " "x11, x17, x9"),
+        Q!("    adcs            " "x23, x11, x10"),
+        Q!("    adcs            " "x7, x1, x14"),
+        Q!("    adcs            " "x17, x9, x19"),
+        Q!("    adcs            " "x20, x9, xzr"),
+        Q!("    add             " "x1, x2, x15"),
+        Q!("    lsr             " "x3, x1, #32"),
+        Q!("    adcs            " "x11, x9, xzr"),
+        Q!("    adc             " "x9, x9, xzr"),
+        Q!("    subs            " "x3, x3, x1"),
+        Q!("    sbc             " "x6, x1, xzr"),
+        Q!("    adds            " "x24, x24, x5"),
+        Q!("    adcs            " "x4, x23, x4"),
+        Q!("    extr            " "x3, x6, x3, #32"),
+        Q!("    lsr             " "x6, x6, #32"),
+        Q!("    adcs            " "x21, x7, x26"),
+        Q!("    adcs            " "x15, x17, x27"),
+        Q!("    adcs            " "x7, x20, x10"),
+        Q!("    adcs            " "x20, x11, x14"),
+        Q!("    mov             " "x14, #0xffffffff"),
+        Q!("    adc             " "x22, x9, x19"),
+        Q!("    adds            " "x12, x6, x1"),
+        Q!("    adc             " "x10, xzr, xzr"),
+        Q!("    subs            " "x3, x8, x3"),
+        Q!("    sbcs            " "x12, x13, x12"),
+        Q!("    lsl             " "x9, x3, #32"),
+        Q!("    add             " "x3, x9, x3"),
+        Q!("    sbcs            " "x10, x24, x10"),
+        Q!("    sbcs            " "x24, x4, xzr"),
+        Q!("    lsr             " "x9, x3, #32"),
+        Q!("    sbcs            " "x21, x21, xzr"),
+        Q!("    sbc             " "x1, x1, xzr"),
+        Q!("    subs            " "x9, x9, x3"),
+        Q!("    sbc             " "x13, x3, xzr"),
+        Q!("    extr            " "x9, x13, x9, #32"),
+        Q!("    lsr             " "x13, x13, #32"),
+        Q!("    adds            " "x13, x13, x3"),
+        Q!("    adc             " "x6, xzr, xzr"),
+        Q!("    subs            " "x12, x12, x9"),
+        Q!("    sbcs            " "x17, x10, x13"),
+        Q!("    lsl             " "x2, x12, #32"),
+        Q!("    sbcs            " "x10, x24, x6"),
+        Q!("    add             " "x9, x2, x12"),
+        Q!("    sbcs            " "x6, x21, xzr"),
+        Q!("    lsr             " "x5, x9, #32"),
+        Q!("    sbcs            " "x21, x1, xzr"),
+        Q!("    sbc             " "x13, x3, xzr"),
+        Q!("    subs            " "x8, x5, x9"),
+        Q!("    sbc             " "x19, x9, xzr"),
+        Q!("    lsr             " "x12, x19, #32"),
+        Q!("    extr            " "x3, x19, x8, #32"),
+        Q!("    adds            " "x8, x12, x9"),
+        Q!("    adc             " "x1, xzr, xzr"),
+        Q!("    subs            " "x2, x17, x3"),
+        Q!("    sbcs            " "x12, x10, x8"),
+        Q!("    sbcs            " "x5, x6, x1"),
+        Q!("    sbcs            " "x3, x21, xzr"),
+        Q!("    sbcs            " "x19, x13, xzr"),
+        Q!("    sbc             " "x24, x9, xzr"),
+        Q!("    adds            " "x23, x15, x3"),
+        Q!("    adcs            " "x8, x7, x19"),
+        Q!("    adcs            " "x11, x20, x24"),
+        Q!("    adc             " "x9, x22, xzr"),
+        Q!("    add             " "x24, x9, #0x1"),
+        Q!("    lsl             " "x7, x24, #32"),
+        Q!("    subs            " "x21, x24, x7"),
+        Q!("    sbc             " "x10, x7, xzr"),
+        Q!("    adds            " "x6, x2, x21"),
+        Q!("    adcs            " "x7, x12, x10"),
+        Q!("    adcs            " "x24, x5, x24"),
+        Q!("    adcs            " "x13, x23, xzr"),
+        Q!("    adcs            " "x8, x8, xzr"),
+        Q!("    adcs            " "x15, x11, xzr"),
+        Q!("    csetm           " "x23, cc"),
+        Q!("    and             " "x11, x16, x23"),
+        Q!("    and             " "x20, x14, x23"),
+        Q!("    adds            " "x22, x6, x20"),
+        Q!("    eor             " "x3, x20, x23"),
+        Q!("    adcs            " "x5, x7, x3"),
+        Q!("    adcs            " "x14, x24, x11"),
+        Q!("    stp             " "x22, x5, [sp, #240]"),
+        Q!("    adcs            " "x5, x13, x23"),
+        Q!("    adcs            " "x12, x8, x23"),
+        Q!("    stp             " "x14, x5, [sp, #256]"),
+        Q!("    adc             " "x19, x15, x23"),
+        Q!("    ldp             " "x1, x2, [sp, #144]"),
+        Q!("    ldp             " "x3, x4, [sp, #160]"),
+        Q!("    ldp             " "x5, x6, [sp, #176]"),
+        Q!("    lsl             " "x0, x1, #2"),
+        Q!("    ldp             " "x7, x8, [sp, #288]"),
+        Q!("    subs            " "x0, x0, x7"),
+        Q!("    extr            " "x1, x2, x1, #62"),
+        Q!("    sbcs            " "x1, x1, x8"),
+        Q!("    ldp             " "x7, x8, [sp, #304]"),
+        Q!("    extr            " "x2, x3, x2, #62"),
+        Q!("    sbcs            " "x2, x2, x7"),
+        Q!("    extr            " "x3, x4, x3, #62"),
+        Q!("    sbcs            " "x3, x3, x8"),
+        Q!("    extr            " "x4, x5, x4, #62"),
+        Q!("    ldp             " "x7, x8, [sp, #320]"),
+        Q!("    sbcs            " "x4, x4, x7"),
+        Q!("    extr            " "x5, x6, x5, #62"),
+        Q!("    sbcs            " "x5, x5, x8"),
+        Q!("    lsr             " "x6, x6, #62"),
+        Q!("    adc             " "x6, x6, xzr"),
+        Q!("    lsl             " "x7, x6, #32"),
+        Q!("    subs            " "x8, x6, x7"),
+        Q!("    sbc             " "x7, x7, xzr"),
+        Q!("    adds            " "x0, x0, x8"),
+        Q!("    adcs            " "x1, x1, x7"),
+        Q!("    adcs            " "x2, x2, x6"),
+        Q!("    adcs            " "x3, x3, xzr"),
+        Q!("    adcs            " "x4, x4, xzr"),
+        Q!("    adcs            " "x5, x5, xzr"),
+        Q!("    csetm           " "x8, cc"),
+        Q!("    mov             " "x9, #0xffffffff"),
+        Q!("    and             " "x9, x9, x8"),
+        Q!("    adds            " "x0, x0, x9"),
+        Q!("    eor             " "x9, x9, x8"),
+        Q!("    adcs            " "x1, x1, x9"),
+        Q!("    mov             " "x9, #0xfffffffffffffffe"),
+        Q!("    and             " "x9, x9, x8"),
+        Q!("    adcs            " "x2, x2, x9"),
+        Q!("    adcs            " "x3, x3, x8"),
+        Q!("    adcs            " "x4, x4, x8"),
+        Q!("    adc             " "x5, x5, x8"),
+        Q!("    stp             " "x0, x1, [x25]"),
+        Q!("    stp             " "x2, x3, [x25, #16]"),
+        Q!("    stp             " "x4, x5, [x25, #32]"),
+        Q!("    ldp             " "x0, x1, [sp, #192]"),
+        Q!("    mov             " "x6, #0xffffffff"),
+        Q!("    subs            " "x6, x6, x0"),
+        Q!("    mov             " "x7, #0xffffffff00000000"),
+        Q!("    sbcs            " "x7, x7, x1"),
+        Q!("    ldp             " "x0, x1, [sp, #208]"),
+        Q!("    mov             " "x8, #0xfffffffffffffffe"),
+        Q!("    sbcs            " "x8, x8, x0"),
+        Q!("    mov             " "x13, #0xffffffffffffffff"),
+        Q!("    sbcs            " "x9, x13, x1"),
+        Q!("    ldp             " "x0, x1, [sp, #224]"),
+        Q!("    sbcs            " "x10, x13, x0"),
+        Q!("    sbc             " "x11, x13, x1"),
+        Q!("    lsl             " "x0, x6, #3"),
+        Q!("    extr            " "x1, x7, x6, #61"),
+        Q!("    extr            " "x2, x8, x7, #61"),
+        Q!("    extr            " "x3, x9, x8, #61"),
+        Q!("    extr            " "x4, x10, x9, #61"),
+        Q!("    extr            " "x5, x11, x10, #61"),
+        Q!("    lsr             " "x6, x11, #61"),
+        Q!("    add             " "x6, x6, #0x1"),
+        Q!("    ldp             " "x8, x9, [sp, #240]"),
+        Q!("    ldp             " "x10, x11, [sp, #256]"),
+        Q!("    mov             " "x14, #0x3"),
+        Q!("    mul             " "x15, x14, x8"),
+        Q!("    umulh           " "x8, x14, x8"),
+        Q!("    adds            " "x0, x0, x15"),
+        Q!("    mul             " "x15, x14, x9"),
+        Q!("    umulh           " "x9, x14, x9"),
+        Q!("    adcs            " "x1, x1, x15"),
+        Q!("    mul             " "x15, x14, x10"),
+        Q!("    umulh           " "x10, x14, x10"),
+        Q!("    adcs            " "x2, x2, x15"),
+        Q!("    mul             " "x15, x14, x11"),
+        Q!("    umulh           " "x11, x14, x11"),
+        Q!("    adcs            " "x3, x3, x15"),
+        Q!("    mul             " "x15, x14, x12"),
+        Q!("    umulh           " "x12, x14, x12"),
+        Q!("    adcs            " "x4, x4, x15"),
+        Q!("    mul             " "x15, x14, x19"),
+        Q!("    umulh           " "x13, x14, x19"),
+        Q!("    adcs            " "x5, x5, x15"),
+        Q!("    adc             " "x6, x6, xzr"),
+        Q!("    adds            " "x1, x1, x8"),
+        Q!("    adcs            " "x2, x2, x9"),
+        Q!("    adcs            " "x3, x3, x10"),
+        Q!("    adcs            " "x4, x4, x11"),
+        Q!("    adcs            " "x5, x5, x12"),
+        Q!("    adcs            " "x6, x6, x13"),
+        Q!("    lsl             " "x7, x6, #32"),
+        Q!("    subs            " "x8, x6, x7"),
+        Q!("    sbc             " "x7, x7, xzr"),
+        Q!("    adds            " "x0, x0, x8"),
+        Q!("    adcs            " "x1, x1, x7"),
+        Q!("    adcs            " "x2, x2, x6"),
+        Q!("    adcs            " "x3, x3, xzr"),
+        Q!("    adcs            " "x4, x4, xzr"),
+        Q!("    adcs            " "x5, x5, xzr"),
+        Q!("    csetm           " "x6, cc"),
+        Q!("    mov             " "x7, #0xffffffff"),
+        Q!("    and             " "x7, x7, x6"),
+        Q!("    adds            " "x0, x0, x7"),
+        Q!("    eor             " "x7, x7, x6"),
+        Q!("    adcs            " "x1, x1, x7"),
+        Q!("    mov             " "x7, #0xfffffffffffffffe"),
+        Q!("    and             " "x7, x7, x6"),
+        Q!("    adcs            " "x2, x2, x7"),
+        Q!("    adcs            " "x3, x3, x6"),
+        Q!("    adcs            " "x4, x4, x6"),
+        Q!("    adc             " "x5, x5, x6"),
+        Q!("    stp             " "x0, x1, [x25, #48]"),
+        Q!("    stp             " "x2, x3, [x25, #64]"),
+        Q!("    stp             " "x4, x5, [x25, #80]"),
 
         // Restore stack and registers
 
@@ -1130,10 +3142,34 @@ pub fn p384_montjdouble(p3: &mut [u64; 18], p1: &[u64; 18]) {
         Q!("    ldp             " "x21, x22, [sp, " NSPACE!() "+ 16]"),
         Q!("    ldp             " "x23, x24, [sp, " NSPACE!() "+ 32]"),
         Q!("    ldp             " "x25, x26, [sp, " NSPACE!() "+ 48]"),
-        Q!("    add             " "sp, sp, " NSPACE!() "+ 64"),
+        Q!("    ldp             " "x27, xzr, [sp, " NSPACE!() "+ 64]"),
+        Q!("    add             " "sp, sp, " NSPACE!() "+ 80"),
         inout("x0") p3.as_mut_ptr() => _,
         inout("x1") p1.as_ptr() => _,
         // clobbers
+        out("v0") _,
+        out("v1") _,
+        out("v16") _,
+        out("v17") _,
+        out("v18") _,
+        out("v19") _,
+        out("v20") _,
+        out("v21") _,
+        out("v22") _,
+        out("v23") _,
+        out("v24") _,
+        out("v25") _,
+        out("v26") _,
+        out("v27") _,
+        out("v28") _,
+        out("v29") _,
+        out("v3") _,
+        out("v30") _,
+        out("v31") _,
+        out("v4") _,
+        out("v5") _,
+        out("v6") _,
+        out("v7") _,
         out("x10") _,
         out("x11") _,
         out("x12") _,
@@ -1150,6 +3186,7 @@ pub fn p384_montjdouble(p3: &mut [u64; 18], p1: &[u64; 18]) {
         out("x24") _,
         out("x25") _,
         out("x26") _,
+        out("x27") _,
         out("x3") _,
         out("x4") _,
         out("x5") _,
