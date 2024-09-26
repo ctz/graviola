@@ -305,8 +305,8 @@ impl AffineMontPoint {
         r
     }
 
-    /// Returns table[i - 1] if index > 1, or else AffineMontPoint::default()
-    fn lookup_w7(table: &[Self; 64], index: u8) -> Self {
+    /// Returns table[(i - 1) * 8] if index > 1, or else AffineMontPoint::default()
+    fn lookup_w7(table: &[u64; 512], index: u8) -> Self {
         let zero = Self::default();
         const MASK6: u8 = (1 << 6) - 1;
         // assumption: wrapping_sub is branch-free
@@ -315,14 +315,15 @@ impl AffineMontPoint {
         Self::select(&zero, &table_point, index)
     }
 
-    /// Return points[index], but visit every item of `points` along the way
-    fn lookup(points: &[Self], index: u8) -> Self {
+    /// Return points[index * 8][..8], but visit every item of `points` along the way
+    fn lookup(points: &[u64; 512], index: u8) -> Self {
         let mut r = Self::default();
+        let stride = r.xy.len();
         low::bignum_copy_row_from_table(
             &mut r.xy[..],
-            &points[0].xy[..],
-            points.len() as u64,
-            points[0].xy.len() as u64,
+            points,
+            (points.len() / stride) as u64,
+            stride as u64,
             index as u64,
         );
         r
@@ -385,7 +386,7 @@ impl JacobianMontPoint {
         Self::multiply_wnaf_7(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_7)
     }
 
-    fn multiply_wnaf_7(scalar: &Scalar, precomp: &[[AffineMontPoint; 64]; 37]) -> Self {
+    fn multiply_wnaf_7(scalar: &Scalar, precomp: &AffineMontPointTableW7) -> Self {
         let mut terms = scalar.booth_recoded_w7();
         // unwrap: number of terms is constant
         let (digit, sign) = terms.next().unwrap();
@@ -911,6 +912,12 @@ impl Iterator for BoothRecodeW5 {
     }
 }
 
+/// 37 tables of 6 bits of exponent each.
+///
+/// 37 := ceil(256 / 7), ie taking 7 bits of exponent at a time.
+/// Each 'row' builds in 7 successive doublings.
+type AffineMontPointTableW7 = [[u64; 512]; 37];
+
 const CURVE_A_MONT: FieldElement = FieldElement([
     0xffff_ffff_ffff_fffc,
     0x0000_0003_ffff_ffff,
@@ -1099,17 +1106,15 @@ mod tests {
         let precomp = CURVE_GENERATOR.public_precomp_wnaf_7_slow();
 
         println!(
-            "pub(super) static CURVE_GENERATOR_PRECOMP_WNAF_7: [[AffineMontPoint; 64]; 37] = ["
+            "pub(super) static CURVE_GENERATOR_PRECOMP_WNAF_7: super::AffineMontPointTableW7 = ["
         );
         for w in 0..37 {
-            println!("    // 1G..64G << {}", w);
+            println!("    // 1G..64G << {}", w * 7);
             println!("    [");
             for p in 0..64 {
-                println!("        AffineMontPoint {{ xy: [");
                 for j in 0..8 {
                     println!("            0x{:016x}, ", precomp[w][p].xy[j]);
                 }
-                println!("]}},");
             }
             println!("    ],");
         }
