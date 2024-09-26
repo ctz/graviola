@@ -83,6 +83,7 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::bignum_bitsize::bignum_bitsize;
         pub(crate) use aarch64::bignum_cmp_lt::bignum_cmp_lt;
         pub(crate) use aarch64::bignum_copy_row_from_table::bignum_copy_row_from_table;
+        pub(crate) use aarch64::bignum_point_select_p256::{bignum_aff_point_select_p256, bignum_jac_point_select_p256};
         pub(crate) use aarch64::bignum_demont::bignum_demont;
         pub(crate) use aarch64::bignum_demont_p256::bignum_demont_p256;
         pub(crate) use aarch64::bignum_demont_p384::bignum_demont_p384;
