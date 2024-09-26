@@ -1,5 +1,13 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
+#![doc = include_str!("../README.md")]
+
+//! # Yo, where are the API docs?
+//! At the moment, this crate doesn't have a public API.
+//! It is coming soon.
+//!
+//! The cryptography here is available for use with rustls
+//! via [rustls-graviola](https://crates.io/crates/rustls-graviola).
 
 #![allow(
     clippy::new_without_default,

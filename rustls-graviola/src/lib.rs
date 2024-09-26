@@ -1,12 +1,17 @@
-//! This crate provides an integration between rustls and Graviola.
+//! <h1 align="center">Graviola</h1>
+//! <img width="40%" align="right" src="https://raw.githubusercontent.com/ctz/graviola/main/admin/picture.png">
+//!
+//! This crate provides an integration between rustls and [Graviola](https://github.com/ctz/graviola/).
 //!
 //! Use it like:
 //!
 //! ```rust
 //! rustls_graviola::default_provider()
 //!     .install_default()
-//!     .expect("default provider was already installed");
+//!     .unwrap();
 //! ```
+//!
+//! And then use [rustls](https://docs.rs/rustls/latest/rustls/) as normal.
 
 use rustls::crypto::CryptoProvider;
 

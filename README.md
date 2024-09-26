@@ -11,7 +11,7 @@ to be memory safe, free of side channels (at the architectural level),
 and to correctly implement the desired mathematical operation.
 
 *Fast*: Graviola beats or is competitive with other cryptography
-libraries for Rust.  See [performance](#performance).
+libraries for Rust.  See [performance comparison][performance].
 
 *Easy and fast to build*: no C compiler, assembler or other tooling
 needed: just the Rust compiler.  Compiles in less than one second.
@@ -51,6 +51,7 @@ We are grateful to:
 [s2n-bignum]: https://github.com/awslabs/s2n-bignum
 [wycheproof]: https://github.com/C2SP/wycheproof
 [SLOTHY]: https://github.com/slothy-optimizer/slothy
+[performance]: https://jbp.io/graviola/
 
 ## Algorithms
 
@@ -130,9 +131,6 @@ interleaved; this is future work.)  On aarch64 we have a by-1 AES-CTR
 and by-8 GHASH (also not interleaved, and I found a by-8 AES-CTR
 kept spilling registers and was slower.)
 
-## Performance
-
-See: https://jbp.io/graviola/
 
 ## Architecture
 
