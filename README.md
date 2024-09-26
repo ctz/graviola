@@ -120,10 +120,8 @@ We do this to avoid the theoretical fragility of RFC6979 under fault conditions.
 This is allowed for by RFC6979, and the HMAC-DRBG that it builds on.
 The code is structured such that we pass the RFC6979 test vectors.
 
-These computations are notably side-channel-free:
-- The conditional y negation based on the wNAF sign
-- Selection of a term from the table of base multiples
-- Inversion of k in ECDSA signing
+The code which selects a term from a table of points is non-verified,
+and is written in AVX2/Neon intrinsics.
 
 X25519 directly uses the s2n-bignum implementation.
 
@@ -136,8 +134,10 @@ SHA384/SHA512 on x86_64 has an AVX2 by-4 implementation.
 
 AES and GHASH always use intrinsics (there are no fallbacks).
 
-On x86_64, we have a by-8 AES-CTR and a by-4 GHASH (they are not currently
-interleaved; this is future work.)
+On x86_64, we have a by-8 AES-CTR and a by-8 GHASH (they are not currently
+interleaved; this is future work.)  On aarch64 we have a by-1 AES-CTR
+and by-8 GHASH (also not interleaved, and I found a by-8 AES-CTR
+kept spilling registers and was slower.)
 
 ## Performance
 
