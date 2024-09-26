@@ -96,7 +96,7 @@ fn ecdh(c: &mut Criterion) {
         b.iter(|| {
             let our_private_key =
                 graviola::p256::PrivateKey::generate(&mut graviola::rng::SystemRandom).unwrap();
-            let our_public_key = our_private_key.public_key();
+            let our_public_key = our_private_key.public_key_uncompressed();
             black_box(our_public_key);
 
             let peer = graviola::p256::PublicKey::from_x962_uncompressed(PUBLIC_KEY).unwrap();
@@ -155,7 +155,7 @@ fn keygen(c: &mut Criterion) {
         b.iter(|| {
             let our_private_key =
                 graviola::p256::PrivateKey::generate(&mut graviola::rng::SystemRandom).unwrap();
-            black_box(our_private_key.public_key());
+            black_box(our_private_key.public_key_uncompressed());
         })
     });
 }

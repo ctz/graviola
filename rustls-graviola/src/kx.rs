@@ -73,7 +73,7 @@ impl SupportedKxGroup for P256 {
     fn start(&self) -> Result<Box<dyn crypto::ActiveKeyExchange>, rustls::Error> {
         let priv_key = p256::PrivateKey::generate(&mut SystemRandom)
             .map_err(|_| rustls::Error::from(crypto::GetRandomFailed))?;
-        let pub_key_bytes = priv_key.public_key().as_bytes_uncompressed();
+        let pub_key_bytes = priv_key.public_key_uncompressed();
 
         Ok(Box::new(ActiveP256 {
             pub_key_bytes,
@@ -129,7 +129,7 @@ impl SupportedKxGroup for P384 {
     fn start(&self) -> Result<Box<dyn crypto::ActiveKeyExchange>, rustls::Error> {
         let priv_key = p384::PrivateKey::generate(&mut SystemRandom)
             .map_err(|_| rustls::Error::from(crypto::GetRandomFailed))?;
-        let pub_key_bytes = priv_key.public_key().as_bytes_uncompressed();
+        let pub_key_bytes = priv_key.public_key_uncompressed();
 
         Ok(Box::new(ActiveP384 {
             pub_key_bytes,

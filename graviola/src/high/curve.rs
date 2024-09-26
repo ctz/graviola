@@ -21,15 +21,17 @@ pub trait PrivateKey<C: Curve + ?Sized> {
     where
         Self: Sized;
     fn encode<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error>;
-    fn public_key(&self) -> C::PublicKey;
+    fn public_key_x_scalar(&self) -> C::Scalar;
+    fn public_key_encode_uncompressed<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error>;
     fn raw_ecdsa_sign(&self, k: &Self, e: &C::Scalar, r: &C::Scalar) -> C::Scalar;
 }
 
 pub trait PublicKey<C: Curve + ?Sized> {
+    const LEN_BYTES: usize; // uncompressed
+
     fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error>
     where
         Self: Sized;
-    fn x_scalar(&self) -> C::Scalar;
     fn raw_ecdsa_verify(&self, r: &C::Scalar, s: &C::Scalar, e: &C::Scalar) -> Result<(), Error>;
 }
 
@@ -77,8 +79,17 @@ impl PrivateKey<P256> for p256::PrivateKey {
         }
     }
 
-    fn public_key(&self) -> p256::PublicKey {
-        self.public_key()
+    fn public_key_x_scalar(&self) -> p256::Scalar {
+        self.public_key_x_scalar()
+    }
+
+    fn public_key_encode_uncompressed<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error> {
+        if let Some(out) = out.get_mut(0..65) {
+            out.copy_from_slice(&self.public_key_uncompressed());
+            Ok(out)
+        } else {
+            Err(Error::OutOfRange)
+        }
     }
 
     fn raw_ecdsa_sign(&self, k: &Self, e: &p256::Scalar, r: &p256::Scalar) -> p256::Scalar {
@@ -87,12 +98,10 @@ impl PrivateKey<P256> for p256::PrivateKey {
 }
 
 impl PublicKey<P256> for p256::PublicKey {
+    const LEN_BYTES: usize = 65;
+
     fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         Self::from_x962_uncompressed(bytes)
-    }
-
-    fn x_scalar(&self) -> p256::Scalar {
-        self.x_scalar()
     }
 
     fn raw_ecdsa_verify(
@@ -155,8 +164,17 @@ impl PrivateKey<P384> for p384::PrivateKey {
         }
     }
 
-    fn public_key(&self) -> p384::PublicKey {
-        self.public_key()
+    fn public_key_x_scalar(&self) -> p384::Scalar {
+        self.public_key_x_scalar()
+    }
+
+    fn public_key_encode_uncompressed<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error> {
+        if let Some(out) = out.get_mut(0..97) {
+            out.copy_from_slice(&self.public_key_uncompressed());
+            Ok(out)
+        } else {
+            Err(Error::OutOfRange)
+        }
     }
 
     fn raw_ecdsa_sign(&self, k: &Self, e: &p384::Scalar, r: &p384::Scalar) -> p384::Scalar {
@@ -165,12 +183,10 @@ impl PrivateKey<P384> for p384::PrivateKey {
 }
 
 impl PublicKey<P384> for p384::PublicKey {
+    const LEN_BYTES: usize = 97;
+
     fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         Self::from_x962_uncompressed(bytes)
-    }
-
-    fn x_scalar(&self) -> p384::Scalar {
-        self.x_scalar()
     }
 
     fn raw_ecdsa_verify(

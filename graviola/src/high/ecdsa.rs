@@ -130,7 +130,7 @@ impl<C: Curve> SigningKey<C> {
 
         let (k, r) = loop {
             let k = C::generate_random_key(&mut rng)?;
-            let x = k.public_key().x_scalar();
+            let x = k.public_key_x_scalar();
             if !x.is_zero() {
                 break (k, x);
             }
@@ -288,9 +288,14 @@ mod tests {
     }
 
     fn check_sign_verify<C: Curve>(private_key: C::PrivateKey) {
-        let public_key = private_key.public_key();
+        let mut public_key = [0u8; 128];
+        let public_key = private_key
+            .public_key_encode_uncompressed(&mut public_key)
+            .unwrap();
         let sk = SigningKey::<C> { private_key };
-        let vk = VerifyingKey::<C> { public_key };
+        let vk = VerifyingKey::<C> {
+            public_key: C::PublicKey::from_x962_uncompressed(public_key).unwrap(),
+        };
 
         let mut buffer = [0u8; 256];
         let message = [&b"hello"[..], &b"world"[..]];
@@ -319,9 +324,17 @@ mod tests {
         // from A.2.5.
         let mut rng = SliceRandomSource(b"\xC9\xAF\xA9\xD8\x45\xBA\x75\x16\x6B\x5C\x21\x57\x67\xB1\xD6\x93\x4E\x50\xC3\xDB\x36\xE8\x9B\x12\x7B\x8A\x62\x2B\x12\x0F\x67\x21");
         let private_key = curve::P256::generate_random_key(&mut rng).unwrap();
-        let public_key = private_key.public_key();
+        let mut public_key = [0u8; 128];
+        let public_key = private_key
+            .public_key_encode_uncompressed(&mut public_key)
+            .unwrap();
         let k = SigningKey::<curve::P256> { private_key };
-        let v = VerifyingKey::<curve::P256> { public_key };
+        let v = VerifyingKey::<curve::P256> {
+            public_key: <curve::P256 as curve::Curve>::PublicKey::from_x962_uncompressed(
+                public_key,
+            )
+            .unwrap(),
+        };
         let mut signature = [0u8; 64];
 
         k.rfc6979_sign_with_random::<hash::Sha256>(&[b"sample"], &[], &mut signature)

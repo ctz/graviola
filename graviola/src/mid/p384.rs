@@ -33,10 +33,6 @@ impl PublicKey {
         }
     }
 
-    pub fn x_scalar(&self) -> Scalar {
-        self.point.x_scalar()
-    }
-
     pub fn raw_ecdsa_verify(&self, r: &Scalar, s: &Scalar, e: &Scalar) -> Result<(), Error> {
         // 4. Compute: u1 = e s^-1 mod n and u2 = r s^−1 mod n
         let s_inv = s.inv().as_mont();
@@ -85,10 +81,18 @@ impl PrivateKey {
         self.scalar.as_bytes()
     }
 
-    pub fn public_key(&self) -> PublicKey {
+    pub fn public_key_uncompressed(&self) -> [u8; 97] {
+        self.public_point().as_bytes_uncompressed()
+    }
+
+    pub fn public_key_x_scalar(&self) -> Scalar {
+        self.public_point().x_scalar()
+    }
+
+    fn public_point(&self) -> AffineMontPoint {
         let point = JacobianMontPoint::base_multiply(&self.scalar).as_affine();
         match point.on_curve() {
-            true => PublicKey::from_affine(point),
+            true => point,
             false => panic!("internal fault"),
         }
     }
@@ -900,10 +904,10 @@ mod tests {
         let bytes = b"\x76\x6e\x61\x42\x5b\x2d\xa9\xf8\x46\xc0\x9f\xc3\x56\x4b\x93\xa6\xf8\x60\x3b\x73\x92\xc7\x85\x16\x5b\xf2\x0d\xa9\x48\xc4\x9f\xd1\xfb\x1d\xee\x4e\xdd\x64\x35\x6b\x9f\x21\xc5\x88\xb7\x5d\xfd\x81";
         let private = PrivateKey::from_bytes(bytes).unwrap();
         println!("priv = {:x?}", private);
-        let public = private.public_key();
-        println!("pub = {:x?}", public.as_bytes_uncompressed());
+        let public = private.public_key_uncompressed();
+        println!("pub = {:x?}", public);
         assert_eq!(
-            &public.as_bytes_uncompressed(),
+            &public,
             &[
                 0x04, 0x7a, 0x6e, 0xc8, 0xd3, 0x11, 0xd5, 0xca, 0x58, 0x8b, 0xae, 0xd4, 0x1b, 0xe3,
                 0xe9, 0x8f, 0x30, 0xc9, 0x29, 0x48, 0x44, 0xec, 0xbb, 0x62, 0x99, 0x95, 0x65, 0x36,
