@@ -13,7 +13,7 @@ mod precomp;
 #[derive(Clone, Debug)]
 pub struct PublicKey {
     point: AffineMontPoint,
-    precomp_wnaf_5: [JacobianMontPoint; 16],
+    precomp_wnaf_5: JacobianMontPointTableW5,
 }
 
 impl PublicKey {
@@ -224,7 +224,7 @@ impl AffineMontPoint {
             .as_affine()
     }
 
-    fn public_precomp_wnaf_5(&self) -> [JacobianMontPoint; 16] {
+    fn public_precomp_wnaf_5(&self) -> JacobianMontPointTableW5 {
         let mut r = [JacobianMontPoint::zero(); 16];
 
         // indices into r are intuitively 1-based; index i contains i * G,
@@ -252,7 +252,13 @@ impl AffineMontPoint {
         r[index!(15)] = r[index!(1)].add(&r[index!(14)]);
         r[index!(16)] = r[index!(8)].double();
 
-        r
+        let mut t = [0; 288];
+
+        for (out, rr) in t.chunks_exact_mut(18).zip(r) {
+            out.copy_from_slice(&rr.xyz);
+        }
+
+        t
     }
 
     fn maybe_negate_y(&mut self, sign: u8) {
@@ -333,7 +339,7 @@ impl JacobianMontPoint {
         Self::multiply_wnaf_5(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_5)
     }
 
-    fn multiply_wnaf_5(scalar: &Scalar, precomp: &[Self; 16]) -> Self {
+    fn multiply_wnaf_5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
         let mut terms = scalar.reversed_booth_recoded_w5();
 
         let (digit, _, _) = terms.next().unwrap();
@@ -459,13 +465,10 @@ impl JacobianMontPoint {
     }
 
     /// Returns table[i - 1] if index > 1, or else infinity
-    fn lookup_w5(table: &[Self; 16], index: u8) -> Self {
-        let zero = Self::infinity();
-        const MASK4: u8 = (1 << 4) - 1;
-        // assumption: wrapping_sub is branch-free
-        let index0 = index.wrapping_sub(1) & MASK4;
-        let table_point = Self::lookup(table, index0);
-        Self::select(&zero, &table_point, index)
+    fn lookup_w5(table: &JacobianMontPointTableW5, index: u8) -> Self {
+        let mut r = Self::infinity();
+        low::bignum_jac_point_select_p384(&mut r.xyz, table, index);
+        r
     }
 
     fn maybe_negate_y(&mut self, sign: u8) {
@@ -775,6 +778,9 @@ impl Iterator for BoothRecodeW5 {
     }
 }
 
+/// 16 jacobian points
+type JacobianMontPointTableW5 = [u64; 288];
+
 const CURVE_A_MONT: FieldElement = FieldElement([
     0x0000_0003_ffff_fffc,
     0xffff_fffc_0000_0000,
@@ -982,13 +988,16 @@ mod tests {
     fn base_point_precomp_wnaf_5() {
         let precomp = CURVE_GENERATOR.public_precomp_wnaf_5();
 
-        println!("pub(super) static CURVE_GENERATOR_PRECOMP_WNAF_5: [JacobianMontPoint; 16] = [");
-        for p in 0..16 {
-            println!("        JacobianMontPoint {{ xyz: [");
-            for j in 0..18 {
-                println!("            0x{:016x}, ", precomp[p].xyz[j]);
+        println!(
+            "pub(super) static CURVE_GENERATOR_PRECOMP_WNAF_5: super::JacobianMontPointTableW5 = ["
+        );
+        let mut i = 1;
+        for point in precomp.chunks_exact(18) {
+            println!("// {i}G");
+            for p in point {
+                println!("            0x{:016x}, ", p);
             }
-            println!("]}},");
+            i += 1;
         }
         println!("];");
 
