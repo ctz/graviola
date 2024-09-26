@@ -307,32 +307,8 @@ impl AffineMontPoint {
 
     /// Returns table[(i - 1) * 8] if index > 1, or else AffineMontPoint::default()
     fn lookup_w7(table: &[u64; 512], index: u8) -> Self {
-        let zero = Self::default();
-        const MASK6: u8 = (1 << 6) - 1;
-        // assumption: wrapping_sub is branch-free
-        let index0 = index.wrapping_sub(1) & MASK6;
-        let table_point = Self::lookup(table, index0);
-        Self::select(&zero, &table_point, index)
-    }
-
-    /// Return points[index * 8][..8], but visit every item of `points` along the way
-    fn lookup(points: &[u64; 512], index: u8) -> Self {
         let mut r = Self::default();
-        let stride = r.xy.len();
-        low::bignum_copy_row_from_table(
-            &mut r.xy[..],
-            points,
-            (points.len() / stride) as u64,
-            stride as u64,
-            index as u64,
-        );
-        r
-    }
-
-    fn select(p0: &Self, p1: &Self, select: u8) -> Self {
-        let mut r = Self::default();
-        let select = select as u64;
-        low::bignum_mux(select, &mut r.xy[..], &p1.xy[..], &p0.xy[..]);
+        low::bignum_aff_point_select_p256(&mut r.xy, table, index as u64);
         r
     }
 
