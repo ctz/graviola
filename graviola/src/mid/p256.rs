@@ -13,7 +13,7 @@ mod precomp;
 #[derive(Clone, Debug)]
 pub struct PublicKey {
     point: AffineMontPoint,
-    precomp_wnaf_5: [JacobianMontPoint; 16],
+    precomp_wnaf_5: JacobianMontPointTableW5,
 }
 
 impl PublicKey {
@@ -274,7 +274,7 @@ impl AffineMontPoint {
         r
     }
 
-    fn public_precomp_wnaf_5(&self) -> [JacobianMontPoint; 16] {
+    fn public_precomp_wnaf_5(&self) -> JacobianMontPointTableW5 {
         let mut r = [JacobianMontPoint::zero(); 16];
 
         // indices into r are intuitively 1-based; index i contains i * G,
@@ -302,13 +302,20 @@ impl AffineMontPoint {
         r[index!(15)] = r[index!(1)].add(&r[index!(14)]);
         r[index!(16)] = r[index!(8)].double();
 
-        r
+        // now linearise, so table lookup can be type safe
+        let mut t = [0; 192];
+
+        for (out, rr) in t.chunks_exact_mut(12).zip(r) {
+            out.copy_from_slice(&rr.xyz);
+        }
+
+        t
     }
 
     /// Returns table[(i - 1) * 8] if index > 1, or else AffineMontPoint::default()
     fn lookup_w7(table: &[u64; 512], index: u8) -> Self {
         let mut r = Self::default();
-        low::bignum_aff_point_select_p256(&mut r.xy, table, index as u64);
+        low::bignum_aff_point_select_p256(&mut r.xy, table, index);
         r
     }
 
@@ -388,7 +395,7 @@ impl JacobianMontPoint {
         result
     }
 
-    fn multiply_wnaf_5(scalar: &Scalar, precomp: &[Self; 16]) -> Self {
+    fn multiply_wnaf_5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
         let mut terms = scalar.reversed_booth_recoded_w5();
 
         let (digit, _, _) = terms.next().unwrap();
@@ -513,14 +520,11 @@ impl JacobianMontPoint {
         r
     }
 
-    /// Returns table[i - 1] if index > 1, or else infinity
-    fn lookup_w5(table: &[Self; 16], index: u8) -> Self {
-        let zero = Self::infinity();
-        const MASK4: u8 = (1 << 4) - 1;
-        // assumption: wrapping_sub is branch-free
-        let index0 = index.wrapping_sub(1) & MASK4;
-        let table_point = Self::lookup(table, index0);
-        Self::select(&zero, &table_point, index)
+    /// Returns table[i - 1] if index > 1, or else an infinity
+    fn lookup_w5(table: &JacobianMontPointTableW5, index: u8) -> Self {
+        let mut r = Self::infinity();
+        low::bignum_jac_point_select_p256(&mut r.xyz, table, index);
+        r
     }
 
     fn maybe_negate_y(&mut self, sign: u8) {
@@ -893,6 +897,8 @@ impl Iterator for BoothRecodeW5 {
 /// 37 := ceil(256 / 7), ie taking 7 bits of exponent at a time.
 /// Each 'row' builds in 7 successive doublings.
 type AffineMontPointTableW7 = [[u64; 512]; 37];
+
+type JacobianMontPointTableW5 = [u64; 192];
 
 const CURVE_A_MONT: FieldElement = FieldElement([
     0xffff_ffff_ffff_fffc,
