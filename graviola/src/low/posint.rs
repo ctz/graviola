@@ -4,8 +4,6 @@
 use crate::low;
 use crate::Error;
 
-use core::cmp;
-
 #[derive(Clone, Debug)]
 pub(crate) struct PosInt<const N: usize> {
     words: [u64; N],
@@ -103,6 +101,7 @@ impl<const N: usize> PosInt<N> {
         Ok(out)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn debug(&self, why: &str) {
         let mut bytes = [0u8; 512];
         let bytes = self.to_bytes(&mut bytes).unwrap();
@@ -134,6 +133,7 @@ impl<const N: usize> PosInt<N> {
         low::bignum_eq(self.as_words(), other.as_words())
     }
 
+    #[cfg(test)]
     pub(crate) fn pub_equals(&self, other: &Self) -> bool {
         // eliminate trailing zero words, which we can do here
         // because this is a `pub_` function
@@ -485,18 +485,6 @@ impl<const N: usize> PosInt<N> {
         let mut r = PosInt::<M>::zero();
         r.words[..self.used].copy_from_slice(self.as_words());
         r.used = self.used;
-        r
-    }
-
-    /// Truncates `self` to have a shorter representation.
-    ///
-    /// Discards unused words; does not check they are zero.
-    #[must_use]
-    pub(crate) fn narrow<const M: usize>(&self) -> PosInt<M> {
-        assert!(M <= N);
-        let mut r = PosInt::<M>::zero();
-        r.words.copy_from_slice(&self.words[..M]);
-        r.used = cmp::min(self.used, N);
         r
     }
 }
