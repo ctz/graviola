@@ -150,7 +150,7 @@ or intrinsic-based implementations for a certain platform.
 
 Graviola incorporates and redistributes code from:
 
-- [s2n-bignum]: Apache-2.0 OR ISC or MIT-0
+- [s2n-bignum]: Apache-2.0 OR ISC OR MIT-0
 
 New code written for Graviola is licensed under
 Apache-2.0 OR ISC OR MIT-0.
