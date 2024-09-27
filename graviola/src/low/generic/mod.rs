@@ -5,6 +5,7 @@ pub(crate) mod aes_gcm;
 pub(super) mod blockwise;
 pub(crate) mod chacha20;
 pub(super) mod ct_equal;
+#[cfg(test)]
 pub(crate) mod ghash;
 pub(super) mod optimise_barrier;
 pub(crate) mod poly1305;
