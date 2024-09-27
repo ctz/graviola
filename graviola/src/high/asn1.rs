@@ -432,6 +432,7 @@ pub struct OctetString<'a> {
 }
 
 impl<'a> OctetString<'a> {
+    #[cfg(test)]
     pub(crate) fn new(octets: &'a [u8]) -> Self {
         Self { octets }
     }
