@@ -222,6 +222,7 @@ impl AffineMontPoint {
         r
     }
 
+    #[cfg(test)]
     fn slow_multiply(&self, scalar: &Scalar) -> Self {
         let mut result = JacobianMontPoint::infinity();
 
@@ -253,7 +254,7 @@ impl AffineMontPoint {
     /// This should not be used at runtime, since (for brevity) it
     /// does excessive point representation conversions, and recomputes
     /// items in a given row several times (compare `public_precomp_wnaf_5`).
-    #[allow(dead_code)]
+    #[cfg(test)]
     fn public_precomp_wnaf_7_slow(&self) -> [[Self; 64]; 37] {
         let mut r = [[Self::default(); 64]; 37];
 
@@ -506,20 +507,6 @@ impl JacobianMontPoint {
         r
     }
 
-    /// Return points[index], but visit every item of `points` along the way
-    #[must_use]
-    fn lookup(points: &[Self], index: u8) -> Self {
-        let mut r = Self::zero();
-        low::bignum_copy_row_from_table(
-            &mut r.xyz[..],
-            &points[0].xyz[..],
-            points.len() as u64,
-            points[0].xyz.len() as u64,
-            index as u64,
-        );
-        r
-    }
-
     /// Returns table[i - 1] if index > 1, or else an infinity
     fn lookup_w5(table: &JacobianMontPointTableW5, index: u8) -> Self {
         let mut r = Self::infinity();
@@ -698,6 +685,7 @@ impl Scalar {
     }
 
     /// Return 2^512 mod n, ie MM mod n
+    #[cfg(test)]
     fn montifier() -> Self {
         let mut r = Self::default();
         let mut tmp = Self::default();
@@ -731,6 +719,7 @@ impl Scalar {
     }
 
     /// Iterator of the bits of the element, lowest first
+    #[cfg(test)]
     fn bits(&self) -> Bits<'_> {
         Bits {
             scalar: self,
@@ -750,12 +739,14 @@ impl Scalar {
     }
 }
 
+#[cfg(test)]
 struct Bits<'a> {
     scalar: &'a Scalar,
     word: usize,
     bit: usize,
 }
 
+#[cfg(test)]
 impl Iterator for Bits<'_> {
     type Item = u8;
 
