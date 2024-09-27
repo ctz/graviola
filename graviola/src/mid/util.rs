@@ -111,46 +111,6 @@ impl Array64x4 {
 pub(crate) struct Array64x6(pub(crate) [u64; 6]);
 
 impl Array64x6 {
-    pub(crate) fn as_le_bytes(&self) -> [u8; 48] {
-        let a = self.0[0].to_le_bytes();
-        let b = self.0[1].to_le_bytes();
-        let c = self.0[2].to_le_bytes();
-        let d = self.0[3].to_le_bytes();
-        let e = self.0[4].to_le_bytes();
-        let f = self.0[5].to_le_bytes();
-
-        let mut r = [0u8; 48];
-        r[0..8].copy_from_slice(&a);
-        r[8..16].copy_from_slice(&b);
-        r[16..24].copy_from_slice(&c);
-        r[24..32].copy_from_slice(&d);
-        r[32..40].copy_from_slice(&e);
-        r[40..48].copy_from_slice(&f);
-        r
-    }
-
-    pub(crate) fn from_le_bytes(bytes: &[u8]) -> Option<Self> {
-        let as_array: [u8; 48] = bytes.try_into().ok()?;
-        Some(Self::from_le(&as_array))
-    }
-
-    pub(crate) fn from_le(v: &[u8; 48]) -> Self {
-        let a = v[0..8].try_into().unwrap();
-        let b = v[8..16].try_into().unwrap();
-        let c = v[16..24].try_into().unwrap();
-        let d = v[24..32].try_into().unwrap();
-        let e = v[32..40].try_into().unwrap();
-        let f = v[40..48].try_into().unwrap();
-        Self([
-            u64::from_le_bytes(a),
-            u64::from_le_bytes(b),
-            u64::from_le_bytes(c),
-            u64::from_le_bytes(d),
-            u64::from_le_bytes(e),
-            u64::from_le_bytes(f),
-        ])
-    }
-
     pub(crate) fn as_be_bytes(&self) -> [u8; 48] {
         let a = self.0[0].to_be_bytes();
         let b = self.0[1].to_be_bytes();
