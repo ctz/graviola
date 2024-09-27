@@ -425,6 +425,54 @@ fn test_aesgcm() {
 }
 
 #[test]
+fn test_aesgmac() {
+    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/aes_gmac_test.json")
+        .expect("failed to open data file");
+
+    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+
+    for group in tests.groups {
+        println!("group: {:?}", group.typ);
+
+        for test in group.tests {
+            println!("  test {:?}", test);
+
+            if test.key.len() == 24 {
+                println!("    skipped (unsupported key len)");
+                continue;
+            }
+
+            let ctx = AesGcm::new(&test.key);
+            let nonce = match test.iv.len() {
+                12 => test.iv.try_into().unwrap(),
+                _ => {
+                    println!("    skipped (unsupported nonce len)");
+                    continue;
+                }
+            };
+
+            // try decrypt
+            let result = ctx.decrypt(&nonce, &test.msg, &mut [], &test.tag);
+
+            match (test.result, &result) {
+                (ExpectedResult::Valid, Ok(())) => {}
+                (ExpectedResult::Invalid, Err(Error::DecryptFailed)) => {}
+                _ => panic!("expected {:?} got {:?}", test.result, result.err()),
+            }
+
+            // and encrypt
+            let mut tag = [0u8; 16];
+
+            ctx.encrypt(&nonce, &test.msg, &mut [], &mut tag);
+
+            if test.result == ExpectedResult::Valid {
+                assert_eq!(&tag, &test.tag[..]);
+            }
+        }
+    }
+}
+
+#[test]
 fn test_rsa_pkcs1_verify() {
     for file in &[
         "rsa_signature_2048_sha256_test.json",
