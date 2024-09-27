@@ -47,15 +47,34 @@ rsa_pkcs_sign, rsa_sign_transcript = measure("crypto/rsa", "BenchmarkSignPKCS1v1
 rsa_pkcs_verify, rsa_verify_transcript = measure(
     "crypto/rsa", "BenchmarkVerifyPKCS1v15/2048"
 )
+
 aead_aesgcm256, aes_transcript = measure(
-    "crypto/cipher", "BenchmarkAESGCM/Open-256-8192"
+    "crypto/cipher", "BenchmarkAESGCM/Seal-256-8192"
 )
+
 x25519_ecdh, x25519_transcript = measure("crypto/ecdh", "BenchmarkECDH/X25519")
+p256_ecdh, p256_transcript = measure("crypto/ecdh", "BenchmarkECDH/P256")
+p384_ecdh, p384_transcript = measure("crypto/ecdh", "BenchmarkECDH/P384")
+
+p256_sign, p256_sign_transcript = measure("crypto/ecdsa", "BenchmarkSign/P256")
+p384_sign, p384_sign_transcript = measure("crypto/ecdsa", "BenchmarkSign/P384")
+
+p256_verify, p256_verify_transcript = measure("crypto/ecdsa", "BenchmarkVerify/P256")
+p384_verify, p384_verify_transcript = measure("crypto/ecdsa", "BenchmarkVerify/P384")
 
 insert_criterion_result(rsa_pkcs_sign, "rsa2048-pkcs1-sha256-sign/golang")
 insert_criterion_result(rsa_pkcs_verify, "rsa2048-pkcs1-sha256-verify/golang")
+
 insert_criterion_result(aead_aesgcm256, "aes256-gcm/golang/8KB")
+
 insert_criterion_result(x25519_ecdh, "x25519-ecdh/golang")
+insert_criterion_result(p256_ecdh, "p256-ecdh/golang")
+insert_criterion_result(p384_ecdh, "p384-ecdh/golang")
+
+insert_criterion_result(p256_sign, "p256-ecdsa-sign/golang")
+insert_criterion_result(p384_sign, "p384-ecdsa-sign/golang")
+insert_criterion_result(p256_verify, "p256-ecdsa-verify/golang")
+insert_criterion_result(p384_verify, "p384-ecdsa-verify/golang")
 
 os.makedirs(path.join(OUTPUT_PATH, "report"), exist_ok=True)
 with open(path.join(OUTPUT_PATH, "report", "golang.txt"), "w") as f:
@@ -70,6 +89,18 @@ with open(path.join(OUTPUT_PATH, "report", "golang.txt"), "w") as f:
 {aes_transcript}
 
 {x25519_transcript}
+
+{p256_transcript}
+
+{p384_transcript}
+
+{p256_sign_transcript}
+
+{p384_sign_transcript}
+
+{p256_verify_transcript}
+
+{p384_verify_transcript}
 """,
         file=f,
     )
