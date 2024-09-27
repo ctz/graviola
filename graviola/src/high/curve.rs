@@ -22,6 +22,7 @@ pub trait PrivateKey<C: Curve + ?Sized> {
         Self: Sized;
     fn encode<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error>;
     fn public_key_x_scalar(&self) -> C::Scalar;
+    #[allow(dead_code)] // ??? false positive
     fn public_key_encode_uncompressed<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error>;
     fn raw_ecdsa_sign(&self, k: &Self, e: &C::Scalar, r: &C::Scalar) -> C::Scalar;
 }
