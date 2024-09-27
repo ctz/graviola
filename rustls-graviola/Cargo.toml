@@ -1,6 +1,6 @@
 [package]
 name = "rustls-graviola"
-version = "0.1.0"
+version = "0.1.0-alpha.0"
 edition = "2021"
 repository = "https://github.com/ctz/graviola/"
 license = "Apache-2.0 OR ISC or MIT-0"
@@ -9,7 +9,7 @@ categories = ["network-programming", "cryptography"]
 rust-version = "1.72"
 
 [dependencies]
-graviola = { version = "0.1.0", path = "../graviola", features = ["__internal_08eaf2eb"] }
+graviola = { version = "0.1.0-alpha.0", path = "../graviola", features = ["__internal_08eaf2eb"] }
 rustls = { version = "0.23.13", default-features = false, features = ["tls12"] }
 rustls-webpki = { version = "0.102", default-features = false, features = ["alloc"] }
 
