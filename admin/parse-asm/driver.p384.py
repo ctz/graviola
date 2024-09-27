@@ -143,21 +143,6 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../thirdparty/s2n-bignum/x86/p384/p384_montjmixadd.S") as input, open(
-        "../../graviola/src/low/x86_64/p384_montjmixadd.rs", "w"
-    ) as output:
-        d = RustDriver(output, Architecture_amd64)
-        d.emit_rust_function(
-            "p384_montjmixadd",
-            parameter_map=[
-                ("inout", "rdi", "p3.as_mut_ptr() => _"),
-                ("inout", "rsi", "p1.as_ptr() => _"),
-                ("inout", "rdx", "p2.as_ptr() => _"),
-            ],
-            rust_decl="pub fn p384_montjmixadd(p3: &mut [u64; 18], p1: &[u64; 18], p2: &[u64; 12])",
-        )
-        parse_file(input, d)
-
     with open("../../thirdparty/s2n-bignum/x86/p384/p384_montjdouble.S") as input, open(
         "../../graviola/src/low/x86_64/p384_montjdouble.rs", "w"
     ) as output:
@@ -309,21 +294,6 @@ if __name__ == "__main__":
                 ("inout", "x2", "p2.as_ptr() => _"),
             ],
             rust_decl="pub fn p384_montjadd(p3: &mut [u64; 18], p1: &[u64; 18], p2: &[u64; 18])",
-        )
-        parse_file(input, d)
-
-    with open("../../thirdparty/s2n-bignum/arm/p384/p384_montjmixadd.S") as input, open(
-        "../../graviola/src/low/aarch64/p384_montjmixadd.rs", "w"
-    ) as output:
-        d = RustDriver(output, Architecture_aarch64)
-        d.emit_rust_function(
-            "p384_montjmixadd",
-            parameter_map=[
-                ("inout", "x0", "p3.as_mut_ptr() => _"),
-                ("inout", "x1", "p1.as_ptr() => _"),
-                ("inout", "x2", "p2.as_ptr() => _"),
-            ],
-            rust_decl="pub fn p384_montjmixadd(p3: &mut [u64; 18], p1: &[u64; 18], p2: &[u64; 12])",
         )
         parse_file(input, d)
 

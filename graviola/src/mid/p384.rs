@@ -218,6 +218,7 @@ impl AffineMontPoint {
         r
     }
 
+    #[cfg(test)]
     fn slow_multiply(&self, scalar: &Scalar) -> Self {
         JacobianMontPoint::from_affine(self)
             .multiply(scalar)
@@ -260,29 +261,6 @@ impl AffineMontPoint {
 
         t
     }
-
-    fn maybe_negate_y(&mut self, sign: u8) {
-        let y = self.y();
-        let neg_y = y.negate_mod_p();
-        let result = FieldElement::select(&y, &neg_y, sign);
-        self.xy[6..12].copy_from_slice(&result.0);
-    }
-
-    fn select(p0: &Self, p1: &Self, select: u8) -> Self {
-        let mut r = Self::default();
-        let select = select as u64;
-        low::bignum_mux(select, &mut r.xy[..], &p1.xy[..], &p0.xy[..]);
-        r
-    }
-
-    fn private_eq(&self, other: &Self) -> bool {
-        low::bignum_eq(&self.xy, &other.xy)
-    }
-
-    fn is_infinity(&self) -> u8 {
-        let zero = Self::default();
-        self.private_eq(&zero) as u8
-    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -291,6 +269,7 @@ struct JacobianMontPoint {
 }
 
 impl JacobianMontPoint {
+    #[cfg(test)]
     fn multiply(&self, scalar: &Scalar) -> Self {
         let mut result = Self::infinity();
 
@@ -329,10 +308,6 @@ impl JacobianMontPoint {
 
     fn z(&self) -> FieldElement {
         FieldElement(self.xyz[12..18].try_into().unwrap())
-    }
-
-    fn set_z(&mut self, fe: &FieldElement) {
-        self.xyz[12..18].copy_from_slice(&fe.0);
     }
 
     fn base_multiply(scalar: &Scalar) -> Self {
@@ -426,14 +401,6 @@ impl JacobianMontPoint {
         *self = r;
     }
 
-    fn add_inplace_affine(&mut self, p: &AffineMontPoint) {
-        let mut r = Self::infinity();
-        low::p384_montjmixadd(&mut r.xyz, &self.xyz, &p.xy);
-        // XXX: annoyingly, p384_montjmixadd does not handle point at infinity correctly,
-        // so do it here
-        *self = Self::select(&r, self, p.is_infinity());
-    }
-
     #[must_use]
     fn add(&self, p: &Self) -> Self {
         let mut r = Self::infinity();
@@ -442,25 +409,12 @@ impl JacobianMontPoint {
     }
 
     /// Return p0 if select == 0, p1 otherwise
+    #[cfg(test)]
     #[must_use]
     fn select(p0: &Self, p1: &Self, select: u8) -> Self {
         let mut r = Self::zero();
         let select = select as u64;
         low::bignum_mux(select, &mut r.xyz[..], &p1.xyz[..], &p0.xyz[..]);
-        r
-    }
-
-    /// Return points[index], but visit every item of `points` along the way
-    #[must_use]
-    fn lookup(points: &[Self], index: u8) -> Self {
-        let mut r = Self::zero();
-        low::bignum_copy_row_from_table(
-            &mut r.xyz[..],
-            &points[0].xyz[..],
-            points.len() as u64,
-            points[0].xyz.len() as u64,
-            index as u64,
-        );
         r
     }
 
@@ -642,6 +596,7 @@ impl Scalar {
     }
 
     /// Return 2^768 mod n, ie MM mod n
+    #[cfg(test)]
     fn montifier() -> Self {
         let mut r = Self::default();
         let mut tmp = Self::default();
@@ -675,6 +630,7 @@ impl Scalar {
     }
 
     /// Iterator of the bits of the element, lowest first
+    #[cfg(test)]
     fn bits(&self) -> Bits<'_> {
         Bits {
             scalar: self,
@@ -689,12 +645,14 @@ impl Scalar {
     }
 }
 
+#[cfg(test)]
 struct Bits<'a> {
     scalar: &'a Scalar,
     word: usize,
     bit: usize,
 }
 
+#[cfg(test)]
 impl Iterator for Bits<'_> {
     type Item = u8;
 

@@ -54,7 +54,6 @@ pub(crate) mod p256_montjdouble;
 pub(crate) mod p256_montjmixadd;
 pub(crate) mod p384_montjadd;
 pub(crate) mod p384_montjdouble;
-pub(crate) mod p384_montjmixadd;
 pub(crate) mod sha256;
 pub(crate) mod sha256_mux;
 pub(crate) mod sha512;
