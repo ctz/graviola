@@ -19,6 +19,9 @@ table {
 data {
   font-size: 1.4em;
 }
+span.info {
+  float: right;
+}
 </style>
 </head>
 <body>
@@ -32,63 +35,157 @@ These categories are chosen as being typically used for TLS traffic on the web.
 
 <!-- begin headlines -->
 <h2>aarch64</h2>
-<h3>AES256-GCM encryption (8KB wide)</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
-<td class='golang'><h3>🥇 golang</h3><data value='858369.0987124463'>6.55</data> GiB/sec</td>
-<td class='aws-lc-rs'><h3>🥈 aws-lc-rs</h3><data value='718158.7277616544'>5.48</data> GiB/sec</td>
-<td class='ring'><h3>🥉 ring</h3><data value='716085.3825313715'>5.46</data> GiB/sec</td>
-<td class='graviola'><h3>  graviola</h3><data value='686511.9983022377'>5.24</data> GiB/sec</td>
-<td class='rustcrypto'><h3>  rustcrypto</h3><data value='17567.85535330616'>0.134</data> GiB/sec</td>
-</tr></table>
-<h3>RSA2048 signature verification</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
-<td class='ring'><h3>🥇 ring</h3><data value='59113.14108386281'>59,113</data> sigs/sec</td>
-<td class='graviola'><h3>🥈 graviola</h3><data value='50521.01378737521'>50,521</data> sigs/sec</td>
-<td class='aws-lc-rs'><h3>🥉 aws-lc-rs</h3><data value='44174.960956174364'>44,175</data> sigs/sec</td>
-<td class='golang'><h3>  golang</h3><data value='39030.48280707232'>39,030</data> sigs/sec</td>
-<td class='rustcrypto'><h3>  rustcrypto</h3><data value='7881.1658604954755'>7,881.2</data> sigs/sec</td>
-</tr></table>
-<h3>RSA2048 signing</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
+<h3>Signing</h3><table width='100%' cellspacing=25 cellpadding=10>
+<tr><td>RSA2048 signing</td>
 <td class='ring'><h3>🥇 ring</h3><data value='2106.243669566911'>2,106.2</data> sigs/sec</td>
 <td class='graviola'><h3>🥈 graviola</h3><data value='1311.563869143763'>1,311.6</data> sigs/sec</td>
 <td class='aws-lc-rs'><h3>🥉 aws-lc-rs</h3><data value='1286.9538021974656'>1,287</data> sigs/sec</td>
 <td class='golang'><h3>  golang</h3><data value='1222.686707316924'>1,222.7</data> sigs/sec</td>
 <td class='rustcrypto'><h3>  rustcrypto</h3><data value='970.8415226479617'>970.84</data> sigs/sec</td>
-</tr></table>
-<h3>X25519 key agreement</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
+</tr>
+<tr><td>ECDSA-P256 signing</td>
+<td class='ring'><h3>🥇 ring</h3><data value='67687.68530559224'>67,688</data> sigs/sec</td>
+<td class='aws-lc-rs'><h3>🥈 aws-lc-rs</h3><data value='64728.44465805267'>64,728</data> sigs/sec</td>
+<td class='graviola'><h3>🥉 graviola</h3><data value='44616.88590332967'>44,617</data> sigs/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='7761.070406373668'>7,761.1</data> sigs/sec</td>
+</tr>
+<tr><td>ECDSA-P384 signing</td>
+<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='14118.652647005196'>14,119</data> sigs/sec</td>
+<td class='graviola'><h3>🥈 graviola</h3><data value='6448.831191111714'>6,448.8</data> sigs/sec</td>
+<td class='ring'><h3>🥉 ring</h3><data value='3429.7719015766033'>3,429.8</data> sigs/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='2317.2459871591'>2,317.2</data> sigs/sec</td>
+</tr>
+</table>
+<h3>Signature verification</h3><table width='100%' cellspacing=25 cellpadding=10>
+<tr><td>RSA2048 signature verification</td>
+<td class='ring'><h3>🥇 ring</h3><data value='59113.14108386281'>59,113</data> sigs/sec</td>
+<td class='graviola'><h3>🥈 graviola</h3><data value='50521.01378737521'>50,521</data> sigs/sec</td>
+<td class='aws-lc-rs'><h3>🥉 aws-lc-rs</h3><data value='44174.960956174364'>44,175</data> sigs/sec</td>
+<td class='golang'><h3>  golang</h3><data value='39030.48280707232'>39,030</data> sigs/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='7881.1658604954755'>7,881.2</data> sigs/sec</td>
+</tr>
+<tr><td>ECDSA-P256 signature verification</td>
+<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='25623.301647838343'>25,623</data> sigs/sec</td>
+<td class='ring'><h3>🥈 ring</h3><data value='23841.48157533019'>23,841</data> sigs/sec</td>
+<td class='graviola'><h3>🥉 graviola</h3><data value='15905.457723027866'>15,905</data> sigs/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='4750.774292812984'>4,750.8</data> sigs/sec</td>
+</tr>
+<tr><td>ECDSA-P384 signature verification</td>
+<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='5482.20284674335'>5,482.2</data> sigs/sec</td>
+<td class='graviola'><h3>🥈 graviola</h3><data value='3759.5899547953313'>3,759.6</data> sigs/sec</td>
+<td class='ring'><h3>🥉 ring</h3><data value='1917.2503071022002'>1,917.3</data> sigs/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='1262.1608752116101'>1,262.2</data> sigs/sec</td>
+</tr>
+</table>
+<h3>Key exchange</h3><table width='100%' cellspacing=25 cellpadding=10>
+<tr><td>X25519 key agreement</td>
 <td class='graviola'><h3>🥇 graviola</h3><data value='35519.48988715756'>35,519</data> kx/sec</td>
 <td class='aws-lc-rs'><h3>🥈 aws-lc-rs</h3><data value='35278.002598298684'>35,278</data> kx/sec</td>
 <td class='ring'><h3>🥉 ring</h3><data value='27093.506115140743'>27,094</data> kx/sec</td>
 <td class='dalek'><h3>  dalek</h3><data value='24402.631398323836'>24,403</data> kx/sec</td>
 <td class='golang'><h3>  golang</h3><data value='13331.02262274539'>13,331</data> kx/sec</td>
-</tr></table>
+</tr>
+<tr><td>P256 key agreement</td>
+<td class='ring'><h3>🥇 ring</h3><data value='21707.78130781431'>21,708</data> kx/sec</td>
+<td class='aws-lc-rs'><h3>🥈 aws-lc-rs</h3><data value='21394.73487492473'>21,395</data> kx/sec</td>
+<td class='graviola'><h3>🥉 graviola</h3><data value='14220.391461400546'>14,220</data> kx/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='4743.385172270355'>4,743.4</data> kx/sec</td>
+</tr>
+<tr><td>P384 key agreement</td>
+<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='4704.668873190235'>4,704.7</data> kx/sec</td>
+<td class='graviola'><h3>🥈 graviola</h3><data value='3475.5548637546353'>3,475.6</data> kx/sec</td>
+<td class='ring'><h3>🥉 ring</h3><data value='1898.0524602081475'>1,898.1</data> kx/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='1261.2598739515136'>1,261.3</data> kx/sec</td>
+</tr>
+</table>
+<h3>Bulk encryption</h3><table width='100%' cellspacing=25 cellpadding=10>
+<tr><td>AES256-GCM encryption (8KB wide)</td>
+<td class='golang'><h3>🥇 golang</h3><data value='858369.0987124463'>6.55</data> GiB/sec</td>
+<td class='aws-lc-rs'><h3>🥈 aws-lc-rs</h3><data value='718158.7277616544'>5.48</data> GiB/sec</td>
+<td class='ring'><h3>🥉 ring</h3><data value='716085.3825313715'>5.46</data> GiB/sec</td>
+<td class='graviola'><h3>  graviola</h3><data value='686511.9983022377'>5.24</data> GiB/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='17567.85535330616'>0.134</data> GiB/sec</td>
+</tr>
+</table>
 <h2>x86_64</h2>
-<h3>AES256-GCM encryption (8KB wide)</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
-<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='1283612.319145704'>9.79</data> GiB/sec</td>
-<td class='golang'><h3>🥈 golang</h3><data value='773993.8080495356'>5.91</data> GiB/sec</td>
-<td class='graviola'><h3>🥉 graviola</h3><data value='651548.0349004584'>4.97</data> GiB/sec</td>
-<td class='ring'><h3>  ring</h3><data value='627453.0251897866'>4.79</data> GiB/sec</td>
-<td class='rustcrypto'><h3>  rustcrypto</h3><data value='224745.20021848733'>1.71</data> GiB/sec</td>
-</tr></table>
-<h3>RSA2048 signature verification</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
-<td class='graviola'><h3>🥇 graviola</h3><data value='82674.92474527945'>82,675</data> sigs/sec</td>
-<td class='aws-lc-rs'><h3>🥈 aws-lc-rs</h3><data value='73923.40573149294'>73,923</data> sigs/sec</td>
-<td class='ring'><h3>🥉 ring</h3><data value='62840.84431876958'>62,841</data> sigs/sec</td>
-<td class='golang'><h3>  golang</h3><data value='45705.928058869235'>45,706</data> sigs/sec</td>
-<td class='rustcrypto'><h3>  rustcrypto</h3><data value='7233.7823578145435'>7,233.8</data> sigs/sec</td>
-</tr></table>
-<h3>RSA2048 signing</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
-<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='2341.2121048204704'>2,341.2</data> sigs/sec</td>
-<td class='ring'><h3>🥈 ring</h3><data value='2322.767052375328'>2,322.8</data> sigs/sec</td>
-<td class='graviola'><h3>🥉 graviola</h3><data value='2107.311419886505'>2,107.3</data> sigs/sec</td>
-<td class='golang'><h3>  golang</h3><data value='1347.3402829145125'>1,347.3</data> sigs/sec</td>
-<td class='rustcrypto'><h3>  rustcrypto</h3><data value='863.9520317104719'>863.95</data> sigs/sec</td>
-</tr></table>
-<h3>X25519 key agreement</h3><table width='80%' cellspacing=25 cellpadding=10><tr>
-<td class='graviola'><h3>🥇 graviola</h3><data value='42047.3699179978'>42,047</data> kx/sec</td>
-<td class='aws-lc-rs'><h3>🥈 aws-lc-rs</h3><data value='41471.17676228677'>41,471</data> kx/sec</td>
-<td class='ring'><h3>🥉 ring</h3><data value='19641.562814658813'>19,642</data> kx/sec</td>
-<td class='dalek'><h3>  dalek</h3><data value='19633.189641044235'>19,633</data> kx/sec</td>
-<td class='golang'><h3>  golang</h3><data value='14132.278123233464'>14,132</data> kx/sec</td>
-</tr></table>
+<h3>Signing</h3><table width='100%' cellspacing=25 cellpadding=10>
+<tr><td>RSA2048 signing</td>
+<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='2346.308363813548'>2,346.3</data> sigs/sec</td>
+<td class='ring'><h3>🥈 ring</h3><data value='2345.9341797577686'>2,345.9</data> sigs/sec</td>
+<td class='graviola'><h3>🥉 graviola</h3><data value='2097.29770582719'>2,097.3</data> sigs/sec</td>
+<td class='golang'><h3>  golang</h3><data value='1358.357908291824'>1,358.4</data> sigs/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='860.2337689175653'>860.23</data> sigs/sec</td>
+</tr>
+<tr><td>ECDSA-P256 signing</td>
+<td class='graviola'><h3>🥇 graviola</h3><data value='88045.79984808106'>88,046</data> sigs/sec</td>
+<td class='ring'><h3>🥈 ring</h3><data value='80762.78813039708'>80,763</data> sigs/sec</td>
+<td class='aws-lc-rs'><h3>🥉 aws-lc-rs</h3><data value='75379.93059455857'>75,380</data> sigs/sec</td>
+<td class='golang'><h3>  golang</h3><data value='60808.756460930366'>60,809</data> sigs/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='8129.47661573062'>8,129.5</data> sigs/sec</td>
+</tr>
+<tr><td>ECDSA-P384 signing</td>
+<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='15245.909994496402'>15,246</data> sigs/sec</td>
+<td class='graviola'><h3>🥈 graviola</h3><data value='8932.16402247959'>8,932.2</data> sigs/sec</td>
+<td class='golang'><h3>🥉 golang</h3><data value='6797.957893448807'>6,798</data> sigs/sec</td>
+<td class='ring'><h3>  ring</h3><data value='3255.430306915078'>3,255.4</data> sigs/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='2130.9625126710603'>2,131</data> sigs/sec</td>
+</tr>
+</table>
+<h3>Signature verification</h3><table width='100%' cellspacing=25 cellpadding=10>
+<tr><td>RSA2048 signature verification</td>
+<td class='graviola'><h3>🥇 graviola</h3><data value='83012.66043998954'>83,013</data> sigs/sec</td>
+<td class='aws-lc-rs'><h3>🥈 aws-lc-rs</h3><data value='75396.75972452572'>75,397</data> sigs/sec</td>
+<td class='ring'><h3>🥉 ring</h3><data value='62742.014330245096'>62,742</data> sigs/sec</td>
+<td class='golang'><h3>  golang</h3><data value='46485.682409817775'>46,486</data> sigs/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='7205.103262904217'>7,205.1</data> sigs/sec</td>
+</tr>
+<tr><td>ECDSA-P256 signature verification</td>
+<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='27321.49145974786'>27,321</data> sigs/sec</td>
+<td class='ring'><h3>🥈 ring</h3><data value='25935.59050476656'>25,936</data> sigs/sec</td>
+<td class='graviola'><h3>🥉 graviola</h3><data value='24313.079120778606'>24,313</data> sigs/sec</td>
+<td class='golang'><h3>  golang</h3><data value='19333.758676024205'>19,334</data> sigs/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='4793.582519767226'>4,793.6</data> sigs/sec</td>
+</tr>
+<tr><td>ECDSA-P384 signature verification</td>
+<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='6151.8519299018935'>6,151.9</data> sigs/sec</td>
+<td class='graviola'><h3>🥈 graviola</h3><data value='4932.591227467726'>4,932.6</data> sigs/sec</td>
+<td class='golang'><h3>🥉 golang</h3><data value='2261.2821017260367'>2,261.3</data> sigs/sec</td>
+<td class='ring'><h3>  ring</h3><data value='1803.888539578717'>1,803.9</data> sigs/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='1175.1172283736196'>1,175.1</data> sigs/sec</td>
+</tr>
+</table>
+<h3>Key exchange</h3><table width='100%' cellspacing=25 cellpadding=10>
+<tr><td>X25519 key agreement</td>
+<td class='graviola'><h3>🥇 graviola</h3><data value='42814.105032648295'>42,814</data> kx/sec</td>
+<td class='aws-lc-rs'><h3>🥈 aws-lc-rs</h3><data value='42079.89490597423'>42,080</data> kx/sec</td>
+<td class='ring'><h3>🥉 ring</h3><data value='20228.299857790054'>20,228</data> kx/sec</td>
+<td class='dalek'><h3>  dalek</h3><data value='19901.505036908322'>19,902</data> kx/sec</td>
+<td class='golang'><h3>  golang</h3><data value='14266.759876164522'>14,267</data> kx/sec</td>
+</tr>
+<tr><td>P256 key agreement</td>
+<td class='ring'><h3>🥇 ring</h3><data value='23533.409208202782'>23,533</data> kx/sec</td>
+<td class='graviola'><h3>🥈 graviola</h3><data value='23527.072702849837'>23,527</data> kx/sec</td>
+<td class='aws-lc-rs'><h3>🥉 aws-lc-rs</h3><data value='23139.408702920035'>23,139</data> kx/sec</td>
+<td class='golang'><h3>  golang</h3><data value='20697.93434615225'>20,698</data> kx/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='4740.2390853348425'>4,740.2</data> kx/sec</td>
+</tr>
+<tr><td>P384 key agreement</td>
+<td class='aws-lc-rs'><h3>🥇 aws-lc-rs</h3><data value='5384.576620372672'>5,384.6</data> kx/sec</td>
+<td class='graviola'><h3>🥈 graviola</h3><data value='4856.169640982626'>4,856.2</data> kx/sec</td>
+<td class='golang'><h3>🥉 golang</h3><data value='2438.0075626994594'>2,438</data> kx/sec</td>
+<td class='ring'><h3>  ring</h3><data value='1742.6792346846426'>1,742.7</data> kx/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='1161.1691889734643'>1,161.2</data> kx/sec</td>
+</tr>
+</table>
+<h3>Bulk encryption</h3><table width='100%' cellspacing=25 cellpadding=10>
+<tr><td>AES256-GCM encryption (8KB wide)</td>
+<td class='aws-lc-rs'><span class='info' title='Uses AVX512'>ⓘ</span><h3>🥇 aws-lc-rs</h3><data value='1318920.9174662465'>10.1</data> GiB/sec</td>
+<td class='golang'><h3>🥈 golang</h3><data value='815660.6851549755'>6.22</data> GiB/sec</td>
+<td class='ring'><h3>🥉 ring</h3><data value='663576.0704986032'>5.06</data> GiB/sec</td>
+<td class='graviola'><h3>  graviola</h3><data value='663397.9466778472'>5.06</data> GiB/sec</td>
+<td class='rustcrypto'><h3>  rustcrypto</h3><data value='236166.07404242182'>1.8</data> GiB/sec</td>
+</tr>
+</table>
 <!-- end headlines -->
 
 <h2 name="reports">Full reports</h2>

@@ -6,45 +6,92 @@ from io import StringIO
 
 archs = "aarch64 x86_64".split()
 impls = "aws-lc-rs dalek ring graviola rustcrypto golang".split()
-which = {
-    ("rsa2048-pkcs1-sha256-verify",): {
+which = [
+    {
+        "key": "rsa2048-pkcs1-sha256-verify",
         "name": "RSA2048 signature verification",
         "format": lambda v: "<data value='{0}'>{0:,.5g}</data> sigs/sec".format(v),
     },
-    ("rsa2048-pkcs1-sha256-sign",): {
+    {
+        "key": "rsa2048-pkcs1-sha256-sign",
         "name": "RSA2048 signing",
         "format": lambda v: "<data value='{0}'>{0:,.5g}</data> sigs/sec".format(v),
     },
-    ("x25519-ecdh",): {
+    {
+        "key": "p256-ecdsa-sign",
+        "name": "ECDSA-P256 signing",
+        "format": lambda v: "<data value='{0}'>{0:,.5g}</data> sigs/sec".format(v),
+    },
+    {
+        "key": "p384-ecdsa-sign",
+        "name": "ECDSA-P384 signing",
+        "format": lambda v: "<data value='{0}'>{0:,.5g}</data> sigs/sec".format(v),
+    },
+    {
+        "key": "p256-ecdsa-verify",
+        "name": "ECDSA-P256 signature verification",
+        "format": lambda v: "<data value='{0}'>{0:,.5g}</data> sigs/sec".format(v),
+    },
+    {
+        "key": "p384-ecdsa-verify",
+        "name": "ECDSA-P384 signature verification",
+        "format": lambda v: "<data value='{0}'>{0:,.5g}</data> sigs/sec".format(v),
+    },
+    {
+        "key": "x25519-ecdh",
         "name": "X25519 key agreement",
         "format": lambda v: "<data value='{0}'>{0:,.5g}</data> kx/sec".format(v),
     },
-    ("aes256-gcm", "8KB"): {
+    {
+        "key": "p256-ecdh",
+        "impl-alias": dict(rustcrypto="p256-rustcrypto"),
+        "name": "P256 key agreement",
+        "format": lambda v: "<data value='{0}'>{0:,.5g}</data> kx/sec".format(v),
+    },
+    {
+        "key": "p384-ecdh",
+        "impl-alias": dict(rustcrypto="p384-rustcrypto"),
+        "name": "P384 key agreement",
+        "format": lambda v: "<data value='{0}'>{0:,.5g}</data> kx/sec".format(v),
+    },
+    {
+        "key": "aes256-gcm",
+        "size": "8KB",
         "name": "AES256-GCM encryption (8KB wide)",
         "format": lambda v: "<data value='{0}'>{1:,.03g}</data> GiB/sec".format(
             v, v * 8192 / (1024 * 1024 * 1024)
         ),
     },
-}
+]
+
+notes = {"x86_64": {"aws-lc-rs": {"aes256-gcm": "Uses AVX512"}}}
 
 results = []
 
 standings = ["🥇", "🥈", "🥉", " ", " "]
 
+groups = [
+    ("Signing", ["rsa2048-pkcs1-sha256-sign", "p256-ecdsa-sign", "p384-ecdsa-sign"]),
+    (
+        "Signature verification",
+        ["rsa2048-pkcs1-sha256-verify", "p256-ecdsa-verify", "p384-ecdsa-verify"],
+    ),
+    ("Key exchange", ["x25519-ecdh", "p256-ecdh", "p384-ecdh"]),
+    ("Bulk encryption", ["aes256-gcm"]),
+]
+
 for arch in sorted(archs):
-    for wkey, wdesc in sorted(which.items()):
-        if len(wkey) > 1:
-            wkey, wsize = wkey
-        else:
-            (wkey,) = wkey
-            wsize = None
+    for wdesc in which:
+        wkey = wdesc["key"]
+        wsize = wdesc.get("size", None)
 
         for impl in sorted(impls):
+            wimpl = wdesc.get("impl-alias", {}).get(impl, impl)
             filename = path.join(
                 "reports",
                 arch,
                 wkey,
-                impl,
+                wimpl,
                 wsize + "/new" if wsize else "new",
                 "estimates.json",
             )
@@ -60,30 +107,42 @@ for desc, arch, impl, value in results:
     time = value * 1e-9
     rate = 1 / time
     value = desc["format"](rate)
-    tree.setdefault(arch, {}).setdefault(desc["name"], {})[impl] = (value, rate)
+    a = tree.setdefault(arch, {})
+    a.setdefault(desc["key"], dict(desc))
+    a[desc["key"]].setdefault("measures", {})[impl] = (value, rate)
 
 fragment = StringIO()
 for arch, descs in sorted(tree.items()):
     print("<h2>{}</h2>".format(arch), file=fragment)
-    for desc, impls in sorted(descs.items()):
+    for group, keys in groups:
         print(
-            "<h3>{}</h3><table width='80%' cellspacing=25 cellpadding=10><tr>".format(
-                desc
+            "<h3>{}</h3><table width='100%' cellspacing=25 cellpadding=10>".format(
+                group
             ),
             file=fragment,
         )
+        for key in keys:
+            impls = descs[key]["measures"]
+            print("<tr><td>{}</td>".format(descs[key]["name"]), file=fragment)
 
-        for standing, impl in zip(
-            standings, sorted(impls.keys(), key=lambda b: impls[b][1], reverse=True)
-        ):
-            print(
-                "<td class='{}'><h3>{} {}</h3>{}</td>".format(
-                    impl, standing, impl, impls[impl][0]
-                ),
-                file=fragment,
-            )
+            for standing, impl in zip(
+                standings, sorted(impls.keys(), key=lambda b: impls[b][1], reverse=True)
+            ):
+                note = notes.get(arch, {}).get(impl, {}).get(key, None)
+                note = (
+                    "<span class='info' title='{}'>ⓘ</span>".format(note)
+                    if note
+                    else ""
+                )
+                print(
+                    "<td class='{}'>{}<h3>{} {}</h3>{}</td>".format(
+                        impl, note, standing, impl, impls[impl][0]
+                    ),
+                    file=fragment,
+                )
+            print("</tr>", file=fragment)
 
-        print("</tr></table>", file=fragment)
+        print("</table>", file=fragment)
 
 
 html = open("index.html").readlines()
