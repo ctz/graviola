@@ -11,7 +11,6 @@ pub(crate) struct RsaPrivateKey {
     q: RsaPosIntModP,
     dp: RsaPosIntModP,
     dq: RsaPosIntModP,
-    iqmp: RsaPosIntModP,
     public: RsaPublicKey,
 
     iqmp_mont: RsaPosIntModP,
@@ -53,7 +52,6 @@ impl RsaPrivateKey {
             q,
             dp,
             dq,
-            iqmp,
             public,
             iqmp_mont,
             p_montifier,
