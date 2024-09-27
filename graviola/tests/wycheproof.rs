@@ -92,17 +92,66 @@ enum ExpectedResult {
     Acceptable,
 }
 
+struct Summary {
+    started: usize,
+    skipped: usize,
+    in_test: bool,
+}
+
+impl Summary {
+    fn new() -> Self {
+        Self {
+            started: 0,
+            skipped: 0,
+            in_test: false,
+        }
+    }
+
+    fn group(&mut self, group: &TestGroup) {
+        println!("  group: {:?}", group.typ);
+        self.in_test = false;
+    }
+
+    fn start(&mut self, test: &Test) {
+        println!("    test {}:", test.id);
+        self.started += 1;
+        self.in_test = true;
+    }
+
+    fn skipped(&mut self, why: &str) {
+        if self.in_test {
+            println!("      skipped: {why}");
+            self.skipped += 1;
+            self.in_test = false;
+        } else {
+            println!("    skipped group: {why}");
+        }
+    }
+}
+
+impl Drop for Summary {
+    fn drop(&mut self) {
+        let passed = self.started - self.skipped;
+        println!(
+            "DONE: started {} passed {} skipped {}",
+            self.started, passed, self.skipped
+        );
+        assert_ne!(self.started, self.skipped, "all tests were skipped");
+    }
+}
+
 #[test]
 fn hmac_sha256_tests() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hmac_sha256_test.json")
         .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
 
     for group in tests.groups {
-        println!("group: {:?}", group.typ);
+        summary.group(&group);
         for test in group.tests {
-            println!("  test {:?}", test);
+            summary.start(&test);
 
             let mut ctx = Hmac::<Sha256>::new(test.key);
             ctx.update(test.msg);
@@ -123,11 +172,12 @@ fn hmac_sha384_tests() {
         .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
 
     for group in tests.groups {
-        println!("group: {:?}", group.typ);
+        summary.group(&group);
         for test in group.tests {
-            println!("  test {:?}", test);
+            summary.start(&test);
 
             let mut ctx = Hmac::<Sha384>::new(test.key);
             ctx.update(test.msg);
@@ -148,11 +198,13 @@ fn hmac_sha512_tests() {
         .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
 
     for group in tests.groups {
-        println!("group: {:?}", group.typ);
+        summary.group(&group);
+
         for test in group.tests {
-            println!("  test {:?}", test);
+            summary.start(&test);
 
             let mut ctx = Hmac::<Sha512>::new(test.key);
             ctx.update(test.msg);
@@ -179,15 +231,17 @@ fn test_verify_ecdsa_p256() {
             .expect("failed to open data file");
 
         let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+        let mut summary = Summary::new();
 
         for group in tests.groups {
-            println!("group: {:?}", group.typ);
+            summary.group(&group);
+
             let public_key =
                 VerifyingKey::<P256>::from_x962_uncompressed(&group.public_key.uncompressed)
                     .unwrap();
 
             for test in group.tests {
-                println!("  test {:?}", test);
+                summary.start(&test);
 
                 let result = match (group.typ.as_ref(), group.sha.as_ref()) {
                     ("EcdsaP1363Verify", "SHA-256") => {
@@ -231,15 +285,17 @@ fn test_verify_ecdsa_p384() {
             .expect("failed to open data file");
 
         let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+        let mut summary = Summary::new();
 
         for group in tests.groups {
-            println!("group: {:?}", group.typ);
+            summary.group(&group);
+
             let public_key =
                 VerifyingKey::<P384>::from_x962_uncompressed(&group.public_key.uncompressed)
                     .unwrap();
 
             for test in group.tests {
-                println!("  test {:?}", test);
+                summary.start(&test);
 
                 let result = match (group.typ.as_ref(), group.sha.as_ref()) {
                     ("EcdsaVerify", "SHA-256") => {
@@ -280,12 +336,13 @@ fn test_ecdh_p256() {
             .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
 
     for group in tests.groups {
-        println!("group: {:?}", group.typ);
+        summary.group(&group);
 
         for test in group.tests {
-            println!("  test {:?}", test);
+            summary.start(&test);
 
             let private = p256::PrivateKey::from_bytes(&test.private).unwrap();
             let result = p256::PublicKey::from_x962_uncompressed(&test.public)
@@ -294,6 +351,7 @@ fn test_ecdh_p256() {
             // unsupported test cases
             if test.has_flag("CompressedPublic") || test.has_flag("CompressedPoint") {
                 assert_eq!(result.err(), Some(Error::NotUncompressed));
+                summary.skipped("no support for point compression");
                 continue;
             }
 
@@ -316,12 +374,13 @@ fn test_ecdh_p384() {
             .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
 
     for group in tests.groups {
-        println!("group: {:?}", group.typ);
+        summary.group(&group);
 
         for test in group.tests {
-            println!("  test {:?}", test);
+            summary.start(&test);
 
             let private = p384::PrivateKey::from_bytes(&test.private).unwrap();
             let result = p384::PublicKey::from_x962_uncompressed(&test.public)
@@ -330,6 +389,7 @@ fn test_ecdh_p384() {
             // unsupported test cases
             if test.has_flag("CompressedPublic") || test.has_flag("CompressedPoint") {
                 assert_eq!(result.err(), Some(Error::NotUncompressed));
+                summary.skipped("no support for point compression");
                 continue;
             }
 
@@ -351,12 +411,13 @@ fn test_ecdh_x25519() {
         .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
 
     for group in tests.groups {
-        println!("group: {:?}", group.typ);
+        summary.group(&group);
 
         for test in group.tests {
-            println!("  test {:?}", test);
+            summary.start(&test);
 
             let private = x25519::PrivateKey::try_from_slice(&test.private).unwrap();
             let result = x25519::PublicKey::try_from_slice(&test.public)
@@ -372,20 +433,21 @@ fn test_ecdh_x25519() {
 }
 
 #[test]
-fn test_aesgcm() {
+fn test_aes_gcm() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/aes_gcm_test.json")
         .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
 
     for group in tests.groups {
-        println!("group: {:?}", group.typ);
+        summary.group(&group);
 
         for test in group.tests {
-            println!("  test {:?}", test);
+            summary.start(&test);
 
             if test.key.len() == 24 {
-                println!("    skipped (unsupported key len)");
+                summary.skipped("aes-192 not supported");
                 continue;
             }
 
@@ -393,7 +455,7 @@ fn test_aesgcm() {
             let nonce = match test.iv.len() {
                 12 => test.iv.try_into().unwrap(),
                 _ => {
-                    println!("    skipped (unsupported nonce len)");
+                    summary.skipped("gcm nonces must be 96 bits");
                     continue;
                 }
             };
@@ -425,20 +487,21 @@ fn test_aesgcm() {
 }
 
 #[test]
-fn test_aesgmac() {
+fn test_aes_gmac() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/aes_gmac_test.json")
         .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
 
     for group in tests.groups {
-        println!("group: {:?}", group.typ);
+        summary.group(&group);
 
         for test in group.tests {
-            println!("  test {:?}", test);
+            summary.start(&test);
 
             if test.key.len() == 24 {
-                println!("    skipped (unsupported key len)");
+                summary.skipped("aes-192 not supported");
                 continue;
             }
 
@@ -446,7 +509,7 @@ fn test_aesgmac() {
             let nonce = match test.iv.len() {
                 12 => test.iv.try_into().unwrap(),
                 _ => {
-                    println!("    skipped (unsupported nonce len)");
+                    summary.skipped("gcm nonces must be 96 bits");
                     continue;
                 }
             };
@@ -493,15 +556,16 @@ fn test_rsa_pkcs1_verify() {
         println!("file: {data_file:?}");
 
         let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+        let mut summary = Summary::new();
 
         for group in tests.groups {
-            println!("group: {:?}", group.typ);
+            summary.group(&group);
 
             let key = rsa::RsaPublicVerificationKey::from_pkcs1_der(&group.public_key_asn).unwrap();
             println!("key is {:?}", key);
 
             for test in group.tests {
-                println!("  test {:?}", test);
+                summary.start(&test);
 
                 let result = match group.sha.as_ref() {
                     "SHA-256" => key.verify_pkcs1_sha256(&test.sig, &test.msg),
@@ -539,9 +603,10 @@ fn test_rsa_pss_verify() {
         println!("file: {data_file:?}");
 
         let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+        let mut summary = Summary::new();
 
         for group in tests.groups {
-            println!("group: {:?}", group.typ);
+            summary.group(&group);
 
             let key = rsa::RsaPublicVerificationKey::from_pkcs1_der(&group.public_key_asn).unwrap();
             println!("key is {:?}", key);
@@ -551,13 +616,16 @@ fn test_rsa_pss_verify() {
                 ("SHA-384", "SHA-384", 48) => {}
                 ("SHA-512", "SHA-512", 64) => {}
                 other => {
-                    println!("not supported {other:?}");
+                    summary.skipped(&format!(
+                        "pss with sha={} mgf={} salt_len={} not supported",
+                        other.0, other.1, other.2
+                    ));
                     continue;
                 }
             }
 
             for test in group.tests {
-                println!("  test {:?}", test);
+                summary.start(&test);
 
                 let result = match group.sha.as_ref() {
                     "SHA-256" => key.verify_pss_sha256(&test.sig, &test.msg),
@@ -586,14 +654,16 @@ fn test_chacha20poly1305() {
             .expect("failed to open data file");
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
 
     for group in tests.groups {
-        println!("group: {:?}", group.typ);
+        summary.group(&group);
 
         for test in group.tests {
-            println!("  test {:?}", test);
+            summary.start(&test);
 
             if test.iv.len() != 12 {
+                summary.skipped("chacha20_poly1305 nonce must be 96 bit");
                 continue;
             }
 
