@@ -430,16 +430,16 @@ if __name__ == "__main__":
 
     extras = {
         "bignum_ksqr_32_64": dict(
-            hoist=["proc", "bignum_ksqr_32_64_local_sqr_8_16", "ret"]
+            hoist=["proc", "bignum_ksqr_32_64_neon_local_sqr_8_16", "ret"]
         ),
         "bignum_kmul_32_64": dict(
-            hoist=["proc", "bignum_kmul_32_64_local_mul_8_16", "ret"]
+            hoist=["proc", "bignum_kmul_32_64_neon_local_mul_8_16", "ret"]
         ),
         "bignum_ksqr_16_32": dict(
-            hoist=["proc", "bignum_ksqr_16_32_local_sqr_8_16", "ret"]
+            hoist=["proc", "bignum_ksqr_16_32_neon_local_sqr_8_16", "ret"]
         ),
         "bignum_kmul_16_32": dict(
-            hoist=["proc", "bignum_kmul_16_32_local_mul_8_16", "ret"]
+            hoist=["proc", "bignum_kmul_16_32_neon_local_mul_8_16", "ret"]
         ),
     }
 
@@ -452,9 +452,9 @@ if __name__ == "__main__":
         outwidth = inwidth * 2
         name = "bignum_%s_%d_%d" % (op, inwidth, outwidth)
 
-        with open("../../thirdparty/s2n-bignum/arm/fastmul/%s.S" % name) as input, open(
-            "../../graviola/src/low/aarch64/%s.rs" % name, "w"
-        ) as output:
+        with open(
+            "../../thirdparty/s2n-bignum/arm/fastmul/%s_neon.S" % name
+        ) as input, open("../../graviola/src/low/aarch64/%s.rs" % name, "w") as output:
 
             if op == "kmul":
                 parameter_map = [
@@ -485,7 +485,7 @@ if __name__ == "__main__":
 
             d = RustDriver(output, Architecture_aarch64)
             d.emit_rust_function(
-                name,
+                name + "_neon",
                 parameter_map=parameter_map,
                 assertions=assertions,
                 rust_decl="pub fn %s(%s)" % (name, params),
@@ -495,13 +495,13 @@ if __name__ == "__main__":
             parse_file(input, d)
 
     with open(
-        "../../thirdparty/s2n-bignum/arm/fastmul/bignum_emontredc_8n.S"
+        "../../thirdparty/s2n-bignum/arm/fastmul/bignum_emontredc_8n_neon.S"
     ) as input, open(
         "../../graviola/src/low/aarch64/bignum_emontredc_8n.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
-            "bignum_emontredc_8n",
+            "bignum_emontredc_8n_neon",
             parameter_map=[
                 ("inout", "x0", "m.len() => ret"),
                 ("inout", "x1", "z.as_mut_ptr() => _"),
