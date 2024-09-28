@@ -11,6 +11,9 @@ pub fn bignum_copy_row_from_table(
     index: u64,
 ) {
     match width {
+        16 => super::bignum_copy_row_from_table_16_avx2::bignum_copy_row_from_table_16_avx2(
+            z, table, height, index,
+        ),
         width if width % 8 == 0 => {
             super::bignum_copy_row_from_table_8n_avx2::bignum_copy_row_from_table_8n_avx2(
                 z, table, height, width, index,

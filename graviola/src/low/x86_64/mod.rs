@@ -9,6 +9,7 @@ pub(crate) mod bignum_add_p384;
 pub(crate) mod bignum_bitsize;
 pub(crate) mod bignum_cmp_lt;
 pub(crate) mod bignum_copy_row_from_table;
+pub(crate) mod bignum_copy_row_from_table_16_avx2;
 pub(crate) mod bignum_copy_row_from_table_8n_avx2;
 pub(crate) mod bignum_copy_row_from_table_mux;
 pub(crate) mod bignum_demont;
