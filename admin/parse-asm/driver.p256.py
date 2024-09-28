@@ -344,13 +344,13 @@ if __name__ == "__main__":
 
     # aarch64
     with open(
-        "../../thirdparty/s2n-bignum/arm/p256/bignum_montsqr_p256_alt.S"
+        "../../thirdparty/s2n-bignum/arm/p256/bignum_montsqr_p256_neon.S"
     ) as input, open(
         "../../graviola/src/low/aarch64/bignum_montsqr_p256.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
-            "bignum_montsqr_p256_alt",
+            "bignum_montsqr_p256_neon",
             parameter_map=[
                 ("inout", "x0", "z.as_mut_ptr() => _"),
                 ("inout", "x1", "x.as_ptr() => _"),
@@ -360,13 +360,13 @@ if __name__ == "__main__":
         parse_file(input, d)
 
     with open(
-        "../../thirdparty/s2n-bignum/arm/p256/bignum_montmul_p256_alt.S"
+        "../../thirdparty/s2n-bignum/arm/p256/bignum_montmul_p256_neon.S"
     ) as input, open(
         "../../graviola/src/low/aarch64/bignum_montmul_p256.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
-            "bignum_montmul_p256_alt",
+            "bignum_montmul_p256_neon",
             parameter_map=[
                 ("inout", "x0", "z.as_mut_ptr() => _"),
                 ("inout", "x1", "x.as_ptr() => _"),

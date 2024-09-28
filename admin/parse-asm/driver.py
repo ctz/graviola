@@ -969,3 +969,6 @@ if __name__ == "__main__":
     ]
     print(tokenise("movbig( n0, #0xf3b9, #0xcac2, #0xfc63, #0x2551)"))
     assert tokenise(".Lloop_ssse3:") == [".Lloop_ssse3", ":"]
+    assert tokenise("umlal	v0.2d, v4.2s, v5.2s") == [
+        x.lower() for x in tokenise("umlal	v0.2D, v4.2S, v5.2S")
+    ]
