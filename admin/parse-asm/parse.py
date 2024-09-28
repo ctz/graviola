@@ -3,6 +3,7 @@ import re
 import glob
 import string
 import subprocess
+from collections import namedtuple
 from os import path
 import io
 
@@ -161,6 +162,20 @@ def parse_file(f, visit):
 def is_comment(s):
     s = s.strip()
     return s.startswith("/*") and s.endswith("*/")
+
+
+register = namedtuple("Register", "reg suffix")
+
+
+def register_from_token(t):
+    # fix up registers that are tokenised as one, but
+    # need to be treated as two for macro expansion,
+    # eg `ventry4.16b` needs to be split into `ventry4`
+    # (`ventry4` being a macro name) and `.16b` (neon
+    # width spec)
+    if t.count(".") == 1:
+        idx = t.find(".")
+        return register(t[:idx], t[idx:])
 
 
 def tokenise(s):

@@ -4,7 +4,7 @@ import subprocess
 from io import StringIO
 import copy
 
-from parse import Type, tokenise, is_comment
+from parse import Type, register_from_token, tokenise, is_comment
 
 
 class Architecture:
@@ -553,6 +553,8 @@ use crate::low::macros::*;
     def expand_rust_macros(self, *values, params={}):
         for v in values:
             for t in tokenise(v):
+                r = register_from_token(t)
+
                 if t in params:
                     yield unquote("$" + t)
                 elif t in self.rust_macros:
@@ -564,6 +566,13 @@ use crate::low::macros::*;
                     # must not have any arguments
                     assert macro_args == None
                     yield unquote("%s!()" % t)
+                elif r is not None and r.reg in self.rust_macros:
+                    macro_value, macro_args = self.rust_macros[r.reg]
+                    for vv in macro_value:
+                        self.visit_operands(vv)
+                    assert macro_args == None
+                    yield unquote("%s!()" % r.reg)
+                    yield r.suffix
                 elif is_comment(t):
                     yield unquote(t)
                 elif t in self.constant_syms:
