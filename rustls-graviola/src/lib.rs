@@ -1,7 +1,7 @@
 //! <h1 align="center">Graviola</h1>
 //! <img width="40%" align="right" src="https://raw.githubusercontent.com/ctz/graviola/main/admin/picture.png">
 //!
-//! This crate provides an integration between rustls and [Graviola](https://github.com/ctz/graviola/).
+//! This crate provides an integration between [rustls](https://github.com/rustls/rustls) and [Graviola](https://github.com/ctz/graviola/).
 //!
 //! Use it like:
 //!
@@ -11,7 +11,7 @@
 //!     .unwrap();
 //! ```
 //!
-//! And then use [rustls](https://docs.rs/rustls/latest/rustls/) as normal.
+//! And then use rustls as normal.
 
 use rustls::crypto::CryptoProvider;
 
