@@ -8,7 +8,7 @@ use crate::low::macros::*;
 // Montgomery multiply, z := (x * y / 2^384) mod p_384
 // Inputs x[6], y[6]; output z[6]
 //
-//    extern void bignum_montmul_p384
+//    extern void bignum_montmul_p384_alt
 //     (uint64_t z[static 6], uint64_t x[static 6], uint64_t y[static 6]);
 //
 // Does z := (2^{-384} * x * y) mod p_384, assuming that the inputs x and y
@@ -17,27 +17,6 @@ use crate::low::macros::*;
 //
 // Standard ARM ABI: X0 = z, X1 = x, X2 = y
 // ----------------------------------------------------------------------------
-
-// ---------------------------------------------------------------------------
-// Macro returning (c,h,l) = 3-word 1s complement (x - y) * (w - z)
-// c,h,l,t should all be different
-// t,h should not overlap w,z
-// ---------------------------------------------------------------------------
-
-macro_rules! muldiffn {
-    ($c:expr, $h:expr, $l:expr, $t:expr, $x:expr, $y:expr, $w:expr, $z:expr) => { Q!(
-        "subs " $t ", " $x ", " $y ";\n"
-        "cneg " $t ", " $t ", cc;\n"
-        "csetm " $c ", cc;\n"
-        "subs " $h ", " $w ", " $z ";\n"
-        "cneg " $h ", " $h ", cc;\n"
-        "mul " $l ", " $t ", " $h ";\n"
-        "umulh " $h ", " $t ", " $h ";\n"
-        "cinv " $c ", " $c ", cc;\n"
-        "eor " $l ", " $l ", " $c ";\n"
-        "eor " $h ", " $h ", " $c
-    )}
-}
 
 // ---------------------------------------------------------------------------
 // Core one-step "short" Montgomery reduction macro. Takes input in
@@ -52,32 +31,46 @@ macro_rules! muldiffn {
 macro_rules! montreds {
     ($d6:expr, $d5:expr, $d4:expr, $d3:expr, $d2:expr, $d1:expr, $d0:expr, $t3:expr, $t2:expr, $t1:expr) => { Q!(
         /* Our correction multiplier is w = [d0 + (d0<<32)] mod 2^64            */
-        /* Recycle d0 (which we know gets implicitly cancelled) to store it     */
+        /* Store it in d6 to make the 2^384 * w contribution already            */
         "lsl " $t1 ", " $d0 ", #32;\n"
-        "add " $d0 ", " $t1 ", " $d0 ";\n"
-        /* Now let [t2;t1] = 2^64 * w - w + w_hi where w_hi = floor(w/2^32)     */
-        /* We need to subtract 2^32 * this, and we can ignore its lower 32      */
-        /* bits since by design it will cancel anyway; we only need the w_hi    */
-        /* part to get the carry propagation going.                             */
-        "lsr " $t1 ", " $d0 ", #32;\n"
-        "subs " $t1 ", " $t1 ", " $d0 ";\n"
-        "sbc " $t2 ", " $d0 ", xzr;\n"
-        /* Now select in t1 the field to subtract from d1                       */
-        "extr " $t1 ", " $t2 ", " $t1 ", #32;\n"
-        /* And now get the terms to subtract from d2 and d3                     */
-        "lsr " $t2 ", " $t2 ", #32;\n"
-        "adds " $t2 ", " $t2 ", " $d0 ";\n"
+        "add " $d6 ", " $t1 ", " $d0 ";\n"
+        /* Now let [t3;t2;t1;-] = (2^384 - p_384) * w                    */
+        /* We know the lowest word will cancel d0 so we don't need it    */
+        "mov " $t1 ", #0xffffffff00000001;\n"
+        "umulh " $t1 ", " $t1 ", " $d6 ";\n"
+        "mov " $t2 ", #0x00000000ffffffff;\n"
+        "mul " $t3 ", " $t2 ", " $d6 ";\n"
+        "umulh " $t2 ", " $t2 ", " $d6 ";\n"
+        "adds " $t1 ", " $t1 ", " $t3 ";\n"
+        "adcs " $t2 ", " $t2 ", " $d6 ";\n"
         "adc " $t3 ", xzr, xzr;\n"
-        /* Do the subtraction of that portion                                   */
+        /* Now add it, by subtracting from 2^384 * w + x */
         "subs " $d1 ", " $d1 ", " $t1 ";\n"
         "sbcs " $d2 ", " $d2 ", " $t2 ";\n"
         "sbcs " $d3 ", " $d3 ", " $t3 ";\n"
         "sbcs " $d4 ", " $d4 ", xzr;\n"
         "sbcs " $d5 ", " $d5 ", xzr;\n"
-        /* Now effectively add 2^384 * w by taking d0 as the input for last sbc */
-        "sbc " $d6 ", " $d0 ", xzr"
+        "sbc " $d6 ", " $d6 ", xzr"
     )}
 }
+
+macro_rules! z {
+    () => {
+        Q!("x0")
+    };
+}
+macro_rules! x {
+    () => {
+        Q!("x1")
+    };
+}
+macro_rules! y {
+    () => {
+        Q!("x2")
+    };
+}
+
+// These are repeated mod 2 as we load pairs of inputs
 
 macro_rules! a0 {
     () => {
@@ -91,109 +84,125 @@ macro_rules! a1 {
 }
 macro_rules! a2 {
     () => {
-        Q!("x5")
+        Q!("x3")
     };
 }
 macro_rules! a3 {
     () => {
-        Q!("x6")
+        Q!("x4")
     };
 }
 macro_rules! a4 {
     () => {
-        Q!("x7")
+        Q!("x3")
     };
 }
 macro_rules! a5 {
     () => {
-        Q!("x8")
+        Q!("x4")
     };
 }
+
 macro_rules! b0 {
     () => {
-        Q!("x9")
+        Q!("x5")
     };
 }
 macro_rules! b1 {
     () => {
-        Q!("x10")
+        Q!("x6")
     };
 }
 macro_rules! b2 {
     () => {
-        Q!("x11")
+        Q!("x7")
     };
 }
 macro_rules! b3 {
     () => {
-        Q!("x12")
+        Q!("x8")
     };
 }
 macro_rules! b4 {
     () => {
-        Q!("x13")
+        Q!("x9")
     };
 }
 macro_rules! b5 {
     () => {
-        Q!("x14")
+        Q!("x10")
     };
 }
 
-macro_rules! s0 {
+macro_rules! l {
+    () => {
+        Q!("x11")
+    };
+}
+
+macro_rules! u0 {
+    () => {
+        Q!("x12")
+    };
+}
+macro_rules! u1 {
+    () => {
+        Q!("x13")
+    };
+}
+macro_rules! u2 {
+    () => {
+        Q!("x14")
+    };
+}
+macro_rules! u3 {
     () => {
         Q!("x15")
     };
 }
-macro_rules! s1 {
+macro_rules! u4 {
     () => {
         Q!("x16")
     };
 }
-macro_rules! s2 {
+macro_rules! u5 {
     () => {
         Q!("x17")
     };
 }
-macro_rules! s3 {
+macro_rules! u6 {
     () => {
         Q!("x19")
     };
 }
-macro_rules! s4 {
+macro_rules! u7 {
     () => {
         Q!("x20")
     };
 }
-macro_rules! s5 {
-    () => {
-        Q!("x1")
-    };
-}
-macro_rules! s6 {
-    () => {
-        Q!("x2")
-    };
-}
-
-macro_rules! t1 {
+macro_rules! u8 {
     () => {
         Q!("x21")
     };
 }
-macro_rules! t2 {
+macro_rules! u9 {
     () => {
         Q!("x22")
     };
 }
-macro_rules! t3 {
+macro_rules! u10 {
     () => {
-        Q!("x23")
+        Q!("x2")
     };
 }
-macro_rules! t4 {
+macro_rules! u11 {
     () => {
-        Q!("x24")
+        Q!("x1")
+    };
+}
+macro_rules! h {
+    () => {
+        Q!(b5!())
     };
 }
 
@@ -202,309 +211,242 @@ pub fn bignum_montmul_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6]) {
         core::arch::asm!(
 
 
-        // Save some registers
+        // Save more registers
 
-        Q!("    stp             " "x19, x20, [sp, -16] !"),
-        Q!("    stp             " "x21, x22, [sp, -16] !"),
-        Q!("    stp             " "x23, x24, [sp, -16] !"),
+        Q!("    stp             " "x19, x20, [sp, #-16] !"),
+        Q!("    stp             " "x21, x22, [sp, #-16] !"),
 
-        // Load in all words of both inputs
+        // Load operands and set up row 0 = [u6;...;u0] = a0 * [b5;...;b0]
 
-        Q!("    ldp             " a0!() ", " a1!() ", [x1]"),
-        Q!("    ldp             " a2!() ", " a3!() ", [x1, #16]"),
-        Q!("    ldp             " a4!() ", " a5!() ", [x1, #32]"),
-        Q!("    ldp             " b0!() ", " b1!() ", [x2]"),
-        Q!("    ldp             " b2!() ", " b3!() ", [x2, #16]"),
-        Q!("    ldp             " b4!() ", " b5!() ", [x2, #32]"),
+        Q!("    ldp             " a0!() ", " a1!() ", [" x!() "]"),
+        Q!("    ldp             " b0!() ", " b1!() ", [" y!() "]"),
 
-        // Multiply low halves with a 3x3->6 ADK multiplier as [s5;s4;s3;s2;s1;s0]
+        Q!("    mul             " u0!() ", " a0!() ", " b0!()),
+        Q!("    umulh           " u1!() ", " a0!() ", " b0!()),
+        Q!("    mul             " l!() ", " a0!() ", " b1!()),
+        Q!("    umulh           " u2!() ", " a0!() ", " b1!()),
+        Q!("    adds            " u1!() ", " u1!() ", " l!()),
 
-        Q!("    mul             " s0!() ", " a0!() ", " b0!()),
-        Q!("    mul             " t1!() ", " a1!() ", " b1!()),
-        Q!("    mul             " t2!() ", " a2!() ", " b2!()),
-        Q!("    umulh           " t3!() ", " a0!() ", " b0!()),
-        Q!("    umulh           " t4!() ", " a1!() ", " b1!()),
-        Q!("    umulh           " s5!() ", " a2!() ", " b2!()),
+        Q!("    ldp             " b2!() ", " b3!() ", [" y!() ", #16]"),
 
-        Q!("    adds            " t3!() ", " t3!() ", " t1!()),
-        Q!("    adcs            " t4!() ", " t4!() ", " t2!()),
-        Q!("    adc             " s5!() ", " s5!() ", xzr"),
+        Q!("    mul             " l!() ", " a0!() ", " b2!()),
+        Q!("    umulh           " u3!() ", " a0!() ", " b2!()),
+        Q!("    adcs            " u2!() ", " u2!() ", " l!()),
 
-        Q!("    adds            " s1!() ", " t3!() ", " s0!()),
-        Q!("    adcs            " s2!() ", " t4!() ", " t3!()),
-        Q!("    adcs            " s3!() ", " s5!() ", " t4!()),
-        Q!("    adc             " s4!() ", " s5!() ", xzr"),
+        Q!("    mul             " l!() ", " a0!() ", " b3!()),
+        Q!("    umulh           " u4!() ", " a0!() ", " b3!()),
+        Q!("    adcs            " u3!() ", " u3!() ", " l!()),
 
-        Q!("    adds            " s2!() ", " s2!() ", " s0!()),
-        Q!("    adcs            " s3!() ", " s3!() ", " t3!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t4!()),
-        Q!("    adc             " s5!() ", " s5!() ", xzr"),
+        Q!("    ldp             " b4!() ", " b5!() ", [" y!() ", #32]"),
 
-        muldiffn!(t3!(), t2!(), t1!(), t4!(), a0!(), a1!(), b1!(), b0!()),
-        Q!("    adds            " "xzr, " t3!() ", #1"),
-        Q!("    adcs            " s1!() ", " s1!() ", " t1!()),
-        Q!("    adcs            " s2!() ", " s2!() ", " t2!()),
-        Q!("    adcs            " s3!() ", " s3!() ", " t3!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t3!()),
-        Q!("    adc             " s5!() ", " s5!() ", " t3!()),
+        Q!("    mul             " l!() ", " a0!() ", " b4!()),
+        Q!("    umulh           " u5!() ", " a0!() ", " b4!()),
+        Q!("    adcs            " u4!() ", " u4!() ", " l!()),
 
-        muldiffn!(t3!(), t2!(), t1!(), t4!(), a0!(), a2!(), b2!(), b0!()),
-        Q!("    adds            " "xzr, " t3!() ", #1"),
-        Q!("    adcs            " s2!() ", " s2!() ", " t1!()),
-        Q!("    adcs            " s3!() ", " s3!() ", " t2!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t3!()),
-        Q!("    adc             " s5!() ", " s5!() ", " t3!()),
+        Q!("    mul             " l!() ", " a0!() ", " b5!()),
+        Q!("    umulh           " u6!() ", " a0!() ", " b5!()),
+        Q!("    adcs            " u5!() ", " u5!() ", " l!()),
 
-        muldiffn!(t3!(), t2!(), t1!(), t4!(), a1!(), a2!(), b2!(), b1!()),
-        Q!("    adds            " "xzr, " t3!() ", #1"),
-        Q!("    adcs            " s3!() ", " s3!() ", " t1!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t2!()),
-        Q!("    adc             " s5!() ", " s5!() ", " t3!()),
+        Q!("    adc             " u6!() ", " u6!() ", xzr"),
 
-        // Perform three "short" Montgomery steps on the low product
-        // This shifts it to an offset compatible with middle terms
-        // Stash the result temporarily in the output buffer
-        // We could keep this in registers by directly adding to it in the next
-        // ADK block, but if anything that seems to be slightly slower
+        // Row 1 = [u7;...;u0] = [a1;a0] * [b5;...;b0]
 
-        montreds!(s0!(), s5!(), s4!(), s3!(), s2!(), s1!(), s0!(), t1!(), t2!(), t3!()),
+        Q!("    mul             " l!() ", " a1!() ", " b0!()),
+        Q!("    adds            " u1!() ", " u1!() ", " l!()),
+        Q!("    mul             " l!() ", " a1!() ", " b1!()),
+        Q!("    adcs            " u2!() ", " u2!() ", " l!()),
+        Q!("    mul             " l!() ", " a1!() ", " b2!()),
+        Q!("    adcs            " u3!() ", " u3!() ", " l!()),
+        Q!("    mul             " l!() ", " a1!() ", " b3!()),
+        Q!("    adcs            " u4!() ", " u4!() ", " l!()),
+        Q!("    mul             " l!() ", " a1!() ", " b4!()),
+        Q!("    adcs            " u5!() ", " u5!() ", " l!()),
+        Q!("    mul             " l!() ", " a1!() ", " b5!()),
+        Q!("    adcs            " u6!() ", " u6!() ", " l!()),
+        Q!("    cset            " u7!() ", cs"),
 
-        montreds!(s1!(), s0!(), s5!(), s4!(), s3!(), s2!(), s1!(), t1!(), t2!(), t3!()),
+        Q!("    umulh           " l!() ", " a1!() ", " b0!()),
+        Q!("    adds            " u2!() ", " u2!() ", " l!()),
+        Q!("    umulh           " l!() ", " a1!() ", " b1!()),
+        Q!("    adcs            " u3!() ", " u3!() ", " l!()),
+        Q!("    umulh           " l!() ", " a1!() ", " b2!()),
+        Q!("    adcs            " u4!() ", " u4!() ", " l!()),
+        Q!("    umulh           " l!() ", " a1!() ", " b3!()),
+        Q!("    adcs            " u5!() ", " u5!() ", " l!()),
+        Q!("    umulh           " l!() ", " a1!() ", " b4!()),
+        Q!("    adcs            " u6!() ", " u6!() ", " l!()),
+        Q!("    umulh           " l!() ", " a1!() ", " b5!()),
+        Q!("    adc             " u7!() ", " u7!() ", " l!()),
 
-        montreds!(s2!(), s1!(), s0!(), s5!(), s4!(), s3!(), s2!(), t1!(), t2!(), t3!()),
+        // Row 2 = [u8;...;u0] = [a2;a1;a0] * [b5;...;b0]
 
-        Q!("    stp             " s3!() ", " s4!() ", [x0]"),
-        Q!("    stp             " s5!() ", " s0!() ", [x0, #16]"),
-        Q!("    stp             " s1!() ", " s2!() ", [x0, #32]"),
+        Q!("    ldp             " a2!() ", " a3!() ", [" x!() ", #16]"),
 
-        // Multiply high halves with a 3x3->6 ADK multiplier as [s5;s4;s3;s2;s1;s0]
+        Q!("    mul             " l!() ", " a2!() ", " b0!()),
+        Q!("    adds            " u2!() ", " u2!() ", " l!()),
+        Q!("    mul             " l!() ", " a2!() ", " b1!()),
+        Q!("    adcs            " u3!() ", " u3!() ", " l!()),
+        Q!("    mul             " l!() ", " a2!() ", " b2!()),
+        Q!("    adcs            " u4!() ", " u4!() ", " l!()),
+        Q!("    mul             " l!() ", " a2!() ", " b3!()),
+        Q!("    adcs            " u5!() ", " u5!() ", " l!()),
+        Q!("    mul             " l!() ", " a2!() ", " b4!()),
+        Q!("    adcs            " u6!() ", " u6!() ", " l!()),
+        Q!("    mul             " l!() ", " a2!() ", " b5!()),
+        Q!("    adcs            " u7!() ", " u7!() ", " l!()),
+        Q!("    cset            " u8!() ", cs"),
 
-        Q!("    mul             " s0!() ", " a3!() ", " b3!()),
-        Q!("    mul             " t1!() ", " a4!() ", " b4!()),
-        Q!("    mul             " t2!() ", " a5!() ", " b5!()),
-        Q!("    umulh           " t3!() ", " a3!() ", " b3!()),
-        Q!("    umulh           " t4!() ", " a4!() ", " b4!()),
-        Q!("    umulh           " s5!() ", " a5!() ", " b5!()),
+        Q!("    umulh           " l!() ", " a2!() ", " b0!()),
+        Q!("    adds            " u3!() ", " u3!() ", " l!()),
+        Q!("    umulh           " l!() ", " a2!() ", " b1!()),
+        Q!("    adcs            " u4!() ", " u4!() ", " l!()),
+        Q!("    umulh           " l!() ", " a2!() ", " b2!()),
+        Q!("    adcs            " u5!() ", " u5!() ", " l!()),
+        Q!("    umulh           " l!() ", " a2!() ", " b3!()),
+        Q!("    adcs            " u6!() ", " u6!() ", " l!()),
+        Q!("    umulh           " l!() ", " a2!() ", " b4!()),
+        Q!("    adcs            " u7!() ", " u7!() ", " l!()),
+        Q!("    umulh           " l!() ", " a2!() ", " b5!()),
+        Q!("    adc             " u8!() ", " u8!() ", " l!()),
 
-        Q!("    adds            " t3!() ", " t3!() ", " t1!()),
-        Q!("    adcs            " t4!() ", " t4!() ", " t2!()),
-        Q!("    adc             " s5!() ", " s5!() ", xzr"),
+        // Row 3 = [u9;...;u0] = [a3;a2;a1;a0] * [b5;...;b0]
 
-        Q!("    adds            " s1!() ", " t3!() ", " s0!()),
-        Q!("    adcs            " s2!() ", " t4!() ", " t3!()),
-        Q!("    adcs            " s3!() ", " s5!() ", " t4!()),
-        Q!("    adc             " s4!() ", " s5!() ", xzr"),
+        Q!("    mul             " l!() ", " a3!() ", " b0!()),
+        Q!("    adds            " u3!() ", " u3!() ", " l!()),
+        Q!("    mul             " l!() ", " a3!() ", " b1!()),
+        Q!("    adcs            " u4!() ", " u4!() ", " l!()),
+        Q!("    mul             " l!() ", " a3!() ", " b2!()),
+        Q!("    adcs            " u5!() ", " u5!() ", " l!()),
+        Q!("    mul             " l!() ", " a3!() ", " b3!()),
+        Q!("    adcs            " u6!() ", " u6!() ", " l!()),
+        Q!("    mul             " l!() ", " a3!() ", " b4!()),
+        Q!("    adcs            " u7!() ", " u7!() ", " l!()),
+        Q!("    mul             " l!() ", " a3!() ", " b5!()),
+        Q!("    adcs            " u8!() ", " u8!() ", " l!()),
+        Q!("    cset            " u9!() ", cs"),
 
-        Q!("    adds            " s2!() ", " s2!() ", " s0!()),
-        Q!("    adcs            " s3!() ", " s3!() ", " t3!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t4!()),
-        Q!("    adc             " s5!() ", " s5!() ", xzr"),
+        Q!("    umulh           " l!() ", " a3!() ", " b0!()),
+        Q!("    adds            " u4!() ", " u4!() ", " l!()),
+        Q!("    umulh           " l!() ", " a3!() ", " b1!()),
+        Q!("    adcs            " u5!() ", " u5!() ", " l!()),
+        Q!("    umulh           " l!() ", " a3!() ", " b2!()),
+        Q!("    adcs            " u6!() ", " u6!() ", " l!()),
+        Q!("    umulh           " l!() ", " a3!() ", " b3!()),
+        Q!("    adcs            " u7!() ", " u7!() ", " l!()),
+        Q!("    umulh           " l!() ", " a3!() ", " b4!()),
+        Q!("    adcs            " u8!() ", " u8!() ", " l!()),
+        Q!("    umulh           " l!() ", " a3!() ", " b5!()),
+        Q!("    adc             " u9!() ", " u9!() ", " l!()),
 
-        muldiffn!(t3!(), t2!(), t1!(), t4!(), a3!(), a4!(), b4!(), b3!()),
-        Q!("    adds            " "xzr, " t3!() ", #1"),
-        Q!("    adcs            " s1!() ", " s1!() ", " t1!()),
-        Q!("    adcs            " s2!() ", " s2!() ", " t2!()),
-        Q!("    adcs            " s3!() ", " s3!() ", " t3!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t3!()),
-        Q!("    adc             " s5!() ", " s5!() ", " t3!()),
+        // Row 4 = [u10;...;u0] = [a4;a3;a2;a1;a0] * [b5;...;b0]
 
-        muldiffn!(t3!(), t2!(), t1!(), t4!(), a3!(), a5!(), b5!(), b3!()),
-        Q!("    adds            " "xzr, " t3!() ", #1"),
-        Q!("    adcs            " s2!() ", " s2!() ", " t1!()),
-        Q!("    adcs            " s3!() ", " s3!() ", " t2!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t3!()),
-        Q!("    adc             " s5!() ", " s5!() ", " t3!()),
+        Q!("    ldp             " a4!() ", " a5!() ", [" x!() ", #32]"),
 
-        muldiffn!(t3!(), t2!(), t1!(), t4!(), a4!(), a5!(), b5!(), b4!()),
-        Q!("    adds            " "xzr, " t3!() ", #1"),
-        Q!("    adcs            " s3!() ", " s3!() ", " t1!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t2!()),
-        Q!("    adc             " s5!() ", " s5!() ", " t3!()),
+        Q!("    mul             " l!() ", " a4!() ", " b0!()),
+        Q!("    adds            " u4!() ", " u4!() ", " l!()),
+        Q!("    mul             " l!() ", " a4!() ", " b1!()),
+        Q!("    adcs            " u5!() ", " u5!() ", " l!()),
+        Q!("    mul             " l!() ", " a4!() ", " b2!()),
+        Q!("    adcs            " u6!() ", " u6!() ", " l!()),
+        Q!("    mul             " l!() ", " a4!() ", " b3!()),
+        Q!("    adcs            " u7!() ", " u7!() ", " l!()),
+        Q!("    mul             " l!() ", " a4!() ", " b4!()),
+        Q!("    adcs            " u8!() ", " u8!() ", " l!()),
+        Q!("    mul             " l!() ", " a4!() ", " b5!()),
+        Q!("    adcs            " u9!() ", " u9!() ", " l!()),
+        Q!("    cset            " u10!() ", cs"),
 
-        // Compute sign-magnitude a0,[a5,a4,a3] = x_hi - x_lo
+        Q!("    umulh           " l!() ", " a4!() ", " b0!()),
+        Q!("    adds            " u5!() ", " u5!() ", " l!()),
+        Q!("    umulh           " l!() ", " a4!() ", " b1!()),
+        Q!("    adcs            " u6!() ", " u6!() ", " l!()),
+        Q!("    umulh           " l!() ", " a4!() ", " b2!()),
+        Q!("    adcs            " u7!() ", " u7!() ", " l!()),
+        Q!("    umulh           " l!() ", " a4!() ", " b3!()),
+        Q!("    adcs            " u8!() ", " u8!() ", " l!()),
+        Q!("    umulh           " l!() ", " a4!() ", " b4!()),
+        Q!("    adcs            " u9!() ", " u9!() ", " l!()),
+        Q!("    umulh           " l!() ", " a4!() ", " b5!()),
+        Q!("    adc             " u10!() ", " u10!() ", " l!()),
 
-        Q!("    subs            " a3!() ", " a3!() ", " a0!()),
-        Q!("    sbcs            " a4!() ", " a4!() ", " a1!()),
-        Q!("    sbcs            " a5!() ", " a5!() ", " a2!()),
-        Q!("    sbc             " a0!() ", xzr, xzr"),
-        Q!("    adds            " "xzr, " a0!() ", #1"),
-        Q!("    eor             " a3!() ", " a3!() ", " a0!()),
-        Q!("    adcs            " a3!() ", " a3!() ", xzr"),
-        Q!("    eor             " a4!() ", " a4!() ", " a0!()),
-        Q!("    adcs            " a4!() ", " a4!() ", xzr"),
-        Q!("    eor             " a5!() ", " a5!() ", " a0!()),
-        Q!("    adc             " a5!() ", " a5!() ", xzr"),
+        // Row 5 = [u11;...;u0] = [a5;a4;a3;a2;a1;a0] * [b5;...;b0]
 
-        // Compute sign-magnitude b5,[b2,b1,b0] = y_lo - y_hi
+        Q!("    mul             " l!() ", " a5!() ", " b0!()),
+        Q!("    adds            " u5!() ", " u5!() ", " l!()),
+        Q!("    mul             " l!() ", " a5!() ", " b1!()),
+        Q!("    adcs            " u6!() ", " u6!() ", " l!()),
+        Q!("    mul             " l!() ", " a5!() ", " b2!()),
+        Q!("    adcs            " u7!() ", " u7!() ", " l!()),
+        Q!("    mul             " l!() ", " a5!() ", " b3!()),
+        Q!("    adcs            " u8!() ", " u8!() ", " l!()),
+        Q!("    mul             " l!() ", " a5!() ", " b4!()),
+        Q!("    adcs            " u9!() ", " u9!() ", " l!()),
+        Q!("    mul             " l!() ", " a5!() ", " b5!()),
+        Q!("    adcs            " u10!() ", " u10!() ", " l!()),
+        Q!("    cset            " u11!() ", cs"),
 
-        Q!("    subs            " b0!() ", " b0!() ", " b3!()),
-        Q!("    sbcs            " b1!() ", " b1!() ", " b4!()),
-        Q!("    sbcs            " b2!() ", " b2!() ", " b5!()),
-        Q!("    sbc             " b5!() ", xzr, xzr"),
+        Q!("    umulh           " l!() ", " a5!() ", " b0!()),
+        Q!("    adds            " u6!() ", " u6!() ", " l!()),
+        Q!("    umulh           " l!() ", " a5!() ", " b1!()),
+        Q!("    adcs            " u7!() ", " u7!() ", " l!()),
+        Q!("    umulh           " l!() ", " a5!() ", " b2!()),
+        Q!("    adcs            " u8!() ", " u8!() ", " l!()),
+        Q!("    umulh           " l!() ", " a5!() ", " b3!()),
+        Q!("    adcs            " u9!() ", " u9!() ", " l!()),
+        Q!("    umulh           " l!() ", " a5!() ", " b4!()),
+        Q!("    adcs            " u10!() ", " u10!() ", " l!()),
+        Q!("    umulh           " l!() ", " a5!() ", " b5!()),
+        Q!("    adc             " u11!() ", " u11!() ", " l!()),
 
-        Q!("    adds            " "xzr, " b5!() ", #1"),
-        Q!("    eor             " b0!() ", " b0!() ", " b5!()),
-        Q!("    adcs            " b0!() ", " b0!() ", xzr"),
-        Q!("    eor             " b1!() ", " b1!() ", " b5!()),
-        Q!("    adcs            " b1!() ", " b1!() ", xzr"),
-        Q!("    eor             " b2!() ", " b2!() ", " b5!()),
-        Q!("    adc             " b2!() ", " b2!() ", xzr"),
+        // Montgomery rotate the low half
 
-        // Save the correct sign for the sub-product in b5
+        montreds!(u0!(), u5!(), u4!(), u3!(), u2!(), u1!(), u0!(), b0!(), b1!(), b2!()),
+        montreds!(u1!(), u0!(), u5!(), u4!(), u3!(), u2!(), u1!(), b0!(), b1!(), b2!()),
+        montreds!(u2!(), u1!(), u0!(), u5!(), u4!(), u3!(), u2!(), b0!(), b1!(), b2!()),
+        montreds!(u3!(), u2!(), u1!(), u0!(), u5!(), u4!(), u3!(), b0!(), b1!(), b2!()),
+        montreds!(u4!(), u3!(), u2!(), u1!(), u0!(), u5!(), u4!(), b0!(), b1!(), b2!()),
+        montreds!(u5!(), u4!(), u3!(), u2!(), u1!(), u0!(), u5!(), b0!(), b1!(), b2!()),
 
-        Q!("    eor             " b5!() ", " a0!() ", " b5!()),
+        // Add up the high and low parts as [h; u5;u4;u3;u2;u1;u0] = z
 
-        // Add the high H to the modified low term L' and re-stash 6 words,
-        // keeping top word in s6
+        Q!("    adds            " u0!() ", " u0!() ", " u6!()),
+        Q!("    adcs            " u1!() ", " u1!() ", " u7!()),
+        Q!("    adcs            " u2!() ", " u2!() ", " u8!()),
+        Q!("    adcs            " u3!() ", " u3!() ", " u9!()),
+        Q!("    adcs            " u4!() ", " u4!() ", " u10!()),
+        Q!("    adcs            " u5!() ", " u5!() ", " u11!()),
+        Q!("    adc             " h!() ", xzr, xzr"),
 
-        Q!("    ldp             " t1!() ", " t2!() ", [x0]"),
-        Q!("    adds            " s0!() ", " s0!() ", " t1!()),
-        Q!("    adcs            " s1!() ", " s1!() ", " t2!()),
-        Q!("    ldp             " t1!() ", " t2!() ", [x0, #16]"),
-        Q!("    adcs            " s2!() ", " s2!() ", " t1!()),
-        Q!("    adcs            " s3!() ", " s3!() ", " t2!()),
-        Q!("    ldp             " t1!() ", " t2!() ", [x0, #32]"),
-        Q!("    adcs            " s4!() ", " s4!() ", " t1!()),
-        Q!("    adcs            " s5!() ", " s5!() ", " t2!()),
-        Q!("    adc             " s6!() ", xzr, xzr"),
-        Q!("    stp             " s0!() ", " s1!() ", [x0]"),
-        Q!("    stp             " s2!() ", " s3!() ", [x0, #16]"),
-        Q!("    stp             " s4!() ", " s5!() ", [x0, #32]"),
+        // Now add [h; u11;u10;u9;u8;u7;u6] = z + (2^384 - p_384)
 
-        // Multiply with yet a third 3x3 ADK for the complex mid-term
+        Q!("    mov             " l!() ", #0xffffffff00000001"),
+        Q!("    adds            " u6!() ", " u0!() ", " l!()),
+        Q!("    mov             " l!() ", #0x00000000ffffffff"),
+        Q!("    adcs            " u7!() ", " u1!() ", " l!()),
+        Q!("    mov             " l!() ", #0x0000000000000001"),
+        Q!("    adcs            " u8!() ", " u2!() ", " l!()),
+        Q!("    adcs            " u9!() ", " u3!() ", xzr"),
+        Q!("    adcs            " u10!() ", " u4!() ", xzr"),
+        Q!("    adcs            " u11!() ", " u5!() ", xzr"),
+        Q!("    adcs            " h!() ", " h!() ", xzr"),
 
-        Q!("    mul             " s0!() ", " a3!() ", " b0!()),
-        Q!("    mul             " t1!() ", " a4!() ", " b1!()),
-        Q!("    mul             " t2!() ", " a5!() ", " b2!()),
-        Q!("    umulh           " t3!() ", " a3!() ", " b0!()),
-        Q!("    umulh           " t4!() ", " a4!() ", " b1!()),
-        Q!("    umulh           " s5!() ", " a5!() ", " b2!()),
+        // Now z >= p_384 iff h is nonzero, so select accordingly
 
-        Q!("    adds            " t3!() ", " t3!() ", " t1!()),
-        Q!("    adcs            " t4!() ", " t4!() ", " t2!()),
-        Q!("    adc             " s5!() ", " s5!() ", xzr"),
+        Q!("    csel            " u0!() ", " u0!() ", " u6!() ", eq"),
+        Q!("    csel            " u1!() ", " u1!() ", " u7!() ", eq"),
+        Q!("    csel            " u2!() ", " u2!() ", " u8!() ", eq"),
+        Q!("    csel            " u3!() ", " u3!() ", " u9!() ", eq"),
+        Q!("    csel            " u4!() ", " u4!() ", " u10!() ", eq"),
+        Q!("    csel            " u5!() ", " u5!() ", " u11!() ", eq"),
 
-        Q!("    adds            " s1!() ", " t3!() ", " s0!()),
-        Q!("    adcs            " s2!() ", " t4!() ", " t3!()),
-        Q!("    adcs            " s3!() ", " s5!() ", " t4!()),
-        Q!("    adc             " s4!() ", " s5!() ", xzr"),
+        // Store back final result
 
-        Q!("    adds            " s2!() ", " s2!() ", " s0!()),
-        Q!("    adcs            " s3!() ", " s3!() ", " t3!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t4!()),
-        Q!("    adc             " s5!() ", " s5!() ", xzr"),
+        Q!("    stp             " u0!() ", " u1!() ", [" z!() "]"),
+        Q!("    stp             " u2!() ", " u3!() ", [" z!() ", #16]"),
+        Q!("    stp             " u4!() ", " u5!() ", [" z!() ", #32]"),
 
-        muldiffn!(t3!(), t2!(), t1!(), t4!(), a3!(), a4!(), b1!(), b0!()),
-        Q!("    adds            " "xzr, " t3!() ", #1"),
-        Q!("    adcs            " s1!() ", " s1!() ", " t1!()),
-        Q!("    adcs            " s2!() ", " s2!() ", " t2!()),
-        Q!("    adcs            " s3!() ", " s3!() ", " t3!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t3!()),
-        Q!("    adc             " s5!() ", " s5!() ", " t3!()),
+        // Restore registers
 
-        muldiffn!(t3!(), t2!(), t1!(), t4!(), a3!(), a5!(), b2!(), b0!()),
-        Q!("    adds            " "xzr, " t3!() ", #1"),
-        Q!("    adcs            " s2!() ", " s2!() ", " t1!()),
-        Q!("    adcs            " s3!() ", " s3!() ", " t2!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t3!()),
-        Q!("    adc             " s5!() ", " s5!() ", " t3!()),
-
-        muldiffn!(t3!(), t2!(), t1!(), t4!(), a4!(), a5!(), b2!(), b1!()),
-        Q!("    adds            " "xzr, " t3!() ", #1"),
-        Q!("    adcs            " s3!() ", " s3!() ", " t1!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t2!()),
-        Q!("    adc             " s5!() ", " s5!() ", " t3!()),
-
-        // Unstash the H + L' sum to add in twice
-
-        Q!("    ldp             " a0!() ", " a1!() ", [x0]"),
-        Q!("    ldp             " a2!() ", " a3!() ", [x0, #16]"),
-        Q!("    ldp             " a4!() ", " a5!() ", [x0, #32]"),
-
-        // Set up a sign-modified version of the mid-product in a long accumulator
-        // as [b3;b2;b1;b0;s5;s4;s3;s2;s1;s0], adding in the H + L' term once with
-        // zero offset as this signed value is created
-
-        Q!("    adds            " "xzr, " b5!() ", #1"),
-        Q!("    eor             " s0!() ", " s0!() ", " b5!()),
-        Q!("    adcs            " s0!() ", " s0!() ", " a0!()),
-        Q!("    eor             " s1!() ", " s1!() ", " b5!()),
-        Q!("    adcs            " s1!() ", " s1!() ", " a1!()),
-        Q!("    eor             " s2!() ", " s2!() ", " b5!()),
-        Q!("    adcs            " s2!() ", " s2!() ", " a2!()),
-        Q!("    eor             " s3!() ", " s3!() ", " b5!()),
-        Q!("    adcs            " s3!() ", " s3!() ", " a3!()),
-        Q!("    eor             " s4!() ", " s4!() ", " b5!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " a4!()),
-        Q!("    eor             " s5!() ", " s5!() ", " b5!()),
-        Q!("    adcs            " s5!() ", " s5!() ", " a5!()),
-        Q!("    adcs            " b0!() ", " b5!() ", " s6!()),
-        Q!("    adcs            " b1!() ", " b5!() ", xzr"),
-        Q!("    adcs            " b2!() ", " b5!() ", xzr"),
-        Q!("    adc             " b3!() ", " b5!() ", xzr"),
-
-        // Add in the stashed H + L' term an offset of 3 words as well
-
-        Q!("    adds            " s3!() ", " s3!() ", " a0!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " a1!()),
-        Q!("    adcs            " s5!() ", " s5!() ", " a2!()),
-        Q!("    adcs            " b0!() ", " b0!() ", " a3!()),
-        Q!("    adcs            " b1!() ", " b1!() ", " a4!()),
-        Q!("    adcs            " b2!() ", " b2!() ", " a5!()),
-        Q!("    adc             " b3!() ", " b3!() ", " s6!()),
-
-        // Do three more Montgomery steps on the composed term
-
-        montreds!(s0!(), s5!(), s4!(), s3!(), s2!(), s1!(), s0!(), t1!(), t2!(), t3!()),
-        montreds!(s1!(), s0!(), s5!(), s4!(), s3!(), s2!(), s1!(), t1!(), t2!(), t3!()),
-        montreds!(s2!(), s1!(), s0!(), s5!(), s4!(), s3!(), s2!(), t1!(), t2!(), t3!()),
-
-        Q!("    adds            " b0!() ", " b0!() ", " s0!()),
-        Q!("    adcs            " b1!() ", " b1!() ", " s1!()),
-        Q!("    adcs            " b2!() ", " b2!() ", " s2!()),
-        Q!("    adc             " b3!() ", " b3!() ", xzr"),
-
-        // Because of the way we added L' in two places, we can overspill by
-        // more than usual in Montgomery, with the result being only known to
-        // be < 3 * p_384, not the usual < 2 * p_384. So now we do a more
-        // elaborate final correction in the style of bignum_cmul_p384, just
-        // a little bit simpler because we know q is small.
-
-        Q!("    add             " t2!() ", " b3!() ", #1"),
-        Q!("    lsl             " t1!() ", " t2!() ", #32"),
-        Q!("    subs            " t4!() ", " t2!() ", " t1!()),
-        Q!("    sbc             " t1!() ", " t1!() ", xzr"),
-
-        Q!("    adds            " s3!() ", " s3!() ", " t4!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t1!()),
-        Q!("    adcs            " s5!() ", " s5!() ", " t2!()),
-        Q!("    adcs            " b0!() ", " b0!() ", xzr"),
-        Q!("    adcs            " b1!() ", " b1!() ", xzr"),
-        Q!("    adcs            " b2!() ", " b2!() ", xzr"),
-
-        Q!("    csetm           " t2!() ", cc"),
-
-        Q!("    mov             " t3!() ", #0x00000000ffffffff"),
-        Q!("    and             " t3!() ", " t3!() ", " t2!()),
-        Q!("    adds            " s3!() ", " s3!() ", " t3!()),
-        Q!("    eor             " t3!() ", " t3!() ", " t2!()),
-        Q!("    adcs            " s4!() ", " s4!() ", " t3!()),
-        Q!("    mov             " t3!() ", #0xfffffffffffffffe"),
-        Q!("    and             " t3!() ", " t3!() ", " t2!()),
-        Q!("    adcs            " s5!() ", " s5!() ", " t3!()),
-        Q!("    adcs            " b0!() ", " b0!() ", " t2!()),
-        Q!("    adcs            " b1!() ", " b1!() ", " t2!()),
-        Q!("    adc             " b2!() ", " b2!() ", " t2!()),
-
-        // Write back the result
-
-        Q!("    stp             " s3!() ", " s4!() ", [x0]"),
-        Q!("    stp             " s5!() ", " b0!() ", [x0, #16]"),
-        Q!("    stp             " b1!() ", " b2!() ", [x0, #32]"),
-
-        // Restore registers and return
-
-        Q!("    ldp             " "x23, x24, [sp], #16"),
         Q!("    ldp             " "x21, x22, [sp], #16"),
         Q!("    ldp             " "x19, x20, [sp], #16"),
 
@@ -530,8 +472,6 @@ pub fn bignum_montmul_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6]) {
         out("x20") _,
         out("x21") _,
         out("x22") _,
-        out("x23") _,
-        out("x24") _,
         out("x3") _,
         out("x4") _,
         out("x5") _,

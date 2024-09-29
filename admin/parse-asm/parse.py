@@ -74,6 +74,8 @@ def parse_file(f, visit):
         elif l.startswith("//"):
             visit(Type.COMMENT, l[2:])
         elif l.startswith("#define "):
+            if "//" in l:
+                l, _ = l.split("//", maxsplit=1)
             _def, name, val = l.split(maxsplit=2)
             if len(tokenise(name)) != 1:
                 # needs full tokenisation
