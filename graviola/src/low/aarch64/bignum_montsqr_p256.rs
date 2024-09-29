@@ -8,7 +8,7 @@ use crate::low::macros::*;
 // Montgomery square, z := (x^2 / 2^256) mod p_256
 // Input x[4]; output z[4]
 //
-//    extern void bignum_montsqr_p256
+//    extern void bignum_montsqr_p256_alt
 //     (uint64_t z[static 4], uint64_t x[static 4]);
 //
 // Does z := (x^2 / 2^256) mod p_256, assuming x^2 <= 2^256 * p_256, which is
@@ -18,74 +18,35 @@ use crate::low::macros::*;
 // ----------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// Macro returning (c,h,l) = 3-word 1s complement (x - y) * (w - z)
-// c,h,l,t should all be different
-// t,h should not overlap w,z
-// ---------------------------------------------------------------------------
-
-macro_rules! muldiffn {
-    ($c:expr, $h:expr, $l:expr, $t:expr, $x:expr, $y:expr, $w:expr, $z:expr) => { Q!(
-        "subs " $t ", " $x ", " $y ";\n"
-        "cneg " $t ", " $t ", cc;\n"
-        "csetm " $c ", cc;\n"
-        "subs " $h ", " $w ", " $z ";\n"
-        "cneg " $h ", " $h ", cc;\n"
-        "mul " $l ", " $t ", " $h ";\n"
-        "umulh " $h ", " $t ", " $h ";\n"
-        "cinv " $c ", " $c ", cc;\n"
-        "eor " $l ", " $l ", " $c ";\n"
-        "eor " $h ", " $h ", " $c
-    )}
-}
-
-// ---------------------------------------------------------------------------
-// Core one-step "end" Montgomery reduction macro. Takes input in
-// [d5;d4;d3;d2;d1;d0] and returns result in [d5;d4;d3;d2;d1], adding to
-// the existing [d4;d3;d2;d1], re-using d0 as a temporary internally as well
-// as t1, t2, t3, and initializing d5 from zero (hence "end").
-// ---------------------------------------------------------------------------
-
-macro_rules! montrede {
-    ($d5:expr, $d4:expr, $d3:expr, $d2:expr, $d1:expr, $d0:expr, $t2:expr, $t1:expr, $t0:expr) => { Q!(
-        /* Let w = d0, the original word we use as offset; d0 gets recycled */
-        /* First let [t2;t1] = 2^32 * w                                     */
-        /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)      */
-        "lsl " $t1 ", " $d0 ", #32;\n"
-        "subs " $t0 ", " $d0 ", " $t1 ";\n"
-        "lsr " $t2 ", " $d0 ", #32;\n"
-        "sbc " $d0 ", " $d0 ", " $t2 ";\n"
-        /* Hence basic [d4;d3;d2;d1] += (2^256 - 2^224 + 2^192 + 2^96) * w  */
-        "adds " $d1 ", " $d1 ", " $t1 ";\n"
-        "adcs " $d2 ", " $d2 ", " $t2 ";\n"
-        "adcs " $d3 ", " $d3 ", " $t0 ";\n"
-        "adcs " $d4 ", " $d4 ", " $d0 ";\n"
-        "adc " $d5 ", xzr, xzr"
-    )}
-}
-
-// ---------------------------------------------------------------------------
 // Core one-step "short" Montgomery reduction macro. Takes input in
 // [d3;d2;d1;d0] and returns result in [d4;d3;d2;d1], adding to the
 // existing contents of [d3;d2;d1] and generating d4 from zero, re-using
-// d0 as a temporary internally together with t0, t1 and t2.
+// d0 as a temporary internally together with "tmp". The "mc" parameter is
+// assumed to be a register whose value is 0xFFFFFFFF00000001.
 // It is fine for d4 to be the same register as d0, and it often is.
 // ---------------------------------------------------------------------------
 
 macro_rules! montreds {
-    ($d4:expr, $d3:expr, $d2:expr, $d1:expr, $d0:expr, $t2:expr, $t1:expr, $t0:expr) => { Q!(
-        /* Let w = d0, the original word we use as offset; d0 gets recycled      */
-        /* First let [t2;t1] = 2^32 * w                                          */
-        /* then let [d0;t0] = (2^64 - 2^32 + 1) * w (overwrite old d0)           */
-        "lsl " $t1 ", " $d0 ", #32;\n"
-        "subs " $t0 ", " $d0 ", " $t1 ";\n"
-        "lsr " $t2 ", " $d0 ", #32;\n"
-        "sbc " $d0 ", " $d0 ", " $t2 ";\n"
-        /* Hence [d4;..;d1] := [d3;d2;d1;0] + (2^256 - 2^224 + 2^192 + 2^96) * w */
-        "adds " $d1 ", " $d1 ", " $t1 ";\n"
-        "adcs " $d2 ", " $d2 ", " $t2 ";\n"
-        "adcs " $d3 ", " $d3 ", " $t0 ";\n"
-        "adc " $d4 ", " $d0 ", xzr"
+    ($d4:expr, $d3:expr, $d2:expr, $d1:expr, $d0:expr, $tmp:expr, $mc:expr) => { Q!(
+        "adds " $d1 ", " $d1 ", " $d0 ", lsl #32;\n"
+        "lsr " $tmp ", " $d0 ", #32;\n"
+        "adcs " $d2 ", " $d2 ", " $tmp ";\n"
+        "mul " $tmp ", " $d0 ", " $mc ";\n"
+        "umulh " $d4 ", " $d0 ", " $mc ";\n"
+        "adcs " $d3 ", " $d3 ", " $tmp ";\n"
+        "adc " $d4 ", " $d4 ", xzr"
     )}
+}
+
+macro_rules! z {
+    () => {
+        Q!("x0")
+    };
+}
+macro_rules! x {
+    () => {
+        Q!("x1")
+    };
 }
 
 macro_rules! a0 {
@@ -109,130 +70,65 @@ macro_rules! a3 {
     };
 }
 
-macro_rules! c0 {
+macro_rules! l {
     () => {
         Q!("x6")
     };
 }
-macro_rules! c1 {
+macro_rules! h {
     () => {
         Q!("x7")
     };
 }
-macro_rules! c2 {
+
+macro_rules! u0 {
     () => {
         Q!("x8")
     };
 }
-macro_rules! c3 {
+macro_rules! u1 {
     () => {
         Q!("x9")
     };
 }
-macro_rules! c4 {
+macro_rules! u2 {
     () => {
         Q!("x10")
     };
 }
-macro_rules! d1 {
+macro_rules! u3 {
     () => {
         Q!("x11")
     };
 }
-macro_rules! d2 {
+macro_rules! u4 {
     () => {
         Q!("x12")
     };
 }
-macro_rules! d3 {
+macro_rules! u5 {
     () => {
         Q!("x13")
     };
 }
-macro_rules! d4 {
+macro_rules! u6 {
     () => {
         Q!("x14")
     };
 }
 
-macro_rules! s0 {
+// This one is the same as h, which is safe with this computation sequence
+
+macro_rules! u7 {
     () => {
-        Q!("x15")
-    };
-}
-macro_rules! s1 {
-    () => {
-        Q!("x16")
-    };
-}
-macro_rules! s2 {
-    () => {
-        Q!("x17")
-    };
-}
-macro_rules! s3 {
-    () => {
-        Q!("x1")
+        Q!(h!())
     };
 }
 
-macro_rules! a0short {
-    () => {
-        Q!("w2")
-    };
-}
-macro_rules! a1short {
-    () => {
-        Q!("w3")
-    };
-}
-macro_rules! d1short {
-    () => {
-        Q!("w11")
-    };
-}
+// This one is the same as a3, and is used for the Montgomery constant
+// 0xFFFFFFFF00000001
 
-macro_rules! r0 {
-    () => {
-        Q!("x8")
-    };
-}
-macro_rules! r1 {
-    () => {
-        Q!("x9")
-    };
-}
-macro_rules! r2 {
-    () => {
-        Q!("x10")
-    };
-}
-macro_rules! r3 {
-    () => {
-        Q!("x6")
-    };
-}
-macro_rules! c {
-    () => {
-        Q!("x7")
-    };
-}
-macro_rules! t1 {
-    () => {
-        Q!("x11")
-    };
-}
-macro_rules! t2 {
-    () => {
-        Q!("x12")
-    };
-}
-macro_rules! t3 {
-    () => {
-        Q!("x13")
-    };
-}
-macro_rules! t0 {
+macro_rules! mc {
     () => {
         Q!("x5")
     };
@@ -243,170 +139,127 @@ pub fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         core::arch::asm!(
 
 
-        // Load in all words of the input
+        // Load all the elements, set up an initial window [u6;...u1] = [23;03;01]
+        // and chain in the addition of 02 + 12 + 13 (no carry-out is possible).
+        // This gives all the "heterogeneous" terms of the squaring ready to double
 
-        Q!("    ldp             " a0!() ", " a1!() ", [x1]"),
-        Q!("    ldp             " a2!() ", " a3!() ", [x1, #16]"),
+        Q!("    ldp             " a0!() ", " a1!() ", [" x!() "]"),
 
-        // Square the low half, getting a result in [s3;s2;s1;s0]
-        // This uses 32x32->64 multiplications to reduce the number of UMULHs
+        Q!("    mul             " u1!() ", " a0!() ", " a1!()),
+        Q!("    umulh           " u2!() ", " a0!() ", " a1!()),
 
-        Q!("    umull           " s0!() ", " a0short!() ", " a0short!()),
-        Q!("    lsr             " d1!() ", " a0!() ", #32"),
-        Q!("    umull           " s1!() ", " d1short!() ", " d1short!()),
-        Q!("    umull           " d1!() ", " a0short!() ", " d1short!()),
-        Q!("    adds            " s0!() ", " s0!() ", " d1!() ", lsl #33"),
-        Q!("    lsr             " d1!() ", " d1!() ", #31"),
-        Q!("    adc             " s1!() ", " s1!() ", " d1!()),
-        Q!("    umull           " s2!() ", " a1short!() ", " a1short!()),
-        Q!("    lsr             " d1!() ", " a1!() ", #32"),
-        Q!("    umull           " s3!() ", " d1short!() ", " d1short!()),
-        Q!("    umull           " d1!() ", " a1short!() ", " d1short!()),
-        Q!("    mul             " d2!() ", " a0!() ", " a1!()),
-        Q!("    umulh           " d3!() ", " a0!() ", " a1!()),
-        Q!("    adds            " s2!() ", " s2!() ", " d1!() ", lsl #33"),
-        Q!("    lsr             " d1!() ", " d1!() ", #31"),
-        Q!("    adc             " s3!() ", " s3!() ", " d1!()),
-        Q!("    adds            " d2!() ", " d2!() ", " d2!()),
-        Q!("    adcs            " d3!() ", " d3!() ", " d3!()),
-        Q!("    adc             " s3!() ", " s3!() ", xzr"),
-        Q!("    adds            " s1!() ", " s1!() ", " d2!()),
-        Q!("    adcs            " s2!() ", " s2!() ", " d3!()),
-        Q!("    adc             " s3!() ", " s3!() ", xzr"),
+        Q!("    ldp             " a2!() ", " a3!() ", [" x!() ", #16]"),
 
-        // Perform two "short" Montgomery steps on the low square
-        // This shifts it to an offset compatible with middle product
+        Q!("    mul             " u3!() ", " a0!() ", " a3!()),
+        Q!("    umulh           " u4!() ", " a0!() ", " a3!()),
 
-        montreds!(s0!(), s3!(), s2!(), s1!(), s0!(), d1!(), d2!(), d3!()),
+        Q!("    mul             " l!() ", " a0!() ", " a2!()),
+        Q!("    umulh           " h!() ", " a0!() ", " a2!()),
+        Q!("    adds            " u2!() ", " u2!() ", " l!()),
 
-        montreds!(s1!(), s0!(), s3!(), s2!(), s1!(), d1!(), d2!(), d3!()),
+        Q!("    adcs            " u3!() ", " u3!() ", " h!()),
+        Q!("    mul             " l!() ", " a1!() ", " a2!()),
+        Q!("    umulh           " h!() ", " a1!() ", " a2!()),
+        Q!("    adc             " h!() ", " h!() ", xzr"),
+        Q!("    adds            " u3!() ", " u3!() ", " l!()),
 
-        // Compute cross-product with ADK 2x2->4 multiplier as [c3;c2;c1;c0]
+        Q!("    mul             " u5!() ", " a2!() ", " a3!()),
+        Q!("    umulh           " u6!() ", " a2!() ", " a3!()),
 
-        Q!("    mul             " c0!() ", " a0!() ", " a2!()),
-        Q!("    mul             " d4!() ", " a1!() ", " a3!()),
-        Q!("    umulh           " c2!() ", " a0!() ", " a2!()),
-        muldiffn!(d3!(), d2!(), d1!(), c4!(), a0!(), a1!(), a3!(), a2!()),
+        Q!("    adcs            " u4!() ", " u4!() ", " h!()),
+        Q!("    mul             " l!() ", " a1!() ", " a3!()),
+        Q!("    umulh           " h!() ", " a1!() ", " a3!()),
+        Q!("    adc             " h!() ", " h!() ", xzr"),
+        Q!("    adds            " u4!() ", " u4!() ", " l!()),
 
-        Q!("    adds            " c1!() ", " c0!() ", " c2!()),
-        Q!("    adc             " c2!() ", " c2!() ", xzr"),
+        Q!("    adcs            " u5!() ", " u5!() ", " h!()),
+        Q!("    adc             " u6!() ", " u6!() ", xzr"),
 
-        Q!("    umulh           " c3!() ", " a1!() ", " a3!()),
+        // Now just double it; this simple approach seems to work better than extr
 
-        Q!("    adds            " c1!() ", " c1!() ", " d4!()),
-        Q!("    adcs            " c2!() ", " c2!() ", " c3!()),
-        Q!("    adc             " c3!() ", " c3!() ", xzr"),
-        Q!("    adds            " c2!() ", " c2!() ", " d4!()),
-        Q!("    adc             " c3!() ", " c3!() ", xzr"),
+        Q!("    adds            " u1!() ", " u1!() ", " u1!()),
+        Q!("    adcs            " u2!() ", " u2!() ", " u2!()),
+        Q!("    adcs            " u3!() ", " u3!() ", " u3!()),
+        Q!("    adcs            " u4!() ", " u4!() ", " u4!()),
+        Q!("    adcs            " u5!() ", " u5!() ", " u5!()),
+        Q!("    adcs            " u6!() ", " u6!() ", " u6!()),
+        Q!("    cset            " u7!() ", cs"),
 
-        Q!("    adds            " "xzr, " d3!() ", #1"),
-        Q!("    adcs            " c1!() ", " c1!() ", " d1!()),
-        Q!("    adcs            " c2!() ", " c2!() ", " d2!()),
-        Q!("    adc             " c3!() ", " c3!() ", " d3!()),
+        // Add the homogeneous terms 00 + 11 + 22 + 33
 
-        // Double it and add the Montgomerified low square
+        Q!("    umulh           " l!() ", " a0!() ", " a0!()),
+        Q!("    mul             " u0!() ", " a0!() ", " a0!()),
+        Q!("    adds            " u1!() ", " u1!() ", " l!()),
 
-        Q!("    adds            " c0!() ", " c0!() ", " c0!()),
-        Q!("    adcs            " c1!() ", " c1!() ", " c1!()),
-        Q!("    adcs            " c2!() ", " c2!() ", " c2!()),
-        Q!("    adcs            " c3!() ", " c3!() ", " c3!()),
-        Q!("    adc             " c4!() ", xzr, xzr"),
+        Q!("    mul             " l!() ", " a1!() ", " a1!()),
+        Q!("    adcs            " u2!() ", " u2!() ", " l!()),
+        Q!("    umulh           " l!() ", " a1!() ", " a1!()),
+        Q!("    adcs            " u3!() ", " u3!() ", " l!()),
 
-        Q!("    adds            " c0!() ", " c0!() ", " s2!()),
-        Q!("    adcs            " c1!() ", " c1!() ", " s3!()),
-        Q!("    adcs            " c2!() ", " c2!() ", " s0!()),
-        Q!("    adcs            " c3!() ", " c3!() ", " s1!()),
-        Q!("    adc             " c4!() ", " c4!() ", xzr"),
 
-        // Montgomery-reduce the combined low and middle term another twice
+        Q!("    mul             " l!() ", " a2!() ", " a2!()),
+        Q!("    adcs            " u4!() ", " u4!() ", " l!()),
+        Q!("    umulh           " l!() ", " a2!() ", " a2!()),
+        Q!("    adcs            " u5!() ", " u5!() ", " l!()),
 
-        montrede!(c0!(), c4!(), c3!(), c2!(), c1!(), c0!(), d1!(), d2!(), d3!()),
+        Q!("    mul             " l!() ", " a3!() ", " a3!()),
+        Q!("    adcs            " u6!() ", " u6!() ", " l!()),
+        Q!("    umulh           " l!() ", " a3!() ", " a3!()),
+        Q!("    adc             " u7!() ", " u7!() ", " l!()),
 
-        montrede!(c1!(), c0!(), c4!(), c3!(), c2!(), c1!(), d1!(), d2!(), d3!()),
+        // Squaring complete. Perform 4 Montgomery steps to rotate the lower half
 
-        // Our sum so far is in [c1,c0,c4,c3,c2]; choose more intuitive names
+        Q!("    mov             " mc!() ", #0xFFFFFFFF00000001"),
+        montreds!(u0!(), u3!(), u2!(), u1!(), u0!(), a0!(), mc!()),
+        montreds!(u1!(), u0!(), u3!(), u2!(), u1!(), a0!(), mc!()),
+        montreds!(u2!(), u1!(), u0!(), u3!(), u2!(), a0!(), mc!()),
+        montreds!(u3!(), u2!(), u1!(), u0!(), u3!(), a0!(), mc!()),
 
-        // <macro definition r0 hoisted upwards>
-        // <macro definition r1 hoisted upwards>
-        // <macro definition r2 hoisted upwards>
-        // <macro definition r3 hoisted upwards>
-        // <macro definition c hoisted upwards>
+        // Add high and low parts, catching carry in a0
 
-        // So we can have these as temps
+        Q!("    adds            " u0!() ", " u0!() ", " u4!()),
+        Q!("    adcs            " u1!() ", " u1!() ", " u5!()),
+        Q!("    adcs            " u2!() ", " u2!() ", " u6!()),
+        Q!("    adcs            " u3!() ", " u3!() ", " u7!()),
+        Q!("    cset            " a0!() ", cs"),
 
-        // <macro definition t1 hoisted upwards>
-        // <macro definition t2 hoisted upwards>
-        // <macro definition t3 hoisted upwards>
+        // Set [a3;0;a1;-1] = p_256 and form [u7,u6,u5,u4] = [a0;u3;u2;u1;u0] - p_256
+        // Note that a3 == mc was already set above
 
-        // Add in the pure squares 22 + 33
+        Q!("    mov             " a1!() ", #0x00000000ffffffff"),
 
-        Q!("    mul             " t1!() ", " a2!() ", " a2!()),
-        Q!("    adds            " r0!() ", " r0!() ", " t1!()),
-        Q!("    mul             " t2!() ", " a3!() ", " a3!()),
-        Q!("    umulh           " t1!() ", " a2!() ", " a2!()),
-        Q!("    adcs            " r1!() ", " r1!() ", " t1!()),
-        Q!("    adcs            " r2!() ", " r2!() ", " t2!()),
-        Q!("    umulh           " t2!() ", " a3!() ", " a3!()),
-        Q!("    adcs            " r3!() ", " r3!() ", " t2!()),
-        Q!("    adc             " c!() ", " c!() ", xzr"),
+        Q!("    subs            " u4!() ", " u0!() ", #-1"),
+        Q!("    sbcs            " u5!() ", " u1!() ", " a1!()),
+        Q!("    sbcs            " u6!() ", " u2!() ", xzr"),
+        Q!("    sbcs            " u7!() ", " u3!() ", " mc!()),
+        Q!("    sbcs            " "xzr, " a0!() ", xzr"),
 
-        // Construct the 23 term, double and add it in
+        // Now CF is clear if the comparison carried so the original was fine
+        // Otherwise take the form with p_256 subtracted.
 
-        Q!("    mul             " t1!() ", " a2!() ", " a3!()),
-        Q!("    umulh           " t2!() ", " a2!() ", " a3!()),
-        Q!("    adds            " t1!() ", " t1!() ", " t1!()),
-        Q!("    adcs            " t2!() ", " t2!() ", " t2!()),
-        Q!("    adc             " t3!() ", xzr, xzr"),
+        Q!("    csel            " u0!() ", " u0!() ", " u4!() ", cc"),
+        Q!("    csel            " u1!() ", " u1!() ", " u5!() ", cc"),
+        Q!("    csel            " u2!() ", " u2!() ", " u6!() ", cc"),
+        Q!("    csel            " u3!() ", " u3!() ", " u7!() ", cc"),
 
-        Q!("    adds            " r1!() ", " r1!() ", " t1!()),
-        Q!("    adcs            " r2!() ", " r2!() ", " t2!()),
-        Q!("    adcs            " r3!() ", " r3!() ", " t3!()),
-        Q!("    adcs            " c!() ", " c!() ", xzr"),
+        // Store back final result
 
-        // We know, writing B = 2^{4*64} that the full implicit result is
-        // B^2 c <= z + (B - 1) * p < B * p + (B - 1) * p < 2 * B * p,
-        // so the top half is certainly < 2 * p. If c = 1 already, we know
-        // subtracting p will give the reduced modulus. But now we do a
-        // subtraction-comparison to catch cases where the residue is >= p.
-        // The constants are such that [t3;0;t1;-1] = p_256.
-
-        // <macro definition t0 hoisted upwards>
-
-        // Set CF (because of inversion) iff (0,p_256) <= (c,r3,r2,r1,r0)
-
-        Q!("    mov             " t1!() ", #0x00000000ffffffff"),
-        Q!("    subs            " t0!() ", " r0!() ", #-1"),
-        Q!("    sbcs            " t1!() ", " r1!() ", " t1!()),
-        Q!("    mov             " t3!() ", #0xffffffff00000001"),
-        Q!("    sbcs            " t2!() ", " r2!() ", xzr"),
-        Q!("    sbcs            " t3!() ", " r3!() ", " t3!()),
-        Q!("    sbcs            " "xzr, " c!() ", xzr"),
-
-        // Select final output accordingly
-
-        Q!("    csel            " r0!() ", " t0!() ", " r0!() ", cs"),
-        Q!("    csel            " r1!() ", " t1!() ", " r1!() ", cs"),
-        Q!("    csel            " r2!() ", " t2!() ", " r2!() ", cs"),
-        Q!("    csel            " r3!() ", " t3!() ", " r3!() ", cs"),
-
-        // Store things back in place
-
-        Q!("    stp             " r0!() ", " r1!() ", [x0]"),
-        Q!("    stp             " r2!() ", " r3!() ", [x0, #16]"),
+        Q!("    stp             " u0!() ", " u1!() ", [" z!() "]"),
+        Q!("    stp             " u2!() ", " u3!() ", [" z!() ", #16]"),
 
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.as_ptr() => _,
         // clobbers
         out("v0") _,
-        out("v5") _,
+        out("v1") _,
+        out("v2") _,
+        out("v3") _,
+        out("v4") _,
         out("x10") _,
         out("x11") _,
         out("x12") _,
         out("x13") _,
         out("x14") _,
-        out("x15") _,
-        out("x16") _,
-        out("x17") _,
         out("x2") _,
         out("x3") _,
         out("x4") _,
