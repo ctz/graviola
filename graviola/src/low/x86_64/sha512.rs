@@ -99,7 +99,7 @@ macro_rules! schedule_round {
     };
 }
 
-#[target_feature(enable = "avx,avx2")]
+#[target_feature(enable = "avx,avx2,bmi2")]
 unsafe fn sha512_quad_message_schedule(schedule: &mut [__m256i; 80], message: *const u64) {
     let gather_mask = _mm256_setr_epi64x(0, 16, 32, 48);
     let bswap_mask = _mm256_set_epi8(
@@ -176,7 +176,7 @@ unsafe fn sha512_quad_message_schedule(schedule: &mut [__m256i; 80], message: *c
     schedule[79] = _mm256_add_epi64(w15, k!(79));
 }
 
-#[target_feature(enable = "avx,avx2")]
+#[target_feature(enable = "avx,avx2,bmi2")]
 unsafe fn sha512_compress_4_blocks(state: &mut [u64; 8], block4: *const u64) {
     let mut w = [unsafe { _mm256_setzero_si256() }; 80];
     sha512_quad_message_schedule(&mut w, block4);
