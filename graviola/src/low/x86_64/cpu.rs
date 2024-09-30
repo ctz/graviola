@@ -36,6 +36,52 @@ pub(crate) fn leave_cpu_state(_old: u32) {
     }
 }
 
+/// This macro interdicts is_x86_feature_detected to
+/// allow testability.
+macro_rules! have_cpu_feature {
+    ("aes") => {
+        crate::low::x86_64::cpu::test_toggle("aes", is_x86_feature_detected!("aes"))
+    };
+    ("pclmulqdq") => {
+        crate::low::x86_64::cpu::test_toggle("pclmulqdq", is_x86_feature_detected!("pclmulqdq"))
+    };
+    ("bmi1") => {
+        crate::low::x86_64::cpu::test_toggle("bmi1", is_x86_feature_detected!("bmi1"))
+    };
+    ("bmi2") => {
+        crate::low::x86_64::cpu::test_toggle("bmi2", is_x86_feature_detected!("bmi2"))
+    };
+    ("adx") => {
+        crate::low::x86_64::cpu::test_toggle("adx", is_x86_feature_detected!("adx"))
+    };
+    ("avx") => {
+        crate::low::x86_64::cpu::test_toggle("avx", is_x86_feature_detected!("avx"))
+    };
+    ("avx2") => {
+        crate::low::x86_64::cpu::test_toggle("avx2", is_x86_feature_detected!("avx2"))
+    };
+    ("sha") => {
+        crate::low::x86_64::cpu::test_toggle("sha", is_x86_feature_detected!("sha"))
+    };
+}
+
+pub(crate) use have_cpu_feature;
+
+#[cfg(not(debug_assertions))]
+pub(crate) fn test_toggle(_id: &str, detected: bool) -> bool {
+    detected
+}
+
+#[cfg(debug_assertions)]
+pub(crate) fn test_toggle(id: &str, detected: bool) -> bool {
+    if std::env::var(format!("GRAVIOLA_CPU_DISABLE_{id}")).is_ok() {
+        println!("DEBUG: denying cpuid {id:?}");
+        false
+    } else {
+        detected
+    }
+}
+
 pub(crate) fn verify_cpu_features() {
     // these are the cpu features we require unconditionally.
     // this limits the library to x86_64 processors released after approx 2013.
@@ -43,21 +89,21 @@ pub(crate) fn verify_cpu_features() {
     // mandatory feature requirements
     // our aes-gcm
     assert!(
-        is_x86_feature_detected!("aes"),
+        have_cpu_feature!("aes"),
         "graviola requires aes CPU support"
     );
     assert!(
-        is_x86_feature_detected!("pclmulqdq"),
+        have_cpu_feature!("pclmulqdq"),
         "graviola requires pclmulqdq CPU support"
     );
 
     // s2n-bignum non _alt versions
     assert!(
-        is_x86_feature_detected!("bmi1"),
+        have_cpu_feature!("bmi1"),
         "graviola requires bmi1 CPU support"
     );
     assert!(
-        is_x86_feature_detected!("adx"),
+        have_cpu_feature!("adx"),
         "graviola requires adx CPU support"
     );
 
@@ -67,7 +113,7 @@ pub(crate) fn verify_cpu_features() {
         "graviola requires avx CPU support"
     );
     assert!(
-        is_x86_feature_detected!("avx2"),
+        have_cpu_feature!("avx2"),
         "graviola requires avx2 CPU support"
     );
 

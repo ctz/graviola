@@ -119,8 +119,8 @@ X25519 directly uses the s2n-bignum implementation.
 
 ### Symmetric cryptography
 SHA256 has straightforward implementations using hashing intrinsics
-(aka "SHA-NI" on x86_64, "sha" extension on aarch64) with runtime fallback to
-a pure Rust version if needed.
+(aka "SHA-NI" on x86_64, "sha" extension on aarch64) with runtime fallback
+on x86_64 to a pure Rust version if needed.
 
 SHA384/SHA512 on x86_64 has an AVX2 by-4 implementation.
 

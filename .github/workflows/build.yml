@@ -32,9 +32,15 @@ jobs:
     - name: Build (debug)
       run: cargo build -p graviola
     - name: Run tests (debug)
-      run: cargo test -p graviola
+      run: cargo test
 
     - name: Build (release)
       run: cargo build -p graviola --release
     - name: Run tests (release)
-      run: cargo test -p graviola --release
+      run: cargo test --release
+
+    - name: Artificial CPU feature tests (x86_64)
+      if: runner.os == 'Linux'
+      run: |
+        # test software fallbacks for sha256 and sha512
+        env GRAVIOLA_CPU_DISABLE_sha=1 GRAVIOLA_CPU_DISABLE_bmi2=1 cargo test
