@@ -28,14 +28,16 @@ are not welcomed; please do not file issues or PRs.
 - [x] Competitive performance (with *ring*, aws-lc-rs, and rustcrypto)
 - [x] Uses formally-verified assembler from other projects (where available)
 - [x] Intended to provide algorithms in wide use on web
-- [x] Intended for use as a rustls `CryptoProvider`
+- [x] Intended for use as a rustls `CryptoProvider`, via [rustls-graviola][].
 
 ## Limitations
 
 `aarch64` and `x86_64` architectures only.
 
 - `aarch64` requires `aes`, `sha2`, `pmull`, and `neon` CPU features.
+  (This notably excludes Raspberry PI 4 and earlier, but covers Raspberry Pi 5.)
 - `x86_64` requires `aes`, `ssse3` `avx`, `avx2`, `bmi2`, and `pclmulqdq` CPU features.
+  (This is most x86_64 CPUs made since around 2013.)
 
 ## Acknowledgements and Thanks
 
@@ -52,6 +54,7 @@ We are grateful to:
 [wycheproof]: https://github.com/C2SP/wycheproof
 [SLOTHY]: https://github.com/slothy-optimizer/slothy
 [performance]: https://jbp.io/graviola/
+[rustls-graviola]: https://crates.io/crates/rustls-graviola
 
 ## Algorithms
 
@@ -136,9 +139,9 @@ kept spilling registers and was slower.)
 
 We have broadly three module layers:
 
-- `low`: low level primitives. private. platform-specific. unsafe allowed. `no_std`. no alloc.
-- `mid`: constructions, protocols and encodings. private. platform agnostic. no unsafe. `no_std`. alloc.
-- `high`: public interface, primarily a rustls `CryptoProvider`. platform agnostic. no unsafe.
+- `low`: low level primitives. private. platform-specific. unsafe allowed. minimal std and alloc.
+- `mid`: constructions, protocols and encodings. private. platform agnostic. no unsafe. minimal std and alloc.
+- `high`: high level encodings and operations. public. platform agnostic. no unsafe.
 
 `low` code should not refer to `mid`, nor `mid` to `high`.
 
