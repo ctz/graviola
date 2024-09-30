@@ -35,10 +35,6 @@ impl PublicKey {
         }
     }
 
-    pub(crate) fn x_scalar(&self) -> Scalar {
-        self.point.x_scalar()
-    }
-
     pub(crate) fn raw_ecdsa_verify(&self, r: &Scalar, s: &Scalar, e: &Scalar) -> Result<(), Error> {
         // 4. Compute: u1 = e s^-1 mod n and u2 = r s^−1 mod n
         let s_inv = s.inv().as_mont();
@@ -606,24 +602,12 @@ impl Scalar {
     ///
     /// This returns an error if the scalar is zero or larger than
     /// the curve order.
-    ///
-    /// Prefer to use `from_array_checked` if you always have 32 bytes.
     pub(crate) fn from_bytes_checked(bytes: &[u8]) -> Result<Self, Error> {
         let full = Self(
             Array64x4::from_be_bytes_any_size(bytes)
                 .ok_or(Error::WrongLength)?
                 .0,
         );
-
-        full.into_range_check()
-    }
-
-    /// Create a scalar from the given array.
-    ///
-    /// This returns an error if the scalar is zero or larger than
-    /// the curve order.
-    pub(crate) fn from_array_checked(array: &[u8; 32]) -> Result<Self, Error> {
-        let full = Self(Array64x4::from_be(array).0);
 
         full.into_range_check()
     }
