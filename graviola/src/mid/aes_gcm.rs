@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
 use crate::low::ghash::{Ghash, GhashTable};
-use crate::low::{aes_gcm, ct_equal, AesKey};
+use crate::low::{aes_gcm, ct_equal, AesKey, Entry};
 use crate::Error;
 
 pub struct AesGcm {
@@ -12,6 +12,7 @@ pub struct AesGcm {
 
 impl AesGcm {
     pub fn new(key: &[u8]) -> Self {
+        let _ = Entry::new_secret();
         let key = AesKey::new(key);
         let mut h = [0u8; 16];
         key.encrypt_block(&mut h);
@@ -29,6 +30,7 @@ impl AesGcm {
         cipher_inout: &mut [u8],
         tag_out: &mut [u8; 16],
     ) {
+        let _ = Entry::new_secret();
         let mut ghash = Ghash::new(&self.gh);
 
         let counter = self.nonce_to_y0(nonce);
@@ -59,6 +61,7 @@ impl AesGcm {
         cipher_inout: &mut [u8],
         tag: &[u8],
     ) -> Result<(), Error> {
+        let _ = Entry::new_secret();
         let mut ghash = Ghash::new(&self.gh);
 
         let counter = self.nonce_to_y0(nonce);

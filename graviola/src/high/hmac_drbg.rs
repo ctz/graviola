@@ -17,7 +17,7 @@ pub struct HmacDrbg<H: Hash> {
 }
 
 impl<H: Hash> HmacDrbg<H> {
-    pub fn new(entropy_input: &[u8], nonce: &[u8], personalization_string: &[u8]) -> Self {
+    pub(crate) fn new(entropy_input: &[u8], nonce: &[u8], personalization_string: &[u8]) -> Self {
         // 1. seed_material = entropy_input || nonce || personalization_string.
         let seed_material = &[entropy_input, nonce, personalization_string];
 
