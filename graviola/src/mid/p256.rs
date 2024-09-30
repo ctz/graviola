@@ -18,11 +18,13 @@ pub struct PublicKey {
 
 impl PublicKey {
     pub fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
+        let _ = low::Entry::new_public();
         let point = AffineMontPoint::from_x962_uncompressed(bytes)?;
         Ok(Self::from_affine(point))
     }
 
     pub fn as_bytes_uncompressed(&self) -> [u8; 65] {
+        let _ = low::Entry::new_public();
         self.point.as_bytes_uncompressed()
     }
 
@@ -33,11 +35,11 @@ impl PublicKey {
         }
     }
 
-    pub fn x_scalar(&self) -> Scalar {
+    pub(crate) fn x_scalar(&self) -> Scalar {
         self.point.x_scalar()
     }
 
-    pub fn raw_ecdsa_verify(&self, r: &Scalar, s: &Scalar, e: &Scalar) -> Result<(), Error> {
+    pub(crate) fn raw_ecdsa_verify(&self, r: &Scalar, s: &Scalar, e: &Scalar) -> Result<(), Error> {
         // 4. Compute: u1 = e s^-1 mod n and u2 = r s^−1 mod n
         let s_inv = s.inv().as_mont();
         let u1 = s_inv.mont_mul(&e.as_mont()).demont();
@@ -78,18 +80,22 @@ pub struct PrivateKey {
 
 impl PrivateKey {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let _ = low::Entry::new_secret();
         Scalar::from_bytes_checked(bytes).map(|scalar| Self { scalar })
     }
 
     pub fn as_bytes(&self) -> [u8; 32] {
+        let _ = low::Entry::new_secret();
         self.scalar.as_bytes()
     }
 
     pub fn public_key_uncompressed(&self) -> [u8; 65] {
+        let _ = low::Entry::new_secret();
         self.public_point().as_bytes_uncompressed()
     }
 
     pub fn public_key_x_scalar(&self) -> Scalar {
+        let _ = low::Entry::new_secret();
         self.public_point().x_scalar()
     }
 
@@ -102,6 +108,7 @@ impl PrivateKey {
     }
 
     pub fn generate(rng: &mut dyn RandomSource) -> Result<Self, Error> {
+        let _ = low::Entry::new_secret();
         for _ in 0..64 {
             let mut r = [0u8; 32];
             rng.fill(&mut r)?;
@@ -114,6 +121,7 @@ impl PrivateKey {
     }
 
     pub fn diffie_hellman(&self, peer: &PublicKey) -> Result<SharedSecret, Error> {
+        let _ = low::Entry::new_secret();
         let result =
             JacobianMontPoint::multiply_wnaf_5(&self.scalar, &peer.precomp_wnaf_5).as_affine();
         match result.on_curve() {
@@ -122,7 +130,7 @@ impl PrivateKey {
         }
     }
 
-    pub fn raw_ecdsa_sign(&self, k: &Self, e: &Scalar, r: &Scalar) -> Scalar {
+    pub(crate) fn raw_ecdsa_sign(&self, k: &Self, e: &Scalar, r: &Scalar) -> Scalar {
         // this is (e + r * d) / k
         let lhs_mont = self
             .scalar
@@ -600,7 +608,7 @@ impl Scalar {
     /// the curve order.
     ///
     /// Prefer to use `from_array_checked` if you always have 32 bytes.
-    pub fn from_bytes_checked(bytes: &[u8]) -> Result<Self, Error> {
+    pub(crate) fn from_bytes_checked(bytes: &[u8]) -> Result<Self, Error> {
         let full = Self(
             Array64x4::from_be_bytes_any_size(bytes)
                 .ok_or(Error::WrongLength)?
@@ -614,13 +622,13 @@ impl Scalar {
     ///
     /// This returns an error if the scalar is zero or larger than
     /// the curve order.
-    pub fn from_array_checked(array: &[u8; 32]) -> Result<Self, Error> {
+    pub(crate) fn from_array_checked(array: &[u8; 32]) -> Result<Self, Error> {
         let full = Self(Array64x4::from_be(array).0);
 
         full.into_range_check()
     }
 
-    pub fn from_bytes_reduced(bytes: &[u8]) -> Result<Self, Error> {
+    pub(crate) fn from_bytes_reduced(bytes: &[u8]) -> Result<Self, Error> {
         Ok(Self(
             Array64x4::from_be_bytes_any_size(bytes)
                 .ok_or(Error::WrongLength)?
@@ -639,7 +647,7 @@ impl Scalar {
         }
     }
 
-    pub fn as_bytes(&self) -> [u8; 32] {
+    pub(crate) fn as_bytes(&self) -> [u8; 32] {
         Array64x4(self.0).as_be_bytes()
     }
 
@@ -649,7 +657,7 @@ impl Scalar {
     }
 
     /// Private test for zero
-    pub fn is_zero(&self) -> bool {
+    pub(crate) fn is_zero(&self) -> bool {
         self.private_eq(&Self::default())
     }
 

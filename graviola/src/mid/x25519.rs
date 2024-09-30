@@ -9,14 +9,17 @@ pub struct PrivateKey(Array64x4);
 
 impl PrivateKey {
     pub fn try_from_slice(b: &[u8]) -> Result<Self, ()> {
+        let _ = low::Entry::new_secret();
         Array64x4::from_le_bytes(b).map(Self).ok_or(())
     }
 
     pub fn from_array(b: &[u8; 32]) -> Self {
+        let _ = low::Entry::new_secret();
         Self(Array64x4::from_le(b))
     }
 
     pub fn as_bytes(&self) -> [u8; 32] {
+        let _ = low::Entry::new_secret();
         self.0.as_le_bytes()
     }
 
@@ -24,6 +27,7 @@ impl PrivateKey {
     ///
     /// Fails only if the `rng` fails.
     pub fn generate(rng: &mut dyn RandomSource) -> Result<Self, ()> {
+        let _ = low::Entry::new_secret();
         let mut r = [0u8; 32];
         rng.fill(&mut r).map_err(|_| ())?;
         Ok(Self::from_array(&r))
@@ -31,12 +35,14 @@ impl PrivateKey {
 
     /// Compute the associated public key.
     pub fn public_key(&self) -> PublicKey {
+        let _ = low::Entry::new_secret();
         let mut res = [0u64; 4];
         low::curve25519_x25519base(&mut res, &self.0 .0);
         PublicKey(Array64x4(res))
     }
 
     pub fn diffie_hellman(&self, peer: &PublicKey) -> SharedSecret {
+        let _ = low::Entry::new_secret();
         let mut res = [0u64; 4];
         low::curve25519_x25519(&mut res, &self.0 .0, &peer.0 .0);
         SharedSecret(Array64x4(res).as_le_bytes())
@@ -47,14 +53,17 @@ pub struct PublicKey(Array64x4);
 
 impl PublicKey {
     pub fn try_from_slice(b: &[u8]) -> Result<Self, ()> {
+        let _ = low::Entry::new_public();
         Array64x4::from_le_bytes(b).map(Self).ok_or(())
     }
 
     pub fn from_array(b: &[u8; 32]) -> Self {
+        let _ = low::Entry::new_public();
         Self(Array64x4::from_le(b))
     }
 
     pub fn as_bytes(&self) -> [u8; 32] {
+        let _ = low::Entry::new_public();
         self.0.as_le_bytes()
     }
 }

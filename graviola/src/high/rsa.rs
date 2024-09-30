@@ -4,6 +4,7 @@
 use crate::high::asn1::{self, pkix, Type};
 use crate::high::hash::{self, Hash};
 use crate::high::{pkcs1, pkcs8};
+use crate::low::Entry;
 use crate::low::PosInt;
 use crate::mid::rng::SystemRandom;
 use crate::mid::{rsa_priv, rsa_pub};
@@ -14,6 +15,7 @@ pub struct RsaPublicVerificationKey(rsa_pub::RsaPublicKey);
 
 impl RsaPublicVerificationKey {
     pub fn from_pkcs1_der(bytes: &[u8]) -> Result<Self, Error> {
+        let _ = Entry::new_public();
         let decoded = pkix::RSAPublicKey::from_bytes(bytes).map_err(Error::Asn1Error)?;
 
         if decoded.modulus.is_negative() {
@@ -33,16 +35,19 @@ impl RsaPublicVerificationKey {
     }
 
     pub fn verify_pkcs1_sha256(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
+        let _ = Entry::new_public();
         let hash = hash::Sha256::hash(message);
         self._verify_pkcs1(signature, pkcs1::DIGESTINFO_SHA256, hash.as_ref())
     }
 
     pub fn verify_pkcs1_sha384(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
+        let _ = Entry::new_public();
         let hash = hash::Sha384::hash(message);
         self._verify_pkcs1(signature, pkcs1::DIGESTINFO_SHA384, hash.as_ref())
     }
 
     pub fn verify_pkcs1_sha512(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
+        let _ = Entry::new_public();
         let hash = hash::Sha512::hash(message);
         self._verify_pkcs1(signature, pkcs1::DIGESTINFO_SHA512, hash.as_ref())
     }
@@ -70,14 +75,17 @@ impl RsaPublicVerificationKey {
     }
 
     pub fn verify_pss_sha256(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
+        let _ = Entry::new_public();
         self._verify_pss::<hash::Sha256>(signature, message)
     }
 
     pub fn verify_pss_sha384(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
+        let _ = Entry::new_public();
         self._verify_pss::<hash::Sha384>(signature, message)
     }
 
     pub fn verify_pss_sha512(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
+        let _ = Entry::new_public();
         self._verify_pss::<hash::Sha512>(signature, message)
     }
 
@@ -101,6 +109,7 @@ pub struct RsaPrivateSigningKey(rsa_priv::RsaPrivateKey);
 
 impl RsaPrivateSigningKey {
     pub fn from_pkcs1_der(bytes: &[u8]) -> Result<Self, Error> {
+        let _ = Entry::new_secret();
         let decoded = pkix::RSAPrivateKey::from_bytes(bytes).map_err(Error::Asn1Error)?;
 
         if !matches!(decoded.version, pkix::Version::two_prime) {
@@ -129,6 +138,7 @@ impl RsaPrivateSigningKey {
     }
 
     pub fn from_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
+        let _ = Entry::new_secret();
         pkcs8::decode_pkcs8(
             bytes,
             &asn1::oid::rsaEncryption,
@@ -138,10 +148,12 @@ impl RsaPrivateSigningKey {
     }
 
     pub fn public_key(&self) -> RsaPublicVerificationKey {
+        let _ = Entry::new_public();
         RsaPublicVerificationKey(self.0.public_key())
     }
 
     pub fn modulus_len_bytes(&self) -> usize {
+        let _ = Entry::new_public();
         self.0.public_key().modulus_len_bytes()
     }
 
@@ -150,6 +162,7 @@ impl RsaPrivateSigningKey {
         signature: &'a mut [u8],
         message: &[u8],
     ) -> Result<&'a [u8], Error> {
+        let _ = Entry::new_secret();
         let hash = hash::Sha256::hash(message);
         self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA256, hash.as_ref())
     }
@@ -159,6 +172,7 @@ impl RsaPrivateSigningKey {
         signature: &'a mut [u8],
         message: &[u8],
     ) -> Result<&'a [u8], Error> {
+        let _ = Entry::new_secret();
         let hash = hash::Sha384::hash(message);
         self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA384, hash.as_ref())
     }
@@ -168,6 +182,7 @@ impl RsaPrivateSigningKey {
         signature: &'a mut [u8],
         message: &[u8],
     ) -> Result<&'a [u8], Error> {
+        let _ = Entry::new_secret();
         let hash = hash::Sha512::hash(message);
         self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA512, hash.as_ref())
     }
@@ -177,6 +192,7 @@ impl RsaPrivateSigningKey {
         signature: &'a mut [u8],
         message: &[u8],
     ) -> Result<&'a [u8], Error> {
+        let _ = Entry::new_secret();
         self._sign_pss::<hash::Sha256>(signature, message)
     }
 
@@ -185,6 +201,7 @@ impl RsaPrivateSigningKey {
         signature: &'a mut [u8],
         message: &[u8],
     ) -> Result<&'a [u8], Error> {
+        let _ = Entry::new_secret();
         self._sign_pss::<hash::Sha384>(signature, message)
     }
 
@@ -193,6 +210,7 @@ impl RsaPrivateSigningKey {
         signature: &'a mut [u8],
         message: &[u8],
     ) -> Result<&'a [u8], Error> {
+        let _ = Entry::new_secret();
         self._sign_pss::<hash::Sha512>(signature, message)
     }
 

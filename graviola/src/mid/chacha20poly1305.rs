@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
 use crate::low::chacha20::ChaCha20;
-use crate::low::ct_equal;
 use crate::low::poly1305::Poly1305;
+use crate::low::{ct_equal, Entry};
 use crate::Error;
 
 pub struct ChaCha20Poly1305 {
@@ -22,6 +22,7 @@ impl ChaCha20Poly1305 {
         cipher_inout: &mut [u8],
         tag_out: &mut [u8; 16],
     ) {
+        let _ = Entry::new_secret();
         self.cipher(nonce, aad, cipher_inout, tag_out, true);
     }
 
@@ -32,6 +33,7 @@ impl ChaCha20Poly1305 {
         cipher_inout: &mut [u8],
         tag: &[u8],
     ) -> Result<(), Error> {
+        let _ = Entry::new_secret();
         let mut actual_tag = [0u8; 16];
         self.cipher(nonce, aad, cipher_inout, &mut actual_tag, false);
 

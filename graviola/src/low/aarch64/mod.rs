@@ -47,6 +47,7 @@ pub(crate) mod bignum_point_select_p256;
 pub(crate) mod bignum_point_select_p384;
 pub(crate) mod bignum_tomont_p256;
 pub(crate) mod bignum_tomont_p384;
+pub(crate) mod cpu;
 pub(crate) mod curve25519_x25519;
 pub(crate) mod curve25519_x25519base;
 pub(crate) mod ghash;
