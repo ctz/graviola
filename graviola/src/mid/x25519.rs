@@ -49,6 +49,12 @@ impl PrivateKey {
     }
 }
 
+impl Drop for PrivateKey {
+    fn drop(&mut self) {
+        low::zeroise(&mut self.0 .0);
+    }
+}
+
 pub struct PublicKey(Array64x4);
 
 impl PublicKey {
@@ -69,6 +75,12 @@ impl PublicKey {
 }
 
 pub struct SharedSecret(pub [u8; 32]);
+
+impl Drop for SharedSecret {
+    fn drop(&mut self) {
+        low::zeroise(&mut self.0);
+    }
+}
 
 #[cfg(test)]
 mod tests {

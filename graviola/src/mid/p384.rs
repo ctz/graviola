@@ -146,6 +146,12 @@ impl fmt::Debug for PrivateKey {
 
 pub struct SharedSecret(pub [u8; 48]);
 
+impl Drop for SharedSecret {
+    fn drop(&mut self) {
+        low::zeroise(&mut self.0);
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 struct AffineMontPoint {
     xy: [u64; 12],
@@ -649,6 +655,12 @@ impl Scalar {
     /// Iterator of 76 * 5-bit elements, LSB first, sign bit and final flag is separate
     fn reversed_booth_recoded_w5(&self) -> BoothRecodeW5 {
         BoothRecodeW5::new(self)
+    }
+}
+
+impl Drop for Scalar {
+    fn drop(&mut self) {
+        low::zeroise(&mut self.0);
     }
 }
 

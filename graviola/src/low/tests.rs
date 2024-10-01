@@ -16,6 +16,20 @@ fn bignum_mux() {
     bignum_mux_equiv(u64::MAX, &[1; 1], &[0; 1]);
 }
 
+#[test]
+fn zeroise() {
+    for n in 0..1024 {
+        zeroise_equiv(n);
+    }
+}
+
+fn zeroise_equiv(len: usize) {
+    let expect = vec![0x00u8; len];
+    let mut bytes = vec![0xffu8; len];
+    super::zeroise(&mut bytes);
+    assert_eq!(expect, bytes);
+}
+
 mod model {
     pub fn bignum_mux(p: u64, z: &mut [u64], x_if_p: &[u64], y_if_not_p: &[u64]) {
         if p > 0 {

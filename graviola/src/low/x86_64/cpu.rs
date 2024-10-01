@@ -36,6 +36,38 @@ pub(crate) fn leave_cpu_state(_old: u32) {
     }
 }
 
+/// Effectively memset(ptr, 0, len), but not visible to optimiser
+pub(crate) fn zero_bytes(ptr: *mut u8, len: usize) {
+    unsafe { _zero_bytes(ptr, len) }
+}
+
+#[target_feature(enable = "avx")]
+unsafe fn _zero_bytes(ptr: *mut u8, len: usize) {
+    core::arch::asm!(
+        "       vpxor   {zero}, {zero}, {zero}",
+        // by-32 loop
+        "   2:  cmp {len}, 32",
+        "       jl  3f",
+        "       vmovdqu [{ptr}], {zero}",
+        "       add {ptr}, 32",
+        "       sub {len}, 32",
+        "       jmp 2b",
+        // by-1 loop
+        "   3:  sub {len}, 1",
+        "       jl  4f",
+        "       mov byte ptr [{ptr}], 0",
+        "       add {ptr}, 1",
+        "       jmp 3b",
+        "   4:  ",
+
+        ptr = inout(reg) ptr => _,
+        len = inout(reg) len => _,
+
+        // clobbers
+        zero = out(ymm_reg) _,
+    )
+}
+
 /// This macro interdicts is_x86_feature_detected to
 /// allow testability.
 macro_rules! have_cpu_feature {

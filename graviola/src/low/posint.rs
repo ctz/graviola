@@ -4,6 +4,8 @@
 use crate::low;
 use crate::Error;
 
+use core::ops::{Deref, DerefMut};
+
 #[derive(Clone, Debug)]
 pub(crate) struct PosInt<const N: usize> {
     words: [u64; N],
@@ -452,6 +454,7 @@ impl<const N: usize> PosInt<N> {
             }
         }
 
+        low::zeroise(&mut table);
         accum.from_montgomery(n)
     }
 
@@ -486,6 +489,38 @@ impl<const N: usize> PosInt<N> {
         r.words[..self.used].copy_from_slice(self.as_words());
         r.used = self.used;
         r
+    }
+}
+
+/// A `SecretPosInt` is a `PosInt` containing long-term key material.
+///
+/// It is zeroed on drop.
+pub(crate) struct SecretPosInt<const N: usize>(PosInt<N>);
+
+impl<const N: usize> From<PosInt<N>> for SecretPosInt<N> {
+    fn from(pi: PosInt<N>) -> Self {
+        Self(pi)
+    }
+}
+
+impl<const N: usize> Deref for SecretPosInt<N> {
+    type Target = PosInt<N>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<const N: usize> DerefMut for SecretPosInt<N> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<const N: usize> Drop for SecretPosInt<N> {
+    fn drop(&mut self) {
+        low::zeroise(self.as_mut_words());
+        low::zeroise_value(&mut self.used);
     }
 }
 

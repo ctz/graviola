@@ -10,8 +10,10 @@
 use core::arch::x86_64::*;
 use core::mem;
 
+use crate::low;
+
 pub(crate) struct GhashTable {
-    /// H, H^2, H^3, H^4, ... H^7
+    /// H, H^2, H^3, H^4, ... H^8
     powers: [__m128i; 8],
 
     /// `powers_xor[i]` is `powers[i].lo64 ^ powers[i].hi64`
@@ -38,6 +40,13 @@ impl GhashTable {
         }
 
         Self { powers, powers_xor }
+    }
+}
+
+impl Drop for GhashTable {
+    fn drop(&mut self) {
+        low::zeroise(&mut self.powers);
+        low::zeroise(&mut self.powers_xor);
     }
 }
 

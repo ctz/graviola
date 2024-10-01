@@ -5,6 +5,7 @@
 //!
 //! Based on the implementation in low/x86_64/ghash.rs
 
+use crate::low;
 use core::arch::aarch64::*;
 use core::mem;
 
@@ -39,6 +40,13 @@ impl GhashTable {
         };
 
         Self { powers, powers_xor }
+    }
+}
+
+impl Drop for GhashTable {
+    fn drop(&mut self) {
+        low::zeroise(&mut self.powers);
+        low::zeroise(&mut self.powers_xor);
     }
 }
 
