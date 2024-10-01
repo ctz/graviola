@@ -6,11 +6,12 @@ use crate::error::Error;
 use crate::low;
 
 pub(crate) struct RsaPrivateKey {
+    public: RsaPublicKey,
+
     p: RsaPosIntModP,
     q: RsaPosIntModP,
     dp: RsaPosIntModP,
     dq: RsaPosIntModP,
-    public: RsaPublicKey,
 
     iqmp_mont: RsaPosIntModP,
     p_montifier: RsaPosIntModP,
@@ -40,18 +41,18 @@ impl RsaPrivateKey {
         }
 
         let public = RsaPublicKey::new(n, e)?;
-        let p_montifier = p.montifier();
-        let q_montifier = q.montifier();
-        let iqmp_mont = iqmp.to_montgomery(&p_montifier, &p);
+        let p_montifier: RsaPosIntModP = p.montifier().into();
+        let q_montifier = q.montifier().into();
+        let iqmp_mont = iqmp.to_montgomery(&p_montifier, &p).into();
         let p0 = p.mont_neg_inverse();
         let q0 = q.mont_neg_inverse();
 
         Ok(Self {
+            public,
             p,
             q,
             dp,
             dq,
-            public,
             iqmp_mont,
             p_montifier,
             q_montifier,
@@ -116,6 +117,13 @@ impl RsaPrivateKey {
     }
 }
 
+impl Drop for RsaPrivateKey {
+    fn drop(&mut self) {
+        low::zeroise_value(&mut self.p0);
+        low::zeroise_value(&mut self.q0);
+    }
+}
+
 const MAX_PRIVATE_MODULUS_BITS: usize = 4096;
 const MAX_PRIVATE_MODULUS_WORDS: usize = MAX_PRIVATE_MODULUS_BITS / 64;
 pub(crate) const MAX_PRIVATE_MODULUS_BYTES: usize = MAX_PRIVATE_MODULUS_BITS / 8;
@@ -123,5 +131,5 @@ pub(crate) const MAX_PRIVATE_MODULUS_BYTES: usize = MAX_PRIVATE_MODULUS_BITS / 8
 const MIN_PRIVATE_MODULUS_BITS: usize = 1024;
 const MIN_PRIVATE_MODULUS_BYTES: usize = MIN_PRIVATE_MODULUS_BITS / 8;
 
-type RsaPosIntModP = low::PosInt<MAX_PRIVATE_MODULUS_WORDS>;
+type RsaPosIntModP = low::SecretPosInt<MAX_PRIVATE_MODULUS_WORDS>;
 type RsaPosIntModN = low::PosInt<{ MAX_PRIVATE_MODULUS_WORDS * 2 }>;

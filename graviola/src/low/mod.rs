@@ -18,6 +18,7 @@ mod generic {
     pub(crate) mod poly1305;
     pub(super) mod sha256;
     pub(super) mod sha512;
+    pub(super) mod zeroise;
 }
 
 mod entry;
@@ -27,7 +28,8 @@ pub(crate) use entry::Entry;
 pub(crate) use generic::blockwise::Blockwise;
 pub(crate) use generic::ct_equal::ct_equal;
 pub(crate) use generic::poly1305;
-pub(crate) use posint::PosInt;
+pub(crate) use generic::zeroise::{zeroise, zeroise_value};
+pub(crate) use posint::{PosInt, SecretPosInt};
 
 #[cfg(test)]
 mod tests;
@@ -36,7 +38,7 @@ cfg_if::cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
         mod x86_64;
 
-        pub(crate) use x86_64::cpu::{enter_cpu_state, leave_cpu_state, verify_cpu_features};
+        pub(crate) use x86_64::cpu::{enter_cpu_state, zero_bytes, leave_cpu_state, verify_cpu_features};
         pub(crate) use x86_64::chacha20;
         pub(crate) use x86_64::aes::AesKey;
         pub(crate) use x86_64::aes_gcm;
@@ -95,7 +97,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_arch = "aarch64")] {
         mod aarch64;
 
-        pub(crate) use aarch64::cpu::{enter_cpu_state, leave_cpu_state, verify_cpu_features};
+        pub(crate) use aarch64::cpu::{enter_cpu_state, zero_bytes, leave_cpu_state, verify_cpu_features};
         pub(crate) use aarch64::aes::AesKey;
         pub(crate) use aarch64::bignum_add::bignum_add;
         pub(crate) use aarch64::bignum_add_p256::bignum_add_p256;

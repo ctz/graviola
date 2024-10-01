@@ -11,6 +11,34 @@ pub(crate) fn leave_cpu_state(old: u32) {
     dit::maybe_disable(old);
 }
 
+/// Effectively memset(ptr, 0, len), but not visible to optimiser
+pub(crate) fn zero_bytes(ptr: *mut u8, len: usize) {
+    unsafe {
+        core::arch::asm!(
+            "       eor {zero}.16b, {zero}.16b, {zero}.16b",
+            // by-16 loop
+            "   2:  cmp {len}, #16",
+            "       blt 3f",
+            "       st1 {{{zero}.16b}}, [{ptr}]",
+            "       add {ptr}, {ptr}, #16",
+            "       sub {len}, {len}, #16",
+            "       b 2b",
+            // by-1 loop
+            "   3:  subs {len}, {len}, #1",
+            "       blt 4f",
+            "       strb wzr, [{ptr}], #1",
+            "       b 3b",
+            "   4:  ",
+
+            ptr = inout(reg) ptr => _,
+            len = inout(reg) len => _,
+
+            // clobbers
+            zero = out(vreg) _,
+        )
+    }
+}
+
 pub(crate) fn verify_cpu_features() {
     assert!(
         is_aarch64_feature_detected!("neon"),

@@ -8,6 +8,7 @@
 //
 // cf. the x86_64 version, on which this one is based.
 
+use crate::low;
 use core::arch::aarch64::*;
 
 pub(crate) enum AesKey {
@@ -88,6 +89,12 @@ impl AesKey128 {
     }
 }
 
+impl Drop for AesKey128 {
+    fn drop(&mut self) {
+        low::zeroise(&mut self.round_keys);
+    }
+}
+
 pub(crate) struct AesKey256 {
     round_keys: [uint8x16_t; 14 + 1],
 }
@@ -128,6 +135,12 @@ impl AesKey256 {
 
     pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
         unsafe { aes256_block(&self.round_keys, inout) }
+    }
+}
+
+impl Drop for AesKey256 {
+    fn drop(&mut self) {
+        low::zeroise(&mut self.round_keys);
     }
 }
 

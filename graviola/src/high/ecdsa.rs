@@ -7,7 +7,7 @@ use super::hash::{Hash, HashContext};
 use super::hmac_drbg::HmacDrbg;
 use super::pkcs8;
 use crate::error::{Error, KeyFormatError};
-use crate::low::Entry;
+use crate::low::{zeroise, Entry};
 use crate::mid::rng::{RandomSource, SystemRandom};
 
 pub struct SigningKey<C: Curve> {
@@ -121,8 +121,8 @@ impl<C: Curve> SigningKey<C> {
         }
         let hash = ctx.finish();
 
-        let mut encoded_private_key = [0u8; MAX_SCALAR_LEN];
-        let encoded_private_key = self.private_key.encode(&mut encoded_private_key)?;
+        let mut encoded_private_key_buf = [0u8; MAX_SCALAR_LEN];
+        let encoded_private_key = self.private_key.encode(&mut encoded_private_key_buf)?;
 
         let e = hash_to_scalar::<C>(hash.as_ref())?;
         let mut e_bytes = [0u8; MAX_SCALAR_LEN];
@@ -132,6 +132,7 @@ impl<C: Curve> SigningKey<C> {
             &e_bytes[..C::Scalar::LEN_BYTES],
             random,
         );
+        zeroise(&mut encoded_private_key_buf);
 
         let (k, r) = loop {
             let k = C::generate_random_key(&mut rng)?;

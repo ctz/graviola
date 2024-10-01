@@ -26,3 +26,7 @@ serde_json = "1"
 [[test]]
 name = "wycheproof"
 required-features = ["__internal_08eaf2eb"]
+
+[[test]]
+name = "zeroing"
+required-features = ["__internal_08eaf2eb"]

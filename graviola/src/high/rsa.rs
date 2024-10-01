@@ -127,11 +127,11 @@ impl RsaPrivateSigningKey {
             .map_err(Error::Asn1Error)?;
         let e = e.try_into().map_err(|_| Error::OutOfRange)?;
 
-        let p = PosInt::from_bytes(decoded.prime1.as_ref())?;
-        let q = PosInt::from_bytes(decoded.prime2.as_ref())?;
-        let dp = PosInt::from_bytes(decoded.exponent1.as_ref())?;
-        let dq = PosInt::from_bytes(decoded.exponent2.as_ref())?;
-        let iqmp = PosInt::from_bytes(decoded.coefficient.as_ref())?;
+        let p = PosInt::from_bytes(decoded.prime1.as_ref())?.into();
+        let q = PosInt::from_bytes(decoded.prime2.as_ref())?.into();
+        let dp = PosInt::from_bytes(decoded.exponent1.as_ref())?.into();
+        let dq = PosInt::from_bytes(decoded.exponent2.as_ref())?.into();
+        let iqmp = PosInt::from_bytes(decoded.coefficient.as_ref())?.into();
 
         let priv_key = rsa_priv::RsaPrivateKey::new(p, q, dp, dq, iqmp, n, e)?;
         Ok(Self(priv_key))

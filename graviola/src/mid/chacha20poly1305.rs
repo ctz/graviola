@@ -3,7 +3,7 @@
 
 use crate::low::chacha20::ChaCha20;
 use crate::low::poly1305::Poly1305;
-use crate::low::{ct_equal, Entry};
+use crate::low::{ct_equal, zeroise, Entry};
 use crate::Error;
 
 pub struct ChaCha20Poly1305 {
@@ -93,6 +93,12 @@ impl ChaCha20Poly1305 {
         poly.add_bytes(&(cipher_inout.len() as u64).to_le_bytes());
 
         tag_out.copy_from_slice(&poly.finish());
+    }
+}
+
+impl Drop for ChaCha20Poly1305 {
+    fn drop(&mut self) {
+        zeroise(&mut self.key);
     }
 }
 
