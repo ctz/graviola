@@ -7,8 +7,7 @@
 
 *High quality*: Graviola incorporates assembler routines
 from the [s2n-bignum] project.  These have been formally proven
-to be memory safe, free of side channels (at the architectural level),
-and to correctly implement the desired mathematical operation.
+to correctly implement the desired mathematical operation.
 
 *Fast*: Graviola beats or is competitive with other cryptography
 libraries for Rust.  See [performance comparison][performance].
