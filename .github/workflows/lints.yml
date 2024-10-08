@@ -10,7 +10,22 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  msrv:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Install MSRV toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: "1.72"
+
+    - name: Check MSRV
+      run: cargo build --lib --all-features
+
+  lints:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
