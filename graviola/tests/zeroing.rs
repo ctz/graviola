@@ -11,6 +11,7 @@
 
 #![cfg(target_os = "linux")]
 
+use core::mem::size_of;
 use core::ops::Deref;
 use core::pin::Pin;
 use core::ptr;
