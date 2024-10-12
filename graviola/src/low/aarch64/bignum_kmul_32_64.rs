@@ -23,6 +23,7 @@ pub fn bignum_kmul_32_64(z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u64]) {
     debug_assert!(x.len() == 32);
     debug_assert!(y.len() == 32);
     debug_assert!(t.len() >= 96);
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
 

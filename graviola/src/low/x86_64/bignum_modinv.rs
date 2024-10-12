@@ -260,6 +260,7 @@ pub fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) {
     debug_assert!(z.len() == a.len());
     debug_assert!(z.len() == b.len());
     debug_assert!(z.len() * 3 <= t.len());
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
 

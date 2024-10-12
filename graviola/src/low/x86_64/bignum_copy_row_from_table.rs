@@ -64,6 +64,7 @@ pub fn bignum_copy_row_from_table(
 ) {
     debug_assert!(z.len() as u64 == width);
     debug_assert!(index < height);
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
 

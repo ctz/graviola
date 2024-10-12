@@ -4,6 +4,9 @@
 #[macro_use]
 mod macros;
 
+#[cfg(doc)]
+pub mod inline_assembly_safety;
+
 mod generic {
     #[cfg(target_arch = "aarch64")]
     pub(crate) mod aes_gcm;

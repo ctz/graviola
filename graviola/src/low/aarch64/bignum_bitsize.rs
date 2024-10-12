@@ -51,6 +51,7 @@ macro_rules! j {
 
 pub fn bignum_bitsize(x: &[u64]) -> usize {
     let ret: u64;
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
 

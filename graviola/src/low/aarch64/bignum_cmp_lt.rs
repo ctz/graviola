@@ -52,6 +52,7 @@ macro_rules! d {
 
 pub fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64 {
     let ret: u64;
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
 

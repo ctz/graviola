@@ -141,6 +141,7 @@ macro_rules! n5 {
 }
 
 pub fn bignum_tomont_p384(z: &mut [u64; 6], x: &[u64; 6]) {
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
 

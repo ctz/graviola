@@ -124,6 +124,7 @@ macro_rules! jshort {
 pub fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
     debug_assert!(z.len() == x.len());
     debug_assert!(z.len() == m.len());
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
 
