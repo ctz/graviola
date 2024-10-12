@@ -10,6 +10,9 @@ pub(crate) fn enter_cpu_state() -> u32 {
 
 pub(crate) fn leave_cpu_state(_old: u32) {
     // zeroise simd registers
+
+    // SAFETY: this crate requires the `avx` cpu feature.
+    // SAFETY: all registers written by `vzeroall` are listed as clobbers.
     unsafe {
         core::arch::asm!(
             // clear z/y/xmm0-15
@@ -37,12 +40,19 @@ pub(crate) fn leave_cpu_state(_old: u32) {
 }
 
 /// Effectively memset(ptr, 0, len), but not visible to optimiser
-pub(crate) fn zero_bytes(ptr: *mut u8, len: usize) {
+///
+/// # Safety
+/// The caller must ensure that there are `len` bytes writable at `ptr`,
+/// and that the pointed-to object has a safe all-zeroes representation.
+/// (see `low::generic::zeroise` which expresses this within the type system).
+pub(in crate::low) fn zero_bytes(ptr: *mut u8, len: usize) {
+    // SAFETY: this crate requires the `avx` cpu feature
     unsafe { _zero_bytes(ptr, len) }
 }
 
 #[target_feature(enable = "avx")]
 unsafe fn _zero_bytes(ptr: *mut u8, len: usize) {
+    // SAFETY: writes to `len` bytes at `ptr`, which the caller guarantees
     core::arch::asm!(
         "       vpxor   {zero}, {zero}, {zero}",
         // by-32 loop

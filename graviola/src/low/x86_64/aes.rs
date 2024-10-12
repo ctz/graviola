@@ -60,6 +60,7 @@ impl AesKey128 {
     pub(crate) fn new(key: &[u8; 16]) -> Self {
         let mut round_keys = [zero(); (10 + 1)];
 
+        // SAFETY: this crate requires the `aes` & `avx` cpu features
         unsafe {
             aes128_expand(key, &mut round_keys);
         }
@@ -68,6 +69,7 @@ impl AesKey128 {
     }
 
     pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
+        // SAFETY: this crate requires the `aes` & `avx` cpu features
         unsafe { aes128_block(&self.round_keys, inout) }
     }
 }
@@ -79,6 +81,7 @@ impl Drop for AesKey128 {
 }
 
 fn zero() -> __m128i {
+    // SAFETY: this crate requires the `avx` cpu feature
     unsafe { _mm_setzero_si128() }
 }
 
@@ -90,6 +93,7 @@ impl AesKey256 {
     pub(crate) fn new(key: &[u8; 32]) -> Self {
         let mut round_keys = [zero(); 14 + 1];
 
+        // SAFETY: this crate requires the `aes` & `avx` cpu features
         unsafe {
             aes256_expand(key, &mut round_keys);
         }
@@ -98,6 +102,7 @@ impl AesKey256 {
     }
 
     pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
+        // SAFETY: this crate requires the `aes` & `avx` cpu features
         unsafe { aes256_block(&self.round_keys, inout) }
     }
 }
@@ -135,21 +140,19 @@ macro_rules! expand_128 {
 
 #[target_feature(enable = "aes,avx")]
 unsafe fn aes128_expand(key: &[u8; 16], out: &mut [__m128i; 11]) {
-    unsafe {
-        let mut t1 = _mm_lddqu_si128(key.as_ptr() as *const _);
-        out[0] = t1;
+    let mut t1 = _mm_lddqu_si128(key.as_ptr() as *const _);
+    out[0] = t1;
 
-        expand_128!(0x01, t1, out[1]);
-        expand_128!(0x02, t1, out[2]);
-        expand_128!(0x04, t1, out[3]);
-        expand_128!(0x08, t1, out[4]);
-        expand_128!(0x10, t1, out[5]);
-        expand_128!(0x20, t1, out[6]);
-        expand_128!(0x40, t1, out[7]);
-        expand_128!(0x80, t1, out[8]);
-        expand_128!(0x1b, t1, out[9]);
-        expand_128!(0x36, t1, out[10]);
-    }
+    expand_128!(0x01, t1, out[1]);
+    expand_128!(0x02, t1, out[2]);
+    expand_128!(0x04, t1, out[3]);
+    expand_128!(0x08, t1, out[4]);
+    expand_128!(0x10, t1, out[5]);
+    expand_128!(0x20, t1, out[6]);
+    expand_128!(0x40, t1, out[7]);
+    expand_128!(0x80, t1, out[8]);
+    expand_128!(0x1b, t1, out[9]);
+    expand_128!(0x36, t1, out[10]);
 }
 
 macro_rules! expand_256 {

@@ -10,6 +10,7 @@ use core::arch::x86_64::*;
 /// This is useful to select an affine p256 point from a table of
 /// precomputed points.
 pub(crate) fn bignum_aff_point_select_p256(z: &mut [u64; 8], table: &[u64], index: u8) {
+    // SAFETY: this crate requires the `avx` and `avx2` cpu features
     unsafe { _select_aff_p256(z, table, index) }
 }
 
@@ -17,11 +18,13 @@ pub(crate) fn bignum_aff_point_select_p256(z: &mut [u64; 8], table: &[u64], inde
 /// table[idx - 1] into z.  If `idx` is zero or larger than `height`,
 /// `z` is set to zero (ie, a jacobian point at infinity).
 pub(crate) fn bignum_jac_point_select_p256(z: &mut [u64; 12], table: &[u64], index: u8) {
+    // SAFETY: this crate requires the `avx` and `avx2` cpu features
     unsafe { _select_jac_p256(z, table, index) }
 }
 
 #[target_feature(enable = "avx,avx2")]
 unsafe fn _select_aff_p256(z: &mut [u64; 8], table: &[u64], index: u8) {
+    // SAFETY: prefetches do not fault and are not architecturally visible
     _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
     _mm_prefetch(table.as_ptr().add(16).cast(), _MM_HINT_T0);
 
@@ -56,6 +59,7 @@ unsafe fn _select_aff_p256(z: &mut [u64; 8], table: &[u64], index: u8) {
 
 #[target_feature(enable = "avx,avx2")]
 unsafe fn _select_jac_p256(z: &mut [u64; 12], table: &[u64], index: u8) {
+    // SAFETY: prefetches do not fault and are not architecturally visible
     _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
     _mm_prefetch(table.as_ptr().add(16).cast(), _MM_HINT_T0);
 

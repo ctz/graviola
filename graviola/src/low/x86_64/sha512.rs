@@ -178,7 +178,7 @@ unsafe fn sha512_quad_message_schedule(schedule: &mut [__m256i; 80], message: *c
 
 #[target_feature(enable = "avx,avx2,bmi2")]
 unsafe fn sha512_compress_4_blocks(state: &mut [u64; 8], block4: *const u64) {
-    let mut w = [unsafe { _mm256_setzero_si256() }; 80];
+    let mut w = [_mm256_setzero_si256(); 80];
     sha512_quad_message_schedule(&mut w, block4);
 
     // keep intermediate state in ymm registers to reduce scalar register
@@ -321,9 +321,10 @@ unsafe fn sha512_compress_4_blocks(state: &mut [u64; 8], block4: *const u64) {
     _mm256_storeu_si256(state.as_ptr().add(4) as *mut _, save_efgh);
 }
 
-pub fn sha512_compress_blocks(state: &mut [u64; 8], blocks: &[u8]) {
+pub(in crate::low) fn sha512_compress_blocks(state: &mut [u64; 8], blocks: &[u8]) {
     let mut iter4 = blocks.chunks_exact(512);
     for block4 in iter4.by_ref() {
+        // SAFETY: caller checks cpu features for `bmi2`; `avx` and `avx2` required by crate.
         unsafe { sha512_compress_4_blocks(state, block4.as_ptr().cast()) };
     }
     let blocks = iter4.remainder();

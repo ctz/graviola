@@ -8,6 +8,7 @@ use core::mem;
 /// table[idx - 1] into z.  If `idx` is zero or larger than `height`,
 /// `z` is set to zero (ie, a jacobian point at infinity).
 pub(crate) fn bignum_jac_point_select_p384(z: &mut [u64; 18], table: &[u64], index: u8) {
+    // SAFETY: crate requires `neon` cpu feature
     unsafe { _select_jac_p384(z, table, index) }
 }
 

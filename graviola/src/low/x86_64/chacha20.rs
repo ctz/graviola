@@ -11,6 +11,7 @@ pub(crate) struct ChaCha20 {
 
 impl ChaCha20 {
     pub(crate) fn new(key: &[u8; 32], nonce: &[u8; 16]) -> Self {
+        // SAFETY: this crate requires the `avx2` and `ssse3` cpu features
         unsafe { format_key(key, nonce) }
     }
 
@@ -18,12 +19,14 @@ impl ChaCha20 {
         let mut by8 = buffer.chunks_exact_mut(512);
 
         for block in by8.by_ref() {
+            // SAFETY: this crate requires the `avx2` cpu feature
             unsafe {
                 core_8x(self.z07, &mut self.z8f, block);
             }
         }
 
         for block in by8.into_remainder().chunks_mut(128) {
+            // SAFETY: this crate requires the `avx2` cpu feature
             unsafe {
                 core_2x(self.z07, &mut self.z8f, block);
             }
@@ -62,18 +65,14 @@ macro_rules! rotate_left {
 
 #[target_feature(enable = "ssse3,avx2")]
 unsafe fn format_key(key: &[u8; 32], nonce: &[u8; 16]) -> ChaCha20 {
-    let z07 = unsafe {
-        _mm256_set_m128i(
-            _mm_lddqu_si128(SIGMA.as_ptr().cast()),
-            _mm_lddqu_si128(key[0..16].as_ptr().cast()),
-        )
-    };
-    let z8f = unsafe {
-        _mm256_set_m128i(
-            _mm_lddqu_si128(key[16..32].as_ptr().cast()),
-            _mm_lddqu_si128(nonce.as_ptr().cast()),
-        )
-    };
+    let z07 = _mm256_set_m128i(
+        _mm_lddqu_si128(SIGMA.as_ptr().cast()),
+        _mm_lddqu_si128(key[0..16].as_ptr().cast()),
+    );
+    let z8f = _mm256_set_m128i(
+        _mm_lddqu_si128(key[16..32].as_ptr().cast()),
+        _mm_lddqu_si128(nonce.as_ptr().cast()),
+    );
 
     ChaCha20 { z07, z8f }
 }

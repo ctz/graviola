@@ -7,6 +7,7 @@ use core::arch::x86_64::*;
 /// table[idx - 1] into z.  If `idx` is zero or larger than `height`,
 /// `z` is set to zero (ie, a jacobian point at infinity).
 pub(crate) fn bignum_jac_point_select_p384(z: &mut [u64; 18], table: &[u64], index: u8) {
+    // SAFETY: this crate requires the `avx` and `avx2` cpu features
     unsafe { _select_jac_p384(z, table, index) }
 }
 
@@ -55,12 +56,14 @@ unsafe fn _select_jac_p384(z: &mut [u64; 18], table: &[u64], index: u8) {
         acc4 = _mm256_xor_si256(acc4, row4);
     }
 
+    // SAFETY: `z` is 18-words/1152-bits, requiring a partial write of the final 256-bit term
     _mm256_storeu_si256(z.as_mut_ptr().add(0).cast(), acc0);
     _mm256_storeu_si256(z.as_mut_ptr().add(4).cast(), acc1);
     _mm256_storeu_si256(z.as_mut_ptr().add(8).cast(), acc2);
     _mm256_storeu_si256(z.as_mut_ptr().add(12).cast(), acc3);
 
     let mut tmp = [0u64; 4];
+    // SAFETY: `tmp` is 256-bits
     _mm256_storeu_si256(tmp.as_mut_ptr().cast(), acc4);
     z[16..18].copy_from_slice(&tmp[0..2]);
 }
