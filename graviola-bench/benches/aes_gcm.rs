@@ -1,3 +1,4 @@
+mod criterion;
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 
 fn test_ring_aes_gcm(key: &ring::aead::LessSafeKey, nonce: &[u8; 12], aad: &[u8], plain: &[u8]) {

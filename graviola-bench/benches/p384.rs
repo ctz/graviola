@@ -1,3 +1,4 @@
+mod criterion;
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
 
 const PUBLIC_KEY: &[u8; 97] = &[
