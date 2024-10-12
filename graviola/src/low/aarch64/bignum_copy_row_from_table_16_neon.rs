@@ -160,6 +160,7 @@ macro_rules! vmask {
 pub fn bignum_copy_row_from_table_16_neon(z: &mut [u64], table: &[u64], height: u64, index: u64) {
     debug_assert!(z.len() == 16);
     debug_assert!(index < height);
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
 

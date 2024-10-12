@@ -22,6 +22,7 @@ pub fn bignum_ksqr_16_32(z: &mut [u64], x: &[u64], t: &mut [u64]) {
     debug_assert!(z.len() == 32);
     debug_assert!(x.len() == 16);
     debug_assert!(t.len() >= 24);
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
 

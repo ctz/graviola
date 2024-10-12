@@ -70,6 +70,7 @@ macro_rules! montreds {
 }
 
 pub fn bignum_demont_p384(z: &mut [u64; 6], x: &[u64; 6]) {
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
 

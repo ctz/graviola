@@ -66,6 +66,7 @@ macro_rules! d {
 }
 
 pub fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) {
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
 

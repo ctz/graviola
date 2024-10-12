@@ -99,3 +99,9 @@ pub mod rng {
 
 // vvv Public API
 pub use error::Error;
+
+/// Non-API documentation
+#[cfg(doc)]
+pub mod doc {
+    pub use super::low::inline_assembly_safety;
+}
