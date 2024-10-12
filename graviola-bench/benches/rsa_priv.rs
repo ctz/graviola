@@ -1,3 +1,4 @@
+mod criterion;
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
 
 fn rsa2048_pkcs1_sha256_sign(c: &mut Criterion) {

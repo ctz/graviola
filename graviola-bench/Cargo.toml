@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 graviola = { path = "../graviola", features = ["__internal_08eaf2eb"] }
+codspeed-criterion-compat = { optional = true, version = "2" }
 
 [dev-dependencies]
 aes-gcm = "0.10"
@@ -28,6 +29,7 @@ openssl = "0.10"
 
 [features]
 __bench_openssl = []
+__bench_codspeed = ["dep:codspeed-criterion-compat"]
 
 [[bench]]
 name = "x25519"

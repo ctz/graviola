@@ -1,3 +1,4 @@
+mod criterion;
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use sha2::Digest;
 
