@@ -16,8 +16,6 @@ mod generic {
     pub(super) mod ct_equal;
     #[cfg(test)]
     pub(crate) mod ghash;
-    #[cfg(target_arch = "aarch64")]
-    pub(super) mod optimise_barrier;
     pub(crate) mod poly1305;
     pub(super) mod sha256;
     pub(super) mod sha512;
@@ -152,11 +150,11 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::p384_montjadd::p384_montjadd;
         pub(crate) use aarch64::p384_montjdouble::p384_montjdouble;
         pub(crate) use aarch64::sha256::sha256_compress_blocks;
+        pub(crate) use aarch64::optimise_barrier::optimise_barrier_u8;
 
         pub(crate) use generic::chacha20;
         pub(crate) use generic::aes_gcm;
         pub(crate) use generic::sha512::sha512_compress_blocks;
-        pub(crate) use generic::optimise_barrier::optimise_barrier_u8;
     } else {
         compile_error!("This crate only supports x86_64 or aarch64");
     }
