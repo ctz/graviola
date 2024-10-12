@@ -82,12 +82,14 @@ fn x25519(c: &mut Criterion) {
 
     group.bench_function("graviola", |b| {
         b.iter(|| {
-            let our_private_key =
-                graviola::x25519::PrivateKey::generate(&mut graviola::rng::SystemRandom).unwrap();
+            let our_private_key = graviola::key_agreement::x25519::PrivateKey::generate(
+                &mut graviola::rng::SystemRandom,
+            )
+            .unwrap();
             let our_public_key = our_private_key.public_key();
             black_box(our_public_key);
 
-            let peer = graviola::x25519::PublicKey::from_array(PUBLIC_KEY);
+            let peer = graviola::key_agreement::x25519::PublicKey::from_array(PUBLIC_KEY);
             let secret = our_private_key.diffie_hellman(&peer);
             black_box(secret);
         })

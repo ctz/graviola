@@ -6,10 +6,8 @@ use graviola::ecdsa::VerifyingKey;
 use graviola::ecdsa::{P256, P384};
 use graviola::hash::hmac::Hmac;
 use graviola::hash::{Sha256, Sha384, Sha512};
-use graviola::p256;
-use graviola::p384;
+use graviola::key_agreement::{p256, p384, x25519};
 use graviola::rsa;
-use graviola::x25519;
 use graviola::Error;
 
 #[derive(Deserialize, Debug)]

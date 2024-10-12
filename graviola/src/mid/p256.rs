@@ -1,7 +1,7 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
-use super::util::Array64x4;
+use super::util;
 use crate::low;
 use crate::mid::rng::RandomSource;
 use crate::Error;
@@ -121,7 +121,9 @@ impl PrivateKey {
         let result =
             JacobianMontPoint::multiply_wnaf_5(&self.scalar, &peer.precomp_wnaf_5).as_affine();
         match result.on_curve() {
-            true => Ok(SharedSecret(Array64x4(result.x().demont().0).as_be_bytes())),
+            true => Ok(SharedSecret(util::u64x4_to_big_endian(
+                &result.x().demont().0,
+            ))),
             false => Err(Error::NotOnCurve),
         }
     }
@@ -174,8 +176,8 @@ impl AffineMontPoint {
         let y = &bytes[33..65];
 
         let point = Self::from_xy(
-            FieldElement(Array64x4::from_be_bytes(x).unwrap().0).as_mont(),
-            FieldElement(Array64x4::from_be_bytes(y).unwrap().0).as_mont(),
+            FieldElement(util::big_endian_slice_to_u64x4(x).unwrap()).as_mont(),
+            FieldElement(util::big_endian_slice_to_u64x4(y).unwrap()).as_mont(),
         );
 
         if !point.on_curve() {
@@ -227,8 +229,8 @@ impl AffineMontPoint {
     fn as_bytes_uncompressed(&self) -> [u8; 65] {
         let mut r = [0u8; 65];
         r[0] = 0x04;
-        r[1..33].copy_from_slice(&Array64x4(self.x().demont().0).as_be_bytes());
-        r[33..65].copy_from_slice(&Array64x4(self.y().demont().0).as_be_bytes());
+        r[1..33].copy_from_slice(&util::u64x4_to_big_endian(&self.x().demont().0));
+        r[33..65].copy_from_slice(&util::u64x4_to_big_endian(&self.y().demont().0));
         r
     }
 
@@ -470,7 +472,7 @@ impl JacobianMontPoint {
         let z2 = self.z().mont_sqr();
         let z2_inv = z2.demont().inv().as_mont();
         let x = self.x().mont_mul(&z2_inv).demont();
-        Scalar::from_bytes_reduced(&Array64x4(x.0).as_be_bytes()).unwrap()
+        Scalar::from_bytes_reduced(&util::u64x4_to_big_endian(&x.0)).unwrap()
     }
 
     #[must_use]
@@ -609,22 +611,16 @@ impl Scalar {
     /// This returns an error if the scalar is zero or larger than
     /// the curve order.
     pub(crate) fn from_bytes_checked(bytes: &[u8]) -> Result<Self, Error> {
-        let full = Self(
-            Array64x4::from_be_bytes_any_size(bytes)
-                .ok_or(Error::WrongLength)?
-                .0,
-        );
+        let full = Self(util::big_endian_slice_any_size_to_u64x4(bytes).ok_or(Error::WrongLength)?);
 
         full.into_range_check()
     }
 
     pub(crate) fn from_bytes_reduced(bytes: &[u8]) -> Result<Self, Error> {
-        Ok(Self(
-            Array64x4::from_be_bytes_any_size(bytes)
-                .ok_or(Error::WrongLength)?
-                .0,
+        Ok(
+            Self(util::big_endian_slice_any_size_to_u64x4(bytes).ok_or(Error::WrongLength)?)
+                .reduce_mod_n(),
         )
-        .reduce_mod_n())
     }
 
     fn into_range_check(self) -> Result<Self, Error> {
@@ -638,7 +634,7 @@ impl Scalar {
     }
 
     pub(crate) fn as_bytes(&self) -> [u8; 32] {
-        Array64x4(self.0).as_be_bytes()
+        util::u64x4_to_big_endian(&self.0)
     }
 
     #[cfg(test)]

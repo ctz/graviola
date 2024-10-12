@@ -1,26 +1,26 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
-use super::util::Array64x4;
+use super::util;
 use crate::low;
 use crate::mid::rng::RandomSource;
 
-pub struct PrivateKey(Array64x4);
+pub struct PrivateKey([u64; 4]);
 
 impl PrivateKey {
     pub fn try_from_slice(b: &[u8]) -> Result<Self, ()> {
         let _ = low::Entry::new_secret();
-        Array64x4::from_le_bytes(b).map(Self).ok_or(())
+        util::little_endian_slice_to_u64x4(b).map(Self).ok_or(())
     }
 
     pub fn from_array(b: &[u8; 32]) -> Self {
         let _ = low::Entry::new_secret();
-        Self(Array64x4::from_le(b))
+        Self(util::little_endian_to_u64x4(b))
     }
 
     pub fn as_bytes(&self) -> [u8; 32] {
         let _ = low::Entry::new_secret();
-        self.0.as_le_bytes()
+        util::u64x4_to_little_endian(&self.0)
     }
 
     /// Generate a new key using the given `rng`.
@@ -37,40 +37,40 @@ impl PrivateKey {
     pub fn public_key(&self) -> PublicKey {
         let _ = low::Entry::new_secret();
         let mut res = [0u64; 4];
-        low::curve25519_x25519base(&mut res, &self.0 .0);
-        PublicKey(Array64x4(res))
+        low::curve25519_x25519base(&mut res, &self.0);
+        PublicKey(res)
     }
 
     pub fn diffie_hellman(&self, peer: &PublicKey) -> SharedSecret {
         let _ = low::Entry::new_secret();
         let mut res = [0u64; 4];
-        low::curve25519_x25519(&mut res, &self.0 .0, &peer.0 .0);
-        SharedSecret(Array64x4(res).as_le_bytes())
+        low::curve25519_x25519(&mut res, &self.0, &peer.0);
+        SharedSecret(util::u64x4_to_little_endian(&res))
     }
 }
 
 impl Drop for PrivateKey {
     fn drop(&mut self) {
-        low::zeroise(&mut self.0 .0);
+        low::zeroise(&mut self.0);
     }
 }
 
-pub struct PublicKey(Array64x4);
+pub struct PublicKey([u64; 4]);
 
 impl PublicKey {
     pub fn try_from_slice(b: &[u8]) -> Result<Self, ()> {
         let _ = low::Entry::new_public();
-        Array64x4::from_le_bytes(b).map(Self).ok_or(())
+        util::little_endian_slice_to_u64x4(b).map(Self).ok_or(())
     }
 
     pub fn from_array(b: &[u8; 32]) -> Self {
         let _ = low::Entry::new_public();
-        Self(Array64x4::from_le(b))
+        Self(util::little_endian_to_u64x4(b))
     }
 
     pub fn as_bytes(&self) -> [u8; 32] {
         let _ = low::Entry::new_public();
-        self.0.as_le_bytes()
+        util::u64x4_to_little_endian(&self.0)
     }
 }
 
