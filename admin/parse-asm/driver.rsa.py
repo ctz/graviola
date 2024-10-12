@@ -189,9 +189,10 @@ if __name__ == "__main__":
                     "z.len() == %d" % outwidth,
                     "x.len() == %d" % inwidth,
                     "y.len() == %d" % inwidth,
-                    "t.len() >= %d" % tmpwidth,
                 ]
-                params = "z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u64]"
+                params = (
+                    "z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u64; %d]" % tmpwidth
+                )
             elif op == "ksqr":
                 parameter_map = [
                     ("inout", "rdi", "z.as_mut_ptr() => _"),
@@ -201,9 +202,8 @@ if __name__ == "__main__":
                 assertions = [
                     "z.len() == %d" % outwidth,
                     "x.len() == %d" % inwidth,
-                    "t.len() >= %d" % tmpwidth,
                 ]
-                params = "z: &mut [u64], x: &[u64], t: &mut [u64]"
+                params = "z: &mut [u64], x: &[u64], t: &mut [u64; %d]" % tmpwidth
 
             d = RustDriver(output, Architecture_amd64)
             d.emit_rust_function(
@@ -467,9 +467,10 @@ if __name__ == "__main__":
                     "z.len() == %d" % outwidth,
                     "x.len() == %d" % inwidth,
                     "y.len() == %d" % inwidth,
-                    "t.len() >= %d" % tmpwidth,
                 ]
-                params = "z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u64]"
+                params = (
+                    "z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u64; %d]" % tmpwidth
+                )
             elif op == "ksqr":
                 parameter_map = [
                     ("inout", "x0", "z.as_mut_ptr() => _"),
@@ -479,9 +480,8 @@ if __name__ == "__main__":
                 assertions = [
                     "z.len() == %d" % outwidth,
                     "x.len() == %d" % inwidth,
-                    "t.len() >= %d" % tmpwidth,
                 ]
-                params = "z: &mut [u64], x: &[u64], t: &mut [u64]"
+                params = "z: &mut [u64], x: &[u64], t: &mut [u64; %d]" % tmpwidth
 
             d = RustDriver(output, Architecture_aarch64)
             d.emit_rust_function(
