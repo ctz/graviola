@@ -78,6 +78,7 @@ impl AesKey128 {
 
         let mut round_keys = [zero(); 10 + 1];
         for (i, rk) in rk32.chunks(4).enumerate() {
+            // SAFETY: `rk` is 128-bit in size; `vld1q_u8` has no alignment req.
             round_keys[i] = unsafe { vrev32q_u8(vld1q_u8(rk.as_ptr() as *const _)) };
         }
 
@@ -85,6 +86,7 @@ impl AesKey128 {
     }
 
     pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
+        // SAFETY: this crate requires the `aes` cpu feature
         unsafe { aes128_block(&self.round_keys, inout) }
     }
 }
@@ -127,6 +129,7 @@ impl AesKey256 {
 
         let mut round_keys = [zero(); 14 + 1];
         for (i, rk) in rk32.chunks(4).enumerate() {
+            // SAFETY: `rk` is 128-bit in size; `vld1q_u8` has no alignment req.
             round_keys[i] = unsafe { vrev32q_u8(vld1q_u8(rk.as_ptr() as *const _)) };
         }
 
@@ -134,6 +137,7 @@ impl AesKey256 {
     }
 
     pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
+        // SAFETY: this crate requires the `aes` cpu feature
         unsafe { aes256_block(&self.round_keys, inout) }
     }
 }
@@ -145,10 +149,12 @@ impl Drop for AesKey256 {
 }
 
 fn zero() -> uint8x16_t {
+    // SAFETY: this crate requires the `neon` cpu feature
     unsafe { vdupq_n_u8(0) }
 }
 
 fn sub_word(w: u32) -> u32 {
+    // SAFETY: this crate requires the `aes` cpu feature
     unsafe { _sub_word(w) }
 }
 

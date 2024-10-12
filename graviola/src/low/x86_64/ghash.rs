@@ -28,14 +28,17 @@ impl GhashTable {
         let mut powers_xor = powers;
         let h = u128_to_m128i(h);
 
+        // SAFETY: this crate requires the `avx` cpu feature
         let h = unsafe { gf128_big_endian(h) };
         powers[0] = h;
 
         for i in 1..8 {
+            // SAFETY: this crate requires the `avx` and `pclmulqdq` cpu features
             powers[i] = unsafe { _mul(powers[i - 1], h) };
         }
 
         for i in 0..8 {
+            // SAFETY: this crate requires the `avx` cpu feature
             powers_xor[i] = unsafe { xor_halves(powers[i]) };
         }
 
@@ -110,6 +113,7 @@ impl<'a> Ghash<'a> {
 
     pub(crate) fn into_bytes(self) -> [u8; 16] {
         let mut out: i128 = 0;
+        // SAFETY: this crate requires the `avx` cpu feature
         unsafe {
             let reverse = _mm_shuffle_epi8(self.current, BYTESWAP);
             _mm_store_si128(&mut out as *mut i128 as *mut __m128i, reverse)
@@ -118,6 +122,7 @@ impl<'a> Ghash<'a> {
     }
 
     fn one_block(&mut self, block: __m128i) {
+        // SAFETY: this crate requires the `avx` and `pclmulqdq` cpu features
         unsafe {
             self.current = _mm_xor_si128(self.current, block);
             self.current = _mul(self.current, self.table.powers[0]);
@@ -136,6 +141,7 @@ impl<'a> Ghash<'a> {
         b7: __m128i,
         b8: __m128i,
     ) {
+        // SAFETY: this crate requires the `avx` and `pclmulqdq` cpu features
         unsafe {
             let b1 = _mm_xor_si128(self.current, b1);
             self.current = _mul8(self.table, b1, b2, b3, b4, b5, b6, b7, b8);
@@ -211,7 +217,7 @@ pub(crate) unsafe fn _mul8(
     reduce!(lo, mi, hi)
 }
 
-#[target_feature(enable = "pclmulqdq,avx")]
+#[target_feature(enable = "avx")]
 unsafe fn gf128_big_endian(h: __m128i) -> __m128i {
     // takes a raw hash subkey, and arranges that it can
     // be used in big endian ordering.
@@ -222,7 +228,7 @@ unsafe fn gf128_big_endian(h: __m128i) -> __m128i {
     _mm_xor_si128(h, t)
 }
 
-#[target_feature(enable = "pclmulqdq,avx")]
+#[target_feature(enable = "avx")]
 unsafe fn xor_halves(h: __m128i) -> __m128i {
     let hx = _mm_shuffle_epi32(h, 0b01_00_11_10);
     _mm_xor_si128(hx, h)
@@ -230,12 +236,13 @@ unsafe fn xor_halves(h: __m128i) -> __m128i {
 
 #[inline]
 fn zero() -> __m128i {
+    // SAFETY: this crate requires the `avx` cpu feature
     unsafe { _mm_setzero_si128() }
 }
 
 #[inline]
 fn u128_to_m128i(v: u128) -> __m128i {
-    // safety: sizeof(u128) == sizeof(__m128i), all bits have same meaning
+    // SAFETY: sizeof(u128) == sizeof(__m128i), all bits have same meaning
     unsafe { mem::transmute(v) }
 }
 

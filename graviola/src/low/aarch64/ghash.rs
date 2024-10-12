@@ -16,6 +16,7 @@ pub(crate) struct GhashTable {
 
 impl GhashTable {
     pub(crate) fn new(h: u128) -> Self {
+        // SAFETY: this crate requires the `neon` cpu feature
         let h = unsafe { gf128_big_endian(from_u128(h)) };
         let h2 = mul(h, h);
         let h3 = mul(h2, h);
@@ -26,6 +27,7 @@ impl GhashTable {
         let h8 = mul(h7, h);
 
         let powers = [h, h2, h3, h4, h5, h6, h7, h8];
+        // SAFETY: this crate requires the `neon` cpu feature
         let powers_xor = unsafe {
             [
                 xor_halves(h),
@@ -104,6 +106,7 @@ impl<'a> Ghash<'a> {
     }
 
     fn one_block(&mut self, block: u128) {
+        // SAFETY: this crate requires the `neon` cpu feature
         self.current = unsafe { veorq_u64(self.current, from_u128(block)) };
         self.current = mul(self.current, self.table.powers[0]);
     }
@@ -119,6 +122,7 @@ impl<'a> Ghash<'a> {
         b7: u128,
         b8: u128,
     ) {
+        // SAFETY: this crate requires the `neon` cpu feature
         let b1 = unsafe { veorq_u64(self.current, from_u128(b1)) };
         self.current = mul8(
             self.table,
@@ -136,6 +140,7 @@ impl<'a> Ghash<'a> {
 
 #[inline]
 fn mul(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
+    // SAFETY: this crate requires the `neon` and `aes` cpu features
     unsafe { _mul(a, b) }
 }
 
@@ -151,6 +156,7 @@ fn mul8(
     g: uint64x2_t,
     h: uint64x2_t,
 ) -> uint64x2_t {
+    // SAFETY: this crate requires the `neon` and `aes` cpu features
     unsafe { _mul8(table, a, b, c, d, e, f, g, h) }
 }
 
@@ -267,16 +273,19 @@ unsafe fn vmull_high_p64_fix(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
 
 #[inline]
 fn zero() -> uint64x2_t {
+    // SAFETY: u128 and uint64x2_t have the same size and meaning of bits
     unsafe { mem::transmute(0u128) }
 }
 
 #[inline]
 fn from_u128(u: u128) -> uint64x2_t {
+    // SAFETY: u128 and uint64x2_t have the same size and meaning of bits
     unsafe { mem::transmute(u) }
 }
 
 #[inline]
 fn to_u128(u: uint64x2_t) -> u128 {
+    // SAFETY: u128 and uint64x2_t have the same size and meaning of bits
     unsafe { mem::transmute(u) }
 }
 

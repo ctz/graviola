@@ -12,7 +12,12 @@ pub(crate) fn leave_cpu_state(old: u32) {
 }
 
 /// Effectively memset(ptr, 0, len), but not visible to optimiser
-pub(crate) fn zero_bytes(ptr: *mut u8, len: usize) {
+///
+/// # Safety:
+/// There must be `len` writable bytes at `ptr`; with no alignment
+/// requirement.
+pub(in crate::low) fn zero_bytes(ptr: *mut u8, len: usize) {
+    // SAFETY: inline assembly.
     unsafe {
         core::arch::asm!(
             "       eor {zero}.16b, {zero}.16b, {zero}.16b",
@@ -61,8 +66,10 @@ pub(crate) fn verify_cpu_features() {
 mod dit {
     pub(super) fn maybe_enable() -> u32 {
         if super::is_aarch64_feature_detected!("dit") {
+            // SAFETY: in this branch, we verified `dit` cpu feature is supported
             match unsafe { read() } {
                 0 => {
+                    // SAFETY: in this branch, we verified `dit` cpu feature is supported
                     unsafe {
                         write(1);
                     };
@@ -77,6 +84,7 @@ mod dit {
 
     pub(super) fn maybe_disable(we_enabled: u32) {
         if we_enabled > 0 {
+            // SAFETY: `we_enabled > 0` implies `dit` cpu feature was supported earlier
             unsafe { write(0) }
         }
     }
@@ -84,12 +92,11 @@ mod dit {
     #[target_feature(enable = "dit")]
     unsafe fn read() -> u32 {
         let mut out: u64;
-        unsafe {
-            core::arch::asm!(
-                "mrs {r}, DIT",
-                r = out(reg) out,
-            )
-        };
+        // SAFETY: `mrs _, DIT` is defined only if `dit` cpu feature is supported
+        core::arch::asm!(
+            "mrs {r}, DIT",
+            r = out(reg) out,
+        );
 
         const DIT: u64 = 0x01000000;
         (out & DIT == DIT) as u32
@@ -97,12 +104,12 @@ mod dit {
 
     #[target_feature(enable = "dit")]
     unsafe fn write(on: u32) {
-        unsafe {
-            if on > 0 {
-                core::arch::asm!("msr DIT, #1");
-            } else {
-                core::arch::asm!("msr DIT, #0")
-            }
+        if on > 0 {
+            // SAFETY: `msr DIT, _` is defined only if `dit` cpu feature is supported
+            core::arch::asm!("msr DIT, #1");
+        } else {
+            // SAFETY: `msr DIT, _` is defined only if `dit` cpu feature is supported
+            core::arch::asm!("msr DIT, #0")
         }
     }
 }

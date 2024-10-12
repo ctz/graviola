@@ -41,7 +41,7 @@ cfg_if::cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
         mod x86_64;
 
-        pub(crate) use x86_64::cpu::{enter_cpu_state, zero_bytes, leave_cpu_state, verify_cpu_features};
+        pub(in crate::low) use x86_64::cpu::{enter_cpu_state, zero_bytes, leave_cpu_state, verify_cpu_features};
         pub(crate) use x86_64::chacha20;
         pub(crate) use x86_64::aes::AesKey;
         pub(crate) use x86_64::aes_gcm;
@@ -100,7 +100,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_arch = "aarch64")] {
         mod aarch64;
 
-        pub(crate) use aarch64::cpu::{enter_cpu_state, zero_bytes, leave_cpu_state, verify_cpu_features};
+        pub(in crate::low) use aarch64::cpu::{enter_cpu_state, zero_bytes, leave_cpu_state, verify_cpu_features};
         pub(crate) use aarch64::aes::AesKey;
         pub(crate) use aarch64::bignum_add::bignum_add;
         pub(crate) use aarch64::bignum_add_p256::bignum_add_p256;

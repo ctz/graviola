@@ -15,6 +15,7 @@ pub fn bignum_copy_row_from_table_8n_avx2(
     debug_assert!(index < _height);
     debug_assert!(table.len() as u64 == _height * width);
 
+    // SAFETY: this crate requires the `avx` and `avx2` cpu features
     unsafe { _bignum_copy_row_from_table_8n_avx2(z, table, width, index) }
 }
 
@@ -25,6 +26,7 @@ unsafe fn _bignum_copy_row_from_table_8n_avx2(
     width: u64,
     index: u64,
 ) {
+    // SAFETY: prefetches do not fault and are not architecturally visible
     _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
     _mm_prefetch(table.as_ptr().add(16).cast(), _MM_HINT_T0);
 
@@ -44,16 +46,20 @@ unsafe fn _bignum_copy_row_from_table_8n_avx2(
         index = _mm256_add_epi64(index, ones);
 
         for (i, zz) in z.chunks_exact_mut(8).enumerate() {
+            // SAFETY: `row` is a multiple of 8 words in length
             let row0 = _mm256_loadu_si256(row.as_ptr().add(i * 8).cast());
             let row1 = _mm256_loadu_si256(row.as_ptr().add(i * 8 + 4).cast());
 
             let row0 = _mm256_and_si256(row0, mask);
             let row1 = _mm256_and_si256(row1, mask);
 
+            // SAFETY: `zz` is exactly 8 words
             let store0 = _mm256_loadu_si256(zz.as_ptr().add(0).cast());
             let store1 = _mm256_loadu_si256(zz.as_ptr().add(4).cast());
             let store0 = _mm256_xor_si256(store0, row0);
             let store1 = _mm256_xor_si256(store1, row1);
+
+            // SAFETY: `zz` is exactly 8 words
             _mm256_storeu_si256(zz.as_mut_ptr().add(0).cast(), store0);
             _mm256_storeu_si256(zz.as_mut_ptr().add(4).cast(), store1);
         }
