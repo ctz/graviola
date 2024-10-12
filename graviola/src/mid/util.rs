@@ -1,192 +1,111 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
-pub(crate) struct Array64x4(pub(crate) [u64; 4]);
+// Once const generics is completed this should be able to be
+// done better that way.
 
-impl Array64x4 {
-    pub(crate) fn as_le_bytes(&self) -> [u8; 32] {
-        let a = self.0[0].to_le_bytes();
-        let b = self.0[1].to_le_bytes();
-        let c = self.0[2].to_le_bytes();
-        let d = self.0[3].to_le_bytes();
-
-        let mut r = [0u8; 32];
-        r[0..8].copy_from_slice(&a);
-        r[8..16].copy_from_slice(&b);
-        r[16..24].copy_from_slice(&c);
-        r[24..32].copy_from_slice(&d);
-        r
-    }
-
-    pub(crate) fn from_le_bytes(bytes: &[u8]) -> Option<Self> {
-        let as_array: [u8; 32] = bytes.try_into().ok()?;
-        Some(Self::from_le(&as_array))
-    }
-
-    pub(crate) fn from_le(v: &[u8; 32]) -> Self {
-        let a = v[0..8].try_into().unwrap();
-        let b = v[8..16].try_into().unwrap();
-        let c = v[16..24].try_into().unwrap();
-        let d = v[24..32].try_into().unwrap();
-        Self([
-            u64::from_le_bytes(a),
-            u64::from_le_bytes(b),
-            u64::from_le_bytes(c),
-            u64::from_le_bytes(d),
-        ])
-    }
-
-    pub(crate) fn as_be_bytes(&self) -> [u8; 32] {
-        let a = self.0[0].to_be_bytes();
-        let b = self.0[1].to_be_bytes();
-        let c = self.0[2].to_be_bytes();
-        let d = self.0[3].to_be_bytes();
-
-        let mut r = [0u8; 32];
-        r[0..8].copy_from_slice(&d);
-        r[8..16].copy_from_slice(&c);
-        r[16..24].copy_from_slice(&b);
-        r[24..32].copy_from_slice(&a);
-        r
-    }
-
-    pub(crate) fn from_be_bytes(bytes: &[u8]) -> Option<Self> {
-        let as_array: [u8; 32] = bytes.try_into().ok()?;
-        Some(Self::from_be(&as_array))
-    }
-
-    /// This should avoid looking at values of `bytes` that
-    /// comprise the value.
-    pub(crate) fn from_be_bytes_any_size(bytes: &[u8]) -> Option<Self> {
-        // short circuit for correct lengths
-        if let Ok(array) = bytes.try_into() {
-            return Some(Self::from_be(array));
+macro_rules! little_endian {
+    ([u64; $N:literal], $fn_array_to:ident, $fn_slice_to:ident, $fn_to_bytes:ident) => {
+        pub(crate) fn $fn_array_to(b: &[u8; $N * 8]) -> [u64; $N] {
+            let mut r = [0; $N];
+            for (ir, b) in (0..$N).zip(b.chunks_exact(8)) {
+                r[ir] = u64::from_le_bytes(b.try_into().unwrap());
+            }
+            r
         }
 
-        // shift in bytes, starting with the LSB
-        let mut word = 0;
-        let mut shift = 0;
-        let mut leading_bytes = false;
-
-        let mut r = Self([0; 4]);
-
-        for val in bytes.iter().rev() {
-            if leading_bytes {
-                if *val != 0 {
-                    return None;
-                }
-                continue;
-            }
-
-            r.0[word] |= (*val as u64) << shift;
-
-            shift += 8;
-            if shift == 64 {
-                word += 1;
-                shift = 0;
-            }
-
-            if word == 4 {
-                leading_bytes = true;
-            }
+        pub(crate) fn $fn_slice_to(bytes: &[u8]) -> Option<[u64; $N]> {
+            let as_array: [u8; $N * 8] = bytes.try_into().ok()?;
+            Some($fn_array_to(&as_array))
         }
 
-        Some(r)
-    }
-
-    pub(crate) fn from_be(v: &[u8; 32]) -> Self {
-        let a = v[0..8].try_into().unwrap();
-        let b = v[8..16].try_into().unwrap();
-        let c = v[16..24].try_into().unwrap();
-        let d = v[24..32].try_into().unwrap();
-        Self([
-            u64::from_be_bytes(d),
-            u64::from_be_bytes(c),
-            u64::from_be_bytes(b),
-            u64::from_be_bytes(a),
-        ])
-    }
+        pub(crate) fn $fn_to_bytes(v: &[u64; $N]) -> [u8; $N * 8] {
+            let mut r = [0u8; $N * 8];
+            for (iv, rb) in (0..$N).zip(r.chunks_exact_mut(8)) {
+                rb.copy_from_slice(&v[iv].to_le_bytes());
+            }
+            r
+        }
+    };
 }
 
-pub(crate) struct Array64x6(pub(crate) [u64; 6]);
+little_endian!(
+    [u64; 4],
+    little_endian_to_u64x4,
+    little_endian_slice_to_u64x4,
+    u64x4_to_little_endian
+);
 
-impl Array64x6 {
-    pub(crate) fn as_be_bytes(&self) -> [u8; 48] {
-        let a = self.0[0].to_be_bytes();
-        let b = self.0[1].to_be_bytes();
-        let c = self.0[2].to_be_bytes();
-        let d = self.0[3].to_be_bytes();
-        let e = self.0[4].to_be_bytes();
-        let f = self.0[5].to_be_bytes();
-
-        let mut r = [0u8; 48];
-        r[0..8].copy_from_slice(&f);
-        r[8..16].copy_from_slice(&e);
-        r[16..24].copy_from_slice(&d);
-        r[24..32].copy_from_slice(&c);
-        r[32..40].copy_from_slice(&b);
-        r[40..48].copy_from_slice(&a);
-        r
-    }
-
-    pub(crate) fn from_be_bytes(bytes: &[u8]) -> Option<Self> {
-        let as_array: [u8; 48] = bytes.try_into().ok()?;
-        Some(Self::from_be(&as_array))
-    }
-
-    /// This should avoid looking at values of `bytes` that
-    /// comprise the value.
-    pub(crate) fn from_be_bytes_any_size(bytes: &[u8]) -> Option<Self> {
-        // short circuit for correct lengths
-        if let Ok(array) = bytes.try_into() {
-            return Some(Self::from_be(array));
+macro_rules! big_endian {
+    ([u64; $N:literal], $fn_array_to:ident, $fn_slice_to:ident, $fn_slice_any_size_to:ident, $fn_to_bytes:ident) => {
+        pub(crate) fn $fn_array_to(b: &[u8; $N * 8]) -> [u64; $N] {
+            let mut r = [0; $N];
+            for (ir, b) in (0..$N).zip(b.chunks_exact(8).rev()) {
+                r[ir] = u64::from_be_bytes(b.try_into().unwrap());
+            }
+            r
         }
 
-        // shift in bytes, starting with the LSB
-        let mut word = 0;
-        let mut shift = 0;
-        let mut leading_bytes = false;
+        pub(crate) fn $fn_slice_to(bytes: &[u8]) -> Option<[u64; $N]> {
+            let as_array: [u8; $N * 8] = bytes.try_into().ok()?;
+            Some($fn_array_to(&as_array))
+        }
 
-        let mut r = Self([0; 6]);
+        pub(crate) fn $fn_slice_any_size_to(bytes: &[u8]) -> Option<[u64; $N]> {
+            // short circuit for correct lengths
+            if let Ok(array) = bytes.try_into() {
+                return Some($fn_array_to(array));
+            }
 
-        for val in bytes.iter().rev() {
-            if leading_bytes {
-                if *val != 0 {
-                    return None;
+            fn add_leading_zeroes(bytes: &[u8]) -> [u64; $N] {
+                let mut tmp = [0u8; $N * 8];
+                tmp[$N * 8 - bytes.len()..].copy_from_slice(bytes);
+                $fn_array_to(&tmp)
+            }
+
+            fn remove_leading_zeroes(mut bytes: &[u8]) -> Option<[u64; $N]> {
+                loop {
+                    // remove the next leading zero
+                    match bytes.split_first() {
+                        Some((first, remain)) if *first == 0x00 => {
+                            if let Ok(array) = remain.try_into() {
+                                return Some($fn_array_to(array));
+                            }
+                            bytes = remain;
+                        }
+                        _ => return None,
+                    }
                 }
-                continue;
             }
 
-            r.0[word] |= (*val as u64) << shift;
-
-            shift += 8;
-            if shift == 64 {
-                word += 1;
-                shift = 0;
-            }
-
-            if word == 6 {
-                leading_bytes = true;
+            if bytes.len() < $N * 8 {
+                Some(add_leading_zeroes(bytes))
+            } else {
+                remove_leading_zeroes(bytes)
             }
         }
 
-        Some(r)
-    }
-
-    pub(crate) fn from_be(v: &[u8; 48]) -> Self {
-        let a = v[0..8].try_into().unwrap();
-        let b = v[8..16].try_into().unwrap();
-        let c = v[16..24].try_into().unwrap();
-        let d = v[24..32].try_into().unwrap();
-        let e = v[32..40].try_into().unwrap();
-        let f = v[40..48].try_into().unwrap();
-        Self([
-            u64::from_be_bytes(f),
-            u64::from_be_bytes(e),
-            u64::from_be_bytes(d),
-            u64::from_be_bytes(c),
-            u64::from_be_bytes(b),
-            u64::from_be_bytes(a),
-        ])
-    }
+        pub(crate) fn $fn_to_bytes(v: &[u64; $N]) -> [u8; $N * 8] {
+            let mut r = [0u8; $N * 8];
+            for (iv, rb) in (0..$N).zip(r.chunks_exact_mut(8).rev()) {
+                rb.copy_from_slice(&v[iv].to_be_bytes());
+            }
+            r
+        }
+    };
 }
+
+big_endian!(
+    [u64; 4],
+    big_endian_to_u64x4,
+    big_endian_slice_to_u64x4,
+    big_endian_slice_any_size_to_u64x4,
+    u64x4_to_big_endian
+);
+big_endian!(
+    [u64; 6],
+    big_endian_to_u64x6,
+    big_endian_slice_to_u64x6,
+    big_endian_slice_any_size_to_u64x6,
+    u64x6_to_big_endian
+);
