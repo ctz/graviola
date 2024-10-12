@@ -46,21 +46,21 @@ fn ecdsa_p384() {
 
 #[test]
 fn ecdh_x25519() {
-    use graviola::x25519::PrivateKey;
+    use graviola::key_agreement::x25519::PrivateKey;
     let x25519 = PrivateKey::from_array(&[0xffu8; 32]);
     check_zeroed_on_drop(Box::pin(x25519));
 }
 
 #[test]
 fn ecdh_p256() {
-    use graviola::p256::PrivateKey;
+    use graviola::key_agreement::p256::PrivateKey;
     let p256 = PrivateKey::from_bytes(&[0xefu8; 32]).unwrap();
     check_zeroed_on_drop(Box::pin(p256));
 }
 
 #[test]
 fn ecdh_p384() {
-    use graviola::p384::PrivateKey;
+    use graviola::key_agreement::p384::PrivateKey;
     let p384 = PrivateKey::from_bytes(&[0xefu8; 48]).unwrap();
     check_zeroed_on_drop(Box::pin(p384));
 }
