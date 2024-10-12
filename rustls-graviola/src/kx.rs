@@ -2,8 +2,8 @@ use crypto::SupportedKxGroup;
 use rustls::crypto;
 use rustls::ffdhe_groups::FfdheGroup;
 
+use graviola::key_agreement::{p256, p384, x25519};
 use graviola::rng::SystemRandom;
-use graviola::{p256, p384, x25519};
 
 /// All key exchange algorithms, in order of preference.
 pub const ALL_KX_GROUPS: &[&dyn SupportedKxGroup] = &[

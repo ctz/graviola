@@ -55,21 +55,6 @@ mod error;
 // vvv Internal API
 
 #[cfg(feature = "__internal_08eaf2eb")]
-pub mod x25519 {
-    pub use super::mid::x25519::{PrivateKey, PublicKey, SharedSecret};
-}
-
-#[cfg(feature = "__internal_08eaf2eb")]
-pub mod p256 {
-    pub use super::mid::p256::{PrivateKey, PublicKey, SharedSecret};
-}
-
-#[cfg(feature = "__internal_08eaf2eb")]
-pub mod p384 {
-    pub use super::mid::p384::{PrivateKey, PublicKey, SharedSecret};
-}
-
-#[cfg(feature = "__internal_08eaf2eb")]
 pub mod rsa {
     pub use super::high::rsa::{RsaPrivateSigningKey, RsaPublicVerificationKey};
 }
@@ -105,4 +90,32 @@ pub use error::Error;
 #[cfg(doc)]
 pub mod doc {
     pub use super::low::inline_assembly_safety;
+}
+
+/// Key agreement algorithms.
+pub mod key_agreement {
+    /// X25519 key agreement.
+    ///
+    /// See [RFC7748](https://datatracker.ietf.org/doc/html/rfc7748).
+    pub mod x25519 {
+        pub use crate::mid::x25519::{PrivateKey, PublicKey, SharedSecret};
+    }
+
+    /// Elliptic curve Diffie-Hellman on P-256
+    ///
+    /// P-256 is also known as "NISTP256", "prime256v1", or "secp256r1".
+    ///
+    /// See [SEC1](https://www.secg.org/sec1-v2.pdf) for one definition.
+    pub mod p256 {
+        pub use crate::mid::p256::{PrivateKey, PublicKey, SharedSecret};
+    }
+
+    /// Elliptic curve Diffie-Hellman on P-384
+    ///
+    /// P-384 is also known as "NISTP384", or "secp384r1".
+    ///
+    /// See [SEC1](https://www.secg.org/sec1-v2.pdf) for one definition.
+    pub mod p384 {
+        pub use crate::mid::p384::{PrivateKey, PublicKey, SharedSecret};
+    }
 }

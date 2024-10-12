@@ -95,12 +95,15 @@ fn ecdh(c: &mut Criterion) {
 
     group.bench_function("graviola", |b| {
         b.iter(|| {
-            let our_private_key =
-                graviola::p256::PrivateKey::generate(&mut graviola::rng::SystemRandom).unwrap();
+            let our_private_key = graviola::key_agreement::p256::PrivateKey::generate(
+                &mut graviola::rng::SystemRandom,
+            )
+            .unwrap();
             let our_public_key = our_private_key.public_key_uncompressed();
             black_box(our_public_key);
 
-            let peer = graviola::p256::PublicKey::from_x962_uncompressed(PUBLIC_KEY).unwrap();
+            let peer = graviola::key_agreement::p256::PublicKey::from_x962_uncompressed(PUBLIC_KEY)
+                .unwrap();
             let secret = our_private_key.diffie_hellman(&peer).unwrap();
             black_box(secret);
         })
@@ -154,8 +157,10 @@ fn keygen(c: &mut Criterion) {
 
     group.bench_function("graviola", |b| {
         b.iter(|| {
-            let our_private_key =
-                graviola::p256::PrivateKey::generate(&mut graviola::rng::SystemRandom).unwrap();
+            let our_private_key = graviola::key_agreement::p256::PrivateKey::generate(
+                &mut graviola::rng::SystemRandom,
+            )
+            .unwrap();
             black_box(our_private_key.public_key_uncompressed());
         })
     });
