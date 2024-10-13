@@ -135,7 +135,7 @@ macro_rules! qshort {
     };
 }
 
-pub fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
+pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
     debug_assert!(z.len() == m.len());
     debug_assert!(z.len() <= t.len());
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.

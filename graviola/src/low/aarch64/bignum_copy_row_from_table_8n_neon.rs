@@ -65,7 +65,7 @@ macro_rules! vmask {
     };
 }
 
-pub fn bignum_copy_row_from_table_8n_neon(
+pub(crate) fn bignum_copy_row_from_table_8n_neon(
     z: &mut [u64],
     table: &[u64],
     height: u64,
