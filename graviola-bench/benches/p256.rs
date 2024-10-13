@@ -95,10 +95,7 @@ fn ecdh(c: &mut Criterion) {
 
     group.bench_function("graviola", |b| {
         b.iter(|| {
-            let our_private_key = graviola::key_agreement::p256::PrivateKey::generate(
-                &mut graviola::rng::SystemRandom,
-            )
-            .unwrap();
+            let our_private_key = graviola::key_agreement::p256::PrivateKey::new_random().unwrap();
             let our_public_key = our_private_key.public_key_uncompressed();
             black_box(our_public_key);
 
@@ -157,10 +154,7 @@ fn keygen(c: &mut Criterion) {
 
     group.bench_function("graviola", |b| {
         b.iter(|| {
-            let our_private_key = graviola::key_agreement::p256::PrivateKey::generate(
-                &mut graviola::rng::SystemRandom,
-            )
-            .unwrap();
+            let our_private_key = graviola::key_agreement::p256::PrivateKey::new_random().unwrap();
             black_box(our_private_key.public_key_uncompressed());
         })
     });
@@ -280,7 +274,7 @@ fn ecdsa_sign(c: &mut Criterion) {
     group.bench_function("graviola", |b| {
         use graviola::hashing::Sha256;
         use graviola::signing::ecdsa::{Curve, SigningKey, P256};
-        let private_key = P256::generate_random_key(&mut graviola::rng::SystemRandom).unwrap();
+        let private_key = <P256 as Curve>::PrivateKey::new_random().unwrap();
         let signing_key = SigningKey::<P256> { private_key };
 
         b.iter(|| {

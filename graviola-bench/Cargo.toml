@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-graviola = { path = "../graviola", features = ["__internal_08eaf2eb"] }
+graviola = { path = "../graviola" }
 codspeed-criterion-compat = { optional = true, version = "2" }
 
 [dev-dependencies]
