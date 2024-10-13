@@ -31,7 +31,7 @@ fn zeroise_equiv(len: usize) {
 }
 
 mod model {
-    pub fn bignum_mux(p: u64, z: &mut [u64], x_if_p: &[u64], y_if_not_p: &[u64]) {
+    pub(super) fn bignum_mux(p: u64, z: &mut [u64], x_if_p: &[u64], y_if_not_p: &[u64]) {
         if p > 0 {
             z.copy_from_slice(x_if_p);
         } else {
