@@ -2,7 +2,8 @@ use core::fmt;
 use rustls::{pki_types, sign, SignatureScheme};
 use std::sync::Arc;
 
-use graviola::{ecdsa, hash, rsa};
+use graviola::hash;
+use graviola::signing::{ecdsa, rsa};
 
 #[derive(Debug)]
 pub(super) struct Provider;
@@ -24,7 +25,7 @@ impl rustls::crypto::KeyProvider for Provider {
 fn load_pkcs8(
     key_der: pki_types::PrivatePkcs8KeyDer<'static>,
 ) -> Result<Arc<dyn sign::SigningKey>, rustls::Error> {
-    if let Ok(rsa) = rsa::RsaPrivateSigningKey::from_pkcs8_der(key_der.secret_pkcs8_der()) {
+    if let Ok(rsa) = rsa::SigningKey::from_pkcs8_der(key_der.secret_pkcs8_der()) {
         return Ok(Arc::new(Rsa(Arc::new(rsa))));
     }
 
@@ -44,7 +45,7 @@ fn load_pkcs8(
 fn load_pkcs1(
     key_der: pki_types::PrivatePkcs1KeyDer<'static>,
 ) -> Result<Arc<dyn sign::SigningKey>, rustls::Error> {
-    let rsa = rsa::RsaPrivateSigningKey::from_pkcs1_der(key_der.secret_pkcs1_der())
+    let rsa = rsa::SigningKey::from_pkcs1_der(key_der.secret_pkcs1_der())
         .map_err(|err| rustls::Error::General(format!("cannot parse RSA key: {err:?}")))?;
 
     Ok(Arc::new(Rsa(Arc::new(rsa))))
@@ -66,7 +67,7 @@ fn load_sec1(
     ))
 }
 
-struct Rsa(Arc<rsa::RsaPrivateSigningKey>);
+struct Rsa(Arc<rsa::SigningKey>);
 
 impl sign::SigningKey for Rsa {
     fn choose_scheme(
@@ -120,7 +121,7 @@ impl fmt::Debug for Rsa {
 }
 
 struct RsaSigner {
-    key: Arc<rsa::RsaPrivateSigningKey>,
+    key: Arc<rsa::SigningKey>,
     scheme: SignatureScheme,
 }
 

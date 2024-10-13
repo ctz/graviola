@@ -3,8 +3,8 @@ use rustls::pki_types::{AlgorithmIdentifier, InvalidSignature, SignatureVerifica
 use rustls::SignatureScheme;
 use webpki::alg_id;
 
-use graviola::rsa::RsaPublicVerificationKey;
-use graviola::{ecdsa, hash};
+use graviola::hash;
+use graviola::signing::{ecdsa, rsa};
 
 pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms {
     all: &[
@@ -103,7 +103,7 @@ static RSA_PKCS1_SHA512: &dyn SignatureVerificationAlgorithm = &RsaVerify {
 struct RsaVerify {
     signature_alg_id: AlgorithmIdentifier,
     #[allow(clippy::type_complexity)]
-    verify: fn(&RsaPublicVerificationKey, &[u8], &[u8]) -> Result<(), graviola::Error>,
+    verify: fn(&rsa::VerifyingKey, &[u8], &[u8]) -> Result<(), graviola::Error>,
 }
 
 impl SignatureVerificationAlgorithm for RsaVerify {
@@ -121,7 +121,7 @@ impl SignatureVerificationAlgorithm for RsaVerify {
         message: &[u8],
         signature: &[u8],
     ) -> Result<(), InvalidSignature> {
-        RsaPublicVerificationKey::from_pkcs1_der(public_key)
+        rsa::VerifyingKey::from_pkcs1_der(public_key)
             .and_then(|pk| (self.verify)(&pk, signature, message))
             .map_err(|_| InvalidSignature)
     }
