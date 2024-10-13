@@ -652,7 +652,7 @@ use crate::low::macros::*;
                     print("#[inline(never)]", file=self.output)
 
                 print(
-                    """%s {
+                    """pub(crate) %s {
                     %s
                     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
                     unsafe { core::arch::asm!(

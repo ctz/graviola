@@ -47,7 +47,7 @@ macro_rules! a {
     };
 }
 
-pub fn bignum_mux(p: u64, z: &mut [u64], x_if_p: &[u64], y_if_not_p: &[u64]) {
+pub(crate) fn bignum_mux(p: u64, z: &mut [u64], x_if_p: &[u64], y_if_not_p: &[u64]) {
     debug_assert!(z.len() == x_if_p.len());
     debug_assert!(z.len() == y_if_not_p.len());
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.

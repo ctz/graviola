@@ -18,7 +18,7 @@ if __name__ == "__main__":
                 ("inout", "rdi", "z.as_mut_ptr() => _"),
                 ("inout", "rsi", "x.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_montsqr_p384(z: &mut [u64; 6], x: &[u64; 6])",
+            rust_decl="fn bignum_montsqr_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -35,7 +35,7 @@ if __name__ == "__main__":
                 ("inout", "rsi", "x.as_ptr() => _"),
                 ("inout", "rdx", "y.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_montmul_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6])",
+            rust_decl="fn bignum_montmul_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -50,7 +50,7 @@ if __name__ == "__main__":
                 ("inout", "rsi", "x.as_ptr() => _"),
                 ("inout", "rdx", "y.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_add_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6])",
+            rust_decl="fn bignum_add_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -66,7 +66,7 @@ if __name__ == "__main__":
                 ("inout", "rdi", "z.as_mut_ptr() => _"),
                 ("inout", "rsi", "x.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_demont_p384(z: &mut [u64; 6], x: &[u64; 6])",
+            rust_decl="fn bignum_demont_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -82,7 +82,7 @@ if __name__ == "__main__":
                 ("inout", "rdi", "z.as_mut_ptr() => _"),
                 ("inout", "rsi", "x.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_tomont_p384(z: &mut [u64; 6], x: &[u64; 6])",
+            rust_decl="fn bignum_tomont_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -96,7 +96,7 @@ if __name__ == "__main__":
                 ("inout", "rdi", "z.as_mut_ptr() => _"),
                 ("inout", "rsi", "x.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_neg_p384(z: &mut [u64; 6], x: &[u64; 6])",
+            rust_decl="fn bignum_neg_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -110,7 +110,7 @@ if __name__ == "__main__":
                 ("inout", "rdi", "z.as_mut_ptr() => _"),
                 ("inout", "rsi", "x.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6])",
+            rust_decl="fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -124,7 +124,7 @@ if __name__ == "__main__":
                 ("inout", "rdi", "z.as_mut_ptr() => _"),
                 ("inout", "rsi", "x.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_mod_n384(z: &mut [u64; 6], x: &[u64; 6])",
+            rust_decl="fn bignum_mod_n384(z: &mut [u64; 6], x: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
                 ("inout", "rsi", "p1.as_ptr() => _"),
                 ("inout", "rdx", "p2.as_ptr() => _"),
             ],
-            rust_decl="pub fn p384_montjadd(p3: &mut [u64; 18], p1: &[u64; 18], p2: &[u64; 18])",
+            rust_decl="fn p384_montjadd(p3: &mut [u64; 18], p1: &[u64; 18], p2: &[u64; 18])",
         )
         parse_file(input, d)
 
@@ -153,7 +153,7 @@ if __name__ == "__main__":
                 ("inout", "rdi", "p3.as_mut_ptr() => _"),
                 ("inout", "rsi", "p1.as_ptr() => _"),
             ],
-            rust_decl="pub fn p384_montjdouble(p3: &mut [u64; 18], p1: &[u64; 18])",
+            rust_decl="fn p384_montjdouble(p3: &mut [u64; 18], p1: &[u64; 18])",
         )
         parse_file(input, d)
 
@@ -170,7 +170,7 @@ if __name__ == "__main__":
                 ("inout", "x0", "z.as_mut_ptr() => _"),
                 ("inout", "x1", "x.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_montsqr_p384(z: &mut [u64; 6], x: &[u64; 6])",
+            rust_decl="fn bignum_montsqr_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -187,7 +187,7 @@ if __name__ == "__main__":
                 ("inout", "x1", "x.as_ptr() => _"),
                 ("inout", "x2", "y.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_montmul_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6])",
+            rust_decl="fn bignum_montmul_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -202,7 +202,7 @@ if __name__ == "__main__":
                 ("inout", "x1", "x.as_ptr() => _"),
                 ("inout", "x2", "y.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_add_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6])",
+            rust_decl="fn bignum_add_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -218,7 +218,7 @@ if __name__ == "__main__":
                 ("inout", "x0", "z.as_mut_ptr() => _"),
                 ("inout", "x1", "x.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_demont_p384(z: &mut [u64; 6], x: &[u64; 6])",
+            rust_decl="fn bignum_demont_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -234,7 +234,7 @@ if __name__ == "__main__":
                 ("inout", "x0", "z.as_mut_ptr() => _"),
                 ("inout", "x1", "x.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_tomont_p384(z: &mut [u64; 6], x: &[u64; 6])",
+            rust_decl="fn bignum_tomont_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -248,7 +248,7 @@ if __name__ == "__main__":
                 ("inout", "x0", "z.as_mut_ptr() => _"),
                 ("inout", "x1", "x.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_neg_p384(z: &mut [u64; 6], x: &[u64; 6])",
+            rust_decl="fn bignum_neg_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -262,7 +262,7 @@ if __name__ == "__main__":
                 ("inout", "x0", "z.as_mut_ptr() => _"),
                 ("inout", "x1", "x.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6])",
+            rust_decl="fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -278,7 +278,7 @@ if __name__ == "__main__":
                 ("inout", "x0", "z.as_mut_ptr() => _"),
                 ("inout", "x1", "x.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_mod_n384(z: &mut [u64; 6], x: &[u64; 6])",
+            rust_decl="fn bignum_mod_n384(z: &mut [u64; 6], x: &[u64; 6])",
         )
         parse_file(input, d)
 
@@ -293,7 +293,7 @@ if __name__ == "__main__":
                 ("inout", "x1", "p1.as_ptr() => _"),
                 ("inout", "x2", "p2.as_ptr() => _"),
             ],
-            rust_decl="pub fn p384_montjadd(p3: &mut [u64; 18], p1: &[u64; 18], p2: &[u64; 18])",
+            rust_decl="fn p384_montjadd(p3: &mut [u64; 18], p1: &[u64; 18], p2: &[u64; 18])",
         )
         parse_file(input, d)
 
@@ -309,6 +309,6 @@ if __name__ == "__main__":
                 ("inout", "x0", "p3.as_mut_ptr() => _"),
                 ("inout", "x1", "p1.as_ptr() => _"),
             ],
-            rust_decl="pub fn p384_montjdouble(p3: &mut [u64; 18], p1: &[u64; 18])",
+            rust_decl="fn p384_montjdouble(p3: &mut [u64; 18], p1: &[u64; 18])",
         )
         parse_file(input, d)

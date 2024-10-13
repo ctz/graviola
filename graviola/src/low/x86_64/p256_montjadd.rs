@@ -495,7 +495,7 @@ macro_rules! muxload4 {
     )}
 }
 
-pub fn p256_montjadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 12]) {
+pub(crate) fn p256_montjadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 12]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(

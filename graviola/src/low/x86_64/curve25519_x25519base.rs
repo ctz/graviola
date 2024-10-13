@@ -350,7 +350,7 @@ macro_rules! double_twice4 {
     )}
 }
 
-pub fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
+pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
