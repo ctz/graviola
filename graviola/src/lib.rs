@@ -55,17 +55,6 @@ mod error;
 // vvv Internal API
 
 #[cfg(feature = "__internal_08eaf2eb")]
-pub mod rsa {
-    pub use super::high::rsa::{RsaPrivateSigningKey, RsaPublicVerificationKey};
-}
-
-#[cfg(feature = "__internal_08eaf2eb")]
-pub mod ecdsa {
-    pub use super::high::curve::{Curve, P256, P384};
-    pub use super::high::ecdsa::{SigningKey, VerifyingKey};
-}
-
-#[cfg(feature = "__internal_08eaf2eb")]
 pub mod hash {
     pub use super::high::hash::{Hash, HashContext, HashOutput, Sha256, Sha384, Sha512};
     pub use super::high::hmac;
@@ -117,5 +106,19 @@ pub mod key_agreement {
     /// See [SEC1](https://www.secg.org/sec1-v2.pdf) for one definition.
     pub mod p384 {
         pub use crate::mid::p384::{PrivateKey, PublicKey, SharedSecret};
+    }
+}
+
+/// Public key signatures.
+pub mod signing {
+    /// RSA signatures.
+    pub mod rsa {
+        pub use crate::high::rsa::{SigningKey, VerifyingKey};
+    }
+
+    /// ECDSA signatures.
+    pub mod ecdsa {
+        pub use crate::high::curve::{Curve, P256, P384};
+        pub use crate::high::ecdsa::{SigningKey, VerifyingKey};
     }
 }

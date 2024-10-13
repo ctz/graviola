@@ -11,9 +11,9 @@ use crate::mid::{rsa_priv, rsa_pub};
 use crate::Error;
 
 #[derive(Debug)]
-pub struct RsaPublicVerificationKey(rsa_pub::RsaPublicKey);
+pub struct VerifyingKey(rsa_pub::RsaPublicKey);
 
-impl RsaPublicVerificationKey {
+impl VerifyingKey {
     pub fn from_pkcs1_der(bytes: &[u8]) -> Result<Self, Error> {
         let _ = Entry::new_public();
         let decoded = pkix::RSAPublicKey::from_bytes(bytes).map_err(Error::Asn1Error)?;
@@ -105,9 +105,9 @@ impl RsaPublicVerificationKey {
     }
 }
 
-pub struct RsaPrivateSigningKey(rsa_priv::RsaPrivateKey);
+pub struct SigningKey(rsa_priv::RsaPrivateKey);
 
-impl RsaPrivateSigningKey {
+impl SigningKey {
     pub fn from_pkcs1_der(bytes: &[u8]) -> Result<Self, Error> {
         let _ = Entry::new_secret();
         let decoded = pkix::RSAPrivateKey::from_bytes(bytes).map_err(Error::Asn1Error)?;
@@ -147,9 +147,9 @@ impl RsaPrivateSigningKey {
         .and_then(Self::from_pkcs1_der)
     }
 
-    pub fn public_key(&self) -> RsaPublicVerificationKey {
+    pub fn public_key(&self) -> VerifyingKey {
         let _ = Entry::new_public();
-        RsaPublicVerificationKey(self.0.public_key())
+        VerifyingKey(self.0.public_key())
     }
 
     pub fn modulus_len_bytes(&self) -> usize {
@@ -258,11 +258,7 @@ impl RsaPrivateSigningKey {
 mod tests {
     use super::*;
 
-    fn check_all_algs(
-        buf: &mut [u8],
-        private: &RsaPrivateSigningKey,
-        public: &RsaPublicVerificationKey,
-    ) {
+    fn check_all_algs(buf: &mut [u8], private: &SigningKey, public: &VerifyingKey) {
         let sig = private.sign_pkcs1_sha256(buf, b"hello").unwrap();
         public.verify_pkcs1_sha256(sig, b"hello").unwrap();
 
@@ -284,8 +280,7 @@ mod tests {
 
     #[test]
     fn pairwise_rsa2048_sign_verify() {
-        let private_key =
-            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa2048.der")).unwrap();
+        let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa2048.der")).unwrap();
 
         check_all_algs(&mut [0u8; 256], &private_key, &private_key.public_key());
     }
@@ -293,39 +288,35 @@ mod tests {
     #[test]
     fn pairwise_rsa2048_sign_verify_pkcs8() {
         let private_key =
-            RsaPrivateSigningKey::from_pkcs8_der(include_bytes!("rsa/rsa2048.pkcs8.der")).unwrap();
+            SigningKey::from_pkcs8_der(include_bytes!("rsa/rsa2048.pkcs8.der")).unwrap();
 
         check_all_algs(&mut [0u8; 256], &private_key, &private_key.public_key());
     }
 
     #[test]
     fn pairwise_rsa3072_sign_verify() {
-        let private_key =
-            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa3072.der")).unwrap();
+        let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa3072.der")).unwrap();
 
         check_all_algs(&mut [0u8; 384], &private_key, &private_key.public_key());
     }
 
     #[test]
     fn pairwise_rsa4096_sign_verify() {
-        let private_key =
-            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa4096.der")).unwrap();
+        let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa4096.der")).unwrap();
 
         check_all_algs(&mut [0u8; 512], &private_key, &private_key.public_key());
     }
 
     #[test]
     fn pairwise_rsa6144_sign_verify() {
-        let private_key =
-            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa6144.der")).unwrap();
+        let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa6144.der")).unwrap();
 
         check_all_algs(&mut [0u8; 768], &private_key, &private_key.public_key());
     }
 
     #[test]
     fn pairwise_rsa8192_sign_verify() {
-        let private_key =
-            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa8192.der")).unwrap();
+        let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa8192.der")).unwrap();
 
         check_all_algs(&mut [0u8; 1024], &private_key, &private_key.public_key());
     }

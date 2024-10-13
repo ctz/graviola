@@ -2,12 +2,10 @@ use serde::Deserialize;
 use std::fs::File;
 
 use graviola::aead::{AesGcm, ChaCha20Poly1305};
-use graviola::ecdsa::VerifyingKey;
-use graviola::ecdsa::{P256, P384};
 use graviola::hash::hmac::Hmac;
 use graviola::hash::{Sha256, Sha384, Sha512};
 use graviola::key_agreement::{p256, p384, x25519};
-use graviola::rsa;
+use graviola::signing::{ecdsa, rsa};
 use graviola::Error;
 
 #[derive(Deserialize, Debug)]
@@ -234,9 +232,10 @@ fn test_verify_ecdsa_p256() {
         for group in tests.groups {
             summary.group(&group);
 
-            let public_key =
-                VerifyingKey::<P256>::from_x962_uncompressed(&group.public_key.uncompressed)
-                    .unwrap();
+            let public_key = ecdsa::VerifyingKey::<ecdsa::P256>::from_x962_uncompressed(
+                &group.public_key.uncompressed,
+            )
+            .unwrap();
 
             for test in group.tests {
                 summary.start(&test);
@@ -288,9 +287,10 @@ fn test_verify_ecdsa_p384() {
         for group in tests.groups {
             summary.group(&group);
 
-            let public_key =
-                VerifyingKey::<P384>::from_x962_uncompressed(&group.public_key.uncompressed)
-                    .unwrap();
+            let public_key = ecdsa::VerifyingKey::<ecdsa::P384>::from_x962_uncompressed(
+                &group.public_key.uncompressed,
+            )
+            .unwrap();
 
             for test in group.tests {
                 summary.start(&test);
@@ -559,7 +559,7 @@ fn test_rsa_pkcs1_verify() {
         for group in tests.groups {
             summary.group(&group);
 
-            let key = rsa::RsaPublicVerificationKey::from_pkcs1_der(&group.public_key_asn).unwrap();
+            let key = rsa::VerifyingKey::from_pkcs1_der(&group.public_key_asn).unwrap();
             println!("key is {:?}", key);
 
             for test in group.tests {
@@ -606,7 +606,7 @@ fn test_rsa_pss_verify() {
         for group in tests.groups {
             summary.group(&group);
 
-            let key = rsa::RsaPublicVerificationKey::from_pkcs1_der(&group.public_key_asn).unwrap();
+            let key = rsa::VerifyingKey::from_pkcs1_der(&group.public_key_asn).unwrap();
             println!("key is {:?}", key);
 
             match (group.sha.as_ref(), group.mgf_sha.as_ref(), group.salt_len) {
