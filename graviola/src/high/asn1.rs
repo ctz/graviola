@@ -34,12 +34,13 @@ macro_rules! asn1_struct {
     ($name:ident ::= SEQUENCE { $($itname:ident $([$context:literal])? $($itty:ident)+ ),+ }) => {
         #[allow(non_snake_case)]
         #[derive(Clone, Debug)]
-        pub struct $name<'a> {
-            $( pub $itname: $crate::high::asn1::_asn1_struct_ty!($([$context])? $($itty)+), )+
+        pub(crate) struct $name<'a> {
+            $( pub(crate) $itname: $crate::high::asn1::_asn1_struct_ty!($([$context])? $($itty)+), )+
         }
 
         impl<'a> $name<'a> {
-            pub fn body_len(&self) -> usize {
+            #[allow(dead_code)]
+            pub(crate) fn body_len(&self) -> usize {
                 use $crate::high::asn1::Type;
                 let mut result = 0;
                 $( result += self.$itname.encoded_len(); )+
@@ -75,7 +76,7 @@ macro_rules! asn1_enum {
     ($name:ident ::= INTEGER { $( $vname:ident($num:expr) ),+ }) => {
         #[allow(non_camel_case_types)]
         #[derive(Copy, Clone, Debug)]
-        pub enum $name {
+        pub(crate) enum $name {
             $( $vname = $num, )+
         }
 
@@ -116,12 +117,12 @@ macro_rules! asn1_oid_indices {
 
 macro_rules! asn1_oid {
     ($name:ident OBJECT IDENTIFIER ::= { $( $item:tt )+ }) => {
-        pub static $name: crate::high::asn1::ObjectId = crate::high::asn1::ObjectId::from_path(&asn1_oid_indices!( [] -> $( $item )+));
+        pub(crate) static $name: crate::high::asn1::ObjectId = crate::high::asn1::ObjectId::from_path(&asn1_oid_indices!( [] -> $( $item )+));
     }
 }
 pub(crate) use asn1_oid;
 
-pub trait Type<'a>: Debug + Sized {
+pub(crate) trait Type<'a>: Debug + Sized {
     fn parse(p: &mut Parser<'a>) -> Result<Self, Error>;
     fn encode(&self, encoder: &mut Encoder<'_>) -> Result<usize, Error>;
     fn encoded_len(&self) -> usize;
@@ -135,7 +136,7 @@ pub trait Type<'a>: Debug + Sized {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Any<'a> {
+pub(crate) enum Any<'a> {
     Null(Null),
     Integer(Integer<'a>),
     OctetString(OctetString<'a>),
@@ -201,7 +202,7 @@ impl<'a, T: Type<'a>> Type<'a> for Option<T> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ContextConstructed<'a, const ID: u8, T: Type<'a>>(Option<T>, PhantomData<&'a ()>);
+pub(crate) struct ContextConstructed<'a, const ID: u8, T: Type<'a>>(Option<T>, PhantomData<&'a ()>);
 
 impl<'a, const ID: u8, T: Type<'a>> Type<'a> for ContextConstructed<'a, ID, T> {
     fn parse(p: &mut Parser<'a>) -> Result<Self, Error> {
@@ -239,7 +240,7 @@ impl<'a, const ID: u8, T: Type<'a>> Type<'a> for ContextConstructed<'a, ID, T> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Null;
+pub(crate) struct Null;
 
 impl Type<'_> for Null {
     fn parse(p: &mut Parser<'_>) -> Result<Self, Error> {
@@ -348,7 +349,7 @@ impl AsRef<[u8]> for ObjectId {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Integer<'a> {
+pub(crate) struct Integer<'a> {
     twos_complement: &'a [u8],
 }
 
@@ -427,7 +428,7 @@ impl<'a> Type<'a> for Integer<'a> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OctetString<'a> {
+pub(crate) struct OctetString<'a> {
     octets: &'a [u8],
 }
 
@@ -460,7 +461,7 @@ impl<'a> Type<'a> for OctetString<'a> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct BitString<'a> {
+pub(crate) struct BitString<'a> {
     octets: &'a [u8],
 }
 
@@ -489,12 +490,12 @@ impl<'a> Type<'a> for BitString<'a> {
     }
 }
 
-pub struct Parser<'a> {
+pub(crate) struct Parser<'a> {
     input: &'a [u8],
 }
 
 impl<'a, 's> Parser<'a> {
-    pub fn new(buf: &'a [u8]) -> Self {
+    pub(crate) fn new(buf: &'a [u8]) -> Self {
         Self { input: buf }
     }
 
@@ -567,13 +568,13 @@ impl<'a, 's> Parser<'a> {
     }
 }
 
-pub struct Encoder<'a> {
+pub(crate) struct Encoder<'a> {
     out: &'a mut [u8],
     written: usize,
 }
 
 impl<'a, 's> Encoder<'a> {
-    pub fn new(out: &'a mut [u8]) -> Self {
+    pub(crate) fn new(out: &'a mut [u8]) -> Self {
         Encoder { out, written: 0 }
     }
 
@@ -616,7 +617,7 @@ impl<'a, 's> Encoder<'a> {
         })
     }
 
-    pub fn begin(&'s mut self, tag: Tag, body_len: usize) -> Result<Self, Error> {
+    fn begin(&'s mut self, tag: Tag, body_len: usize) -> Result<Self, Error> {
         self.push(tag.0)?;
 
         match body_len {
@@ -634,7 +635,7 @@ impl<'a, 's> Encoder<'a> {
         self.split(body_len)
     }
 
-    pub fn finish(&mut self) -> usize {
+    fn finish(&mut self) -> usize {
         self.written
     }
 }
@@ -666,7 +667,7 @@ pub enum Error {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Tag(u8);
+pub(crate) struct Tag(u8);
 
 impl Tag {
     fn acceptable(&self, offered: u8) -> bool {
