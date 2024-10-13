@@ -3,7 +3,7 @@
 
 use super::util;
 use crate::low;
-use crate::mid::rng::RandomSource;
+use crate::mid::rng::{RandomSource, SystemRandom};
 
 pub struct PrivateKey([u64; 4]);
 
@@ -23,13 +23,13 @@ impl PrivateKey {
         util::u64x4_to_little_endian(&self.0)
     }
 
-    /// Generate a new key using the given `rng`.
+    /// Generate a new key using the system random number generator.
     ///
-    /// Fails only if the `rng` fails.
-    pub fn generate(rng: &mut dyn RandomSource) -> Result<Self, ()> {
+    /// Fails only if the random source fails.
+    pub fn new_random() -> Result<Self, crate::Error> {
         let _ = low::Entry::new_secret();
         let mut r = [0u8; 32];
-        rng.fill(&mut r).map_err(|_| ())?;
+        SystemRandom.fill(&mut r)?;
         Ok(Self::from_array(&r))
     }
 

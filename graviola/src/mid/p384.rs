@@ -3,7 +3,7 @@
 
 use super::util;
 use crate::low;
-use crate::mid::rng::RandomSource;
+use crate::mid::rng::{RandomSource, SystemRandom};
 use crate::Error;
 
 use core::fmt;
@@ -94,6 +94,10 @@ impl PrivateKey {
         self.public_point().x_scalar()
     }
 
+    pub fn new_random() -> Result<Self, Error> {
+        Self::generate(&mut SystemRandom)
+    }
+
     fn public_point(&self) -> AffineMontPoint {
         let point = JacobianMontPoint::base_multiply(&self.scalar).as_affine();
         match point.on_curve() {
@@ -102,7 +106,7 @@ impl PrivateKey {
         }
     }
 
-    pub fn generate(rng: &mut dyn RandomSource) -> Result<Self, Error> {
+    pub(crate) fn generate(rng: &mut dyn RandomSource) -> Result<Self, Error> {
         let _ = low::Entry::new_secret();
         for _ in 0..64 {
             let mut r = [0u8; 48];

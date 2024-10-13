@@ -3,7 +3,6 @@ use rustls::crypto;
 use rustls::ffdhe_groups::FfdheGroup;
 
 use graviola::key_agreement::{p256, p384, x25519};
-use graviola::rng::SystemRandom;
 
 /// All key exchange algorithms, in order of preference.
 pub const ALL_KX_GROUPS: &[&dyn SupportedKxGroup] = &[
@@ -18,7 +17,7 @@ pub struct X25519;
 
 impl SupportedKxGroup for X25519 {
     fn start(&self) -> Result<Box<dyn crypto::ActiveKeyExchange>, rustls::Error> {
-        let priv_key = x25519::PrivateKey::generate(&mut SystemRandom)
+        let priv_key = x25519::PrivateKey::new_random()
             .map_err(|_| rustls::Error::from(crypto::GetRandomFailed))?;
         let pub_key_bytes = priv_key.public_key().as_bytes();
 
@@ -71,7 +70,7 @@ pub struct P256;
 
 impl SupportedKxGroup for P256 {
     fn start(&self) -> Result<Box<dyn crypto::ActiveKeyExchange>, rustls::Error> {
-        let priv_key = p256::PrivateKey::generate(&mut SystemRandom)
+        let priv_key = p256::PrivateKey::new_random()
             .map_err(|_| rustls::Error::from(crypto::GetRandomFailed))?;
         let pub_key_bytes = priv_key.public_key_uncompressed();
 
@@ -127,7 +126,7 @@ pub struct P384;
 
 impl SupportedKxGroup for P384 {
     fn start(&self) -> Result<Box<dyn crypto::ActiveKeyExchange>, rustls::Error> {
-        let priv_key = p384::PrivateKey::generate(&mut SystemRandom)
+        let priv_key = p384::PrivateKey::new_random()
             .map_err(|_| rustls::Error::from(crypto::GetRandomFailed))?;
         let pub_key_bytes = priv_key.public_key_uncompressed();
 

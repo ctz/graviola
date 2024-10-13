@@ -52,19 +52,6 @@ mod high;
 /// Errors.  Common to all layers.
 mod error;
 
-// vvv Internal API
-
-#[cfg(feature = "__internal_08eaf2eb")]
-pub mod aead {
-    pub use super::mid::aes_gcm::AesGcm;
-    pub use super::mid::chacha20poly1305::ChaCha20Poly1305;
-}
-
-#[cfg(feature = "__internal_08eaf2eb")]
-pub mod rng {
-    pub use super::mid::rng::{RandomSource, SystemRandom};
-}
-
 // vvv Public API
 pub use error::Error;
 
@@ -121,4 +108,19 @@ pub mod hashing {
     pub use super::high::hash::{Hash, HashContext, HashOutput, Sha256, Sha384, Sha512};
     pub use super::high::hmac;
     pub use super::mid::sha2;
+}
+
+/// Authenticated encryption.
+pub mod aead {
+    pub use super::mid::aes_gcm::AesGcm;
+    pub use super::mid::chacha20poly1305::ChaCha20Poly1305;
+}
+
+/// Cryptographic-quality random source
+pub mod random {
+    /// Fills the entirety of `out` with cryptographic-quality random bytes.
+    pub fn fill(out: &mut [u8]) -> Result<(), super::Error> {
+        use crate::mid::rng::{RandomSource, SystemRandom};
+        SystemRandom.fill(out)
+    }
 }
