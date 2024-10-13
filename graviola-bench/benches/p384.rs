@@ -194,7 +194,7 @@ fn ecdsa_verify(c: &mut Criterion) {
     });
 
     group.bench_function("graviola", |b| {
-        use graviola::hash::Sha384;
+        use graviola::hashing::Sha384;
         use graviola::signing::ecdsa;
         let public_key =
             ecdsa::VerifyingKey::<ecdsa::P384>::from_x962_uncompressed(public_key).unwrap();
@@ -262,7 +262,7 @@ fn ecdsa_sign(c: &mut Criterion) {
     });
 
     group.bench_function("graviola", |b| {
-        use graviola::hash::Sha384;
+        use graviola::hashing::Sha384;
         use graviola::signing::ecdsa::{Curve, SigningKey, P384};
         let private_key = P384::generate_random_key(&mut graviola::rng::SystemRandom).unwrap();
         let signing_key = SigningKey::<P384> { private_key };

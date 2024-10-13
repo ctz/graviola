@@ -3,7 +3,7 @@ use rustls::pki_types::{AlgorithmIdentifier, InvalidSignature, SignatureVerifica
 use rustls::SignatureScheme;
 use webpki::alg_id;
 
-use graviola::hash;
+use graviola::hashing;
 use graviola::signing::{ecdsa, rsa};
 
 pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms {
@@ -41,32 +41,32 @@ pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorit
 
 static ECDSA_P256_SHA256: &dyn SignatureVerificationAlgorithm = &EcdsaP256Verify {
     signature_alg_id: alg_id::ECDSA_SHA256,
-    verify: |key, signature, message| key.verify_asn1::<hash::Sha256>(&[message], signature),
+    verify: |key, signature, message| key.verify_asn1::<hashing::Sha256>(&[message], signature),
 };
 
 static ECDSA_P256_SHA384: &dyn SignatureVerificationAlgorithm = &EcdsaP256Verify {
     signature_alg_id: alg_id::ECDSA_SHA384,
-    verify: |key, signature, message| key.verify_asn1::<hash::Sha384>(&[message], signature),
+    verify: |key, signature, message| key.verify_asn1::<hashing::Sha384>(&[message], signature),
 };
 
 static ECDSA_P256_SHA512: &dyn SignatureVerificationAlgorithm = &EcdsaP256Verify {
     signature_alg_id: alg_id::ECDSA_SHA512,
-    verify: |key, signature, message| key.verify_asn1::<hash::Sha512>(&[message], signature),
+    verify: |key, signature, message| key.verify_asn1::<hashing::Sha512>(&[message], signature),
 };
 
 static ECDSA_P384_SHA256: &dyn SignatureVerificationAlgorithm = &EcdsaP384Verify {
     signature_alg_id: alg_id::ECDSA_SHA256,
-    verify: |key, signature, message| key.verify_asn1::<hash::Sha256>(&[message], signature),
+    verify: |key, signature, message| key.verify_asn1::<hashing::Sha256>(&[message], signature),
 };
 
 static ECDSA_P384_SHA384: &dyn SignatureVerificationAlgorithm = &EcdsaP384Verify {
     signature_alg_id: alg_id::ECDSA_SHA384,
-    verify: |key, signature, message| key.verify_asn1::<hash::Sha384>(&[message], signature),
+    verify: |key, signature, message| key.verify_asn1::<hashing::Sha384>(&[message], signature),
 };
 
 static ECDSA_P384_SHA512: &dyn SignatureVerificationAlgorithm = &EcdsaP384Verify {
     signature_alg_id: alg_id::ECDSA_SHA512,
-    verify: |key, signature, message| key.verify_asn1::<hash::Sha512>(&[message], signature),
+    verify: |key, signature, message| key.verify_asn1::<hashing::Sha512>(&[message], signature),
 };
 
 static RSA_PSS_SHA256: &dyn SignatureVerificationAlgorithm = &RsaVerify {

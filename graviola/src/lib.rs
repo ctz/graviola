@@ -55,13 +55,6 @@ mod error;
 // vvv Internal API
 
 #[cfg(feature = "__internal_08eaf2eb")]
-pub mod hash {
-    pub use super::high::hash::{Hash, HashContext, HashOutput, Sha256, Sha384, Sha512};
-    pub use super::high::hmac;
-    pub use super::mid::sha2;
-}
-
-#[cfg(feature = "__internal_08eaf2eb")]
 pub mod aead {
     pub use super::mid::aes_gcm::AesGcm;
     pub use super::mid::chacha20poly1305::ChaCha20Poly1305;
@@ -121,4 +114,11 @@ pub mod signing {
         pub use crate::high::curve::{Curve, P256, P384};
         pub use crate::high::ecdsa::{SigningKey, VerifyingKey};
     }
+}
+
+/// Cryptographic hash functions.
+pub mod hashing {
+    pub use super::high::hash::{Hash, HashContext, HashOutput, Sha256, Sha384, Sha512};
+    pub use super::high::hmac;
+    pub use super::mid::sha2;
 }

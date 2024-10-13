@@ -2,7 +2,7 @@ use core::fmt;
 use rustls::{pki_types, sign, SignatureScheme};
 use std::sync::Arc;
 
-use graviola::hash;
+use graviola::hashing;
 use graviola::signing::{ecdsa, rsa};
 
 #[derive(Debug)]
@@ -177,7 +177,7 @@ impl sign::Signer for EcdsaP256 {
         let mut sig_buffer = [0u8; 128];
         let sig = self
             .0
-            .sign_asn1::<hash::Sha256>(&[message], &mut sig_buffer)
+            .sign_asn1::<hashing::Sha256>(&[message], &mut sig_buffer)
             .map_err(|err| rustls::Error::General(format!("signing failed: {err:?}")))?;
 
         Ok(sig.to_vec())
@@ -218,7 +218,7 @@ impl sign::Signer for EcdsaP384 {
         let mut sig_buffer = [0u8; 128];
         let sig = self
             .0
-            .sign_asn1::<hash::Sha384>(&[message], &mut sig_buffer)
+            .sign_asn1::<hashing::Sha384>(&[message], &mut sig_buffer)
             .map_err(|err| rustls::Error::General(format!("signing failed: {err:?}")))?;
 
         Ok(sig.to_vec())
