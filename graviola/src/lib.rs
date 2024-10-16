@@ -23,14 +23,13 @@
     clippy::upper_case_acronyms,
     clippy::use_self,
     elided_lifetimes_in_paths,
+    missing_docs,
     trivial_numeric_casts,
     unreachable_pub,
     unused_import_braces,
     unused_extern_crates,
     unused_qualifications
 )]
-// XXX: development: remove these
-#![allow(missing_docs)]
 
 /// Low level operations.
 ///
