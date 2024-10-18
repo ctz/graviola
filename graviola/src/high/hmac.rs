@@ -1,6 +1,10 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+//! HMAC (Hash Message Authentication Code).
+//!
+//! HMAC is standardized in [FIPS 198](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.198-1.pdf).
+
 use super::hash::{Hash, HashContext, HashOutput};
 use crate::Error;
 
