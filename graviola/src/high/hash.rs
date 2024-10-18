@@ -4,7 +4,6 @@
 use crate::low::ct_equal;
 use crate::mid::sha2::{Sha256Context, Sha384Context, Sha512Context};
 
-use core::cmp;
 use core::ops::{Deref, DerefMut};
 
 #[derive(Clone, Debug)]
@@ -13,6 +12,27 @@ pub enum HashOutput {
     Sha256([u8; 32]),
     Sha384([u8; 48]),
     Sha512([u8; 64]),
+}
+
+impl HashOutput {
+    /// Constant-time equality, `other` may not be truncated.
+    pub fn ct_equal(&self, other: &[u8]) -> bool {
+        ct_equal(self.as_ref(), other)
+    }
+
+    /// Constant-time equality after truncation.
+    ///
+    /// `self` is truncated to `L` bytes (a compile-time constant)
+    /// before comparison with `other`.
+    ///
+    /// `L` being compile-time prevents the misuse that the
+    /// truncation length is attacker-controlled.  `L` must be non-zero,
+    /// and less than or equal to the size of the stored hash.
+    pub fn truncated_ct_equal<const L: usize>(&self, other: &[u8]) -> bool {
+        assert_ne!(L, 0);
+        assert!(L <= self.as_ref().len());
+        ct_equal(&self.as_ref()[..L], other)
+    }
 }
 
 impl PartialEq for HashOutput {
@@ -24,17 +44,6 @@ impl PartialEq for HashOutput {
             (Self::Sha512(s), Self::Sha512(o)) => ct_equal(s, o),
             _ => false,
         }
-    }
-}
-
-impl PartialEq<&[u8]> for HashOutput {
-    /// Constant-time equality, `other` may be truncated
-    fn eq(&self, other: &&[u8]) -> bool {
-        let other = *other;
-        assert!(!other.is_empty());
-        let ours = self.as_ref();
-        let size = cmp::min(ours.len(), other.len());
-        ct_equal(&ours[..size], other)
     }
 }
 
