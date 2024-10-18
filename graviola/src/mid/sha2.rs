@@ -1,8 +1,14 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+//! SHA2-family hash functions.
+//!
+//! This is SHA256, SHA384, and SHA512.
+//! These are all described in [FIPS180](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf).
+
 use crate::low::Blockwise;
 
+/// A context for incremental computation of SHA256.
 #[derive(Clone)]
 pub struct Sha256Context {
     h: [u32; 8],
@@ -11,6 +17,7 @@ pub struct Sha256Context {
 }
 
 impl Sha256Context {
+    /// Start a new SHA256 hash computation.
     pub const fn new() -> Self {
         Self {
             h: [
@@ -22,6 +29,7 @@ impl Sha256Context {
         }
     }
 
+    /// Add `bytes` to the ongoing hash computation.
     pub fn update(&mut self, bytes: &[u8]) {
         let bytes = self.blockwise.add_leading(bytes);
 
@@ -39,6 +47,7 @@ impl Sha256Context {
         self.blockwise.add_trailing(remainder);
     }
 
+    /// Complete the SHA256 computation, returning the hash output.
     pub fn finish(mut self) -> [u8; 32] {
         let bytes = self
             .nblocks
@@ -70,15 +79,18 @@ impl Sha256Context {
         }
     }
 
+    /// The internal block size of SHA256.
     pub const BLOCK_SZ: usize = 64;
 }
 
+/// A context for incremental computation of SHA384.
 #[derive(Clone)]
 pub struct Sha384Context {
     inner: Sha512Context,
 }
 
 impl Sha384Context {
+    /// Start a new SHA384 hash computation.
     pub const fn new() -> Self {
         Self {
             inner: Sha512Context {
@@ -98,16 +110,20 @@ impl Sha384Context {
         }
     }
 
+    /// Add `bytes` to the ongoing hash computation.
     pub fn update(&mut self, bytes: &[u8]) {
         self.inner.update(bytes)
     }
 
+    /// Complete the SHA384 computation, returning the hash output.
     pub fn finish(self) -> [u8; 48] {
         let inner = self.inner.finish();
+        // SAFETY: 48 is less than 64.
         inner[..48].try_into().unwrap()
     }
 }
 
+/// A context for incremental computation of SHA512.
 #[derive(Clone)]
 pub struct Sha512Context {
     h: [u64; 8],
@@ -116,6 +132,7 @@ pub struct Sha512Context {
 }
 
 impl Sha512Context {
+    /// Start a new SHA512 hash computation.
     pub const fn new() -> Self {
         Self {
             h: [
@@ -133,6 +150,7 @@ impl Sha512Context {
         }
     }
 
+    /// Add `bytes` to the ongoing hash computation.
     pub fn update(&mut self, bytes: &[u8]) {
         let bytes = self.blockwise.add_leading(bytes);
 
@@ -150,6 +168,7 @@ impl Sha512Context {
         self.blockwise.add_trailing(remainder);
     }
 
+    /// Complete the SHA512 computation, returning the hash output.
     pub fn finish(mut self) -> [u8; 64] {
         let bytes = self
             .nblocks
@@ -181,6 +200,7 @@ impl Sha512Context {
         }
     }
 
+    /// The internal block size of SHA512.
     pub const BLOCK_SZ: usize = 128;
 }
 
