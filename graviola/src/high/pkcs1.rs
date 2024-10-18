@@ -222,7 +222,7 @@ pub(crate) fn verify_pss_sig<H: Hash>(em: &mut [u8], m_hash: &[u8]) -> Result<()
 
     // 14.  If H = H', output "consistent".  Otherwise, output
     //      "inconsistent".
-    if h_prime == h as &[u8] {
+    if h_prime.ct_equal(h) {
         Ok(())
     } else {
         Err(Error::BadSignature)

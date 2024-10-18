@@ -54,7 +54,7 @@ impl<H: Hash> Hmac<H> {
 
     pub fn verify(self, expected_tag: &[u8]) -> Result<(), Error> {
         let got = self.finish();
-        match got == expected_tag {
+        match got.ct_equal(expected_tag) {
             true => Ok(()),
             false => Err(Error::BadSignature),
         }
