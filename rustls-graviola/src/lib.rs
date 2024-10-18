@@ -46,9 +46,6 @@ struct RngProvider;
 
 impl rustls::crypto::SecureRandom for RngProvider {
     fn fill(&self, bytes: &mut [u8]) -> Result<(), rustls::crypto::GetRandomFailed> {
-        use graviola::rng::{RandomSource, SystemRandom};
-        SystemRandom
-            .fill(bytes)
-            .map_err(|_| rustls::crypto::GetRandomFailed)
+        graviola::random::fill(bytes).map_err(|_| rustls::crypto::GetRandomFailed)
     }
 }

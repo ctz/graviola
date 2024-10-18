@@ -107,7 +107,7 @@ macro_rules! t3 {
     };
 }
 
-pub fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
+pub(crate) fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(

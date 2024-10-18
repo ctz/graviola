@@ -17,7 +17,7 @@ use crate::low::macros::*;
 // Standard ARM ABI: X0 = z, X1 = x, X2 = t
 // ----------------------------------------------------------------------------
 
-pub fn bignum_ksqr_16_32(z: &mut [u64], x: &[u64], t: &mut [u64; 24]) {
+pub(crate) fn bignum_ksqr_16_32(z: &mut [u64], x: &[u64], t: &mut [u64; 24]) {
     debug_assert!(z.len() == 32);
     debug_assert!(x.len() == 16);
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.

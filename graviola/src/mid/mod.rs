@@ -3,13 +3,13 @@
 
 #![deny(unsafe_code)]
 
-pub mod aes_gcm;
-pub mod chacha20poly1305;
-pub mod p256;
-pub mod p384;
-pub mod rng;
-pub mod rsa_priv;
-pub mod rsa_pub;
+pub(super) mod aes_gcm;
+pub(super) mod chacha20poly1305;
+pub(super) mod p256;
+pub(super) mod p384;
+pub(super) mod rng;
+pub(super) mod rsa_priv;
+pub(super) mod rsa_pub;
 pub mod sha2;
-pub mod util;
-pub mod x25519;
+pub(super) mod util;
+pub(super) mod x25519;

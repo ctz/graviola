@@ -11,7 +11,7 @@ pub trait RandomSource {
 
 /// Random generation from the system entropy source via
 /// the `getrandom` crate.
-pub struct SystemRandom;
+pub(crate) struct SystemRandom;
 
 impl RandomSource for SystemRandom {
     fn fill(&mut self, out: &mut [u8]) -> Result<(), Error> {

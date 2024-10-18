@@ -39,13 +39,13 @@ fn test_rc_sha512(data: &[u8]) {
 }
 
 fn test_graviola_sha256(data: &[u8]) {
-    let mut ctx = graviola::hash::sha2::Sha256Context::new();
+    let mut ctx = graviola::hashing::sha2::Sha256Context::new();
     ctx.update(data);
     black_box(ctx.finish());
 }
 
 fn test_graviola_sha512(data: &[u8]) {
-    let mut ctx = graviola::hash::sha2::Sha512Context::new();
+    let mut ctx = graviola::hashing::sha2::Sha512Context::new();
     ctx.update(data);
     black_box(ctx.finish());
 }

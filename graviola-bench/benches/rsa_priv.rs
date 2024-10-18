@@ -52,7 +52,7 @@ fn rsa2048_pkcs1_sha256_sign(c: &mut Criterion) {
     });
 
     group.bench_function("graviola", |b| {
-        let key = graviola::rsa::RsaPrivateSigningKey::from_pkcs1_der(private_key).unwrap();
+        let key = graviola::signing::rsa::SigningKey::from_pkcs1_der(private_key).unwrap();
 
         b.iter(|| {
             black_box(key.sign_pkcs1_sha256(&mut [0u8; 256], message).unwrap());

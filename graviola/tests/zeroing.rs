@@ -18,17 +18,16 @@ use core::ptr;
 
 #[test]
 fn rsa() {
-    let rsa_priv = graviola::rsa::RsaPrivateSigningKey::from_pkcs1_der(include_bytes!(
-        "../src/high/rsa/rsa8192.der"
-    ))
-    .unwrap();
-    let pub_key_size = size_of::<graviola::rsa::RsaPublicVerificationKey>();
+    use graviola::signing::rsa;
+    let rsa_priv =
+        rsa::SigningKey::from_pkcs1_der(include_bytes!("../src/high/rsa/rsa8192.der")).unwrap();
+    let pub_key_size = size_of::<rsa::VerifyingKey>();
     check_zeroed_on_drop_bounded(Box::pin(rsa_priv), Bounds::SkipPrefix(pub_key_size));
 }
 
 #[test]
 fn ecdsa_p256() {
-    use graviola::ecdsa::*;
+    use graviola::signing::ecdsa::*;
     let ecdsa =
         SigningKey::<P256>::from_pkcs8_der(include_bytes!("../src/high/ecdsa/secp256r1.pkcs8.der"))
             .unwrap();
@@ -37,7 +36,7 @@ fn ecdsa_p256() {
 
 #[test]
 fn ecdsa_p384() {
-    use graviola::ecdsa::*;
+    use graviola::signing::ecdsa::*;
     let ecdsa =
         SigningKey::<P384>::from_pkcs8_der(include_bytes!("../src/high/ecdsa/secp384r1.pkcs8.der"))
             .unwrap();
@@ -46,21 +45,21 @@ fn ecdsa_p384() {
 
 #[test]
 fn ecdh_x25519() {
-    use graviola::x25519::PrivateKey;
+    use graviola::key_agreement::x25519::PrivateKey;
     let x25519 = PrivateKey::from_array(&[0xffu8; 32]);
     check_zeroed_on_drop(Box::pin(x25519));
 }
 
 #[test]
 fn ecdh_p256() {
-    use graviola::p256::PrivateKey;
+    use graviola::key_agreement::p256::PrivateKey;
     let p256 = PrivateKey::from_bytes(&[0xefu8; 32]).unwrap();
     check_zeroed_on_drop(Box::pin(p256));
 }
 
 #[test]
 fn ecdh_p384() {
-    use graviola::p384::PrivateKey;
+    use graviola::key_agreement::p384::PrivateKey;
     let p384 = PrivateKey::from_bytes(&[0xefu8; 48]).unwrap();
     check_zeroed_on_drop(Box::pin(p384));
 }

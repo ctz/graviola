@@ -7,6 +7,7 @@ use crate::mid::p384;
 use crate::mid::rng::RandomSource;
 use crate::Error;
 
+#[allow(private_bounds)]
 pub trait Curve {
     type PrivateKey: PrivateKey<Self>;
     type PublicKey: PublicKey<Self>;
@@ -16,7 +17,7 @@ pub trait Curve {
     fn generate_random_key(rng: &mut dyn RandomSource) -> Result<Self::PrivateKey, Error>;
 }
 
-pub trait PrivateKey<C: Curve + ?Sized> {
+pub(crate) trait PrivateKey<C: Curve + ?Sized> {
     fn from_bytes(bytes: &[u8]) -> Result<Self, Error>
     where
         Self: Sized;
@@ -27,7 +28,7 @@ pub trait PrivateKey<C: Curve + ?Sized> {
     fn raw_ecdsa_sign(&self, k: &Self, e: &C::Scalar, r: &C::Scalar) -> C::Scalar;
 }
 
-pub trait PublicKey<C: Curve + ?Sized> {
+pub(crate) trait PublicKey<C: Curve + ?Sized> {
     const LEN_BYTES: usize; // uncompressed
 
     fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error>
@@ -36,7 +37,7 @@ pub trait PublicKey<C: Curve + ?Sized> {
     fn raw_ecdsa_verify(&self, r: &C::Scalar, s: &C::Scalar, e: &C::Scalar) -> Result<(), Error>;
 }
 
-pub trait Scalar<C: Curve + ?Sized> {
+pub(crate) trait Scalar<C: Curve + ?Sized> {
     const LEN_BYTES: usize;
 
     fn from_bytes_checked(bytes: &[u8]) -> Result<Self, Error>
@@ -48,7 +49,7 @@ pub trait Scalar<C: Curve + ?Sized> {
 }
 
 // enough for P521
-pub const MAX_SCALAR_LEN: usize = 66;
+pub(crate) const MAX_SCALAR_LEN: usize = 66;
 
 pub struct P256;
 

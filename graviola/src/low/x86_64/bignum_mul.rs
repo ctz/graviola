@@ -93,7 +93,7 @@ macro_rules! d {
     };
 }
 
-pub fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
+pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
     debug_assert!(z.len() >= x.len() + y.len());
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

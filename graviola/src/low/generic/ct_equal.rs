@@ -3,7 +3,7 @@
 
 use crate::low::optimise_barrier_u8;
 
-pub fn ct_equal(a: &[u8], b: &[u8]) -> bool {
+pub(crate) fn ct_equal(a: &[u8], b: &[u8]) -> bool {
     if a.len() != b.len() {
         return false;
     }

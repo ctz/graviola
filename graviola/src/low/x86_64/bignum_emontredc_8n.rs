@@ -18,7 +18,7 @@ use crate::low::macros::*;
 // Microsoft x64 ABI:   RCX = k, RDX = z, R8 = m, R9 = w, returns RAX
 // ----------------------------------------------------------------------------
 
-pub fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64 {
+pub(crate) fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64 {
     let ret: u64;
     debug_assert!(z.len() == m.len() * 2);
     debug_assert!(z.len() % 8 == 0);

@@ -9,7 +9,7 @@ use crate::Error;
 use core::marker::PhantomData;
 
 /// A limited implementation of SP800-90A -- enough for RFC6979 ECDSA.
-pub struct HmacDrbg<H: Hash> {
+pub(crate) struct HmacDrbg<H: Hash> {
     k: HashOutput,
     v: HashOutput,
     reseed_counter: usize,

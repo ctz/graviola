@@ -55,7 +55,7 @@ macro_rules! j {
     };
 }
 
-pub fn bignum_copy_row_from_table(
+pub(crate) fn bignum_copy_row_from_table(
     z: &mut [u64],
     table: &[u64],
     height: u64,

@@ -3,8 +3,8 @@ use rustls::pki_types::{AlgorithmIdentifier, InvalidSignature, SignatureVerifica
 use rustls::SignatureScheme;
 use webpki::alg_id;
 
-use graviola::rsa::RsaPublicVerificationKey;
-use graviola::{ecdsa, hash};
+use graviola::hashing;
+use graviola::signing::{ecdsa, rsa};
 
 pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms {
     all: &[
@@ -41,32 +41,32 @@ pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorit
 
 static ECDSA_P256_SHA256: &dyn SignatureVerificationAlgorithm = &EcdsaP256Verify {
     signature_alg_id: alg_id::ECDSA_SHA256,
-    verify: |key, signature, message| key.verify_asn1::<hash::Sha256>(&[message], signature),
+    verify: |key, signature, message| key.verify_asn1::<hashing::Sha256>(&[message], signature),
 };
 
 static ECDSA_P256_SHA384: &dyn SignatureVerificationAlgorithm = &EcdsaP256Verify {
     signature_alg_id: alg_id::ECDSA_SHA384,
-    verify: |key, signature, message| key.verify_asn1::<hash::Sha384>(&[message], signature),
+    verify: |key, signature, message| key.verify_asn1::<hashing::Sha384>(&[message], signature),
 };
 
 static ECDSA_P256_SHA512: &dyn SignatureVerificationAlgorithm = &EcdsaP256Verify {
     signature_alg_id: alg_id::ECDSA_SHA512,
-    verify: |key, signature, message| key.verify_asn1::<hash::Sha512>(&[message], signature),
+    verify: |key, signature, message| key.verify_asn1::<hashing::Sha512>(&[message], signature),
 };
 
 static ECDSA_P384_SHA256: &dyn SignatureVerificationAlgorithm = &EcdsaP384Verify {
     signature_alg_id: alg_id::ECDSA_SHA256,
-    verify: |key, signature, message| key.verify_asn1::<hash::Sha256>(&[message], signature),
+    verify: |key, signature, message| key.verify_asn1::<hashing::Sha256>(&[message], signature),
 };
 
 static ECDSA_P384_SHA384: &dyn SignatureVerificationAlgorithm = &EcdsaP384Verify {
     signature_alg_id: alg_id::ECDSA_SHA384,
-    verify: |key, signature, message| key.verify_asn1::<hash::Sha384>(&[message], signature),
+    verify: |key, signature, message| key.verify_asn1::<hashing::Sha384>(&[message], signature),
 };
 
 static ECDSA_P384_SHA512: &dyn SignatureVerificationAlgorithm = &EcdsaP384Verify {
     signature_alg_id: alg_id::ECDSA_SHA512,
-    verify: |key, signature, message| key.verify_asn1::<hash::Sha512>(&[message], signature),
+    verify: |key, signature, message| key.verify_asn1::<hashing::Sha512>(&[message], signature),
 };
 
 static RSA_PSS_SHA256: &dyn SignatureVerificationAlgorithm = &RsaVerify {
@@ -103,7 +103,7 @@ static RSA_PKCS1_SHA512: &dyn SignatureVerificationAlgorithm = &RsaVerify {
 struct RsaVerify {
     signature_alg_id: AlgorithmIdentifier,
     #[allow(clippy::type_complexity)]
-    verify: fn(&RsaPublicVerificationKey, &[u8], &[u8]) -> Result<(), graviola::Error>,
+    verify: fn(&rsa::VerifyingKey, &[u8], &[u8]) -> Result<(), graviola::Error>,
 }
 
 impl SignatureVerificationAlgorithm for RsaVerify {
@@ -121,7 +121,7 @@ impl SignatureVerificationAlgorithm for RsaVerify {
         message: &[u8],
         signature: &[u8],
     ) -> Result<(), InvalidSignature> {
-        RsaPublicVerificationKey::from_pkcs1_der(public_key)
+        rsa::VerifyingKey::from_pkcs1_der(public_key)
             .and_then(|pk| (self.verify)(&pk, signature, message))
             .map_err(|_| InvalidSignature)
     }

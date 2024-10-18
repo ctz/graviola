@@ -22,7 +22,7 @@ if __name__ == "__main__":
                 "z.len() == x.len()",
                 "z.len() == m.len()",
             ],
-            rust_decl="pub fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64])",
+            rust_decl="fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64])",
         )
         parse_file(input, d)
 
@@ -38,7 +38,7 @@ if __name__ == "__main__":
                 ("out", "rax", "ret"),
             ],
             return_value=("u64", "ret", "ret as usize"),
-            rust_decl="pub fn bignum_bitsize(x: &[u64]) -> usize",
+            rust_decl="fn bignum_bitsize(x: &[u64]) -> usize",
         )
         parse_file(input, d)
 
@@ -57,7 +57,7 @@ if __name__ == "__main__":
             ],
             return_value=("u64", "ret", "ret"),
             hoist=["linear", "ytoploop", "ret"],
-            rust_decl="pub fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64",
+            rust_decl="fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64",
         )
         parse_file(input, d)
 
@@ -78,7 +78,7 @@ if __name__ == "__main__":
             assertions=[
                 "z.len() >= x.len() + y.len()",
             ],
-            rust_decl="pub fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64])",
+            rust_decl="fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64])",
         )
         parse_file(input, d)
 
@@ -97,7 +97,7 @@ if __name__ == "__main__":
                 ("inout", "r9", "y.as_ptr() => _"),
             ],
             hoist=["linear", "tail", "ret"],
-            rust_decl="pub fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64])",
+            rust_decl="fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64])",
         )
         parse_file(input, d)
 
@@ -119,7 +119,7 @@ if __name__ == "__main__":
                 "z.len() == y.len()",
                 "z.len() == m.len()",
             ],
-            rust_decl="pub fn bignum_modsub(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64])",
+            rust_decl="fn bignum_modsub(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64])",
         )
         parse_file(input, d)
 
@@ -138,7 +138,7 @@ if __name__ == "__main__":
                 ("inout", "r9", "p => _"),
             ],
             assertions=["z.len() == m.len()"],
-            rust_decl="pub fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64)",
+            rust_decl="fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64)",
         )
         parse_file(input, d)
 
@@ -156,7 +156,7 @@ if __name__ == "__main__":
                 ("out", "rax", "ret"),
             ],
             return_value=("u64", "ret", "ret as usize"),
-            rust_decl="pub fn bignum_digitsize(z: &[u64]) -> usize",
+            rust_decl="fn bignum_digitsize(z: &[u64]) -> usize",
         )
         parse_file(input, d)
 
@@ -210,7 +210,7 @@ if __name__ == "__main__":
                 name,
                 parameter_map=parameter_map,
                 assertions=assertions,
-                rust_decl="pub fn %s(%s)" % (name, params),
+                rust_decl="fn %s(%s)" % (name, params),
                 **extras.get(name, {})
             )
             input = assemble_and_disassemble(input, tool_prefix="x86_64-linux-gnu-")
@@ -233,7 +233,7 @@ if __name__ == "__main__":
             ],
             return_value=["u64", "ret", "ret"],
             assertions=["z.len() == m.len() * 2", "z.len() % 8 == 0"],
-            rust_decl="pub fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64",
+            rust_decl="fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64",
         )
 
         input = assemble_and_disassemble(input, tool_prefix="x86_64-linux-gnu-")
@@ -252,7 +252,7 @@ if __name__ == "__main__":
                 ("inout", "rcx", "p => _"),
                 ("inout", "r8", "y.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64)",
+            rust_decl="fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64)",
         )
         parse_file(input, d)
 
@@ -270,7 +270,7 @@ if __name__ == "__main__":
                 ("inout", "rdx", "x.as_ptr() => _"),
             ],
             assertions=["z.len() == x.len()"],
-            rust_decl="pub fn bignum_negmodinv(z: &mut [u64], x: &[u64])",
+            rust_decl="fn bignum_negmodinv(z: &mut [u64], x: &[u64])",
         )
         parse_file(input, d)
 
@@ -291,7 +291,7 @@ if __name__ == "__main__":
                 "z.len() == x.len()",
                 "z.len() == m.len()",
             ],
-            rust_decl="pub fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64])",
+            rust_decl="fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64])",
         )
         parse_file(input, d)
 
@@ -306,7 +306,7 @@ if __name__ == "__main__":
                 ("inout", "x1", "x.as_ptr() => _"),
             ],
             return_value=("u64", "ret", "ret as usize"),
-            rust_decl="pub fn bignum_bitsize(x: &[u64]) -> usize",
+            rust_decl="fn bignum_bitsize(x: &[u64]) -> usize",
         )
         parse_file(input, d)
 
@@ -324,7 +324,7 @@ if __name__ == "__main__":
             ],
             return_value=("u64", "ret", "ret"),
             hoist=["linear", "ytoploop", "ret"],
-            rust_decl="pub fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64",
+            rust_decl="fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64",
         )
         parse_file(input, d)
 
@@ -345,7 +345,7 @@ if __name__ == "__main__":
             assertions=[
                 "z.len() >= x.len() + y.len()",
             ],
-            rust_decl="pub fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64])",
+            rust_decl="fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64])",
         )
         parse_file(input, d)
 
@@ -364,7 +364,7 @@ if __name__ == "__main__":
                 ("inout", "x5", "y.as_ptr() => _"),
             ],
             hoist=["linear", "tail", "ret"],
-            rust_decl="pub fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64])",
+            rust_decl="fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64])",
         )
         parse_file(input, d)
 
@@ -386,7 +386,7 @@ if __name__ == "__main__":
                 "z.len() == y.len()",
                 "z.len() == m.len()",
             ],
-            rust_decl="pub fn bignum_modsub(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64])",
+            rust_decl="fn bignum_modsub(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64])",
         )
         parse_file(input, d)
 
@@ -407,7 +407,7 @@ if __name__ == "__main__":
                 ("inout", "x5", "p => _"),
             ],
             assertions=["z.len() == m.len()"],
-            rust_decl="pub fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64)",
+            rust_decl="fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64)",
         )
         parse_file(input, d)
 
@@ -424,7 +424,7 @@ if __name__ == "__main__":
                 ("inout", "x1", "z.as_ptr() => _"),
             ],
             return_value=("u64", "ret", "ret as usize"),
-            rust_decl="pub fn bignum_digitsize(z: &[u64]) -> usize",
+            rust_decl="fn bignum_digitsize(z: &[u64]) -> usize",
         )
         parse_file(input, d)
 
@@ -488,7 +488,7 @@ if __name__ == "__main__":
                 name,
                 parameter_map=parameter_map,
                 assertions=assertions,
-                rust_decl="pub fn %s(%s)" % (name, params),
+                rust_decl="fn %s(%s)" % (name, params),
                 **extras.get(name, {})
             )
             input = assemble_and_disassemble(input, tool_prefix="aarch64-linux-gnu-")
@@ -510,7 +510,7 @@ if __name__ == "__main__":
             ],
             return_value=["u64", "ret", "ret"],
             assertions=["z.len() == m.len() * 2", "z.len() % 8 == 0"],
-            rust_decl="pub fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64",
+            rust_decl="fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64",
         )
 
         input = assemble_and_disassemble(input, tool_prefix="aarch64-linux-gnu-")
@@ -529,7 +529,7 @@ if __name__ == "__main__":
                 ("inout", "x3", "p => _"),
                 ("inout", "x4", "y.as_ptr() => _"),
             ],
-            rust_decl="pub fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64)",
+            rust_decl="fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64)",
         )
         parse_file(input, d)
 
@@ -547,6 +547,6 @@ if __name__ == "__main__":
                 ("inout", "x2", "x.as_ptr() => _"),
             ],
             assertions=["z.len() == x.len()"],
-            rust_decl="pub fn bignum_negmodinv(z: &mut [u64], x: &[u64])",
+            rust_decl="fn bignum_negmodinv(z: &mut [u64], x: &[u64])",
         )
         parse_file(input, d)

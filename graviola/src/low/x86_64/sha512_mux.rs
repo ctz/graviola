@@ -4,7 +4,7 @@
 use crate::low::generic;
 use crate::low::x86_64;
 
-pub fn sha512_compress_blocks(state: &mut [u64; 8], blocks: &[u8]) {
+pub(crate) fn sha512_compress_blocks(state: &mut [u64; 8], blocks: &[u8]) {
     // nb. avx2 is in our required set.
     if x86_64::cpu::have_cpu_feature!("bmi2") {
         x86_64::sha512::sha512_compress_blocks(state, blocks)

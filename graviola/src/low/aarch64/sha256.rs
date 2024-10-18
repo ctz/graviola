@@ -3,7 +3,7 @@
 
 use core::arch::aarch64::*;
 
-pub fn sha256_compress_blocks(state: &mut [u32; 8], blocks: &[u8]) {
+pub(crate) fn sha256_compress_blocks(state: &mut [u32; 8], blocks: &[u8]) {
     debug_assert!(blocks.len() % 64 == 0);
     // SAFETY: crate requires the `neon` and `sha2` cpu features
     unsafe { sha256(state, blocks) }

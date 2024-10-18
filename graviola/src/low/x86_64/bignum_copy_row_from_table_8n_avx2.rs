@@ -3,7 +3,7 @@
 
 use core::arch::x86_64::*;
 
-pub fn bignum_copy_row_from_table_8n_avx2(
+pub(crate) fn bignum_copy_row_from_table_8n_avx2(
     z: &mut [u64],
     table: &[u64],
     _height: u64,

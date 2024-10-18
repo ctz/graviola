@@ -10,10 +10,19 @@ use crate::mid::rng::SystemRandom;
 use crate::mid::{rsa_priv, rsa_pub};
 use crate::Error;
 
+/// An RSA verification public key.
+///
+/// Keys supported by this library have public moduli between
+/// 2048- and 8192-bits.
 #[derive(Debug)]
-pub struct RsaPublicVerificationKey(rsa_pub::RsaPublicKey);
+pub struct VerifyingKey(rsa_pub::RsaPublicKey);
 
-impl RsaPublicVerificationKey {
+impl VerifyingKey {
+    /// Decodes an RSA public verification key from PKCS#1 DER format.
+    ///
+    /// This format is defined in
+    /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#appendix-A.1.1)
+    /// (and earlier standards, including the original PKCS#1 standard).
     pub fn from_pkcs1_der(bytes: &[u8]) -> Result<Self, Error> {
         let _ = Entry::new_public();
         let decoded = pkix::RSAPublicKey::from_bytes(bytes).map_err(Error::Asn1Error)?;
@@ -34,18 +43,36 @@ impl RsaPublicVerificationKey {
         Ok(Self(pub_key))
     }
 
+    /// Verifies `signature`, using RSASSA-PKCS1-v1_5 with SHA256.
+    ///
+    /// `message` is the (unhashed) signed message.  It is hashed
+    /// using SHA256 by this function.
+    ///
+    /// [`Error::BadSignature`] is returned if the signature is invalid.
     pub fn verify_pkcs1_sha256(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
         let _ = Entry::new_public();
         let hash = hash::Sha256::hash(message);
         self._verify_pkcs1(signature, pkcs1::DIGESTINFO_SHA256, hash.as_ref())
     }
 
+    /// Verifies `signature`, using RSASSA-PKCS1-v1_5 with SHA384.
+    ///
+    /// `message` is the (unhashed) signed message.  It is hashed
+    /// using SHA384 by this function.
+    ///
+    /// [`Error::BadSignature`] is returned if the signature is invalid.
     pub fn verify_pkcs1_sha384(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
         let _ = Entry::new_public();
         let hash = hash::Sha384::hash(message);
         self._verify_pkcs1(signature, pkcs1::DIGESTINFO_SHA384, hash.as_ref())
     }
 
+    /// Verifies `signature`, using RSASSA-PKCS1-v1_5 with SHA512.
+    ///
+    /// `message` is the (unhashed) signed message.  It is hashed
+    /// using SHA512 by this function.
+    ///
+    /// [`Error::BadSignature`] is returned if the signature is invalid.
     pub fn verify_pkcs1_sha512(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
         let _ = Entry::new_public();
         let hash = hash::Sha512::hash(message);
@@ -74,16 +101,55 @@ impl RsaPublicVerificationKey {
         }
     }
 
+    /// Verifies `signature`, using RSASSA-PSS with SHA256.
+    ///
+    /// `saltLength` is fixed as 32 bytes; this is the most common
+    /// option when used with SHA256.
+    ///
+    /// `message` is the (unhashed) signed message.  It is hashed
+    /// using SHA256 by this function.
+    ///
+    /// [`Error::BadSignature`] is returned if the signature is invalid.
+    ///
+    /// RSASSA-PSS is described in
+    /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#section-8.1)
+    /// (and earlier standards, including the original PKCS#1 standard).
     pub fn verify_pss_sha256(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
         let _ = Entry::new_public();
         self._verify_pss::<hash::Sha256>(signature, message)
     }
 
+    /// Verifies `signature`, using RSASSA-PSS with SHA384.
+    ///
+    /// `saltLength` is fixed as 48 bytes; this is the most common
+    /// option when used with SHA384.
+    ///
+    /// `message` is the (unhashed) signed message.  It is hashed
+    /// using SHA384 by this function.
+    ///
+    /// [`Error::BadSignature`] is returned if the signature is invalid.
+    ///
+    /// RSASSA-PSS is described in
+    /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#section-8.1)
+    /// (and earlier standards, including the original PKCS#1 standard).
     pub fn verify_pss_sha384(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
         let _ = Entry::new_public();
         self._verify_pss::<hash::Sha384>(signature, message)
     }
 
+    /// Verifies `signature`, using RSASSA-PSS with SHA512.
+    ///
+    /// `saltLength` is fixed as 64 bytes; this is the most common
+    /// option when used with SHA512.
+    ///
+    /// `message` is the (unhashed) signed message.  It is hashed
+    /// using SHA512 by this function.
+    ///
+    /// [`Error::BadSignature`] is returned if the signature is invalid.
+    ///
+    /// RSASSA-PSS is described in
+    /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#section-8.1)
+    /// (and earlier standards, including the original PKCS#1 standard).
     pub fn verify_pss_sha512(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
         let _ = Entry::new_public();
         self._verify_pss::<hash::Sha512>(signature, message)
@@ -105,9 +171,18 @@ impl RsaPublicVerificationKey {
     }
 }
 
-pub struct RsaPrivateSigningKey(rsa_priv::RsaPrivateKey);
+/// An RSA signing private key.
+///
+/// Keys supported by this library have public moduli between
+/// 2048- and 8192-bits.  Only two-prime RSA keys are supported.
+pub struct SigningKey(rsa_priv::RsaPrivateKey);
 
-impl RsaPrivateSigningKey {
+impl SigningKey {
+    /// Decodes an RSA signing key from PKCS#1 DER format.
+    ///
+    /// This format is defined in
+    /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#appendix-A.1.2)
+    /// (and earlier standards, including the original PKCS#1 standard).
     pub fn from_pkcs1_der(bytes: &[u8]) -> Result<Self, Error> {
         let _ = Entry::new_secret();
         let decoded = pkix::RSAPrivateKey::from_bytes(bytes).map_err(Error::Asn1Error)?;
@@ -137,6 +212,13 @@ impl RsaPrivateSigningKey {
         Ok(Self(priv_key))
     }
 
+    /// Decodes an RSA signing key from PKCS#8 DER format.
+    ///
+    /// This format is defined in
+    /// [RFC5208](https://datatracker.ietf.org/doc/html/rfc5208#section-5)
+    /// (and earlier standards, including the original PKCS#8 standard).
+    ///
+    /// `privateKeyAlgorithm` inside this encoding must be `rsaEncryption`.
     pub fn from_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
         let _ = Entry::new_secret();
         pkcs8::decode_pkcs8(
@@ -147,16 +229,27 @@ impl RsaPrivateSigningKey {
         .and_then(Self::from_pkcs1_der)
     }
 
-    pub fn public_key(&self) -> RsaPublicVerificationKey {
+    /// Returns the matching public key.
+    pub fn public_key(&self) -> VerifyingKey {
         let _ = Entry::new_public();
-        RsaPublicVerificationKey(self.0.public_key())
+        VerifyingKey(self.0.public_key())
     }
 
+    /// Returns the public modulus length, in bytes.
     pub fn modulus_len_bytes(&self) -> usize {
         let _ = Entry::new_public();
         self.0.public_key().modulus_len_bytes()
     }
 
+    /// Signs `message`, using RSASSA-PKCS1-v1_5 with SHA256.
+    ///
+    /// The signature is written to the front of `signature`, is
+    /// precisely [`Self::modulus_len_bytes()`] in length, and
+    /// then the written-to slice is returned.
+    ///
+    /// RSASSA-PKCS1-v1_5 is described in
+    /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#section-8.2)
+    /// (and earlier standards, including the original PKCS#1 standard).
     pub fn sign_pkcs1_sha256<'a>(
         &self,
         signature: &'a mut [u8],
@@ -167,6 +260,15 @@ impl RsaPrivateSigningKey {
         self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA256, hash.as_ref())
     }
 
+    /// Signs `message`, using RSASSA-PKCS1-v1_5 with SHA384.
+    ///
+    /// The signature is written to the front of `signature`, is
+    /// precisely [`Self::modulus_len_bytes()`] in length, and
+    /// then the written-to slice is returned.
+    ///
+    /// RSASSA-PKCS1-v1_5 is described in
+    /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#section-8.2)
+    /// (and earlier standards, including the original PKCS#1 standard).
     pub fn sign_pkcs1_sha384<'a>(
         &self,
         signature: &'a mut [u8],
@@ -177,6 +279,15 @@ impl RsaPrivateSigningKey {
         self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA384, hash.as_ref())
     }
 
+    /// Signs `message`, using RSASSA-PKCS1-v1_5 with SHA512.
+    ///
+    /// The signature is written to the front of `signature`, is
+    /// precisely [`Self::modulus_len_bytes()`] in length, and
+    /// then the written-to slice is returned.
+    ///
+    /// RSASSA-PKCS1-v1_5 is described in
+    /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#section-8.2)
+    /// (and earlier standards, including the original PKCS#1 standard).
     pub fn sign_pkcs1_sha512<'a>(
         &self,
         signature: &'a mut [u8],
@@ -187,6 +298,18 @@ impl RsaPrivateSigningKey {
         self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA512, hash.as_ref())
     }
 
+    /// Signs `message`, using RSASSA-PSS with SHA256.
+    ///
+    /// `saltLength` is fixed as 32 bytes; this is the most common
+    /// option when used with SHA256.
+    ///
+    /// The signature is written to the front of `signature`, is
+    /// precisely [`Self::modulus_len_bytes()`] in length, and
+    /// then the written-to slice is returned.
+    ///
+    /// RSASSA-PSS is described in
+    /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#section-8.1)
+    /// (and earlier standards, including the original PKCS#1 standard).
     pub fn sign_pss_sha256<'a>(
         &self,
         signature: &'a mut [u8],
@@ -196,6 +319,18 @@ impl RsaPrivateSigningKey {
         self._sign_pss::<hash::Sha256>(signature, message)
     }
 
+    /// Signs `message`, using RSASSA-PSS with SHA384.
+    ///
+    /// `saltLength` is fixed as 48 bytes; this is the most common
+    /// option when used with SHA384.
+    ///
+    /// The signature is written to the front of `signature`, is
+    /// precisely [`Self::modulus_len_bytes()`] in length, and
+    /// then the written-to slice is returned.
+    ///
+    /// RSASSA-PSS is described in
+    /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#section-8.1)
+    /// (and earlier standards, including the original PKCS#1 standard).
     pub fn sign_pss_sha384<'a>(
         &self,
         signature: &'a mut [u8],
@@ -205,6 +340,18 @@ impl RsaPrivateSigningKey {
         self._sign_pss::<hash::Sha384>(signature, message)
     }
 
+    /// Signs `message`, using RSASSA-PSS with SHA512.
+    ///
+    /// `saltLength` is fixed as 64 bytes; this is the most common
+    /// option when used with SHA512.
+    ///
+    /// The signature is written to the front of `signature`, is
+    /// precisely [`Self::modulus_len_bytes()`] in length, and
+    /// then the written-to slice is returned.
+    ///
+    /// RSASSA-PSS is described in
+    /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#section-8.1)
+    /// (and earlier standards, including the original PKCS#1 standard).
     pub fn sign_pss_sha512<'a>(
         &self,
         signature: &'a mut [u8],
@@ -258,11 +405,7 @@ impl RsaPrivateSigningKey {
 mod tests {
     use super::*;
 
-    fn check_all_algs(
-        buf: &mut [u8],
-        private: &RsaPrivateSigningKey,
-        public: &RsaPublicVerificationKey,
-    ) {
+    fn check_all_algs(buf: &mut [u8], private: &SigningKey, public: &VerifyingKey) {
         let sig = private.sign_pkcs1_sha256(buf, b"hello").unwrap();
         public.verify_pkcs1_sha256(sig, b"hello").unwrap();
 
@@ -284,8 +427,7 @@ mod tests {
 
     #[test]
     fn pairwise_rsa2048_sign_verify() {
-        let private_key =
-            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa2048.der")).unwrap();
+        let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa2048.der")).unwrap();
 
         check_all_algs(&mut [0u8; 256], &private_key, &private_key.public_key());
     }
@@ -293,39 +435,35 @@ mod tests {
     #[test]
     fn pairwise_rsa2048_sign_verify_pkcs8() {
         let private_key =
-            RsaPrivateSigningKey::from_pkcs8_der(include_bytes!("rsa/rsa2048.pkcs8.der")).unwrap();
+            SigningKey::from_pkcs8_der(include_bytes!("rsa/rsa2048.pkcs8.der")).unwrap();
 
         check_all_algs(&mut [0u8; 256], &private_key, &private_key.public_key());
     }
 
     #[test]
     fn pairwise_rsa3072_sign_verify() {
-        let private_key =
-            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa3072.der")).unwrap();
+        let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa3072.der")).unwrap();
 
         check_all_algs(&mut [0u8; 384], &private_key, &private_key.public_key());
     }
 
     #[test]
     fn pairwise_rsa4096_sign_verify() {
-        let private_key =
-            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa4096.der")).unwrap();
+        let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa4096.der")).unwrap();
 
         check_all_algs(&mut [0u8; 512], &private_key, &private_key.public_key());
     }
 
     #[test]
     fn pairwise_rsa6144_sign_verify() {
-        let private_key =
-            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa6144.der")).unwrap();
+        let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa6144.der")).unwrap();
 
         check_all_algs(&mut [0u8; 768], &private_key, &private_key.public_key());
     }
 
     #[test]
     fn pairwise_rsa8192_sign_verify() {
-        let private_key =
-            RsaPrivateSigningKey::from_pkcs1_der(include_bytes!("rsa/rsa8192.der")).unwrap();
+        let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa8192.der")).unwrap();
 
         check_all_algs(&mut [0u8; 1024], &private_key, &private_key.public_key());
     }
