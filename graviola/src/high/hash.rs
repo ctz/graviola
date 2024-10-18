@@ -6,11 +6,16 @@ use crate::mid::sha2::{Sha256Context, Sha384Context, Sha512Context};
 
 use core::ops::{Deref, DerefMut};
 
+/// Output from a hash function.
+///
+/// This has one variant per supported hash function.
 #[derive(Clone, Debug)]
 pub enum HashOutput {
-    Sha224([u8; 28]),
+    /// Output from SHA256
     Sha256([u8; 32]),
+    /// Output from SHA384
     Sha384([u8; 48]),
+    /// Output from SHA512
     Sha512([u8; 64]),
 }
 
@@ -38,7 +43,6 @@ impl HashOutput {
 impl PartialEq for HashOutput {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (Self::Sha224(s), Self::Sha224(o)) => ct_equal(s, o),
             (Self::Sha256(s), Self::Sha256(o)) => ct_equal(s, o),
             (Self::Sha384(s), Self::Sha384(o)) => ct_equal(s, o),
             (Self::Sha512(s), Self::Sha512(o)) => ct_equal(s, o),
@@ -50,7 +54,6 @@ impl PartialEq for HashOutput {
 impl AsRef<[u8]> for HashOutput {
     fn as_ref(&self) -> &[u8] {
         match self {
-            Self::Sha224(v) => v,
             Self::Sha256(v) => v,
             Self::Sha384(v) => v,
             Self::Sha512(v) => v,
@@ -61,7 +64,6 @@ impl AsRef<[u8]> for HashOutput {
 impl AsMut<[u8]> for HashOutput {
     fn as_mut(&mut self) -> &mut [u8] {
         match self {
-            Self::Sha224(v) => v,
             Self::Sha256(v) => v,
             Self::Sha384(v) => v,
             Self::Sha512(v) => v,
@@ -69,6 +71,7 @@ impl AsMut<[u8]> for HashOutput {
     }
 }
 
+/// One block of hash function input.
 #[derive(Copy, Clone)]
 pub struct HashBlock {
     buf: [u8; 128],
@@ -76,6 +79,7 @@ pub struct HashBlock {
 }
 
 impl HashBlock {
+    /// Creates a new `HashBlock`, containing `len` zeroed bytes.
     fn new(len: usize) -> Self {
         Self {
             buf: [0u8; 128],
@@ -97,23 +101,44 @@ impl DerefMut for HashBlock {
     }
 }
 
+/// A generic trait over supported hash functions.
+///
+/// This exists so (eg.) HMAC may be generic.
 pub trait Hash {
+    /// The associated context type.
     type Context: HashContext;
 
+    /// Create a new hash context.
     fn new() -> Self::Context;
 
+    /// Hash the given bytes (one-shot style) and return the output.
     fn hash(bytes: &[u8]) -> HashOutput;
 
+    /// Return a zeroed `HashBlock` of the correct size.
     fn zeroed_block() -> HashBlock;
 
+    /// Return a zeroed [`HashOutput`] of the correct size.
     fn zeroed_output() -> HashOutput;
 }
 
+/// A generic trait over supported hash function contexts.
+///
+/// These may be cloned: the semantics of that forks the
+/// computation so two different messages with the same
+/// prefix can be computed, without reprocessing the prefix.
+/// This property is essential to efficiently compute HMAC
+/// when used for PBKDF2.
 pub trait HashContext: Clone {
+    /// Hash the given `bytes`.
     fn update(&mut self, bytes: &[u8]);
+
+    /// Complete the computation.
     fn finish(self) -> HashOutput;
 }
 
+/// This is SHA256.
+///
+/// SHA256 is standardized in [FIPS180](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf).
 #[derive(Clone)]
 pub struct Sha256;
 
@@ -149,6 +174,9 @@ impl HashContext for Sha256Context {
     }
 }
 
+/// This is SHA384.
+///
+/// SHA384 is standardized in [FIPS180](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf).
 #[derive(Clone)]
 pub struct Sha384;
 
@@ -184,6 +212,9 @@ impl HashContext for Sha384Context {
     }
 }
 
+/// This is SHA512.
+///
+/// SHA512 is standardized in [FIPS180](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf).
 pub struct Sha512;
 
 impl Hash for Sha512 {
