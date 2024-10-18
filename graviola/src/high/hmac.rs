@@ -4,6 +4,7 @@
 use super::hash::{Hash, HashContext, HashOutput};
 use crate::Error;
 
+/// An in-progress HMAC computation, using hash function `H`.
 #[derive(Clone)]
 pub struct Hmac<H: Hash> {
     inner: H::Context,
@@ -11,6 +12,7 @@ pub struct Hmac<H: Hash> {
 }
 
 impl<H: Hash> Hmac<H> {
+    /// Create a new [`Hmac<H>`] using the given key material.
     pub fn new(key: impl AsRef<[u8]>) -> Self {
         let mut key_block = H::zeroed_block();
 
@@ -42,16 +44,23 @@ impl<H: Hash> Hmac<H> {
         Self { inner, outer }
     }
 
+    /// Add data to be signed.
     pub fn update(&mut self, bytes: impl AsRef<[u8]>) {
         self.inner.update(bytes.as_ref());
     }
 
+    /// Complete the HMAC signing operation, consuming it.
+    ///
+    /// The HMAC output (sometimes called a "signature", or "tag") is returned.
     pub fn finish(mut self) -> HashOutput {
         let inner_output = self.inner.finish();
         self.outer.update(inner_output.as_ref());
         self.outer.finish()
     }
 
+    /// Complete the HMAC signing operation and compare the result against `expected_tag`.
+    ///
+    /// This is done in constant-time.  `expected_tag` may not be truncated.
     pub fn verify(self, expected_tag: &[u8]) -> Result<(), Error> {
         let got = self.finish();
         match got.ct_equal(expected_tag) {
