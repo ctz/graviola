@@ -7,50 +7,128 @@ use crate::mid::p384;
 use crate::mid::rng::RandomSource;
 use crate::Error;
 
-#[allow(private_bounds)]
-pub trait Curve {
+/// A generalisation of elliptic curves for use with ECDSA.
+pub trait Curve: private::Sealed {
+    /// Private key type for this curve.
     type PrivateKey: PrivateKey<Self>;
+
+    /// Public key type for this curve.
     type PublicKey: PublicKey<Self>;
+
+    /// Scalar type for this curve.
     type Scalar: Scalar<Self>;
 
+    /// The curve's OID when used in PKCS#8 key formats.
     fn oid() -> asn1::ObjectId;
+
+    /// Generate a random `PrivateKey`
     fn generate_random_key(rng: &mut dyn RandomSource) -> Result<Self::PrivateKey, Error>;
 }
 
-pub(crate) trait PrivateKey<C: Curve + ?Sized> {
+/// A generic elliptic curve private key scalar, on curve `C`.
+#[allow(unreachable_pub)]
+pub trait PrivateKey<C: Curve + ?Sized> {
+    /// Decode a private key from `bytes`.
+    ///
+    /// `bytes` may be larger or smaller than the size of `n`: excess bytes
+    /// must be zero.  If given a variable-sized input, this is deemed a
+    /// non-secret property.  Prefer to use fixed-sized inputs.
+    ///
+    /// An error is returned if the magnitude of the value is larger than
+    /// `n` (ie, the input is never reduced mod n),  or the value is zero.
     fn from_bytes(bytes: &[u8]) -> Result<Self, Error>
     where
         Self: Sized;
+
+    /// Encode this private key's value into `out`.
+    ///
+    /// The written prefix of `out` is returned.
     fn encode<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error>;
+
+    /// Return the x coordinate of this key's public half.
+    ///
+    /// Note this is returned as a scalar, so this may involve
+    /// a `mod p` to `mod n` reduction.  This is not useful outside
+    /// of ECDSA.
     fn public_key_x_scalar(&self) -> C::Scalar;
+
+    /// Output an uncompressed encoding of this key's public half.
+    ///
+    /// The return value is the written prefix of `out`.
     #[allow(dead_code)] // ??? false positive
     fn public_key_encode_uncompressed<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error>;
+
+    /// The raw RSA signing operation: `(e + r * d) / k`, where self aka `d`.
     fn raw_ecdsa_sign(&self, k: &Self, e: &C::Scalar, r: &C::Scalar) -> C::Scalar;
 }
 
-pub(crate) trait PublicKey<C: Curve + ?Sized> {
-    const LEN_BYTES: usize; // uncompressed
+/// A generic elliptic curve public key point, on curve `C`.
+#[allow(unreachable_pub)]
+pub trait PublicKey<C: Curve + ?Sized> {
+    /// Length of an uncompressed x9.62 encoding of this point.
+    ///
+    /// This must include the uncompressed indicator byte `0x04`.
+    const LEN_BYTES: usize;
 
+    /// Decode a point from its uncompressed encoding.
+    ///
+    /// `bytes` must be precisely `LEN_BYTES` in length.
+    ///
+    /// An error is returned for the wrong length, wrong indicator
+    /// byte, or if the resulting point is not on the curve.
     fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error>
     where
         Self: Sized;
+
+    /// Raw ECDSA verification primitive.
     fn raw_ecdsa_verify(&self, r: &C::Scalar, s: &C::Scalar, e: &C::Scalar) -> Result<(), Error>;
 }
 
-pub(crate) trait Scalar<C: Curve + ?Sized> {
+/// A generic elliptic curve scalar, on curve `C`.
+#[allow(unreachable_pub)]
+pub trait Scalar<C: Curve + ?Sized> {
+    /// Length of an encoded scalar.
     const LEN_BYTES: usize;
 
+    /// Decode a scalar from `bytes`.
+    ///
+    /// `bytes` may be larger or smaller than the size of `n`: excess bytes
+    /// must be zero.  If given a variable-sized input, this is deemed a
+    /// non-secret property.  Prefer to use fixed-sized inputs.
+    ///
+    /// An error is returned if the magnitude of the value is larger than
+    /// `n` (ie, the input is never reduced mod n),  or the value is zero.
     fn from_bytes_checked(bytes: &[u8]) -> Result<Self, Error>
     where
         Self: Sized;
+
+    /// Decode a scalar from `bytes`, reducing it `mod n`.
+    ///
+    /// This may return a zero scalar (for any even multiple of `n`);
+    /// this can be checked with `is_zero`.
     fn from_bytes_reduced(bytes: &[u8]) -> Self;
+
+    /// Return true if this scalar is zero.
     fn is_zero(&self) -> bool;
+
+    /// Write a fixed-length encoding of the scalar to the front of `target`.
+    ///
+    /// `Self::LEN_BYTES` gives the number of bytes written.
     fn write_bytes(&self, target: &mut [u8]);
+}
+
+mod private {
+    pub trait Sealed {}
 }
 
 // enough for P521
 pub(crate) const MAX_SCALAR_LEN: usize = 66;
 
+/// This is the elliptic curve "P-256".
+///
+/// P-256 is also known as "NISTP256", "prime256v1", or "secp256r1".
+///
+/// See [SEC1](https://www.secg.org/sec1-v2.pdf) for one definition.
 pub struct P256;
 
 impl Curve for P256 {
@@ -66,6 +144,8 @@ impl Curve for P256 {
         p256::PrivateKey::generate(rng)
     }
 }
+
+impl private::Sealed for P256 {}
 
 impl PrivateKey<P256> for p256::PrivateKey {
     fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
@@ -136,6 +216,11 @@ impl Scalar<P256> for p256::Scalar {
     }
 }
 
+/// This is the elliptic curve "P-384".
+///
+/// P-384 is also known as "NISTP384", or "secp384r1".
+///
+/// See [SEC1](https://www.secg.org/sec1-v2.pdf) for one definition.
 pub struct P384;
 
 impl Curve for P384 {
@@ -151,6 +236,8 @@ impl Curve for P384 {
         p384::PrivateKey::generate(rng)
     }
 }
+
+impl private::Sealed for P384 {}
 
 impl PrivateKey<P384> for p384::PrivateKey {
     fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
