@@ -10,7 +10,13 @@ use crate::error::{Error, KeyFormatError};
 use crate::low::{zeroise, Entry};
 use crate::mid::rng::{RandomSource, SystemRandom};
 
+/// An ECDSA signing key, on curve `C`.
+///
+/// You can make one of these by loading a key from a file
+/// with [`Self::from_pkcs8_der()`] or [`Self::from_sec1_der()`],
+/// or by generating a random key using [`Curve::generate_random_key()`].
 pub struct SigningKey<C: Curve> {
+    /// The private key.
     pub private_key: C::PrivateKey,
 }
 
@@ -93,11 +99,9 @@ impl<C: Curve> SigningKey<C> {
 
     /// This is RFC6979 deterministic ECDSA signing, _with added randomness_.
     ///
-    /// What? Why?
-    ///
-    /// Deterministic ECDSA is good for implementation quality (we can test
-    /// and validate the selection of `k` is good, and that is absolutely crucial),
-    /// but theoretically behaves worse under fault attacks.
+    /// Rationale: deterministic ECDSA is good for implementation quality (we
+    /// can test and validate the selection of `k` is good, and that is
+    /// absolutely crucial), but theoretically behaves worse under fault attacks.
     ///
     /// The added randomness is non-critical, assuming the design of HMAC_DRBG
     /// is OK.
@@ -149,7 +153,9 @@ impl<C: Curve> SigningKey<C> {
     }
 }
 
+/// An ECDSA verification key, on curve `C`.
 pub struct VerifyingKey<C: Curve> {
+    /// The public key.
     pub public_key: C::PublicKey,
 }
 
@@ -167,7 +173,8 @@ impl<C: Curve> VerifyingKey<C> {
     ///
     /// `signature` is the purported signature.
     ///
-    /// Returns nothing when the signature is valid, or `Error::BadSignature` if not.
+    /// Returns `Ok(())` when the signature is valid, or an error if not (typically --
+    /// but not limited to -- `Error::BadSignature`).
     pub fn verify<H: Hash>(&self, message: &[&[u8]], signature: &[u8]) -> Result<(), Error> {
         let _ = Entry::new_public();
         if signature.len() != C::Scalar::LEN_BYTES * 2 {
