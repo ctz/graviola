@@ -5,19 +5,25 @@ use super::util;
 use crate::low;
 use crate::mid::rng::{RandomSource, SystemRandom};
 
+/// An X25519 private key.
 pub struct PrivateKey([u64; 4]);
 
 impl PrivateKey {
+    /// Create an X25519 [`PrivateKey`] from a byte slice.
+    ///
+    /// This must be exactly 32 bytes in length.
     pub fn try_from_slice(b: &[u8]) -> Result<Self, ()> {
         let _ = low::Entry::new_secret();
         util::little_endian_slice_to_u64x4(b).map(Self).ok_or(())
     }
 
+    /// Create an X25519 [`PrivateKey`] from a byte array.
     pub fn from_array(b: &[u8; 32]) -> Self {
         let _ = low::Entry::new_secret();
         Self(util::little_endian_to_u64x4(b))
     }
 
+    /// Extract the bytes of this private key.
     pub fn as_bytes(&self) -> [u8; 32] {
         let _ = low::Entry::new_secret();
         util::u64x4_to_little_endian(&self.0)
@@ -41,6 +47,9 @@ impl PrivateKey {
         PublicKey(res)
     }
 
+    /// Do the Diffie-Hellman operation.
+    ///
+    /// `peer` is the peer's public key.  Returns a shared secret.
     pub fn diffie_hellman(self, peer: &PublicKey) -> SharedSecret {
         let _ = low::Entry::new_secret();
         let mut res = [0u64; 4];
@@ -55,25 +64,32 @@ impl Drop for PrivateKey {
     }
 }
 
+/// An X25519 public key.
 pub struct PublicKey([u64; 4]);
 
 impl PublicKey {
+    /// Create an X25519 [`PublicKey`] from a byte slice.
+    ///
+    /// This must be exactly 32 bytes in length.
     pub fn try_from_slice(b: &[u8]) -> Result<Self, ()> {
         let _ = low::Entry::new_public();
         util::little_endian_slice_to_u64x4(b).map(Self).ok_or(())
     }
 
+    /// Create an X25519 [`PublicKey`] from a byte array.
     pub fn from_array(b: &[u8; 32]) -> Self {
         let _ = low::Entry::new_public();
         Self(util::little_endian_to_u64x4(b))
     }
 
+    /// Extract the bytes of this public key.
     pub fn as_bytes(&self) -> [u8; 32] {
         let _ = low::Entry::new_public();
         util::u64x4_to_little_endian(&self.0)
     }
 }
 
+/// A shared secret resulting from a X25519 Diffie-Hellman operation.
 pub struct SharedSecret(pub [u8; 32]);
 
 impl Drop for SharedSecret {

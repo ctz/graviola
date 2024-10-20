@@ -10,6 +10,7 @@ use core::fmt;
 
 mod precomp;
 
+/// A P-256 public key.
 #[derive(Clone, Debug)]
 pub struct PublicKey {
     point: AffineMontPoint,
@@ -17,12 +18,18 @@ pub struct PublicKey {
 }
 
 impl PublicKey {
+    /// Create an P-256 [`PublicKey`] from a byte slice.
+    ///
+    /// This must be exactly 65 bytes in length, using the X9.62
+    /// uncompressed encoding.  An error is returned if the point is
+    /// not on the curve.
     pub fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         let _ = low::Entry::new_public();
         let point = AffineMontPoint::from_x962_uncompressed(bytes)?;
         Ok(Self::from_affine(point))
     }
 
+    /// Encodes this public key using the X9.62 uncompressed encoding.
     pub fn as_bytes_uncompressed(&self) -> [u8; 65] {
         let _ = low::Entry::new_public();
         self.point.as_bytes_uncompressed()
@@ -70,33 +77,64 @@ impl PublicKey {
     }
 }
 
+/// A P-256 private key.
 pub struct PrivateKey {
     scalar: Scalar,
 }
 
 impl PrivateKey {
+    /// Decode a private key from `bytes`.
+    ///
+    /// `bytes` may be larger or smaller than the size of `n`: excess bytes
+    /// must be zero.  If given a variable-sized input, this is deemed a
+    /// non-secret property.  Prefer to use fixed-sized inputs.
+    ///
+    /// An error is returned if the magnitude of the value is larger than
+    /// `n` (ie, the input is never reduced mod n),  or the value is zero.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         let _ = low::Entry::new_secret();
         Scalar::from_bytes_checked(bytes).map(|scalar| Self { scalar })
     }
 
+    /// Generate a new random private key using the system RNG.
+    pub fn new_random() -> Result<Self, Error> {
+        Self::generate(&mut SystemRandom)
+    }
+
+    /// Return a fixed-length encoding of this private key's value.
     pub fn as_bytes(&self) -> [u8; 32] {
         let _ = low::Entry::new_secret();
         self.scalar.as_bytes()
     }
 
+    /// Derive the corresponding public key, and return it in
+    /// X9.62 uncompressed encoding.
     pub fn public_key_uncompressed(&self) -> [u8; 65] {
         let _ = low::Entry::new_secret();
         self.public_point().as_bytes_uncompressed()
     }
 
-    pub fn public_key_x_scalar(&self) -> Scalar {
+    /// Do the Diffie-Hellman operation.
+    ///
+    /// `peer` is the peer's public key (and this type means it was
+    /// already checked to be on the curve.)
+    ///
+    /// Returns a [`SharedSecret`].  May return an error in fault conditions.
+    pub fn diffie_hellman(self, peer: &PublicKey) -> Result<SharedSecret, Error> {
         let _ = low::Entry::new_secret();
-        self.public_point().x_scalar()
+        let result =
+            JacobianMontPoint::multiply_wnaf_5(&self.scalar, &peer.precomp_wnaf_5).as_affine();
+        match result.on_curve() {
+            true => Ok(SharedSecret(util::u64x4_to_big_endian(
+                &result.x().demont().0,
+            ))),
+            false => Err(Error::NotOnCurve),
+        }
     }
 
-    pub fn new_random() -> Result<Self, Error> {
-        Self::generate(&mut SystemRandom)
+    pub(crate) fn public_key_x_scalar(&self) -> Scalar {
+        let _ = low::Entry::new_secret();
+        self.public_point().x_scalar()
     }
 
     fn public_point(&self) -> AffineMontPoint {
@@ -120,18 +158,6 @@ impl PrivateKey {
         Err(Error::RngFailed)
     }
 
-    pub fn diffie_hellman(self, peer: &PublicKey) -> Result<SharedSecret, Error> {
-        let _ = low::Entry::new_secret();
-        let result =
-            JacobianMontPoint::multiply_wnaf_5(&self.scalar, &peer.precomp_wnaf_5).as_affine();
-        match result.on_curve() {
-            true => Ok(SharedSecret(util::u64x4_to_big_endian(
-                &result.x().demont().0,
-            ))),
-            false => Err(Error::NotOnCurve),
-        }
-    }
-
     pub(crate) fn raw_ecdsa_sign(&self, k: &Self, e: &Scalar, r: &Scalar) -> Scalar {
         // this is (e + r * d) / k
         let lhs_mont = self
@@ -151,6 +177,7 @@ impl fmt::Debug for PrivateKey {
     }
 }
 
+/// A shared secret output from a P-256 Diffie-Hellman operation.
 pub struct SharedSecret(pub [u8; 32]);
 
 impl Drop for SharedSecret {
