@@ -41,7 +41,7 @@ impl PrivateKey {
         PublicKey(res)
     }
 
-    pub fn diffie_hellman(&self, peer: &PublicKey) -> SharedSecret {
+    pub fn diffie_hellman(self, peer: &PublicKey) -> SharedSecret {
         let _ = low::Entry::new_secret();
         let mut res = [0u64; 4];
         low::curve25519_x25519(&mut res, &self.0, &peer.0);
@@ -125,8 +125,9 @@ mod tests {
         let mut k = PrivateKey::from_array(&res.as_bytes());
 
         for _ in 1..1000 {
+            let new_u = PublicKey::from_array(&k.as_bytes());
             let res = k.diffie_hellman(&u);
-            u = PublicKey::from_array(&k.as_bytes());
+            u = new_u;
             k = PrivateKey::from_array(&res.0);
         }
 
@@ -138,8 +139,9 @@ mod tests {
         if option_env!("SLOW_TESTS").is_some() {
             // After 1,000,000 iterations: 7c3911e0ab2586fd864497297e575e6f3bc601c0883c30df5f4dd2d24f665424
             for _ in 1000..1000_000 {
+                let new_u = PublicKey::from_array(&k.as_bytes());
                 let res = k.diffie_hellman(&u);
-                u = PublicKey::from_array(&k.as_bytes());
+                u = new_u;
                 k = PrivateKey::from_array(&res.0);
             }
 

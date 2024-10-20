@@ -119,7 +119,7 @@ impl PrivateKey {
         Err(Error::RngFailed)
     }
 
-    pub fn diffie_hellman(&self, peer: &PublicKey) -> Result<SharedSecret, Error> {
+    pub fn diffie_hellman(self, peer: &PublicKey) -> Result<SharedSecret, Error> {
         let _ = low::Entry::new_secret();
         let result =
             JacobianMontPoint::multiply_wnaf_5(&self.scalar, &peer.precomp_wnaf_5).as_affine();
