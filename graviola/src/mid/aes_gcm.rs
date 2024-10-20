@@ -5,12 +5,28 @@ use crate::low::ghash::{Ghash, GhashTable};
 use crate::low::{aes_gcm, ct_equal, AesKey, Entry};
 use crate::Error;
 
+/// An AES-GCM key.
+///
+/// Making one of these is relatively expensive due to key
+/// expansion and precomputation.
+///
+/// This implementation is limited to that which is commonly
+/// used:
+///
+/// - AES-192 is not supported, as it is rarely used.
+/// - Only nonces that are 12-bytes/96-bits are supported.
 pub struct AesGcm {
     key: AesKey,
     gh: GhashTable,
 }
 
 impl AesGcm {
+    /// Create a new `AesGcm` object.
+    ///
+    /// `key` must be 16 or 32 bytes, corresponding
+    /// to AES-128 or AES-256.  This function panics otherwise.
+    ///
+    /// (Note: this crate does not support AES-192).  
     pub fn new(key: &[u8]) -> Self {
         let _ = Entry::new_secret();
         let key = AesKey::new(key);
@@ -23,6 +39,14 @@ impl AesGcm {
         Self { key, gh }
     }
 
+    /// Encrypts the given message.
+    ///
+    /// On entry, `cipher_inout` contains the plaintext of the message.
+    /// `nonce` contains the nonce, which must be unique for a given key.
+    /// `aad` is the additionally-authenticated data.  It may be empty.
+    ///
+    /// On exit, `cipher_inout` contains the ciphertext of the message,
+    /// and `tag_out` contains the authentication tag.
     pub fn encrypt(
         &self,
         nonce: &[u8; 12],
@@ -54,6 +78,18 @@ impl AesGcm {
         }
     }
 
+    /// Decrypts and verifies the given message.
+    ///
+    /// On entry, `cipher_inout` contains the ciphertext of the message.
+    /// `nonce` contains the nonce, which must match what was supplied
+    /// when encrypting this message.
+    /// `aad` is the additionally-authenticated data.  It may be empty.
+    /// `tag` is the purported authentication tag.
+    ///
+    /// On success, `cipher_inout` contains the plaintext of the message,
+    /// and `Ok(())` is returned.
+    /// Otherwise, `Ok(Error::DecryptFailed)` is returned and `cipher_inout`
+    /// is cleared.
     pub fn decrypt(
         &self,
         nonce: &[u8; 12],
