@@ -6,15 +6,27 @@ use crate::low::poly1305::Poly1305;
 use crate::low::{ct_equal, zeroise, Entry};
 use crate::Error;
 
+/// A ChaCha20Poly1305 key.
+///
+/// See [RFC7539](https://datatracker.ietf.org/doc/html/rfc7539).
 pub struct ChaCha20Poly1305 {
     key: [u8; 32],
 }
 
 impl ChaCha20Poly1305 {
+    /// Create a new [`ChaCha20Poly1305`] from 32 bytes of key material.
     pub fn new(key: [u8; 32]) -> Self {
         Self { key }
     }
 
+    /// Encrypt the given message.
+    ///
+    /// On entry, `cipher_inout` contains the plaintext of the message.
+    /// `nonce` contains the nonce, which must be unique for a given key.
+    /// `aad` is the additionally-authenticated data.  It may be empty.
+    ///
+    /// On exit, `cipher_inout` contains the ciphertext of the message,
+    /// and `tag_out` contains the authentication tag.
     pub fn encrypt(
         &self,
         nonce: &[u8; 12],
@@ -26,6 +38,18 @@ impl ChaCha20Poly1305 {
         self.cipher(nonce, aad, cipher_inout, tag_out, true);
     }
 
+    /// Decrypts and verifies the given message.
+    ///
+    /// On entry, `cipher_inout` contains the ciphertext of the message.
+    /// `nonce` contains the nonce, which must match what was supplied
+    /// when encrypting this message.
+    /// `aad` is the additionally-authenticated data.  It may be empty.
+    /// `tag` is the purported authentication tag.
+    ///
+    /// On success, `cipher_inout` contains the plaintext of the message,
+    /// and `Ok(())` is returned.
+    /// Otherwise, `Ok(Error::DecryptFailed)` is returned and `cipher_inout`
+    /// is cleared.
     pub fn decrypt(
         &self,
         nonce: &[u8; 12],
