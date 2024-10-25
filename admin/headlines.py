@@ -2,6 +2,7 @@
 
 from os import path
 import json
+import tomllib
 from io import StringIO
 
 archs = "aarch64 x86_64".split()
@@ -73,6 +74,37 @@ notes = {
     }
 }
 
+
+def from_cargo_lock(*packages):
+    def _from_cargo_lock(arch):
+        out = []
+        for package in sorted(packages):
+            lock = tomllib.load(open(path.join("reports", arch, "Cargo.lock"), "rb"))
+            candidate = [p for p in lock.get("package", []) if p["name"] == package]
+            if len(candidate) == 1:
+                p = candidate[0]
+                out.append("{} <tt>{}</tt>".format(p["name"], p["version"]))
+            else:
+                print(f"WARNING: no version information for {package} on {arch}")
+        return ", ".join(out)
+
+    return _from_cargo_lock
+
+
+def from_golang_log(arch):
+    lines = open(path.join("reports", arch, "report", "golang.txt")).readlines()
+    return "<tt>{}</tt>".format(lines[1])
+
+
+impl_versions = {
+    "aws-lc-rs": from_cargo_lock("aws-lc-rs", "aws-lc-sys"),
+    "graviola": from_cargo_lock("graviola"),
+    "dalek": from_cargo_lock("x25519-dalek", "curve25519-dalek"),
+    "ring": from_cargo_lock("ring"),
+    "golang": from_golang_log,
+    "rustcrypto": from_cargo_lock("aes-gcm", "sha2", "p256", "p384", "rsa"),
+}
+
 results = []
 
 standings = ["🥇", "🥈", "🥉", " ", " "]
@@ -129,11 +161,12 @@ for arch, descs in sorted(tree.items()):
             file=fragment,
         )
         for key in keys:
-            impls = descs[key]["measures"]
+            kimpls = descs[key]["measures"]
             print("<tr><td>{}</td>".format(descs[key]["name"]), file=fragment)
 
             for standing, impl in zip(
-                standings, sorted(impls.keys(), key=lambda b: impls[b][1], reverse=True)
+                standings,
+                sorted(kimpls.keys(), key=lambda b: kimpls[b][1], reverse=True),
             ):
                 note = notes.get(arch, {}).get(impl, {}).get(key, None)
                 note = (
@@ -143,7 +176,7 @@ for arch, descs in sorted(tree.items()):
                 )
                 print(
                     "<td class='{}'>{}<h3>{} {}</h3>{}</td>".format(
-                        impl, note, standing, impl, impls[impl][0]
+                        impl, note, standing, impl, kimpls[impl][0]
                     ),
                     file=fragment,
                 )
@@ -151,6 +184,11 @@ for arch, descs in sorted(tree.items()):
 
         print("</table>", file=fragment)
 
+    print('<h3 name="versions">Versions tested</h3>', file=fragment)
+    for i in sorted(impls):
+        print(
+            "<li>{} version: {}</li>".format(i, impl_versions[i](arch)), file=fragment
+        )
 
 html = open("index.html").readlines()
 out = open("index.html.new", "w")
