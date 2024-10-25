@@ -9,7 +9,7 @@ codspeed-criterion-compat = { optional = true, version = "2" }
 
 [dev-dependencies]
 aes-gcm = "0.10"
-aws-lc-rs = "1"
+aws-lc-rs = { version = "1", features = ["non-fips"], default-features = false }
 chacha20poly1305 = "0.10"
 criterion = "0.5"
 hex = { version = "0.4", features = ["serde"] }
