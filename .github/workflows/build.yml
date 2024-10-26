@@ -49,7 +49,7 @@ jobs:
     - name: Build (release)
       run: cargo build -p graviola --release
     - name: Run tests (release)
-      run: cargo test --release
+      run: env SLOW_TESTS=1 cargo test --release
 
     - name: Artificial CPU feature tests (x86_64)
       if: runner.arch == 'X64'
