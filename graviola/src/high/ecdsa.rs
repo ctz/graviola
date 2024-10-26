@@ -269,6 +269,7 @@ mod tests {
     use crate::high::{curve, hash};
     use crate::mid::rng::SliceRandomSource;
     use crate::mid::rng::SystemRandom;
+    use crate::test::*;
 
     #[test]
     fn smoke_test_loading_keys() {
@@ -447,5 +448,135 @@ mod tests {
             ]
         );
         v.verify::<hash::Sha256>(&[b"wv[vnX"], &signature).unwrap();
+    }
+
+    #[test]
+    fn cavp_sigver() {
+        #[derive(Debug, Default)]
+        struct State {
+            param: String,
+            msg: Vec<u8>,
+            px: Vec<u8>,
+            py: Vec<u8>,
+            r: Vec<u8>,
+            s: Vec<u8>,
+        }
+
+        impl CavpSink for State {
+            fn on_meta(&mut self, meta: &str) {
+                self.param = meta.to_string();
+            }
+
+            fn on_value(&mut self, name: &str, value: Value<'_>) {
+                match name {
+                    "Msg" => self.msg = value.bytes(),
+                    "Qx" => self.px = value.bytes(),
+                    "Qy" => self.py = value.bytes(),
+                    "R" => self.r = value.bytes(),
+                    "S" => self.s = value.bytes(),
+                    "Result" => {
+                        match self.param.as_ref() {
+                            "P-256,SHA-256" | "P-256,SHA-384" | "P-256,SHA-512" => {
+                                pad(&mut self.px, 32);
+                                pad(&mut self.py, 32);
+                                pad(&mut self.r, 32);
+                                pad(&mut self.s, 32);
+
+                                let mut point = vec![0x04];
+                                point.extend_from_slice(&self.px);
+                                point.extend_from_slice(&self.py);
+
+                                let mut sig = vec![];
+                                sig.extend_from_slice(&self.r);
+                                sig.extend_from_slice(&self.s);
+
+                                let vkey =
+                                    VerifyingKey::<curve::P256>::from_x962_uncompressed(&point)
+                                        .unwrap();
+
+                                let result = match self.param.as_ref() {
+                                    "P-256,SHA-256" => {
+                                        vkey.verify::<hash::Sha256>(&[&self.msg], &sig)
+                                    }
+                                    "P-256,SHA-384" => {
+                                        vkey.verify::<hash::Sha384>(&[&self.msg], &sig)
+                                    }
+                                    "P-256,SHA-512" => {
+                                        vkey.verify::<hash::Sha512>(&[&self.msg], &sig)
+                                    }
+                                    _ => todo!("unhandled param"),
+                                };
+
+                                match value.str().chars().next() {
+                                    Some('F') => {
+                                        result.unwrap_err();
+                                    }
+                                    Some('P') => {
+                                        result.unwrap();
+                                    }
+                                    _ => todo!("unrecognised Result {:?}", value.str()),
+                                };
+                                println!("PASS: {}", value.str());
+                            }
+                            "P-384,SHA-256" | "P-384,SHA-384" | "P-384,SHA-512" => {
+                                pad(&mut self.px, 48);
+                                pad(&mut self.py, 48);
+                                pad(&mut self.r, 48);
+                                pad(&mut self.s, 48);
+
+                                let mut point = vec![0x04];
+                                point.extend_from_slice(&self.px);
+                                point.extend_from_slice(&self.py);
+
+                                let mut sig = vec![];
+                                sig.extend_from_slice(&self.r);
+                                sig.extend_from_slice(&self.s);
+
+                                let vkey =
+                                    VerifyingKey::<curve::P384>::from_x962_uncompressed(&point)
+                                        .unwrap();
+
+                                let result = match self.param.as_ref() {
+                                    "P-384,SHA-256" => {
+                                        vkey.verify::<hash::Sha256>(&[&self.msg], &sig)
+                                    }
+                                    "P-384,SHA-384" => {
+                                        vkey.verify::<hash::Sha384>(&[&self.msg], &sig)
+                                    }
+                                    "P-384,SHA-512" => {
+                                        vkey.verify::<hash::Sha512>(&[&self.msg], &sig)
+                                    }
+                                    _ => todo!("unhandled param"),
+                                };
+
+                                match value.str().chars().next() {
+                                    Some('F') => {
+                                        result.unwrap_err();
+                                    }
+                                    Some('P') => {
+                                        result.unwrap();
+                                    }
+                                    _ => todo!("unrecognised Result {:?}", value.str()),
+                                };
+                                println!("PASS: {}", value.str());
+                            }
+
+                            _ => {
+                                println!("unhandled params {}", self.param);
+                            }
+                        };
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        process_cavp("../thirdparty/cavp/ecdsa/SigVer.rsp", &mut State::default());
+    }
+
+    fn pad(v: &mut Vec<u8>, l: usize) {
+        while v.len() < l {
+            v.insert(0, 0x00);
+        }
     }
 }

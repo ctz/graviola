@@ -307,3 +307,147 @@ impl Scalar<P384> for p384::Scalar {
         target.copy_from_slice(&self.as_bytes());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test::*;
+
+    #[test]
+    fn cavp_pkv() {
+        #[derive(Debug, Default)]
+        struct State {
+            curve: String,
+            px: Vec<u8>,
+            py: Vec<u8>,
+        }
+
+        impl CavpSink for State {
+            fn on_meta(&mut self, meta: &str) {
+                self.curve = meta.to_string();
+            }
+
+            fn on_value(&mut self, name: &str, value: Value<'_>) {
+                match name {
+                    "Qx" => self.px = value.bytes(),
+                    "Qy" => self.py = value.bytes(),
+                    "Result" => match self.curve.as_ref() {
+                        "P-256" => {
+                            pad(&mut self.px, 32);
+                            pad(&mut self.py, 32);
+                            let mut point = vec![0x04];
+                            point.extend_from_slice(&self.px);
+                            point.extend_from_slice(&self.py);
+                            let res = <P256 as Curve>::PublicKey::from_x962_uncompressed(&point);
+
+                            match value.str().chars().next() {
+                                Some('F') => {
+                                    res.unwrap_err();
+                                }
+                                Some('P') => {
+                                    res.unwrap();
+                                }
+                                _ => {}
+                            };
+                        }
+                        "P-384" => {
+                            pad(&mut self.px, 48);
+                            pad(&mut self.py, 48);
+                            let mut point = vec![0x04];
+                            point.extend_from_slice(&self.px);
+                            point.extend_from_slice(&self.py);
+                            let res = <P384 as Curve>::PublicKey::from_x962_uncompressed(&point);
+
+                            match value.str().chars().next() {
+                                Some('F') => {
+                                    res.unwrap_err();
+                                }
+                                Some('P') => {
+                                    res.unwrap();
+                                }
+                                _ => {}
+                            };
+                        }
+                        _ => {
+                            println!("unhandled curve {}", self.curve);
+                        }
+                    },
+                    _ => {}
+                }
+            }
+        }
+
+        process_cavp("../thirdparty/cavp/ecdsa/PKV.rsp", &mut State::default());
+    }
+
+    #[test]
+    fn cavp_keypair() {
+        #[derive(Debug, Default)]
+        struct State {
+            curve: String,
+            d: Vec<u8>,
+            px: Vec<u8>,
+            py: Vec<u8>,
+        }
+
+        impl CavpSink for State {
+            fn on_meta(&mut self, meta: &str) {
+                if meta.starts_with("P-") {
+                    self.curve = meta.to_string();
+                }
+            }
+
+            fn on_value(&mut self, name: &str, value: Value<'_>) {
+                match name {
+                    "d" => self.d = value.bytes(),
+                    "Qx" => self.px = value.bytes(),
+                    "Qy" => {
+                        self.py = value.bytes();
+
+                        match self.curve.as_ref() {
+                            "P-256" => {
+                                pad(&mut self.px, 32);
+                                pad(&mut self.py, 32);
+                                let mut point = vec![0x04];
+                                point.extend_from_slice(&self.px);
+                                point.extend_from_slice(&self.py);
+
+                                let res = <P256 as Curve>::PrivateKey::from_bytes(&self.d).unwrap();
+                                let mut buffer = [0u8; 65];
+                                let got = res.public_key_encode_uncompressed(&mut buffer).unwrap();
+                                assert_eq!(point, got);
+                            }
+                            "P-384" => {
+                                pad(&mut self.px, 48);
+                                pad(&mut self.py, 48);
+                                let mut point = vec![0x04];
+                                point.extend_from_slice(&self.px);
+                                point.extend_from_slice(&self.py);
+
+                                let res = <P384 as Curve>::PrivateKey::from_bytes(&self.d).unwrap();
+                                let mut buffer = [0u8; 97];
+                                let got = res.public_key_encode_uncompressed(&mut buffer).unwrap();
+                                assert_eq!(point, got);
+                            }
+                            _ => {
+                                println!("unhandled curve {}", self.curve);
+                            }
+                        };
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        process_cavp(
+            "../thirdparty/cavp/ecdsa/KeyPair.rsp",
+            &mut State::default(),
+        );
+    }
+
+    fn pad(v: &mut Vec<u8>, l: usize) {
+        while v.len() < l {
+            v.insert(0, 0x00);
+        }
+    }
+}

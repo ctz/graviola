@@ -15,14 +15,27 @@ pub(crate) struct Value<'a>(&'a str);
 
 impl Value<'_> {
     pub(crate) fn bytes(&self) -> Vec<u8> {
-        (0..self.0.len())
-            .step_by(2)
-            .map(|i| u8::from_str_radix(&self.0[i..i + 2], 16).unwrap())
-            .collect()
+        if self.0.len() % 2 == 0 {
+            (0..self.0.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(&self.0[i..i + 2], 16).unwrap())
+                .collect()
+        } else {
+            let mut buf = self.0.to_string();
+            buf.insert(0, '0');
+            (0..buf.len())
+                .step_by(2)
+                .map(|i| u8::from_str_radix(&buf[i..i + 2], 16).unwrap())
+                .collect()
+        }
     }
 
     pub(crate) fn int(&self) -> u64 {
         self.0.parse::<u64>().unwrap()
+    }
+
+    pub(crate) fn str(&self) -> &str {
+        self.0
     }
 }
 
