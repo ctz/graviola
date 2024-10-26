@@ -348,4 +348,93 @@ mod tests {
             &mut Cavp::default(),
         );
     }
+
+    #[test]
+    fn cavp_monte_carlo() {
+        #[derive(Debug)]
+        enum Kind {
+            None,
+            Sha256,
+            Sha384,
+            Sha512,
+        }
+
+        #[derive(Debug)]
+        struct Cavp {
+            kind: Kind,
+            seed: Vec<u8>,
+        }
+
+        impl Default for Cavp {
+            fn default() -> Self {
+                Self {
+                    kind: Kind::None,
+                    seed: Vec::new(),
+                }
+            }
+        }
+
+        impl CavpSink for Cavp {
+            fn on_meta(&mut self, meta: &str) {
+                self.kind = match meta {
+                    "L = 32" => Kind::Sha256,
+                    "L = 48" => Kind::Sha384,
+                    "L = 64" => Kind::Sha512,
+                    _ => panic!("unhandled {meta:?}"),
+                };
+            }
+
+            fn on_value(&mut self, name: &str, value: Value<'_>) {
+                match name {
+                    "Seed" => self.seed = value.bytes(),
+                    "COUNT" => {}
+                    "MD" => match self.kind {
+                        Kind::None => {}
+                        Kind::Sha256 => {
+                            self.seed = monte_carlo_1000::<Sha256>(&self.seed);
+                            assert_eq!(self.seed, value.bytes());
+                        }
+                        Kind::Sha384 => {
+                            self.seed = monte_carlo_1000::<Sha384>(&self.seed);
+                            assert_eq!(self.seed, value.bytes());
+                        }
+                        Kind::Sha512 => {
+                            self.seed = monte_carlo_1000::<Sha512>(&self.seed);
+                            assert_eq!(self.seed, value.bytes());
+                        }
+                    },
+                    _ => {
+                        todo!("{self:?} value {name} = {value:?}");
+                    }
+                }
+            }
+        }
+
+        fn monte_carlo_1000<H: Hash>(seed: &[u8]) -> Vec<u8> {
+            let mut window = [seed.to_vec(), seed.to_vec(), seed.to_vec()];
+            for _ in 0..1000 {
+                let mut ctx = H::new();
+                ctx.update(&window[0]);
+                ctx.update(&window[1]);
+                ctx.update(&window[2]);
+                let r = ctx.finish();
+                window.rotate_left(1);
+                window[2].copy_from_slice(r.as_ref());
+            }
+            window[2].clone()
+        }
+
+        process_cavp(
+            "../thirdparty/cavp/sha2/SHA256Monte.rsp",
+            &mut Cavp::default(),
+        );
+        process_cavp(
+            "../thirdparty/cavp/sha2/SHA384Monte.rsp",
+            &mut Cavp::default(),
+        );
+        process_cavp(
+            "../thirdparty/cavp/sha2/SHA512Monte.rsp",
+            &mut Cavp::default(),
+        );
+    }
 }
