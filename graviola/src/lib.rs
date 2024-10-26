@@ -44,6 +44,10 @@ mod high;
 /// Errors.  Common to all layers.
 mod error;
 
+/// Test infrastructure.
+#[cfg(test)]
+mod test;
+
 // vvv Public API
 pub use error::Error;
 
