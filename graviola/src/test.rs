@@ -51,7 +51,7 @@ pub(crate) fn process_cavp(filename: impl AsRef<Path>, sink: &mut dyn CavpSink) 
 
             sink.on_value(name, Value(value));
         } else {
-            println!("ignored {line}");
+            sink.on_value(&line, Value(""));
         }
     }
 }

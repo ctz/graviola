@@ -137,6 +137,8 @@ impl AesGcm {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test::*;
+
     #[test]
     fn smoketest() {
         let t = AesGcm::new(&[0; 16]);
@@ -173,5 +175,105 @@ mod tests {
             .unwrap();
 
         assert_eq!(plain, &[b'p'; 4164]);
+    }
+
+    #[test]
+    fn cavp() {
+        #[derive(Default)]
+        struct State {
+            encrypt: bool,
+            key: Option<AesGcm>,
+            nonce: Vec<u8>,
+            ct: Vec<u8>,
+            aad: Vec<u8>,
+            pt: Vec<u8>,
+            tag: Vec<u8>,
+        }
+
+        impl CavpSink for State {
+            fn on_meta(&mut self, _meta: &str) {}
+
+            fn on_value(&mut self, name: &str, value: Value<'_>) {
+                match name {
+                    "Count" => println!("  test {}", value.int()),
+                    "Key" => self.key = Some(AesGcm::new(&value.bytes())),
+                    "IV" => self.nonce = value.bytes(),
+                    "CT" => self.ct = value.bytes(),
+                    "AAD" => self.aad = value.bytes(),
+                    "Tag" if !self.encrypt => self.tag = value.bytes(),
+                    "Tag" if self.encrypt => {
+                        if self.nonce.len() != 12 {
+                            println!("skip unhandled nonce len");
+                            return;
+                        }
+                        let mut got_tag = [0u8; 16];
+                        self.key.as_ref().unwrap().encrypt(
+                            &self.nonce[..].try_into().unwrap(),
+                            &self.aad,
+                            &mut self.pt,
+                            &mut got_tag,
+                        );
+                        assert_eq!(self.pt, self.ct);
+                        let tag = value.bytes();
+                        assert_eq!(&got_tag[..tag.len()], &tag[..]);
+                    }
+                    "FAIL" => {
+                        assert!(!self.encrypt);
+                        if self.nonce.len() != 12 {
+                            println!("skip unhandled nonce len");
+                            return;
+                        }
+                        assert_eq!(
+                            self.key
+                                .as_ref()
+                                .unwrap()
+                                .decrypt(
+                                    &self.nonce[..].try_into().unwrap(),
+                                    &self.aad,
+                                    &mut self.ct,
+                                    &self.tag,
+                                )
+                                .unwrap_err(),
+                            Error::DecryptFailed,
+                        );
+                    }
+                    "PT" if !self.encrypt => {
+                        if self.nonce.len() != 12 || self.tag.len() != 16 {
+                            println!("skip unhandled nonce/tag len");
+                            return;
+                        }
+                        self.key
+                            .as_ref()
+                            .unwrap()
+                            .decrypt(
+                                &self.nonce[..].try_into().expect("only 96-bit nonce"),
+                                &self.aad,
+                                &mut self.ct,
+                                &self.tag,
+                            )
+                            .unwrap();
+                        assert_eq!(self.ct, value.bytes());
+                    }
+                    "PT" if self.encrypt => self.pt = value.bytes(),
+                    _ => {
+                        todo!("unhandled value {name} = {value:?}");
+                    }
+                }
+            }
+        }
+
+        process_cavp(
+            "../thirdparty/cavp/gcm/gcmDecrypt128.rsp",
+            &mut State::default(),
+        );
+        process_cavp(
+            "../thirdparty/cavp/gcm/gcmDecrypt256.rsp",
+            &mut State::default(),
+        );
+
+        let mut state = State::default();
+        state.encrypt = true;
+        process_cavp("../thirdparty/cavp/gcm/gcmEncryptExtIV128.rsp", &mut state);
+        process_cavp("../thirdparty/cavp/gcm/gcmEncryptExtIV256.rsp", &mut state);
     }
 }
