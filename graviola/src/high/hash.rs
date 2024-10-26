@@ -248,3 +248,104 @@ impl HashContext for Sha512Context {
         HashOutput::Sha512(self.finish())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::test::*;
+
+    #[test]
+    fn cavp() {
+        #[derive(Debug)]
+        enum Kind {
+            None,
+            Sha256,
+            Sha384,
+            Sha512,
+        }
+
+        #[derive(Debug)]
+        struct Cavp {
+            kind: Kind,
+            message: Vec<u8>,
+            message_bytes: usize,
+        }
+
+        impl Default for Cavp {
+            fn default() -> Self {
+                Self {
+                    kind: Kind::None,
+                    message: Vec::new(),
+                    message_bytes: 0,
+                }
+            }
+        }
+
+        impl CavpSink for Cavp {
+            fn on_meta(&mut self, meta: &str) {
+                self.kind = match meta {
+                    "L = 32" => Kind::Sha256,
+                    "L = 48" => Kind::Sha384,
+                    "L = 64" => Kind::Sha512,
+                    _ => panic!("unhandled {meta:?}"),
+                };
+            }
+
+            fn on_value(&mut self, name: &str, value: Value<'_>) {
+                match name {
+                    "Len" => self.message_bytes = (value.int() / 8) as usize,
+                    "Msg" => {
+                        self.message = value.bytes();
+                        self.message.truncate(self.message_bytes);
+                    }
+                    "MD" => match self.kind {
+                        Kind::None => {}
+                        Kind::Sha256 => {
+                            let result = Sha256::hash(&self.message);
+                            let wanted = value.bytes();
+                            assert!(result.ct_equal(&wanted));
+                        }
+                        Kind::Sha384 => {
+                            let result = Sha384::hash(&self.message);
+                            let wanted = value.bytes();
+                            assert!(result.ct_equal(&wanted));
+                        }
+                        Kind::Sha512 => {
+                            let result = Sha512::hash(&self.message);
+                            let wanted = value.bytes();
+                            assert!(result.ct_equal(&wanted));
+                        }
+                    },
+                    _ => {
+                        todo!("{self:?} value {name} = {value:?}");
+                    }
+                }
+            }
+        }
+
+        process_cavp(
+            "../thirdparty/cavp/sha2/SHA256ShortMsg.rsp",
+            &mut Cavp::default(),
+        );
+        process_cavp(
+            "../thirdparty/cavp/sha2/SHA256LongMsg.rsp",
+            &mut Cavp::default(),
+        );
+        process_cavp(
+            "../thirdparty/cavp/sha2/SHA384ShortMsg.rsp",
+            &mut Cavp::default(),
+        );
+        process_cavp(
+            "../thirdparty/cavp/sha2/SHA384LongMsg.rsp",
+            &mut Cavp::default(),
+        );
+        process_cavp(
+            "../thirdparty/cavp/sha2/SHA512ShortMsg.rsp",
+            &mut Cavp::default(),
+        );
+        process_cavp(
+            "../thirdparty/cavp/sha2/SHA512LongMsg.rsp",
+            &mut Cavp::default(),
+        );
+    }
+}
