@@ -38,18 +38,101 @@ impl AesKey {
         }
     }
 
-    pub(crate) fn round_keys(&self) -> (uint8x16_t, &[uint8x16_t], uint8x16_t) {
-        match self {
-            Self::Aes128(a128) => (
-                a128.round_keys[0],
-                &a128.round_keys[1..10],
-                a128.round_keys[10],
-            ),
-            Self::Aes256(a256) => (
-                a256.round_keys[0],
-                &a256.round_keys[1..14],
-                a256.round_keys[14],
-            ),
+    pub(crate) fn ctr(&self, initial_counter: &[u8; 16], cipher_inout: &mut [u8]) {
+        // SAFETY: this crate requires the `aes` & `neon` cpu features
+        unsafe { self._ctr(initial_counter, cipher_inout) }
+    }
+
+    #[target_feature(enable = "aes,neon")]
+    unsafe fn _ctr(&self, initial_counter: &[u8; 16], cipher_inout: &mut [u8]) {
+        // counter and inc are big endian, so must be vrev32q_u8'd before use
+        let counter = vld1q_u8(initial_counter.as_ptr().cast());
+        let mut counter = vreinterpretq_u32_u8(vrev32q_u8(counter));
+
+        let inc = vsetq_lane_u8(1, vdupq_n_u8(0), 15);
+        let inc = vreinterpretq_u32_u8(vrev32q_u8(inc));
+
+        let mut by8 = cipher_inout.chunks_exact_mut(128);
+
+        for cipher8 in by8.by_ref() {
+            counter = vaddq_u32(counter, inc);
+            let b0 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b1 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b2 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b3 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b4 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b5 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b6 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b7 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+
+            let (b0, b1, b2, b3, b4, b5, b6, b7) = match self {
+                Self::Aes128(a128) => {
+                    _aes128_8_blocks(&a128.round_keys, b0, b1, b2, b3, b4, b5, b6, b7)
+                }
+                Self::Aes256(a256) => {
+                    _aes256_8_blocks(&a256.round_keys, b0, b1, b2, b3, b4, b5, b6, b7)
+                }
+            };
+
+            let b0 = veorq_u8(vld1q_u8(cipher8.as_ptr().add(0).cast()), b0);
+            let b1 = veorq_u8(vld1q_u8(cipher8.as_ptr().add(16).cast()), b1);
+            let b2 = veorq_u8(vld1q_u8(cipher8.as_ptr().add(32).cast()), b2);
+            let b3 = veorq_u8(vld1q_u8(cipher8.as_ptr().add(48).cast()), b3);
+            let b4 = veorq_u8(vld1q_u8(cipher8.as_ptr().add(64).cast()), b4);
+            let b5 = veorq_u8(vld1q_u8(cipher8.as_ptr().add(80).cast()), b5);
+            let b6 = veorq_u8(vld1q_u8(cipher8.as_ptr().add(96).cast()), b6);
+            let b7 = veorq_u8(vld1q_u8(cipher8.as_ptr().add(112).cast()), b7);
+
+            vst1q_u8(cipher8.as_mut_ptr().add(0).cast(), b0);
+            vst1q_u8(cipher8.as_mut_ptr().add(16).cast(), b1);
+            vst1q_u8(cipher8.as_mut_ptr().add(32).cast(), b2);
+            vst1q_u8(cipher8.as_mut_ptr().add(48).cast(), b3);
+            vst1q_u8(cipher8.as_mut_ptr().add(64).cast(), b4);
+            vst1q_u8(cipher8.as_mut_ptr().add(80).cast(), b5);
+            vst1q_u8(cipher8.as_mut_ptr().add(96).cast(), b6);
+            vst1q_u8(cipher8.as_mut_ptr().add(112).cast(), b7);
+        }
+
+        let mut singles = by8.into_remainder().chunks_exact_mut(16);
+
+        for cipher in singles.by_ref() {
+            counter = vaddq_u32(counter, inc);
+            let block = vrev32q_u8(vreinterpretq_u8_u32(counter));
+
+            let block = match self {
+                Self::Aes128(a128) => _aes128_block(&a128.round_keys, block),
+                Self::Aes256(a256) => _aes256_block(&a256.round_keys, block),
+            };
+            let block = veorq_u8(vld1q_u8(cipher.as_ptr().cast()), block);
+            vst1q_u8(cipher.as_mut_ptr().cast(), block);
+        }
+
+        let cipher_inout = singles.into_remainder();
+        if !cipher_inout.is_empty() {
+            let mut cipher = [0u8; 16];
+            let len = cipher_inout.len();
+            debug_assert!(len < 16);
+            cipher[..len].copy_from_slice(cipher_inout);
+
+            counter = vaddq_u32(counter, inc);
+            let block = vrev32q_u8(vreinterpretq_u8_u32(counter));
+
+            let block = match self {
+                Self::Aes128(a128) => _aes128_block(&a128.round_keys, block),
+                Self::Aes256(a256) => _aes256_block(&a256.round_keys, block),
+            };
+
+            let block = veorq_u8(vld1q_u8(cipher.as_ptr().cast()), block);
+            vst1q_u8(cipher.as_mut_ptr().cast(), block);
+
+            cipher_inout.copy_from_slice(&cipher[..len]);
         }
     }
 }
@@ -179,6 +262,13 @@ const RCON: [u32; 10] = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0
 #[target_feature(enable = "aes")]
 unsafe fn aes128_block(round_keys: &[uint8x16_t; 11], block_inout: &mut [u8]) {
     let block = vld1q_u8(block_inout.as_ptr() as *const _);
+    let block = _aes128_block(round_keys, block);
+    vst1q_u8(block_inout.as_mut_ptr() as *mut _, block);
+}
+
+#[target_feature(enable = "aes")]
+#[inline]
+unsafe fn _aes128_block(round_keys: &[uint8x16_t; 11], block: uint8x16_t) -> uint8x16_t {
     let block = vaeseq_u8(block, round_keys[0]);
     let block = vaesmcq_u8(block);
     let block = vaeseq_u8(block, round_keys[1]);
@@ -198,13 +288,93 @@ unsafe fn aes128_block(round_keys: &[uint8x16_t; 11], block_inout: &mut [u8]) {
     let block = vaeseq_u8(block, round_keys[8]);
     let block = vaesmcq_u8(block);
     let block = vaeseq_u8(block, round_keys[9]);
-    let block = veorq_u8(block, round_keys[10]);
-    vst1q_u8(block_inout.as_mut_ptr() as *mut _, block);
+    veorq_u8(block, round_keys[10])
+}
+
+macro_rules! round_8 {
+    ($b0:ident, $b1:ident, $b2:ident, $b3:ident, $b4:ident, $b5:ident, $b6:ident, $b7:ident, $rk:expr) => {
+        let rk = $rk;
+        $b0 = vaeseq_u8($b0, rk);
+        $b0 = vaesmcq_u8($b0);
+        $b1 = vaeseq_u8($b1, rk);
+        $b1 = vaesmcq_u8($b1);
+        $b2 = vaeseq_u8($b2, rk);
+        $b2 = vaesmcq_u8($b2);
+        $b3 = vaeseq_u8($b3, rk);
+        $b3 = vaesmcq_u8($b3);
+        $b4 = vaeseq_u8($b4, rk);
+        $b4 = vaesmcq_u8($b4);
+        $b5 = vaeseq_u8($b5, rk);
+        $b5 = vaesmcq_u8($b5);
+        $b6 = vaeseq_u8($b6, rk);
+        $b6 = vaesmcq_u8($b6);
+        $b7 = vaeseq_u8($b7, rk);
+        $b7 = vaesmcq_u8($b7);
+    };
+}
+
+#[target_feature(enable = "aes")]
+#[inline]
+unsafe fn _aes128_8_blocks(
+    round_keys: &[uint8x16_t; 11],
+    mut b0: uint8x16_t,
+    mut b1: uint8x16_t,
+    mut b2: uint8x16_t,
+    mut b3: uint8x16_t,
+    mut b4: uint8x16_t,
+    mut b5: uint8x16_t,
+    mut b6: uint8x16_t,
+    mut b7: uint8x16_t,
+) -> (
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+) {
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[0]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[1]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[2]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[3]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[4]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[5]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[6]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[7]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[8]);
+
+    let b0 = vaeseq_u8(b0, round_keys[9]);
+    let b1 = vaeseq_u8(b1, round_keys[9]);
+    let b2 = vaeseq_u8(b2, round_keys[9]);
+    let b3 = vaeseq_u8(b3, round_keys[9]);
+    let b4 = vaeseq_u8(b4, round_keys[9]);
+    let b5 = vaeseq_u8(b5, round_keys[9]);
+    let b6 = vaeseq_u8(b6, round_keys[9]);
+    let b7 = vaeseq_u8(b7, round_keys[9]);
+    (
+        veorq_u8(b0, round_keys[10]),
+        veorq_u8(b1, round_keys[10]),
+        veorq_u8(b2, round_keys[10]),
+        veorq_u8(b3, round_keys[10]),
+        veorq_u8(b4, round_keys[10]),
+        veorq_u8(b5, round_keys[10]),
+        veorq_u8(b6, round_keys[10]),
+        veorq_u8(b7, round_keys[10]),
+    )
 }
 
 #[target_feature(enable = "aes")]
 unsafe fn aes256_block(round_keys: &[uint8x16_t; 15], block_inout: &mut [u8]) {
     let block = vld1q_u8(block_inout.as_ptr() as *const _);
+    let block = _aes256_block(round_keys, block);
+    vst1q_u8(block_inout.as_mut_ptr() as *mut _, block);
+}
+
+#[target_feature(enable = "aes")]
+#[inline]
+unsafe fn _aes256_block(round_keys: &[uint8x16_t; 15], block: uint8x16_t) -> uint8x16_t {
     let block = vaeseq_u8(block, round_keys[0]);
     let block = vaesmcq_u8(block);
     let block = vaeseq_u8(block, round_keys[1]);
@@ -232,8 +402,63 @@ unsafe fn aes256_block(round_keys: &[uint8x16_t; 15], block_inout: &mut [u8]) {
     let block = vaeseq_u8(block, round_keys[12]);
     let block = vaesmcq_u8(block);
     let block = vaeseq_u8(block, round_keys[13]);
-    let block = veorq_u8(block, round_keys[14]);
-    vst1q_u8(block_inout.as_mut_ptr() as *mut _, block);
+    veorq_u8(block, round_keys[14])
+}
+
+#[target_feature(enable = "aes")]
+#[inline]
+unsafe fn _aes256_8_blocks(
+    round_keys: &[uint8x16_t; 15],
+    mut b0: uint8x16_t,
+    mut b1: uint8x16_t,
+    mut b2: uint8x16_t,
+    mut b3: uint8x16_t,
+    mut b4: uint8x16_t,
+    mut b5: uint8x16_t,
+    mut b6: uint8x16_t,
+    mut b7: uint8x16_t,
+) -> (
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+    uint8x16_t,
+) {
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[0]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[1]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[2]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[3]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[4]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[5]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[6]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[7]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[8]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[9]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[10]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[11]);
+    round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[12]);
+
+    let b0 = vaeseq_u8(b0, round_keys[13]);
+    let b1 = vaeseq_u8(b1, round_keys[13]);
+    let b2 = vaeseq_u8(b2, round_keys[13]);
+    let b3 = vaeseq_u8(b3, round_keys[13]);
+    let b4 = vaeseq_u8(b4, round_keys[13]);
+    let b5 = vaeseq_u8(b5, round_keys[13]);
+    let b6 = vaeseq_u8(b6, round_keys[13]);
+    let b7 = vaeseq_u8(b7, round_keys[13]);
+    (
+        veorq_u8(b0, round_keys[14]),
+        veorq_u8(b1, round_keys[14]),
+        veorq_u8(b2, round_keys[14]),
+        veorq_u8(b3, round_keys[14]),
+        veorq_u8(b4, round_keys[14]),
+        veorq_u8(b5, round_keys[14]),
+        veorq_u8(b6, round_keys[14]),
+        veorq_u8(b7, round_keys[14]),
+    )
 }
 
 #[cfg(test)]
