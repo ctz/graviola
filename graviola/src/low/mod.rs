@@ -8,8 +8,6 @@ mod macros;
 pub mod inline_assembly_safety;
 
 mod generic {
-    #[cfg(target_arch = "aarch64")]
-    pub(crate) mod aes_gcm;
     pub(super) mod blockwise;
     #[cfg(target_arch = "aarch64")]
     pub(crate) mod chacha20;
@@ -100,6 +98,7 @@ cfg_if::cfg_if! {
 
         pub(in crate::low) use aarch64::cpu::{enter_cpu_state, zero_bytes, leave_cpu_state, verify_cpu_features};
         pub(crate) use aarch64::aes::AesKey;
+        pub(crate) use aarch64::aes_gcm;
         pub(crate) use aarch64::bignum_add::bignum_add;
         pub(crate) use aarch64::bignum_add_p256::bignum_add_p256;
         pub(crate) use aarch64::bignum_add_p384::bignum_add_p384;
@@ -153,7 +152,6 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::optimise_barrier::optimise_barrier_u8;
 
         pub(crate) use generic::chacha20;
-        pub(crate) use generic::aes_gcm;
         pub(crate) use generic::sha512::sha512_compress_blocks;
     } else {
         compile_error!("This crate only supports x86_64 or aarch64");
