@@ -17,9 +17,9 @@ needed: just the Rust compiler.  Compiles in less than one second.
 
 ## Status
 
-This project is very new, so exercise due caution.  At the moment
-there is not a public API outside of the `rustls` `CryptoProvider` --
-so you can use this for TLS, but not for other uses.
+This project is very new, so exercise due caution.  The overriding
+goal of this crate is for use with `rustls` via [rustls-graviola][],
+but there is also a public API for general-purpose use.
 
 ## Goals
 
