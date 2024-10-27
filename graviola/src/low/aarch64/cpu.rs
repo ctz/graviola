@@ -113,3 +113,27 @@ mod dit {
         }
     }
 }
+
+/// Read-only prefetch hint.
+pub(in crate::low) fn prefetch_ro<T>(ptr: *const T) {
+    // SAFETY: inline assembly
+    unsafe {
+        core::arch::asm!(
+            "prfm pldl1strm, [{ptr}]",
+            ptr = in(reg) ptr,
+            options(readonly, nostack)
+        );
+    }
+}
+
+/// Read-write prefetch hint.
+pub(in crate::low) fn prefetch_rw<T>(ptr: *const T) {
+    // SAFETY: inline assembly
+    unsafe {
+        core::arch::asm!(
+            "prfm pstl1keep, [{ptr}]",
+            ptr = in(reg) ptr,
+            options(readonly, nostack)
+        );
+    }
+}
