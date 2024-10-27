@@ -1,6 +1,7 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use crate::low::aarch64::cpu;
 use core::arch::aarch64::*;
 
 pub(crate) fn sha256_compress_blocks(state: &mut [u32; 8], blocks: &[u8]) {
@@ -60,7 +61,7 @@ unsafe fn sha256(state: &mut [u32; 8], blocks: &[u8]) {
         let state1_prev = state1;
 
         // prefetch next block
-        prefetch(block.as_ptr().add(64));
+        cpu::prefetch_ro(block.as_ptr().add(64));
 
         let msg0 = vld1q_u32(block[0..].as_ptr() as *const _);
         let msg1 = vld1q_u32(block[16..].as_ptr() as *const _);
@@ -98,14 +99,6 @@ unsafe fn sha256(state: &mut [u32; 8], blocks: &[u8]) {
 
     vst1q_u32(state[0..4].as_mut_ptr(), state0);
     vst1q_u32(state[4..8].as_mut_ptr(), state1);
-}
-
-unsafe fn prefetch<T>(ptr: *const T) {
-    core::arch::asm!(
-        "prfm pldl1strm, [{ptr}]",
-        ptr = in(reg) ptr,
-        options(readonly, nostack)
-    );
 }
 
 #[repr(align(16))]

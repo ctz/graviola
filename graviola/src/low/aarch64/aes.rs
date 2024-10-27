@@ -9,6 +9,7 @@
 // cf. the x86_64 version, on which this one is based.
 
 use crate::low;
+use crate::low::aarch64::cpu;
 use core::arch::aarch64::*;
 
 pub(crate) enum AesKey {
@@ -55,6 +56,7 @@ impl AesKey {
         let mut by8 = cipher_inout.chunks_exact_mut(128);
 
         for cipher8 in by8.by_ref() {
+            cpu::prefetch_rw(cipher8.as_ptr());
             counter = vaddq_u32(counter, inc);
             let b0 = vrev32q_u8(vreinterpretq_u8_u32(counter));
             counter = vaddq_u32(counter, inc);
