@@ -13,3 +13,4 @@ pub(super) mod rsa_pub;
 pub mod sha2;
 pub(super) mod util;
 pub(super) mod x25519;
+pub(super) mod xchacha20poly1305;
