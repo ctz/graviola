@@ -83,6 +83,14 @@ fn chacha20_poly1305() {
     check_zeroed_on_drop(Box::pin(chacha));
 }
 
+#[test]
+fn xchacha20_poly1305() {
+    use graviola::aead::XChaCha20Poly1305;
+
+    let xchacha = XChaCha20Poly1305::new([0xffu8; 32]);
+    check_zeroed_on_drop(Box::pin(xchacha));
+}
+
 fn check_zeroed_on_drop<T>(value: Pin<Box<T>>) {
     check_zeroed_on_drop_bounded(value, Bounds::All)
 }
