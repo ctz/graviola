@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use std::fs::File;
 
-use graviola::aead::{AesGcm, ChaCha20Poly1305};
+use graviola::aead::{AesGcm, ChaCha20Poly1305, XChaCha20Poly1305};
 use graviola::hashing::hmac::Hmac;
 use graviola::hashing::{Sha256, Sha384, Sha512};
 use graviola::key_agreement::{p256, p384, x25519};
@@ -687,6 +687,55 @@ fn test_chacha20poly1305() {
             }
 
             let ctx = ChaCha20Poly1305::new(test.key.try_into().unwrap());
+            let nonce = test.iv.try_into().unwrap();
+
+            // try decrypt
+            let mut msg = test.ct.clone();
+            let result = ctx.decrypt(&nonce, &test.aad, &mut msg, &test.tag);
+
+            match (test.result, &result) {
+                (ExpectedResult::Valid, Ok(())) => {
+                    assert_eq!(msg, test.msg);
+                }
+                (ExpectedResult::Invalid, Err(Error::DecryptFailed)) => {}
+                _ => panic!("expected {:?} got {:?}", test.result, result.err()),
+            }
+
+            // and encrypt
+            let mut ct = test.msg.clone();
+            let mut tag = [0u8; 16];
+
+            ctx.encrypt(&nonce, &test.aad, &mut ct, &mut tag);
+
+            if test.result == ExpectedResult::Valid {
+                assert_eq!(ct, test.ct);
+                assert_eq!(&tag, &test.tag[..]);
+            }
+        }
+    }
+}
+
+#[test]
+fn test_xchacha20poly1305() {
+    let data_file =
+        File::open("../thirdparty/wycheproof/testvectors_v1/xchacha20_poly1305_test.json")
+            .expect("failed to open data file");
+
+    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
+
+    for group in tests.groups {
+        summary.group(&group);
+
+        for test in group.tests {
+            summary.start(&test);
+
+            if test.iv.len() != 24 {
+                summary.skipped("xchacha20_poly1305 nonce must be 192 bit");
+                continue;
+            }
+
+            let ctx = XChaCha20Poly1305::new(test.key.try_into().unwrap());
             let nonce = test.iv.try_into().unwrap();
 
             // try decrypt
