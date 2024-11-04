@@ -7,7 +7,7 @@ fn test_rc_chacha(
     aad: &[u8],
     plain: &[u8],
 ) {
-    use aes_gcm::AeadInPlace;
+    use chacha20poly1305::AeadInPlace;
     let mut ct = plain.to_vec();
     let _tag = key
         .encrypt_in_place_detached(nonce.into(), aad, &mut ct)
