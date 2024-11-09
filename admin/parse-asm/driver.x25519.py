@@ -15,9 +15,9 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "curve25519_x25519",
             parameter_map=[
-                ("inout", "rdi", "res.as_mut_ptr() => _"),
-                ("inout", "rsi", "scalar.as_ptr() => _"),
-                ("inout", "rdx", "point.as_ptr() => _"),
+                ("inout", "res.as_mut_ptr() => _"),
+                ("inout", "scalar.as_ptr() => _"),
+                ("inout", "point.as_ptr() => _"),
             ],
             rust_decl="fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[u64; 4])",
         )
@@ -35,8 +35,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "curve25519_x25519base",
             parameter_map=[
-                ("inout", "rdi", "res.as_mut_ptr() => _"),
-                ("inout", "rsi", "scalar.as_ptr() => _"),
+                ("inout", "res.as_mut_ptr() => _"),
+                ("inout", "scalar.as_ptr() => _"),
             ],
             rust_decl="fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4])",
         )
@@ -51,9 +51,9 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "curve25519_x25519_alt",
             parameter_map=[
-                ("inout", "x0", "res.as_mut_ptr() => _"),
-                ("inout", "x1", "scalar.as_ptr() => _"),
-                ("inout", "x2", "point.as_ptr() => _"),
+                ("inout", "res.as_mut_ptr() => _"),
+                ("inout", "scalar.as_ptr() => _"),
+                ("inout", "point.as_ptr() => _"),
             ],
             rust_decl="fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[u64; 4])",
         )
@@ -71,8 +71,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "curve25519_x25519base_alt",
             parameter_map=[
-                ("inout", "x0", "res.as_mut_ptr() => _"),
-                ("inout", "x1", "scalar.as_ptr() => _"),
+                ("inout", "res.as_mut_ptr() => _"),
+                ("inout", "scalar.as_ptr() => _"),
             ],
             rust_decl="fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4])",
         )

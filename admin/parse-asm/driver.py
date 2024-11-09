@@ -24,6 +24,13 @@ class Architecture:
     # instruction mnemonic for unconditional jump; used for hoisting
     unconditional_jump = "str"
 
+    # names of (64-bit) registers, in parameter order per 'standard' ABI
+    fn_arg_regs = []
+
+    # name of 64-bit return register per standard ABI
+    # (only used if this register is not also a parameter register)
+    fn_ret_reg = None
+
     # canonicalise register names, by returning a better name
     # for `reg`.
     #
@@ -52,6 +59,9 @@ class Architecture_amd64(Architecture):
     ignore_clobber = set("rbx rsp rbp rip".split())
 
     unconditional_jump = "jmp"
+
+    fn_arg_regs = "rdi rsi rdx rcx r8 r9".split()
+    fn_ret_reg = "rax"
 
     @staticmethod
     def lookup_register(reg):
@@ -100,6 +110,8 @@ class Architecture_aarch64(Architecture):
     unconditional_jump = "b"
 
     constant_references_must_be_page_aligned = True
+
+    fn_arg_regs = "x0 x1 x2 x3 x4 x5".split()
 
     @staticmethod
     def lookup_register(reg):
@@ -361,6 +373,7 @@ class FunctionState:
         self.skip = False
         self.return_value = None
         self.parameter_map = []
+        self.return_map = []
         self.clobbers = set()
         self.labels = {}
         self.labels_defined = set()
@@ -412,6 +425,7 @@ class RustDriver:
         name,
         parameter_map,
         rust_decl,
+        return_map=[],
         return_value=None,
         assertions=[],
         allow_inline=True,
@@ -421,6 +435,7 @@ class RustDriver:
             name,
             parameter_map,
             rust_decl,
+            return_map=return_map,
             return_value=return_value,
             assertions=assertions,
             allow_inline=allow_inline,
@@ -473,6 +488,7 @@ class RustFormatter(Dispatcher):
         name,
         parameter_map,
         rust_decl,
+        return_map=[],
         return_value=None,
         assertions=[],
         allow_inline=True,
@@ -480,6 +496,7 @@ class RustFormatter(Dispatcher):
     ):
         self.expected_functions[name] = (
             parameter_map,
+            return_map,
             rust_decl,
             return_value,
             allow_inline,
@@ -627,6 +644,7 @@ use crate::low::macros::*;
             else:
                 (
                     parameter_map,
+                    return_map,
                     rust_decl,
                     return_value,
                     allow_inline,
@@ -634,6 +652,7 @@ use crate::low::macros::*;
                     assertions,
                 ) = defn
                 self.function_state.parameter_map = parameter_map
+                self.function_state.return_map = return_map
                 self.function_state.rust_decl = rust_decl
                 self.function_state.return_value = return_value
                 self.function_state.hoist = hoist
@@ -882,15 +901,23 @@ use crate::low::macros::*;
             self.on_asm([], self.arch.unconditional_jump, "hoist_finish")
             return
 
-        for dir, reg, param in self.function_state.parameter_map:
+        regs = list(zip(self.arch.fn_arg_regs, self.function_state.parameter_map)) + (
+            [(self.arch.fn_ret_reg, self.function_state.return_map)]
+            if self.function_state.return_map
+            else []
+        )
+
+        arg_regs = set()
+        for reg, (dir, param) in regs:
             print('%s("%s") %s,' % (dir, reg, param), file=self.output)
+            arg_regs.add(reg)
 
         for c in sorted(self.function_state.referenced_constant_syms):
             print("%s = sym %s," % (c, c), file=self.output)
 
         print("// clobbers", file=self.output)
         for c in sorted(self.function_state.clobbers):
-            if c in [x[1] for x in self.function_state.parameter_map]:
+            if c in arg_regs:
                 continue
             if c in self.arch.ignore_clobber:
                 continue

@@ -15,8 +15,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_montsqr_p384",
             parameter_map=[
-                ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("inout", "rsi", "x.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             rust_decl="fn bignum_montsqr_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
@@ -31,9 +31,9 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_montmul_p384",
             parameter_map=[
-                ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("inout", "rsi", "x.as_ptr() => _"),
-                ("inout", "rdx", "y.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.as_ptr() => _"),
             ],
             rust_decl="fn bignum_montmul_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6])",
         )
@@ -46,9 +46,9 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_add_p384",
             parameter_map=[
-                ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("inout", "rsi", "x.as_ptr() => _"),
-                ("inout", "rdx", "y.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.as_ptr() => _"),
             ],
             rust_decl="fn bignum_add_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6])",
         )
@@ -63,8 +63,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_demont_p384",
             parameter_map=[
-                ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("inout", "rsi", "x.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             rust_decl="fn bignum_demont_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
@@ -79,8 +79,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_tomont_p384",
             parameter_map=[
-                ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("inout", "rsi", "x.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             rust_decl="fn bignum_tomont_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
@@ -93,8 +93,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_neg_p384",
             parameter_map=[
-                ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("inout", "rsi", "x.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             rust_decl="fn bignum_neg_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
@@ -107,8 +107,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_inv_p384",
             parameter_map=[
-                ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("inout", "rsi", "x.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             rust_decl="fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
@@ -121,8 +121,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_mod_n384_6",
             parameter_map=[
-                ("inout", "rdi", "z.as_mut_ptr() => _"),
-                ("inout", "rsi", "x.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             rust_decl="fn bignum_mod_n384(z: &mut [u64; 6], x: &[u64; 6])",
         )
@@ -135,9 +135,9 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "p384_montjadd",
             parameter_map=[
-                ("inout", "rdi", "p3.as_mut_ptr() => _"),
-                ("inout", "rsi", "p1.as_ptr() => _"),
-                ("inout", "rdx", "p2.as_ptr() => _"),
+                ("inout", "p3.as_mut_ptr() => _"),
+                ("inout", "p1.as_ptr() => _"),
+                ("inout", "p2.as_ptr() => _"),
             ],
             rust_decl="fn p384_montjadd(p3: &mut [u64; 18], p1: &[u64; 18], p2: &[u64; 18])",
         )
@@ -150,8 +150,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "p384_montjdouble",
             parameter_map=[
-                ("inout", "rdi", "p3.as_mut_ptr() => _"),
-                ("inout", "rsi", "p1.as_ptr() => _"),
+                ("inout", "p3.as_mut_ptr() => _"),
+                ("inout", "p1.as_ptr() => _"),
             ],
             rust_decl="fn p384_montjdouble(p3: &mut [u64; 18], p1: &[u64; 18])",
         )
@@ -167,8 +167,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_montsqr_p384_neon",
             parameter_map=[
-                ("inout", "x0", "z.as_mut_ptr() => _"),
-                ("inout", "x1", "x.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             rust_decl="fn bignum_montsqr_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
@@ -183,9 +183,9 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_montmul_p384_neon",
             parameter_map=[
-                ("inout", "x0", "z.as_mut_ptr() => _"),
-                ("inout", "x1", "x.as_ptr() => _"),
-                ("inout", "x2", "y.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.as_ptr() => _"),
             ],
             rust_decl="fn bignum_montmul_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6])",
         )
@@ -198,9 +198,9 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_add_p384",
             parameter_map=[
-                ("inout", "x0", "z.as_mut_ptr() => _"),
-                ("inout", "x1", "x.as_ptr() => _"),
-                ("inout", "x2", "y.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.as_ptr() => _"),
             ],
             rust_decl="fn bignum_add_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6])",
         )
@@ -215,8 +215,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_demont_p384",
             parameter_map=[
-                ("inout", "x0", "z.as_mut_ptr() => _"),
-                ("inout", "x1", "x.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             rust_decl="fn bignum_demont_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
@@ -231,8 +231,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_tomont_p384",
             parameter_map=[
-                ("inout", "x0", "z.as_mut_ptr() => _"),
-                ("inout", "x1", "x.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             rust_decl="fn bignum_tomont_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
@@ -245,8 +245,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_neg_p384",
             parameter_map=[
-                ("inout", "x0", "z.as_mut_ptr() => _"),
-                ("inout", "x1", "x.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             rust_decl="fn bignum_neg_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
@@ -259,8 +259,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_inv_p384",
             parameter_map=[
-                ("inout", "x0", "z.as_mut_ptr() => _"),
-                ("inout", "x1", "x.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             rust_decl="fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6])",
         )
@@ -275,8 +275,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_mod_n384_6",
             parameter_map=[
-                ("inout", "x0", "z.as_mut_ptr() => _"),
-                ("inout", "x1", "x.as_ptr() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             rust_decl="fn bignum_mod_n384(z: &mut [u64; 6], x: &[u64; 6])",
         )
@@ -289,9 +289,9 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "p384_montjadd_alt",
             parameter_map=[
-                ("inout", "x0", "p3.as_mut_ptr() => _"),
-                ("inout", "x1", "p1.as_ptr() => _"),
-                ("inout", "x2", "p2.as_ptr() => _"),
+                ("inout", "p3.as_mut_ptr() => _"),
+                ("inout", "p1.as_ptr() => _"),
+                ("inout", "p2.as_ptr() => _"),
             ],
             rust_decl="fn p384_montjadd(p3: &mut [u64; 18], p1: &[u64; 18], p2: &[u64; 18])",
         )
@@ -306,8 +306,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "p384_montjdouble_alt",
             parameter_map=[
-                ("inout", "x0", "p3.as_mut_ptr() => _"),
-                ("inout", "x1", "p1.as_ptr() => _"),
+                ("inout", "p3.as_mut_ptr() => _"),
+                ("inout", "p1.as_ptr() => _"),
             ],
             rust_decl="fn p384_montjdouble(p3: &mut [u64; 18], p1: &[u64; 18])",
         )
