@@ -13,10 +13,10 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_montsqr",
             parameter_map=[
-                ("inout", "rdi", "z.len() => _"),
-                ("inout", "rsi", "z.as_mut_ptr() => _"),
-                ("inout", "rdx", "x.as_ptr() => _"),
-                ("inout", "rcx", "m.as_ptr() => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "m.as_ptr() => _"),
             ],
             assertions=[
                 "z.len() == x.len()",
@@ -33,10 +33,10 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_bitsize",
             parameter_map=[
-                ("inout", "rdi", "x.len() => _"),
-                ("inout", "rsi", "x.as_ptr() => _"),
-                ("out", "rax", "ret"),
+                ("inout", "x.len() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
+            return_map=("out", "ret"),
             return_value=("u64", "ret", "ret as usize"),
             rust_decl="fn bignum_bitsize(x: &[u64]) -> usize",
         )
@@ -49,12 +49,12 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_lt",
             parameter_map=[
-                ("inout", "rdi", "x.len() => _"),
-                ("inout", "rsi", "x.as_ptr() => _"),
-                ("inout", "rdx", "y.len() => _"),
-                ("inout", "rcx", "y.as_ptr() => _"),
-                ("out", "rax", "ret"),
+                ("inout", "x.len() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.len() => _"),
+                ("inout", "y.as_ptr() => _"),
             ],
+            return_map=("out", "ret"),
             return_value=("u64", "ret", "ret"),
             hoist=["linear", "ytoploop", "ret"],
             rust_decl="fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64",
@@ -68,12 +68,12 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_mul",
             parameter_map=[
-                ("inout", "rdi", "z.len() => _"),
-                ("inout", "rsi", "z.as_mut_ptr() => _"),
-                ("inout", "rdx", "x.len() => _"),
-                ("inout", "rcx", "x.as_ptr() => _"),
-                ("inout", "r8", "y.len() => _"),
-                ("inout", "r9", "y.as_ptr() => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.len() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.len() => _"),
+                ("inout", "y.as_ptr() => _"),
             ],
             assertions=[
                 "z.len() >= x.len() + y.len()",
@@ -89,12 +89,12 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_add",
             parameter_map=[
-                ("inout", "rdi", "z.len() => _"),
-                ("inout", "rsi", "z.as_mut_ptr() => _"),
-                ("inout", "rdx", "x.len() => _"),
-                ("inout", "rcx", "x.as_ptr() => _"),
-                ("inout", "r8", "y.len() => _"),
-                ("inout", "r9", "y.as_ptr() => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.len() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.len() => _"),
+                ("inout", "y.as_ptr() => _"),
             ],
             hoist=["linear", "tail", "ret"],
             rust_decl="fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64])",
@@ -108,11 +108,11 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_modsub",
             parameter_map=[
-                ("inout", "rdi", "z.len() => _"),
-                ("inout", "rsi", "z.as_mut_ptr() => _"),
-                ("inout", "rdx", "x.as_ptr() => _"),
-                ("inout", "rcx", "y.as_ptr() => _"),
-                ("inout", "r8", "m.as_ptr() => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.as_ptr() => _"),
+                ("inout", "m.as_ptr() => _"),
             ],
             assertions=[
                 "z.len() == x.len()",
@@ -130,12 +130,12 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_montredc",
             parameter_map=[
-                ("inout", "rdi", "z.len() => _"),
-                ("inout", "rsi", "z.as_mut_ptr() => _"),
-                ("inout", "rdx", "x.len() => _"),
-                ("inout", "rcx", "x.as_ptr() => _"),
-                ("inout", "r8", "m.as_ptr() => _"),
-                ("inout", "r9", "p => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.len() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "m.as_ptr() => _"),
+                ("inout", "p => _"),
             ],
             assertions=["z.len() == m.len()"],
             rust_decl="fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64)",
@@ -151,10 +151,10 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_digitsize",
             parameter_map=[
-                ("inout", "rdi", "z.len() => _"),
-                ("inout", "rsi", "z.as_ptr() => _"),
-                ("out", "rax", "ret"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_ptr() => _"),
             ],
+            return_map=("out", "ret"),
             return_value=("u64", "ret", "ret as usize"),
             rust_decl="fn bignum_digitsize(z: &[u64]) -> usize",
         )
@@ -180,10 +180,10 @@ if __name__ == "__main__":
 
             if op == "kmul":
                 parameter_map = [
-                    ("inout", "rdi", "z.as_mut_ptr() => _"),
-                    ("inout", "rsi", "x.as_ptr() => _"),
-                    ("inout", "rdx", "y.as_ptr() => _"),
-                    ("inout", "rcx", "t.as_mut_ptr() => _"),
+                    ("inout", "z.as_mut_ptr() => _"),
+                    ("inout", "x.as_ptr() => _"),
+                    ("inout", "y.as_ptr() => _"),
+                    ("inout", "t.as_mut_ptr() => _"),
                 ]
                 assertions = [
                     "z.len() == %d" % outwidth,
@@ -195,9 +195,9 @@ if __name__ == "__main__":
                 )
             elif op == "ksqr":
                 parameter_map = [
-                    ("inout", "rdi", "z.as_mut_ptr() => _"),
-                    ("inout", "rsi", "x.as_ptr() => _"),
-                    ("inout", "rdx", "t.as_mut_ptr() => _"),
+                    ("inout", "z.as_mut_ptr() => _"),
+                    ("inout", "x.as_ptr() => _"),
+                    ("inout", "t.as_mut_ptr() => _"),
                 ]
                 assertions = [
                     "z.len() == %d" % outwidth,
@@ -225,12 +225,12 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_emontredc_8n",
             parameter_map=[
-                ("inout", "rdi", "m.len() => _"),
-                ("inout", "rsi", "z.as_mut_ptr() => _"),
-                ("inout", "rdx", "m.as_ptr() => _"),
-                ("inout", "rcx", "w => _"),
-                ("out", "rax", "ret"),
+                ("inout", "m.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "m.as_ptr() => _"),
+                ("inout", "w => _"),
             ],
+            return_map=("out", "ret"),
             return_value=["u64", "ret", "ret"],
             assertions=["z.len() == m.len() * 2", "z.len() % 8 == 0"],
             rust_decl="fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64",
@@ -246,11 +246,11 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_optsub",
             parameter_map=[
-                ("inout", "rdi", "z.len() => _"),
-                ("inout", "rsi", "z.as_mut_ptr() => _"),
-                ("inout", "rdx", "x.as_ptr() => _"),
-                ("inout", "rcx", "p => _"),
-                ("inout", "r8", "y.as_ptr() => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "p => _"),
+                ("inout", "y.as_ptr() => _"),
             ],
             rust_decl="fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64)",
         )
@@ -265,9 +265,9 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_negmodinv",
             parameter_map=[
-                ("inout", "rdi", "z.len() => _"),
-                ("inout", "rsi", "z.as_mut_ptr() => _"),
-                ("inout", "rdx", "x.as_ptr() => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             assertions=["z.len() == x.len()"],
             rust_decl="fn bignum_negmodinv(z: &mut [u64], x: &[u64])",
@@ -282,10 +282,10 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_montsqr",
             parameter_map=[
-                ("inout", "x0", "z.len() => _"),
-                ("inout", "x1", "z.as_mut_ptr() => _"),
-                ("inout", "x2", "x.as_ptr() => _"),
-                ("inout", "x3", "m.as_ptr() => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "m.as_ptr() => _"),
             ],
             assertions=[
                 "z.len() == x.len()",
@@ -302,8 +302,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_bitsize",
             parameter_map=[
-                ("inout", "x0", "x.len() => ret"),
-                ("inout", "x1", "x.as_ptr() => _"),
+                ("inout", "x.len() => ret"),
+                ("inout", "x.as_ptr() => _"),
             ],
             return_value=("u64", "ret", "ret as usize"),
             rust_decl="fn bignum_bitsize(x: &[u64]) -> usize",
@@ -317,10 +317,10 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_lt",
             parameter_map=[
-                ("inout", "x0", "x.len() => ret"),
-                ("inout", "x1", "x.as_ptr() => _"),
-                ("inout", "x2", "y.len() => _"),
-                ("inout", "x3", "y.as_ptr() => _"),
+                ("inout", "x.len() => ret"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.len() => _"),
+                ("inout", "y.as_ptr() => _"),
             ],
             return_value=("u64", "ret", "ret"),
             hoist=["linear", "ytoploop", "ret"],
@@ -335,12 +335,12 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_mul",
             parameter_map=[
-                ("inout", "x0", "z.len() => _"),
-                ("inout", "x1", "z.as_mut_ptr() => _"),
-                ("inout", "x2", "x.len() => _"),
-                ("inout", "x3", "x.as_ptr() => _"),
-                ("inout", "x4", "y.len() => _"),
-                ("inout", "x5", "y.as_ptr() => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.len() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.len() => _"),
+                ("inout", "y.as_ptr() => _"),
             ],
             assertions=[
                 "z.len() >= x.len() + y.len()",
@@ -356,12 +356,12 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_add",
             parameter_map=[
-                ("inout", "x0", "z.len() => _"),
-                ("inout", "x1", "z.as_mut_ptr() => _"),
-                ("inout", "x2", "x.len() => _"),
-                ("inout", "x3", "x.as_ptr() => _"),
-                ("inout", "x4", "y.len() => _"),
-                ("inout", "x5", "y.as_ptr() => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.len() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.len() => _"),
+                ("inout", "y.as_ptr() => _"),
             ],
             hoist=["linear", "tail", "ret"],
             rust_decl="fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64])",
@@ -375,11 +375,11 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_modsub",
             parameter_map=[
-                ("inout", "x0", "z.len() => _"),
-                ("inout", "x1", "z.as_mut_ptr() => _"),
-                ("inout", "x2", "x.as_ptr() => _"),
-                ("inout", "x3", "y.as_ptr() => _"),
-                ("inout", "x4", "m.as_ptr() => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.as_ptr() => _"),
+                ("inout", "m.as_ptr() => _"),
             ],
             assertions=[
                 "z.len() == x.len()",
@@ -399,12 +399,12 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_montredc",
             parameter_map=[
-                ("inout", "x0", "z.len() => _"),
-                ("inout", "x1", "z.as_mut_ptr() => _"),
-                ("inout", "x2", "x.len() => _"),
-                ("inout", "x3", "x.as_ptr() => _"),
-                ("inout", "x4", "m.as_ptr() => _"),
-                ("inout", "x5", "p => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.len() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "m.as_ptr() => _"),
+                ("inout", "p => _"),
             ],
             assertions=["z.len() == m.len()"],
             rust_decl="fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64)",
@@ -420,8 +420,8 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_digitsize",
             parameter_map=[
-                ("inout", "x0", "z.len() => ret"),
-                ("inout", "x1", "z.as_ptr() => _"),
+                ("inout", "z.len() => ret"),
+                ("inout", "z.as_ptr() => _"),
             ],
             return_value=("u64", "ret", "ret as usize"),
             rust_decl="fn bignum_digitsize(z: &[u64]) -> usize",
@@ -458,10 +458,10 @@ if __name__ == "__main__":
 
             if op == "kmul":
                 parameter_map = [
-                    ("inout", "x0", "z.as_mut_ptr() => _"),
-                    ("inout", "x1", "x.as_ptr() => _"),
-                    ("inout", "x2", "y.as_ptr() => _"),
-                    ("inout", "x3", "t.as_mut_ptr() => _"),
+                    ("inout", "z.as_mut_ptr() => _"),
+                    ("inout", "x.as_ptr() => _"),
+                    ("inout", "y.as_ptr() => _"),
+                    ("inout", "t.as_mut_ptr() => _"),
                 ]
                 assertions = [
                     "z.len() == %d" % outwidth,
@@ -473,9 +473,9 @@ if __name__ == "__main__":
                 )
             elif op == "ksqr":
                 parameter_map = [
-                    ("inout", "x0", "z.as_mut_ptr() => _"),
-                    ("inout", "x1", "x.as_ptr() => _"),
-                    ("inout", "x2", "t.as_mut_ptr() => _"),
+                    ("inout", "z.as_mut_ptr() => _"),
+                    ("inout", "x.as_ptr() => _"),
+                    ("inout", "t.as_mut_ptr() => _"),
                 ]
                 assertions = [
                     "z.len() == %d" % outwidth,
@@ -503,10 +503,10 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_emontredc_8n",
             parameter_map=[
-                ("inout", "x0", "m.len() => ret"),
-                ("inout", "x1", "z.as_mut_ptr() => _"),
-                ("inout", "x2", "m.as_ptr() => _"),
-                ("inout", "x3", "w => _"),
+                ("inout", "m.len() => ret"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "m.as_ptr() => _"),
+                ("inout", "w => _"),
             ],
             return_value=["u64", "ret", "ret"],
             assertions=["z.len() == m.len() * 2", "z.len() % 8 == 0"],
@@ -523,11 +523,11 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_optsub",
             parameter_map=[
-                ("inout", "x0", "z.len() => _"),
-                ("inout", "x1", "z.as_mut_ptr() => _"),
-                ("inout", "x2", "x.as_ptr() => _"),
-                ("inout", "x3", "p => _"),
-                ("inout", "x4", "y.as_ptr() => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "p => _"),
+                ("inout", "y.as_ptr() => _"),
             ],
             rust_decl="fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64)",
         )
@@ -542,9 +542,9 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_negmodinv",
             parameter_map=[
-                ("inout", "x0", "z.len() => _"),
-                ("inout", "x1", "z.as_mut_ptr() => _"),
-                ("inout", "x2", "x.as_ptr() => _"),
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
             ],
             assertions=["z.len() == x.len()"],
             rust_decl="fn bignum_negmodinv(z: &mut [u64], x: &[u64])",
