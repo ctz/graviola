@@ -73,6 +73,11 @@ macro_rules! c {
     };
 }
 
+/// Reduce modulo group order, z := x mod n_384
+///
+/// Input x[6]; output z[6]
+///
+/// Reduction is modulo the group order of the NIST curve P-384.
 pub(crate) fn bignum_mod_n384(z: &mut [u64; 6], x: &[u64; 6]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

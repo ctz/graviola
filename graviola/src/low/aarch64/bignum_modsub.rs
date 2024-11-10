@@ -65,6 +65,9 @@ macro_rules! c {
     };
 }
 
+/// Subtract modulo m, z := (x - y) mod m, assuming x and y reduced
+///
+/// Inputs x[k], y[k], m[k]; output z[k]
 pub(crate) fn bignum_modsub(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
     debug_assert!(z.len() == x.len());
     debug_assert!(z.len() == y.len());

@@ -121,6 +121,12 @@ macro_rules! w {
     };
 }
 
+/// Convert from Montgomery form z := (x / 2^384) mod p_384, assuming x reduced
+///
+/// Input x[6]; output z[6]
+///
+/// This assumes the input is < p_384 for correctness. If this is not the case,
+/// use the variant "bignum_deamont_p384" instead.
 pub(crate) fn bignum_demont_p384(z: &mut [u64; 6], x: &[u64; 6]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

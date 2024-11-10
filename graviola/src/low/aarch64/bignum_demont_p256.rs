@@ -96,6 +96,12 @@ macro_rules! w {
     };
 }
 
+/// Convert from Montgomery form z := (x / 2^256) mod p_256, assuming x reduced
+///
+/// Input x[4]; output z[4]
+///
+/// This assumes the input is < p_256 for correctness. If this is not the case,
+/// use the variant "bignum_deamont_p256" instead.
 pub(crate) fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

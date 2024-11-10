@@ -55,6 +55,9 @@ macro_rules! j {
     };
 }
 
+/// Given table: uint64_t[height*width], copy table[idx*width...(idx+1)*width-1]
+///
+/// into z[0..width-1].
 pub(crate) fn bignum_copy_row_from_table(
     z: &mut [u64],
     table: &[u64],

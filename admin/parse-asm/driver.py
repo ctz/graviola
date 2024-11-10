@@ -474,6 +474,7 @@ class RustFormatter(Dispatcher):
         self.constant_sym_alignment = {}
         self.constant_sym_rename = {}
         self.current_constant_array = None
+        self.current_function_comment = []
         self.emitted_page_aligned_types = set()
         self.function_state = None
         self.expected_labels = []
@@ -631,6 +632,45 @@ use crate::low::macros::*;
         args = [a.strip() for a in args]
         return ", ".join(tokens_to_arg(self.expand_rust_macros(a)) for a in args)
 
+    def massage_current_function_comment(self):
+        head_comment = []
+        inside = False
+
+        for c in self.current_function_comment:
+            if "---------" in c:
+                if not inside:
+                    inside = True
+                    continue
+                else:
+                    break
+
+            if inside:
+                head_comment.append(c.rstrip())
+
+        paragraphs = []
+        para = []
+        for h in head_comment:
+            if para and h == "":
+                paragraphs.append(para)
+                para = []
+                continue
+            para.append(h)
+
+        paragraphs = filter(
+            lambda para: "ABI" not in para[0] and "extern " not in para[0], paragraphs
+        )
+        head_comment = []
+        for para in paragraphs:
+            for line in para:
+                # need to remove codeblocks, as they won't be valid rust code
+                if "    " in line:
+                    head_comment.append(line.strip())
+                else:
+                    head_comment.append(line)
+            head_comment.append("")
+        head_comment.insert(1, "")
+        return head_comment[:-1]
+
     def on_function(self, contexts, name):
         assert contexts == []
         if name in self.expected_functions:
@@ -667,6 +707,10 @@ use crate::low::macros::*;
 
                 print("", file=self.output)
 
+                for c in self.massage_current_function_comment():
+                    print("/// " + c, file=self.output)
+                self.current_function_comment = []
+
                 if not allow_inline:
                     print("#[inline(never)]", file=self.output)
 
@@ -683,6 +727,8 @@ use crate::low::macros::*;
     def on_comment(self, comment):
         if self.current_constant_array:
             return self.current_constant_array.add_comment(comment.rstrip())
+
+        self.current_function_comment.append(comment)
 
         print("// " + comment.rstrip(), file=self.output)
 

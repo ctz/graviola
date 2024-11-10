@@ -51,6 +51,9 @@ macro_rules! d {
     };
 }
 
+/// Test bignums for equality, x = y
+///
+/// Inputs x[m], y[n]; output function return
 pub(crate) fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
     let ret: u64;
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.

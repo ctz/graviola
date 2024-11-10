@@ -107,6 +107,9 @@ macro_rules! t3 {
     };
 }
 
+/// Convert to Montgomery form z := (2^256 * x) mod p_256
+///
+/// Input x[4]; output z[4]
 pub(crate) fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

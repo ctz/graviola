@@ -93,6 +93,12 @@ macro_rules! d {
     };
 }
 
+/// Multiply z := x * y
+///
+/// Inputs x[m], y[n]; output z[k]
+///
+/// Does the "z := x * y" operation where x is m digits, y is n, result z is k.
+/// Truncates the result in general unless k >= m + n
 pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
     debug_assert!(z.len() >= x.len() + y.len());
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.

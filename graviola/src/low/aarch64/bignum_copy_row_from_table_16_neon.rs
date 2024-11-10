@@ -157,6 +157,12 @@ macro_rules! vmask {
     };
 }
 
+/// Given table: uint64_t[height*16], copy table[idx*16...(idx+1)*16-1]
+///
+/// into z[0..row-1].
+/// This function is constant-time with respect to the value of `idx`. This is
+/// achieved by reading the whole table and using the bit-masking to get the
+/// `idx`-th row.
 pub(crate) fn bignum_copy_row_from_table_16_neon(
     z: &mut [u64],
     table: &[u64],

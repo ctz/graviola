@@ -927,6 +927,12 @@ macro_rules! muxload6 {
     )}
 }
 
+/// Point addition on NIST curve P-384 in Montgomery-Jacobian coordinates
+///
+///
+/// Does p3 := p1 + p2 where all points are regarded as Jacobian triples with
+/// each coordinate in the Montgomery domain, i.e. x' = (2^384 * x) mod p_384.
+/// A Jacobian triple (x',y',z') represents affine point (x/z^2,y/z^3).
 pub(crate) fn p384_montjadd(p3: &mut [u64; 18], p1: &[u64; 18], p2: &[u64; 18]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

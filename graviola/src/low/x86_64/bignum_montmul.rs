@@ -136,6 +136,12 @@ macro_rules! jshort {
     };
 }
 
+/// Montgomery multiply, z := (x * y / 2^{64k}) mod m
+///
+/// Inputs x[k], y[k], m[k]; output z[k]
+///
+/// Does z := (x * y / 2^{64k}) mod m, assuming x * y <= 2^{64k} * m, which is
+/// guaranteed in particular if x < m, y < m initially (the "intended" case).
 pub(crate) fn bignum_montmul(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
     debug_assert!(z.len() == x.len());
     debug_assert!(z.len() == y.len());

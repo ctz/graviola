@@ -52,6 +52,9 @@ macro_rules! ashort {
     };
 }
 
+/// Compare bignums, x < y
+///
+/// Inputs x[m], y[n]; output function return
 pub(crate) fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64 {
     let ret: u64;
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.

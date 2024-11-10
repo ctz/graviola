@@ -18,6 +18,12 @@ use crate::low::macros::*;
 // Standard ARM ABI: X0 = z, X1 = x, X2 = y, X3 = t
 // ----------------------------------------------------------------------------
 
+/// Multiply z := x * y
+///
+/// Inputs x[16], y[16]; output z[32]; temporary buffer t[>=32]
+///
+/// This is a Karatsuba-style function multiplying half-sized results
+/// internally and using temporary buffer t for intermediate results.
 pub(crate) fn bignum_kmul_16_32(z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u64; 32]) {
     debug_assert!(z.len() == 32);
     debug_assert!(x.len() == 16);

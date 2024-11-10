@@ -65,6 +65,12 @@ macro_rules! a {
     };
 }
 
+/// Optionally subtract, z := x - y (if p nonzero) or z := x (if p zero)
+///
+/// Inputs x[k], p, y[k]; outputs function return (carry-out) and z[k]
+///
+/// It is assumed that all numbers x, y and z have the same size k digits.
+/// Returns carry-out as per usual subtraction, always 0 if p was zero.
 pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

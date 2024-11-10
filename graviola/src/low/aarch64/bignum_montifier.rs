@@ -102,6 +102,14 @@ macro_rules! q {
     };
 }
 
+/// Compute "montification" constant z := 2^{128k} mod m
+///
+/// Input m[k]; output z[k]; temporary buffer t[>=k]
+///
+/// The last argument points to a temporary buffer t that should have size >= k.
+/// This is called "montifier" because given any other k-digit number x,
+/// whether or not it's reduced modulo m, it can be mapped to its Montgomery
+/// representation (2^{64k} * x) mod m just by Montgomery multiplication by z.
 pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
     debug_assert!(z.len() == m.len());
     debug_assert!(z.len() <= t.len());
