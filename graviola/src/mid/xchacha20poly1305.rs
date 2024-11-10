@@ -6,7 +6,7 @@ use crate::low::poly1305::Poly1305;
 use crate::low::{ct_equal, zeroise, Entry};
 use crate::Error;
 
-/// A ChaCha20Poly1305 key.
+/// A XChaCha20Poly1305 key.
 ///
 /// See [RFC7539](https://datatracker.ietf.org/doc/html/rfc7539).
 pub struct XChaCha20Poly1305 {
@@ -14,7 +14,7 @@ pub struct XChaCha20Poly1305 {
 }
 
 impl XChaCha20Poly1305 {
-    /// Create a new [`ChaCha20Poly1305`] from 32 bytes of key material.
+    /// Create a new [`XChaCha20Poly1305`] from 32 bytes of key material.
     pub fn new(key: [u8; 32]) -> Self {
         Self { key }
     }
