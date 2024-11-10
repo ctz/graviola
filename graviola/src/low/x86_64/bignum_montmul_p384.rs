@@ -115,6 +115,13 @@ macro_rules! montredc {
     )}
 }
 
+/// Montgomery multiply, z := (x * y / 2^384) mod p_384
+///
+/// Inputs x[6], y[6]; output z[6]
+///
+/// Does z := (2^{-384} * x * y) mod p_384, assuming that the inputs x and y
+/// satisfy x * y <= 2^384 * p_384 (in particular this is true if we are in
+/// the "usual" case x < p_384 and y < p_384).
 pub(crate) fn bignum_montmul_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

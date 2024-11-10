@@ -344,6 +344,12 @@ use crate::low::macros::*;
 //        # from this file since the sequence is non-deterministically chosen.
 //        # Please add 'ret' at the end of the output assembly.
 
+/// Montgomery square, z := (x^2 / 2^384) mod p_384
+///
+/// Input x[6]; output z[6]
+///
+/// Does z := (x^2 / 2^384) mod p_384, assuming x^2 <= 2^384 * p_384, which is
+/// guaranteed in particular if x < p_384 initially (the "intended" case).
 pub(crate) fn bignum_montsqr_p384(z: &mut [u64; 6], x: &[u64; 6]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

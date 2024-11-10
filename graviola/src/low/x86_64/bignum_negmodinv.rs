@@ -90,6 +90,15 @@ macro_rules! ishort {
     };
 }
 
+/// Negated modular inverse, z := (-1/x) mod 2^{64k}
+///
+/// Input x[k]; output z[k]
+///
+/// Assuming x is odd (otherwise nothing makes sense) the result satisfies
+///
+/// x * z + 1 == 0 (mod 2^{64 * k})
+///
+/// but is not necessarily reduced mod x.
 pub(crate) fn bignum_negmodinv(z: &mut [u64], x: &[u64]) {
     debug_assert!(z.len() == x.len());
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.

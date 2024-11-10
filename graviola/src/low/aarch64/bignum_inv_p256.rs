@@ -822,6 +822,15 @@ macro_rules! divstep59 {
     )}
 }
 
+/// Modular inverse modulo p_256 = 2^256 - 2^224 + 2^192 + 2^96 - 1
+///
+/// Input x[4]; output z[4]
+///
+/// If the 4-digit input x is coprime to p_256, i.e. is not divisible
+/// by it, returns z < p_256 such that x * z == 1 (mod p_256). Note that
+/// x does not need to be reduced modulo p_256, but the output always is.
+/// If the input is divisible (i.e. is 0 or p_256), then there can be no
+/// modular inverse and z = 0 is returned.
 pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

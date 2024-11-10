@@ -18,6 +18,12 @@ use crate::low::macros::*;
 // Microsoft x64 ABI:   RCX = k, RDX = z, R8 = m, R9 = w, returns RAX
 // ----------------------------------------------------------------------------
 
+/// Extended Montgomery reduce in 8-digit blocks, results in input-output buffer
+///
+/// Inputs z[2*k], m[k], w; outputs function return (extra result bit) and z[2*k]
+///
+/// Functionally equivalent to bignum_emontredc (see that file for more detail).
+/// But in general assumes that the input k is a multiple of 8.
 pub(crate) fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64 {
     let ret: u64;
     debug_assert!(z.len() == m.len() * 2);

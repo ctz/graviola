@@ -21,6 +21,14 @@ use crate::low::macros::*;
 // Microsoft x64 ABI:   RCX = z, RDX = x, R8 = y, R9 = t
 // -----------------------------------------------------------------------------
 
+/// Multiply z := x * y
+///
+/// Inputs x[32], y[32]; output z[64]; temporary buffer t[>=96]
+///
+/// This is a Karatsuba-style function multiplying half-sized results
+/// internally and using temporary buffer t for intermediate results. The size
+/// of 96 is an overstatement for compatibility with the ARM version; it
+/// actually only uses 65 elements of t (64 + 1 for a stashed sign).
 pub(crate) fn bignum_kmul_32_64(z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u64; 96]) {
     debug_assert!(z.len() == 64);
     debug_assert!(x.len() == 32);

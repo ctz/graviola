@@ -19,6 +19,12 @@ use crate::low::macros::*;
 // Microsoft x64 ABI:   RCX = z, RDX = x, R8 = y, R9 = t
 // ----------------------------------------------------------------------------
 
+/// Multiply z := x * y
+///
+/// Inputs x[16], y[16]; output z[32]; temporary buffer t[>=32]
+///
+/// In this x86 code the final temporary space argument t is unused, but
+/// it is retained in the prototype above for API consistency with ARM.
 pub(crate) fn bignum_kmul_16_32(z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u64; 32]) {
     debug_assert!(z.len() == 32);
     debug_assert!(x.len() == 16);

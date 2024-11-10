@@ -435,6 +435,12 @@ macro_rules! sub_p256 {
     )}
 }
 
+/// Point addition on NIST curve P-256 in Montgomery-Jacobian coordinates
+///
+///
+/// Does p3 := p1 + p2 where all points are regarded as Jacobian triples with
+/// each coordinate in the Montgomery domain, i.e. x' = (2^256 * x) mod p_256.
+/// A Jacobian triple (x',y',z') represents affine point (x/z^2,y/z^3).
 pub(crate) fn p256_montjadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 12]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

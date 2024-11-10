@@ -17,6 +17,12 @@ use crate::low::macros::*;
 // Standard ARM ABI: X0 = z, X1 = x, X2 = t
 // ----------------------------------------------------------------------------
 
+/// Square, z := x^2
+///
+/// Input x[32]; output z[64]; temporary buffer t[>=72]
+///
+/// This is a Karatsuba-style function squaring half-sized results
+/// and using temporary buffer t for intermediate results.
 pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
     debug_assert!(z.len() == 64);
     debug_assert!(x.len() == 32);

@@ -487,6 +487,17 @@ macro_rules! mux_4 {
     )}
 }
 
+/// The x25519 function for curve25519
+///
+/// Inputs scalar[4], point[4]; output res[4]
+///
+/// Given a scalar n and the X coordinate of an input point P = (X,Y) on
+/// curve25519 (Y can live in any extension field of characteristic 2^255-19),
+/// this returns the X coordinate of n * P = (X, Y), or 0 when n * P is the
+/// point at infinity. Both n and X inputs are first slightly modified/mangled
+/// as specified in the relevant RFC (https://www.rfc-editor.org/rfc/rfc7748);
+/// in particular the lower three bits of n are set to zero. Does not implement
+/// the zero-check specified in Section 6.1.
 pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[u64; 4]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

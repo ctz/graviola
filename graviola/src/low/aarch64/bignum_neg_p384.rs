@@ -66,6 +66,9 @@ macro_rules! d5 {
     };
 }
 
+/// Negate modulo p_384, z := (-x) mod p_384, assuming x reduced
+///
+/// Input x[6]; output z[6]
 pub(crate) fn bignum_neg_p384(z: &mut [u64; 6], x: &[u64; 6]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {

@@ -18,6 +18,12 @@ use crate::low::macros::*;
 // Microsoft x64 ABI:   RCX = z, RDX = x, R8 = t
 // ----------------------------------------------------------------------------
 
+/// Square, z := x^2
+///
+/// Input x[16]; output z[32]; temporary buffer t[>=24]
+///
+/// In this x86 code the final temporary space argument t is unused, but
+/// it is retained in the prototype above for API consistency with ARM.
 pub(crate) fn bignum_ksqr_16_32(z: &mut [u64], x: &[u64], t: &mut [u64; 24]) {
     debug_assert!(z.len() == 32);
     debug_assert!(x.len() == 16);

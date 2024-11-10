@@ -243,6 +243,13 @@ use crate::low::macros::*;
 //        # from this file since the sequence is non-deterministically chosen.
 //        # Please add 'ret' at the end of the output assembly.
 
+/// Montgomery multiply, z := (x * y / 2^256) mod p_256
+///
+/// Inputs x[4], y[4]; output z[4]
+///
+/// Does z := (2^{-256} * x * y) mod p_256, assuming that the inputs x and y
+/// satisfy x * y <= 2^256 * p_256 (in particular this is true if we are in
+/// the "usual" case x < p_256 and y < p_256).
 pub(crate) fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
