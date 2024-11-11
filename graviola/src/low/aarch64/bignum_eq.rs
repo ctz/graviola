@@ -1,3 +1,4 @@
+// generated source. do not edit.
 #![allow(non_upper_case_globals, unused_macros, unused_imports)]
 use crate::low::macros::*;
 
