@@ -50,8 +50,8 @@ impl PublicKey {
 
         // 5. Compute: R = (xR, yR) = u1 G + u2 QU
         //  If R = O, output "invalid" and stop.
-        let lhs = JacobianMontPoint::base_multiply(&u1);
-        let rhs = JacobianMontPoint::multiply_wnaf_5(&u2, &self.precomp_wnaf_5);
+        let lhs = JacobianMontPoint::public_base_multiply(&u1);
+        let rhs = JacobianMontPoint::public_multiply_wnaf_5(&u2, &self.precomp_wnaf_5);
 
         // nb. if lhs == rhs, then we need a doubling rather than addition
         // (even complete point addition formula is only defined for P != Q)
@@ -280,6 +280,11 @@ impl AffineMontPoint {
         result.as_affine()
     }
 
+    fn negate_y(&mut self) {
+        let neg_y = self.y().negate_mod_p();
+        self.xy[4..8].copy_from_slice(&neg_y.0);
+    }
+
     fn maybe_negate_y(&mut self, sign: u8) {
         let y = self.y();
         let neg_y = y.negate_mod_p();
@@ -356,10 +361,22 @@ impl AffineMontPoint {
         t
     }
 
-    /// Returns table[(i - 1) * 8] if index > 1, or else AffineMontPoint::default()
+    /// Returns table[(i - 1) * 8] if index > 0, or else AffineMontPoint::default()
     fn lookup_w7(table: &[u64; 512], index: u8) -> Self {
         let mut r = Self::default();
         low::bignum_aff_point_select_p256(&mut r.xy, table, index);
+        r
+    }
+
+    /// Returns table[(i - 1) * 8] if index > 0, or else AffineMontPoint::default()
+    ///
+    /// `index` is a public quantity.
+    fn public_lookup_w7(table: &[u64; 512], index: u8) -> Self {
+        let mut r = Self::default();
+        if index > 0 {
+            let offs = (index - 1) as usize * 8;
+            r.xy.copy_from_slice(&table[offs..offs + 8]);
+        }
         r
     }
 
@@ -410,15 +427,31 @@ impl JacobianMontPoint {
     }
 
     fn base_multiply(scalar: &Scalar) -> Self {
-        Self::multiply_wnaf_7(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_7)
+        Self::multiply_wnaf_7::<true>(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_7)
     }
 
-    fn multiply_wnaf_7(scalar: &Scalar, precomp: &AffineMontPointTableW7) -> Self {
+    fn public_base_multiply(scalar: &Scalar) -> Self {
+        Self::multiply_wnaf_7::<false>(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_7)
+    }
+
+    fn multiply_wnaf_7<const SECRET: bool>(
+        scalar: &Scalar,
+        precomp: &AffineMontPointTableW7,
+    ) -> Self {
         let mut terms = scalar.booth_recoded_w7();
         // unwrap: number of terms is constant
         let (digit, sign) = terms.next().unwrap();
-        let mut tmp = AffineMontPoint::lookup_w7(&precomp[0], digit);
-        tmp.maybe_negate_y(sign);
+        let tmp = if SECRET {
+            let mut tmp = AffineMontPoint::lookup_w7(&precomp[0], digit);
+            tmp.maybe_negate_y(sign);
+            tmp
+        } else {
+            let mut tmp = AffineMontPoint::public_lookup_w7(&precomp[0], digit);
+            if sign > 0 {
+                tmp.negate_y();
+            }
+            tmp
+        };
 
         let mut result = Self::from_affine(&tmp);
         result.set_z(&FieldElement::select(
@@ -429,8 +462,17 @@ impl JacobianMontPoint {
 
         let mut index = 1;
         for (digit, sign) in terms {
-            let mut tmp = AffineMontPoint::lookup_w7(&precomp[index], digit);
-            tmp.maybe_negate_y(sign);
+            let tmp = if SECRET {
+                let mut tmp = AffineMontPoint::lookup_w7(&precomp[index], digit);
+                tmp.maybe_negate_y(sign);
+                tmp
+            } else {
+                let mut tmp = AffineMontPoint::public_lookup_w7(&precomp[index], digit);
+                if sign > 0 {
+                    tmp.negate_y();
+                }
+                tmp
+            };
 
             result.add_inplace_affine(&tmp);
             index += 1;
@@ -440,15 +482,39 @@ impl JacobianMontPoint {
     }
 
     fn multiply_wnaf_5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
+        Self::_multiply_wnaf_5::<true>(scalar, precomp)
+    }
+
+    fn public_multiply_wnaf_5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
+        Self::_multiply_wnaf_5::<false>(scalar, precomp)
+    }
+
+    fn _multiply_wnaf_5<const SECRET: bool>(
+        scalar: &Scalar,
+        precomp: &JacobianMontPointTableW5,
+    ) -> Self {
         let mut terms = scalar.reversed_booth_recoded_w5();
 
         let (digit, _, _) = terms.next().unwrap();
-        let mut result = Self::lookup_w5(precomp, digit);
+        let mut result = if SECRET {
+            Self::lookup_w5(precomp, digit)
+        } else {
+            Self::public_lookup_w5(precomp, digit)
+        };
         result.double_inplace_n(5);
 
         for (digit, sign, last) in terms {
-            let mut tmp = Self::lookup_w5(precomp, digit);
-            tmp.maybe_negate_y(sign);
+            let tmp = if SECRET {
+                let mut tmp = Self::lookup_w5(precomp, digit);
+                tmp.maybe_negate_y(sign);
+                tmp
+            } else {
+                let mut tmp = Self::public_lookup_w5(precomp, digit);
+                if sign > 0 {
+                    tmp.negate_y();
+                }
+                tmp
+            };
             result.add_inplace(&tmp);
 
             if !last {
@@ -550,11 +616,26 @@ impl JacobianMontPoint {
         r
     }
 
-    /// Returns table[i - 1] if index > 1, or else an infinity
+    /// Returns table[i - 1] if index > 0, or else an infinity
     fn lookup_w5(table: &JacobianMontPointTableW5, index: u8) -> Self {
         let mut r = Self::infinity();
         low::bignum_jac_point_select_p256(&mut r.xyz, table, index);
         r
+    }
+
+    /// Returns table[i - 1] if index > 0, or else an infinity
+    fn public_lookup_w5(table: &JacobianMontPointTableW5, index: u8) -> Self {
+        let mut r = Self::infinity();
+        if index > 0 {
+            let offs = (index as usize - 1) * 12;
+            r.xyz.copy_from_slice(&table[offs..offs + 12]);
+        }
+        r
+    }
+
+    fn negate_y(&mut self) {
+        let neg_y = self.y().negate_mod_p();
+        self.xyz[4..8].copy_from_slice(&neg_y.0);
     }
 
     fn maybe_negate_y(&mut self, sign: u8) {
