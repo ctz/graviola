@@ -50,8 +50,8 @@ impl PublicKey {
 
         // 5. Compute: R = (xR, yR) = u1 G + u2 QU
         //  If R = O, output "invalid" and stop.
-        let lhs = JacobianMontPoint::base_multiply(&u1);
-        let rhs = JacobianMontPoint::multiply_wnaf_5(&u2, &self.precomp_wnaf_5);
+        let lhs = JacobianMontPoint::public_base_multiply(&u1);
+        let rhs = JacobianMontPoint::public_multiply_wnaf_5(&u2, &self.precomp_wnaf_5);
 
         // nb. if lhs == rhs, then we need a doubling rather than addition
         // (even complete point addition formula is only defined for P != Q)
@@ -360,16 +360,44 @@ impl JacobianMontPoint {
         Self::multiply_wnaf_5(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_5)
     }
 
+    fn public_base_multiply(scalar: &Scalar) -> Self {
+        Self::public_multiply_wnaf_5(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_5)
+    }
+
     fn multiply_wnaf_5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
+        Self::_multiply_wnaf_5::<true>(scalar, precomp)
+    }
+
+    fn public_multiply_wnaf_5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
+        Self::_multiply_wnaf_5::<false>(scalar, precomp)
+    }
+
+    fn _multiply_wnaf_5<const SECRET: bool>(
+        scalar: &Scalar,
+        precomp: &JacobianMontPointTableW5,
+    ) -> Self {
         let mut terms = scalar.reversed_booth_recoded_w5();
 
         let (digit, _, _) = terms.next().unwrap();
-        let mut result = Self::lookup_w5(precomp, digit);
+        let mut result = if SECRET {
+            Self::lookup_w5(precomp, digit)
+        } else {
+            Self::public_lookup_w5(precomp, digit)
+        };
         result.double_inplace_n(5);
 
         for (digit, sign, last) in terms {
-            let mut tmp = Self::lookup_w5(precomp, digit);
-            tmp.maybe_negate_y(sign);
+            let tmp = if SECRET {
+                let mut tmp = Self::lookup_w5(precomp, digit);
+                tmp.maybe_negate_y(sign);
+                tmp
+            } else {
+                let mut tmp = Self::public_lookup_w5(precomp, digit);
+                if sign > 0 {
+                    tmp.negate_y();
+                }
+                tmp
+            };
             result.add_inplace(&tmp);
 
             if !last {
@@ -464,11 +492,26 @@ impl JacobianMontPoint {
         r
     }
 
-    /// Returns table[i - 1] if index > 1, or else infinity
+    /// Returns table[i - 1] if index > 0, or else infinity
     fn lookup_w5(table: &JacobianMontPointTableW5, index: u8) -> Self {
         let mut r = Self::infinity();
         low::bignum_jac_point_select_p384(&mut r.xyz, table, index);
         r
+    }
+
+    /// Returns table[i - 1] if index > 0, or else infinity
+    fn public_lookup_w5(table: &JacobianMontPointTableW5, index: u8) -> Self {
+        let mut r = Self::infinity();
+        if index > 0 {
+            let offs = (index - 1) as usize * 18;
+            r.xyz.copy_from_slice(&table[offs..offs + 18]);
+        }
+        r
+    }
+
+    fn negate_y(&mut self) {
+        let neg_y = self.y().negate_mod_p();
+        self.xyz[6..12].copy_from_slice(&neg_y.0);
     }
 
     fn maybe_negate_y(&mut self, sign: u8) {
