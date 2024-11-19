@@ -129,11 +129,9 @@ SHA384/SHA512 on x86_64 has an AVX2 by-4 implementation.
 
 AES and GHASH always use intrinsics (there are no fallbacks).
 
-On x86_64, we have a by-8 AES-CTR and a by-8 GHASH (they are not currently
-interleaved; this is future work.)  On aarch64 we have a by-1 AES-CTR
-and by-8 GHASH (also not interleaved, and I found a by-8 AES-CTR
-kept spilling registers and was slower.)
-
+On x86_64, we have a stitched by-8 AES-CTR and a by-8 GHASH (they are not currently
+interleaved; this is future work.)  On aarch64 we have a by-8 AES-CTR
+and by-8 GHASH (this is neither interleaved nor stitched).
 
 ## Architecture
 
