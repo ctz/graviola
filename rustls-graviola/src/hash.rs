@@ -64,7 +64,7 @@ impl hash::Hash for Sha384 {
     }
 
     fn output_len(&self) -> usize {
-        32
+        48
     }
 }
 
