@@ -11,7 +11,7 @@ readme = "README.md"
 
 [dependencies]
 graviola = { version = "0.2.0-alpha.1", path = "../graviola" }
-rustls = { version = "0.23.13", default-features = false, features = ["std", "tls12"] }
+rustls = { version = "0.23.18", default-features = false, features = ["std", "tls12"] }
 rustls-webpki = { version = "0.102", default-features = false, features = ["alloc"] }
 
 [dev-dependencies]
