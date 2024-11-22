@@ -21,7 +21,7 @@ impl hash::Hash for Sha256 {
     }
 
     fn output_len(&self) -> usize {
-        32
+        sha2::Sha256Context::OUTPUT_SZ
     }
 }
 
@@ -64,7 +64,7 @@ impl hash::Hash for Sha384 {
     }
 
     fn output_len(&self) -> usize {
-        48
+        sha2::Sha384Context::OUTPUT_SZ
     }
 }
 
