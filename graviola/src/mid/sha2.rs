@@ -12,7 +12,7 @@ use crate::low::Blockwise;
 #[derive(Clone)]
 pub struct Sha256Context {
     h: [u32; 8],
-    blockwise: Blockwise<64>,
+    blockwise: Blockwise<{ Sha256Context::BLOCK_SZ }>,
     nblocks: usize,
 }
 
@@ -48,7 +48,7 @@ impl Sha256Context {
     }
 
     /// Complete the SHA256 computation, returning the hash output.
-    pub fn finish(mut self) -> [u8; 32] {
+    pub fn finish(mut self) -> [u8; Self::OUTPUT_SZ] {
         let bytes = self
             .nblocks
             .checked_mul(Self::BLOCK_SZ)
@@ -64,7 +64,7 @@ impl Sha256Context {
         self.update(&(bits as u64).to_be_bytes());
         debug_assert_eq!(self.blockwise.used(), 0);
 
-        let mut r = [0u8; 32];
+        let mut r = [0u8; Self::OUTPUT_SZ];
         for (out, state) in r.chunks_exact_mut(4).zip(self.h.iter()) {
             out.copy_from_slice(&state.to_be_bytes());
         }
@@ -81,6 +81,9 @@ impl Sha256Context {
 
     /// The internal block size of SHA256.
     pub const BLOCK_SZ: usize = 64;
+
+    /// The output size of SHA256.
+    pub const OUTPUT_SZ: usize = 32;
 }
 
 /// A context for incremental computation of SHA384.
@@ -116,18 +119,21 @@ impl Sha384Context {
     }
 
     /// Complete the SHA384 computation, returning the hash output.
-    pub fn finish(self) -> [u8; 48] {
+    pub fn finish(self) -> [u8; Self::OUTPUT_SZ] {
         let inner = self.inner.finish();
         // SAFETY: 48 is less than 64.
-        inner[..48].try_into().unwrap()
+        inner[..Self::OUTPUT_SZ].try_into().unwrap()
     }
+
+    /// The output size of SHA384.
+    pub const OUTPUT_SZ: usize = 48;
 }
 
 /// A context for incremental computation of SHA512.
 #[derive(Clone)]
 pub struct Sha512Context {
     h: [u64; 8],
-    blockwise: Blockwise<128>,
+    blockwise: Blockwise<{ Sha512Context::BLOCK_SZ }>,
     nblocks: usize,
 }
 
@@ -169,7 +175,7 @@ impl Sha512Context {
     }
 
     /// Complete the SHA512 computation, returning the hash output.
-    pub fn finish(mut self) -> [u8; 64] {
+    pub fn finish(mut self) -> [u8; Self::OUTPUT_SZ] {
         let bytes = self
             .nblocks
             .checked_mul(Self::BLOCK_SZ)
@@ -185,7 +191,7 @@ impl Sha512Context {
         self.update(&bits.to_be_bytes());
         debug_assert_eq!(self.blockwise.used(), 0);
 
-        let mut r = [0u8; 64];
+        let mut r = [0u8; Self::OUTPUT_SZ];
         for (out, state) in r.chunks_exact_mut(8).zip(self.h.iter()) {
             out.copy_from_slice(&state.to_be_bytes());
         }
@@ -202,6 +208,9 @@ impl Sha512Context {
 
     /// The internal block size of SHA512.
     pub const BLOCK_SZ: usize = 128;
+
+    /// The output size of SHA512.
+    pub const OUTPUT_SZ: usize = 64;
 }
 
 static MD_PADDING: [u8; 128] = [

@@ -12,11 +12,11 @@ use core::ops::{Deref, DerefMut};
 #[derive(Clone, Debug)]
 pub enum HashOutput {
     /// Output from SHA256
-    Sha256([u8; 32]),
+    Sha256([u8; Sha256Context::OUTPUT_SZ]),
     /// Output from SHA384
-    Sha384([u8; 48]),
+    Sha384([u8; Sha384Context::OUTPUT_SZ]),
     /// Output from SHA512
-    Sha512([u8; 64]),
+    Sha512([u8; Sha512Context::OUTPUT_SZ]),
 }
 
 impl HashOutput {
@@ -160,7 +160,7 @@ impl Hash for Sha256 {
     }
 
     fn zeroed_output() -> HashOutput {
-        HashOutput::Sha256([0u8; 32])
+        HashOutput::Sha256([0u8; Sha256Context::OUTPUT_SZ])
     }
 }
 
@@ -198,7 +198,7 @@ impl Hash for Sha384 {
     }
 
     fn zeroed_output() -> HashOutput {
-        HashOutput::Sha384([0u8; 48])
+        HashOutput::Sha384([0u8; Sha384Context::OUTPUT_SZ])
     }
 }
 
@@ -235,7 +235,7 @@ impl Hash for Sha512 {
     }
 
     fn zeroed_output() -> HashOutput {
-        HashOutput::Sha512([0u8; 64])
+        HashOutput::Sha512([0u8; Sha512Context::OUTPUT_SZ])
     }
 }
 
