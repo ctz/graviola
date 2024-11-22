@@ -281,14 +281,14 @@ impl MessageDecrypter for GcmTls12MessageDecrypter {
         self.0
             .decrypt(&nonce, &aad, cipher, tag)
             .map_err(|_| rustls::Error::DecryptError)?;
-        payload.copy_within(AESGCM_EXPLICIT_NONCE_LEN.., 0);
 
         if plain_len > MAX_FRAGMENT_LEN {
             return Err(rustls::Error::PeerSentOversizedRecord);
         }
 
-        payload.truncate(plain_len);
-        Ok(msg.into_plain_message())
+        Ok(msg.into_plain_message_range(
+            AESGCM_EXPLICIT_NONCE_LEN..AESGCM_EXPLICIT_NONCE_LEN + plain_len,
+        ))
     }
 }
 
