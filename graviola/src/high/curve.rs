@@ -166,7 +166,7 @@ impl PrivateKey<P256> for p256::PrivateKey {
     }
 
     fn public_key_encode_uncompressed<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error> {
-        if let Some(out) = out.get_mut(0..65) {
+        if let Some(out) = out.get_mut(0..p256::PublicKey::BYTES) {
             out.copy_from_slice(&self.public_key_uncompressed());
             Ok(out)
         } else {
@@ -180,7 +180,7 @@ impl PrivateKey<P256> for p256::PrivateKey {
 }
 
 impl PublicKey<P256> for p256::PublicKey {
-    const LEN_BYTES: usize = 65;
+    const LEN_BYTES: usize = Self::BYTES;
 
     fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         Self::from_x962_uncompressed(bytes)
@@ -197,7 +197,7 @@ impl PublicKey<P256> for p256::PublicKey {
 }
 
 impl Scalar<P256> for p256::Scalar {
-    const LEN_BYTES: usize = 32;
+    const LEN_BYTES: usize = Self::BYTES;
 
     fn from_bytes_checked(bytes: &[u8]) -> Result<Self, Error> {
         Self::from_bytes_checked(bytes)
