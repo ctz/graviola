@@ -258,7 +258,7 @@ impl PrivateKey<P384> for p384::PrivateKey {
     }
 
     fn public_key_encode_uncompressed<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error> {
-        if let Some(out) = out.get_mut(0..97) {
+        if let Some(out) = out.get_mut(0..p384::PublicKey::BYTES) {
             out.copy_from_slice(&self.public_key_uncompressed());
             Ok(out)
         } else {
@@ -272,7 +272,7 @@ impl PrivateKey<P384> for p384::PrivateKey {
 }
 
 impl PublicKey<P384> for p384::PublicKey {
-    const LEN_BYTES: usize = 97;
+    const LEN_BYTES: usize = Self::BYTES;
 
     fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         Self::from_x962_uncompressed(bytes)
@@ -289,7 +289,7 @@ impl PublicKey<P384> for p384::PublicKey {
 }
 
 impl Scalar<P384> for p384::Scalar {
-    const LEN_BYTES: usize = 48;
+    const LEN_BYTES: usize = Self::BYTES;
 
     fn from_bytes_checked(bytes: &[u8]) -> Result<Self, Error> {
         Self::from_bytes_checked(bytes)

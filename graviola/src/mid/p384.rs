@@ -7,6 +7,7 @@ use crate::mid::rng::{RandomSource, SystemRandom};
 use crate::Error;
 
 use core::fmt;
+use core::ops::Range;
 
 mod precomp;
 
@@ -18,6 +19,8 @@ pub struct PublicKey {
 }
 
 impl PublicKey {
+    pub(crate) const BYTES: usize = 1 + FieldElement::BYTES + FieldElement::BYTES;
+
     /// Create an P-384 [`PublicKey`] from a byte slice.
     ///
     /// This must be exactly 97 bytes in length, using the X9.62
@@ -30,7 +33,7 @@ impl PublicKey {
     }
 
     /// Encodes this public key using the X9.62 uncompressed encoding.
-    pub fn as_bytes_uncompressed(&self) -> [u8; 97] {
+    pub fn as_bytes_uncompressed(&self) -> [u8; Self::BYTES] {
         let _ = low::Entry::new_public();
         self.point.as_bytes_uncompressed()
     }
@@ -102,13 +105,13 @@ impl PrivateKey {
     }
 
     /// Return a fixed-length encoding of this private key's value.
-    pub fn as_bytes(&self) -> [u8; 48] {
+    pub fn as_bytes(&self) -> [u8; Scalar::BYTES] {
         self.scalar.as_bytes()
     }
 
     /// Derive the corresponding public key, and return it in
     /// X9.62 uncompressed encoding.
-    pub fn public_key_uncompressed(&self) -> [u8; 97] {
+    pub fn public_key_uncompressed(&self) -> [u8; PublicKey::BYTES] {
         let _ = low::Entry::new_secret();
         self.public_point().as_bytes_uncompressed()
     }
@@ -147,7 +150,7 @@ impl PrivateKey {
     pub(crate) fn generate(rng: &mut dyn RandomSource) -> Result<Self, Error> {
         let _ = low::Entry::new_secret();
         for _ in 0..64 {
-            let mut r = [0u8; 48];
+            let mut r = [0u8; Scalar::BYTES];
             rng.fill(&mut r)?;
             if let Ok(p) = Self::from_bytes(&r) {
                 return Ok(p);
@@ -177,7 +180,7 @@ impl fmt::Debug for PrivateKey {
 }
 
 /// A shared secret output from a P-384 Diffie-Hellman operation.
-pub struct SharedSecret(pub [u8; 48]);
+pub struct SharedSecret(pub [u8; FieldElement::BYTES]);
 
 impl Drop for SharedSecret {
     fn drop(&mut self) {
@@ -191,6 +194,9 @@ struct AffineMontPoint {
 }
 
 impl AffineMontPoint {
+    const X: Range<usize> = 0..6;
+    const Y: Range<usize> = 6..12;
+
     fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         match bytes.first() {
             Some(0x04) => (),
@@ -198,12 +204,12 @@ impl AffineMontPoint {
             None => return Err(Error::WrongLength),
         }
 
-        if bytes.len() != 1 + 48 + 48 {
+        if bytes.len() != PublicKey::BYTES {
             return Err(Error::WrongLength);
         }
 
-        let x = &bytes[1..49];
-        let y = &bytes[49..97];
+        let (_, xy) = bytes.split_at(1);
+        let (x, y) = xy.split_at(FieldElement::BYTES);
 
         let point = Self::from_xy(
             FieldElement(util::big_endian_slice_to_u64x6(x).unwrap()).as_mont(),
@@ -219,22 +225,22 @@ impl AffineMontPoint {
 
     fn x_scalar(&self) -> Scalar {
         let bytes = self.as_bytes_uncompressed();
-        Scalar::from_bytes_reduced(&bytes[1..49]).unwrap()
+        Scalar::from_bytes_reduced(&bytes[1..1 + FieldElement::BYTES]).unwrap()
     }
 
     fn from_xy(x: FieldElement, y: FieldElement) -> Self {
         let mut r = Self::default();
-        r.xy[0..6].copy_from_slice(&x.0[..]);
-        r.xy[6..12].copy_from_slice(&y.0[..]);
+        r.xy[Self::X].copy_from_slice(&x.0[..]);
+        r.xy[Self::Y].copy_from_slice(&y.0[..]);
         r
     }
 
     fn x(&self) -> FieldElement {
-        FieldElement(self.xy[0..6].try_into().unwrap())
+        FieldElement(self.xy[Self::X].try_into().unwrap())
     }
 
     fn y(&self) -> FieldElement {
-        FieldElement(self.xy[6..12].try_into().unwrap())
+        FieldElement(self.xy[Self::Y].try_into().unwrap())
     }
 
     fn on_curve(&self) -> bool {
@@ -256,11 +262,14 @@ impl AffineMontPoint {
         lhs.public_eq(&rhs)
     }
 
-    fn as_bytes_uncompressed(&self) -> [u8; 97] {
-        let mut r = [0u8; 1 + 48 + 48];
-        r[0] = 0x04;
-        r[1..49].copy_from_slice(&util::u64x6_to_big_endian(&self.x().demont().0));
-        r[49..97].copy_from_slice(&util::u64x6_to_big_endian(&self.y().demont().0));
+    fn as_bytes_uncompressed(&self) -> [u8; PublicKey::BYTES] {
+        let mut r = [0u8; PublicKey::BYTES];
+
+        let (indicator, xy) = r.split_at_mut(1);
+        let (x, y) = xy.split_at_mut(FieldElement::BYTES);
+        indicator[0] = 0x04;
+        x.copy_from_slice(&util::u64x6_to_big_endian(&self.x().demont().0));
+        y.copy_from_slice(&util::u64x6_to_big_endian(&self.y().demont().0));
         r
     }
 
@@ -315,6 +324,11 @@ struct JacobianMontPoint {
 }
 
 impl JacobianMontPoint {
+    const X: Range<usize> = 0..6;
+    const Y: Range<usize> = 6..12;
+    const XY: Range<usize> = 0..12;
+    const Z: Range<usize> = 12..18;
+
     #[cfg(test)]
     fn multiply(&self, scalar: &Scalar) -> Self {
         let mut result = Self::infinity();
@@ -345,15 +359,15 @@ impl JacobianMontPoint {
     }
 
     fn x(&self) -> FieldElement {
-        FieldElement(self.xyz[0..6].try_into().unwrap())
+        FieldElement(self.xyz[Self::X].try_into().unwrap())
     }
 
     fn y(&self) -> FieldElement {
-        FieldElement(self.xyz[6..12].try_into().unwrap())
+        FieldElement(self.xyz[Self::Y].try_into().unwrap())
     }
 
     fn z(&self) -> FieldElement {
-        FieldElement(self.xyz[12..18].try_into().unwrap())
+        FieldElement(self.xyz[Self::Z].try_into().unwrap())
     }
 
     fn base_multiply(scalar: &Scalar) -> Self {
@@ -410,8 +424,8 @@ impl JacobianMontPoint {
 
     fn from_affine(p: &AffineMontPoint) -> Self {
         let mut xyz: [u64; 18] = Default::default();
-        xyz[..12].copy_from_slice(&p.xy);
-        xyz[12..18].copy_from_slice(&CURVE_ONE_MONT.0);
+        xyz[Self::XY].copy_from_slice(&p.xy);
+        xyz[Self::Z].copy_from_slice(&CURVE_ONE_MONT.0);
         Self { xyz }
     }
 
@@ -511,14 +525,14 @@ impl JacobianMontPoint {
 
     fn negate_y(&mut self) {
         let neg_y = self.y().negate_mod_p();
-        self.xyz[6..12].copy_from_slice(&neg_y.0);
+        self.xyz[Self::Y].copy_from_slice(&neg_y.0);
     }
 
     fn maybe_negate_y(&mut self, sign: u8) {
         let y = self.y();
         let neg_y = y.negate_mod_p();
         let result = FieldElement::select(&y, &neg_y, sign);
-        self.xyz[6..12].copy_from_slice(&result.0);
+        self.xyz[Self::Y].copy_from_slice(&result.0);
     }
 }
 
@@ -526,6 +540,8 @@ impl JacobianMontPoint {
 struct FieldElement([u64; 6]);
 
 impl FieldElement {
+    const BYTES: usize = 48;
+
     fn inv(&self) -> Self {
         let mut r = Self::default();
         low::bignum_inv_p384(&mut r.0, &self.0);
@@ -591,6 +607,8 @@ impl FieldElement {
 pub struct Scalar([u64; 6]);
 
 impl Scalar {
+    pub(crate) const BYTES: usize = 48;
+
     /// Create a scalar from the given slice, which can be any size.
     ///
     /// If it is larger than 48 bytes, the leading bytes must be
@@ -610,7 +628,7 @@ impl Scalar {
     ///
     /// This returns an error if the scalar is zero or larger than
     /// the curve order.
-    pub fn from_array_checked(array: &[u8; 48]) -> Result<Self, Error> {
+    pub fn from_array_checked(array: &[u8; Self::BYTES]) -> Result<Self, Error> {
         let full = Self(util::big_endian_to_u64x6(array));
 
         full.into_range_check()
@@ -633,7 +651,7 @@ impl Scalar {
         }
     }
 
-    pub fn as_bytes(&self) -> [u8; 48] {
+    pub fn as_bytes(&self) -> [u8; Self::BYTES] {
         util::u64x6_to_big_endian(&self.0)
     }
 
