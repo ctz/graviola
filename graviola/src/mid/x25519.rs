@@ -9,6 +9,8 @@ use crate::mid::rng::{RandomSource, SystemRandom};
 pub struct PrivateKey([u64; 4]);
 
 impl PrivateKey {
+    const BYTES: usize = 32;
+
     /// Create an X25519 [`PrivateKey`] from a byte slice.
     ///
     /// This must be exactly 32 bytes in length.
@@ -18,13 +20,13 @@ impl PrivateKey {
     }
 
     /// Create an X25519 [`PrivateKey`] from a byte array.
-    pub fn from_array(b: &[u8; 32]) -> Self {
+    pub fn from_array(b: &[u8; Self::BYTES]) -> Self {
         let _ = low::Entry::new_secret();
         Self(util::little_endian_to_u64x4(b))
     }
 
     /// Extract the bytes of this private key.
-    pub fn as_bytes(&self) -> [u8; 32] {
+    pub fn as_bytes(&self) -> [u8; Self::BYTES] {
         let _ = low::Entry::new_secret();
         util::u64x4_to_little_endian(&self.0)
     }
@@ -34,7 +36,7 @@ impl PrivateKey {
     /// Fails only if the random source fails.
     pub fn new_random() -> Result<Self, crate::Error> {
         let _ = low::Entry::new_secret();
-        let mut r = [0u8; 32];
+        let mut r = [0u8; Self::BYTES];
         SystemRandom.fill(&mut r)?;
         Ok(Self::from_array(&r))
     }
@@ -68,6 +70,8 @@ impl Drop for PrivateKey {
 pub struct PublicKey([u64; 4]);
 
 impl PublicKey {
+    const BYTES: usize = 32;
+
     /// Create an X25519 [`PublicKey`] from a byte slice.
     ///
     /// This must be exactly 32 bytes in length.
@@ -77,13 +81,13 @@ impl PublicKey {
     }
 
     /// Create an X25519 [`PublicKey`] from a byte array.
-    pub fn from_array(b: &[u8; 32]) -> Self {
+    pub fn from_array(b: &[u8; Self::BYTES]) -> Self {
         let _ = low::Entry::new_public();
         Self(util::little_endian_to_u64x4(b))
     }
 
     /// Extract the bytes of this public key.
-    pub fn as_bytes(&self) -> [u8; 32] {
+    pub fn as_bytes(&self) -> [u8; Self::BYTES] {
         let _ = low::Entry::new_public();
         util::u64x4_to_little_endian(&self.0)
     }
