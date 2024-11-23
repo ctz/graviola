@@ -1,0 +1,41 @@
+name: coverage
+
+on:
+  pull_request:
+  schedule:
+    - cron: '0 18 * * *'
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: macos-latest
+
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: true
+
+    - name: Install stable toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: stable
+        components: llvm-tools
+
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
+
+    - name: Measure coverage
+      run: ./admin/coverage --lcov --output-path final.info
+
+    - name: Report to codecov.io
+      uses: codecov/codecov-action@v5
+      with:
+        files: final.info
+        token: ${{ secrets.CODECOV_TOKEN }}

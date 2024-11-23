@@ -2,12 +2,15 @@
 
 set -e
 
-source <(cargo llvm-cov show-env --export-prefix "$@")
+cargo llvm-cov show-env --export-prefix "$@" > envsh
+source ./envsh
 cargo llvm-cov clean --workspace
 
-cargo build --locked --all-targets --all-features
 cargo test --locked --all-features
-env GRAVIOLA_CPU_DISABLE_sha=1 GRAVIOLA_CPU_DISABLE_bmi2=1 cargo test --locked --all-features
+
+if [ `uname -p` == "x86_64" ] ; then
+    env GRAVIOLA_CPU_DISABLE_sha=1 GRAVIOLA_CPU_DISABLE_bmi2=1 cargo test --locked
+fi
 cargo run --example client https://jbp.io >/dev/null
 
 cargo llvm-cov report "$@"
