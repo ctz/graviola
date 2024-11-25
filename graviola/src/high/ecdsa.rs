@@ -326,8 +326,11 @@ mod tests {
         let signature = sk.sign::<hash::Sha512>(&message, &mut buffer).unwrap();
         vk.verify::<hash::Sha512>(&message, signature).unwrap();
 
-        let signature = sk.sign_asn1::<hash::Sha256>(&message, &mut buffer).unwrap();
-        vk.verify_asn1::<hash::Sha256>(&message, signature).unwrap();
+        // check for invalid asn1 with p=1/256
+        for _ in 0..1024 {
+            let signature = sk.sign_asn1::<hash::Sha256>(&message, &mut buffer).unwrap();
+            vk.verify_asn1::<hash::Sha256>(&message, signature).unwrap();
+        }
 
         let signature = sk.sign_asn1::<hash::Sha384>(&message, &mut buffer).unwrap();
         vk.verify_asn1::<hash::Sha384>(&message, signature).unwrap();
