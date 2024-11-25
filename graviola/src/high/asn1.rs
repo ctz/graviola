@@ -391,6 +391,38 @@ impl<'a> Integer<'a> {
         }
     }
 
+    /// Returns a positive ASN.1 integer.
+    ///
+    /// `value` should be a big-endian aka. radix-256 integer.
+    ///
+    /// It may have leading zeroes, these are removed if needed.
+    ///
+    /// It may have the top bit set, this function will prepend
+    /// a zero byte if needed.
+    ///
+    /// The number of leading zeros is deemed a public property.
+    ///
+    /// `buffer` must be at least 1 octet larger than `magnitude`.
+    pub(crate) fn new_positive(buffer: &'a mut [u8], mut value: &'_ [u8]) -> Self {
+        // strip leading zero bytes
+        while !value.is_empty() && value[0] == 0x00 {
+            value = &value[1..];
+        }
+
+        let buf_len = if !value.is_empty() && value[0] & 0x80 == 0x80 {
+            buffer[0] = 0x00;
+            buffer[1..value.len() + 1].copy_from_slice(value);
+            value.len() + 1
+        } else {
+            buffer[..value.len()].copy_from_slice(value);
+            value.len()
+        };
+
+        Self {
+            twos_complement: &buffer[..buf_len],
+        }
+    }
+
     pub(crate) fn is_negative(&self) -> bool {
         self.twos_complement
             .first()
