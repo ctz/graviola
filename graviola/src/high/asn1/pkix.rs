@@ -121,7 +121,7 @@ mod tests {
 
         let key = PrivateKeyInfo::parse(&mut Parser::new(data)).unwrap();
         dbg!(&key);
-        assert_eq!(key.version, Integer::from_bytes(&[0]));
+        assert_eq!(key.version, Integer::new(&[0]));
         assert_eq!(key.privateKeyAlgorithm.algorithm, oid::id_ecPublicKey);
         assert_eq!(
             key.privateKeyAlgorithm.parameters,

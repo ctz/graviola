@@ -91,7 +91,7 @@ macro_rules! asn1_enum {
             fn encode(&self, encoder: &mut $crate::high::asn1::Encoder<'_>) -> Result<usize, $crate::high::asn1::Error> {
                 let value = *self as usize;
                 let bytes = value.to_be_bytes();
-                $crate::high::asn1::Integer::from_bytes(&bytes).encode(encoder)
+                $crate::high::asn1::Integer::new(&bytes).encode(encoder)
             }
 
             fn encoded_len(&self) -> usize {
@@ -354,11 +354,18 @@ pub(crate) struct Integer<'a> {
 }
 
 impl<'a> Integer<'a> {
-    pub(crate) fn new(twos_complement: &'a [u8]) -> Self {
-        Self { twos_complement }
-    }
-
-    fn from_bytes(mut bytes: &'a [u8]) -> Self {
+    /// Returns a positive, zero, or negative ASN.1 integer.
+    ///
+    /// If `bytes` is empty or only consists of zero bytes,
+    /// then zero is returned.
+    ///
+    /// If the top bit of `bytes` is set, then a negative
+    /// number is returned, with any excess leading 0xff
+    /// bytes stripped.
+    ///
+    /// Otherwise, a positive number is returned, with any
+    /// excess leading 0x00 bytes stripped.
+    pub(crate) fn new(mut bytes: &'a [u8]) -> Self {
         static ZERO: &[u8] = &[0];
 
         if bytes.is_empty() || bytes.iter().all(|b| *b == 0x00) {
@@ -727,26 +734,26 @@ mod tests {
 
     #[test]
     fn test_integer_encoding() {
-        check_integer_from_bytes(&[0u8; 16], &[0x02, 0x01, 0x00]);
-        check_integer_from_bytes(&[], &[0x02, 0x01, 0x00]);
+        check_integer_from_magnitude(&[0u8; 16], &[0x02, 0x01, 0x00]);
+        check_integer_from_magnitude(&[], &[0x02, 0x01, 0x00]);
         check_integer_from_isize(0, &[0x02, 0x01, 0x00]);
 
         // negative sign contraction
-        check_integer_from_bytes(&[0xffu8; 32], &[0x02, 0x01, 0xff]);
-        check_integer_from_bytes(&[0xff, 0xff, 0x01], &[0x02, 0x02, 0xff, 0x01]);
+        check_integer_from_magnitude(&[0xffu8; 32], &[0x02, 0x01, 0xff]);
+        check_integer_from_magnitude(&[0xff, 0xff, 0x01], &[0x02, 0x02, 0xff, 0x01]);
         check_integer_from_isize(-1, &[0x02, 0x01, 0xff]);
         check_integer_from_isize(-127, &[0x02, 0x01, 0x81]);
 
         // positive zero constraction
-        check_integer_from_bytes(&[0x00, 0x00, 0x80], &[0x02, 0x02, 0x00, 0x80]);
-        check_integer_from_bytes(&[0x00, 0x00, 0x7f], &[0x02, 0x01, 0x7f]);
+        check_integer_from_magnitude(&[0x00, 0x00, 0x80], &[0x02, 0x02, 0x00, 0x80]);
+        check_integer_from_magnitude(&[0x00, 0x00, 0x7f], &[0x02, 0x01, 0x7f]);
         check_integer_from_isize(128, &[0x02, 0x02, 0x00, 0x80]);
         check_integer_from_isize(127, &[0x02, 0x01, 0x7f]);
     }
 
-    fn check_integer_from_bytes(bytes: &[u8], encoding: &[u8]) {
+    fn check_integer_from_magnitude(bytes: &[u8], encoding: &[u8]) {
         let mut buf = vec![0u8; encoding.len()];
-        let len = Integer::from_bytes(bytes)
+        let len = Integer::new(bytes)
             .encode(&mut Encoder::new(&mut buf))
             .unwrap();
         buf.truncate(len);
@@ -755,7 +762,7 @@ mod tests {
 
     fn check_integer_from_isize(num: isize, encoding: &[u8]) {
         let mut buf = vec![0u8; encoding.len()];
-        let len = Integer::from_bytes(&num.to_be_bytes())
+        let len = Integer::new(&num.to_be_bytes())
             .encode(&mut Encoder::new(&mut buf))
             .unwrap();
         buf.truncate(len);
