@@ -249,7 +249,12 @@ fn write_fixed(out: &mut [u8], mut value: &[u8]) -> Result<(), Error> {
     Ok(())
 }
 
-fn write_positive_int<'a>(buf: &'a mut [u8], value: &[u8]) -> asn1::Integer<'a> {
+fn write_positive_int<'a>(buf: &'a mut [u8], mut value: &[u8]) -> asn1::Integer<'a> {
+    // strip leading zero bytes
+    while !value.is_empty() && value[0] == 0x00 {
+        value = &value[1..];
+    }
+
     let buf_len = if value[0] & 0x80 == 0x80 {
         buf[0] = 0x00;
         buf[1..value.len() + 1].copy_from_slice(value);
