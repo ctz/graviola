@@ -87,8 +87,8 @@ impl<C: Curve> SigningKey<C> {
     ) -> Result<&'a [u8], Error> {
         let mut r = [0u8; MAX_SCALAR_LEN + 1];
         let mut s = [0u8; MAX_SCALAR_LEN + 1];
-        let r = write_positive_int(&mut r, &fixed_signature[..C::Scalar::LEN_BYTES]);
-        let s = write_positive_int(&mut s, &fixed_signature[C::Scalar::LEN_BYTES..]);
+        let r = asn1::Integer::new_positive(&mut r, &fixed_signature[..C::Scalar::LEN_BYTES]);
+        let s = asn1::Integer::new_positive(&mut s, &fixed_signature[C::Scalar::LEN_BYTES..]);
 
         let sig = asn1::pkix::EcdsaSigValue { r, s };
         let sig_len = sig
@@ -247,24 +247,6 @@ fn write_fixed(out: &mut [u8], mut value: &[u8]) -> Result<(), Error> {
     prefix.fill(0x00);
     suffix.copy_from_slice(value);
     Ok(())
-}
-
-fn write_positive_int<'a>(buf: &'a mut [u8], mut value: &[u8]) -> asn1::Integer<'a> {
-    // strip leading zero bytes
-    while !value.is_empty() && value[0] == 0x00 {
-        value = &value[1..];
-    }
-
-    let buf_len = if value[0] & 0x80 == 0x80 {
-        buf[0] = 0x00;
-        buf[1..value.len() + 1].copy_from_slice(value);
-        value.len() + 1
-    } else {
-        buf[..value.len()].copy_from_slice(value);
-        value.len()
-    };
-
-    asn1::Integer::new(&buf[..buf_len])
 }
 
 #[cfg(test)]
