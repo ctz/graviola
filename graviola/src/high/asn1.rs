@@ -409,6 +409,31 @@ impl<'a> Integer<'a> {
         }
         Ok(usize::from_be_bytes(bytes))
     }
+
+    fn minimum_magnitude_check(twos_complement: &'a [u8]) -> Result<Self, Error> {
+        // ref. https://www.itu.int/ITU-T/studygroups/com17/languages/X.690-0207.pdf
+
+        // 8.3.1. "one or more octets"
+        if twos_complement.is_empty() {
+            return Err(Error::IntegerOutOfRange);
+        }
+
+        // 8.3.2. "... more than one octet, then the bits of
+        // the first octet and bit 8 of the second octet
+        // a) shall not be ones; and
+        // b) shall not be zero"
+        if let Some(first_two) = twos_complement.get(..2) {
+            if first_two[0] == 0xff && first_two[1] & 0x80 == 0x80 {
+                return Err(Error::IntegerOutOfRange);
+            }
+
+            if first_two[0] == 0x00 && first_two[1] & 0x80 == 0x00 {
+                return Err(Error::IntegerOutOfRange);
+            }
+        }
+
+        Ok(Self { twos_complement })
+    }
 }
 
 impl<'a> AsRef<[u8]> for Integer<'a> {
@@ -420,7 +445,7 @@ impl<'a> AsRef<[u8]> for Integer<'a> {
 impl<'a> Type<'a> for Integer<'a> {
     fn parse(p: &mut Parser<'a>) -> Result<Self, Error> {
         let (_, twos_complement) = p.take(Tag::integer())?;
-        Ok(Self { twos_complement })
+        Self::minimum_magnitude_check(twos_complement)
     }
 
     fn encode(&self, encoder: &mut Encoder<'_>) -> Result<usize, Error> {
@@ -767,6 +792,33 @@ mod tests {
             .unwrap();
         buf.truncate(len);
         assert_eq!(&buf, encoding);
+    }
+
+    #[test]
+    fn test_invalid_integer_encodings() {
+        // empty
+        assert_eq!(
+            Integer::from_bytes(&[0x02, 0x00]).unwrap_err(),
+            Error::IntegerOutOfRange
+        );
+
+        // excess negative
+        assert_eq!(
+            Integer::from_bytes(&[0x02, 0x02, 0xff, 0xff]).unwrap_err(),
+            Error::IntegerOutOfRange
+        );
+
+        // excess positive
+        assert_eq!(
+            Integer::from_bytes(&[0x02, 0x02, 0x00, 0x01]).unwrap_err(),
+            Error::IntegerOutOfRange
+        );
+
+        // necessary positive
+        assert_eq!(
+            Integer::from_bytes(&[0x02, 0x02, 0x00, 0xff]).unwrap(),
+            Integer::new(&[0x00, 0xff])
+        );
     }
 
     #[test]
