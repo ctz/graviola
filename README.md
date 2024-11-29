@@ -21,6 +21,11 @@ This project is very new, so exercise due caution.  The overriding
 goal of this crate is for use with `rustls` via [rustls-graviola][],
 but there is also a public API for general-purpose use.
 
+[![Build Status](https://img.shields.io/github/actions/workflow/status/ctz/graviola/build.yml)](https://github.com/ctz/graviola/actions/workflows/build.yml?query=branch%3Amain)
+[![Latest release](https://img.shields.io/crates/v/graviola)](https://crates.io/crates/graviola)
+[![Coverage Status (codecov.io)](https://img.shields.io/codecov/c/github/ctz/graviola)](https://codecov.io/gh/ctz/graviola/)
+[![Documentation](https://img.shields.io/docsrs/graviola)](https://docs.rs/graviola/)
+
 ## Goals
 
 - [x] Fast and simple compilation
