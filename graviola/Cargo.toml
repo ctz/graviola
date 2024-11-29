@@ -1,6 +1,6 @@
 [package]
 name = "graviola"
-version = "0.2.0-alpha.1"
+version = "0.2.0-alpha.2"
 edition = "2021"
 repository = "https://github.com/ctz/graviola/"
 license = "Apache-2.0 OR ISC OR MIT-0"

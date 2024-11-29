@@ -770,7 +770,7 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
 name = "graviola"
-version = "0.2.0-alpha.1"
+version = "0.2.0-alpha.2"
 dependencies = [
  "cfg-if",
  "getrandom",
@@ -1683,7 +1683,7 @@ dependencies = [
 
 [[package]]
 name = "rustls-graviola"
-version = "0.2.0-alpha.1"
+version = "0.2.0-alpha.2"
 dependencies = [
  "env_logger",
  "graviola",
