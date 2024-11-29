@@ -130,7 +130,8 @@ SHA256 has straightforward implementations using hashing intrinsics
 (aka "SHA-NI" on x86_64, "sha" extension on aarch64) with runtime fallback
 on x86_64 to a pure Rust version if needed.
 
-SHA384/SHA512 on x86_64 has an AVX2 by-4 implementation.
+SHA384/SHA512 on x86_64 has an AVX2 by-4 implementation, plus an AVX2 interleaved
+single block implementation.
 
 AES and GHASH always use intrinsics (there are no fallbacks).
 

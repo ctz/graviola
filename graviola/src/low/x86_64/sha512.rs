@@ -8,8 +8,6 @@
 
 use core::arch::x86_64::*;
 
-use crate::low::generic;
-
 #[inline]
 fn ch(x: u64, y: u64, z: u64) -> u64 {
     (x & y) ^ (!x & z)
@@ -102,42 +100,38 @@ macro_rules! schedule_round {
 #[target_feature(enable = "avx,avx2,bmi2")]
 unsafe fn sha512_quad_message_schedule(schedule: &mut [__m256i; 80], message: *const u64) {
     let gather_mask = _mm256_setr_epi64x(0, 16, 32, 48);
-    let bswap_mask = _mm256_set_epi8(
-        8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1,
-        2, 3, 4, 5, 6, 7,
-    );
     let mut w0 = _mm256_i64gather_epi64(message.add(0).cast(), gather_mask, 8);
-    w0 = _mm256_shuffle_epi8(w0, bswap_mask);
+    w0 = _mm256_shuffle_epi8(w0, BSWAP_SHUFFLE);
     let mut w1 = _mm256_i64gather_epi64(message.add(1).cast(), gather_mask, 8);
-    w1 = _mm256_shuffle_epi8(w1, bswap_mask);
+    w1 = _mm256_shuffle_epi8(w1, BSWAP_SHUFFLE);
     let mut w2 = _mm256_i64gather_epi64(message.add(2).cast(), gather_mask, 8);
-    w2 = _mm256_shuffle_epi8(w2, bswap_mask);
+    w2 = _mm256_shuffle_epi8(w2, BSWAP_SHUFFLE);
     let mut w3 = _mm256_i64gather_epi64(message.add(3).cast(), gather_mask, 8);
-    w3 = _mm256_shuffle_epi8(w3, bswap_mask);
+    w3 = _mm256_shuffle_epi8(w3, BSWAP_SHUFFLE);
     let mut w4 = _mm256_i64gather_epi64(message.add(4).cast(), gather_mask, 8);
-    w4 = _mm256_shuffle_epi8(w4, bswap_mask);
+    w4 = _mm256_shuffle_epi8(w4, BSWAP_SHUFFLE);
     let mut w5 = _mm256_i64gather_epi64(message.add(5).cast(), gather_mask, 8);
-    w5 = _mm256_shuffle_epi8(w5, bswap_mask);
+    w5 = _mm256_shuffle_epi8(w5, BSWAP_SHUFFLE);
     let mut w6 = _mm256_i64gather_epi64(message.add(6).cast(), gather_mask, 8);
-    w6 = _mm256_shuffle_epi8(w6, bswap_mask);
+    w6 = _mm256_shuffle_epi8(w6, BSWAP_SHUFFLE);
     let mut w7 = _mm256_i64gather_epi64(message.add(7).cast(), gather_mask, 8);
-    w7 = _mm256_shuffle_epi8(w7, bswap_mask);
+    w7 = _mm256_shuffle_epi8(w7, BSWAP_SHUFFLE);
     let mut w8 = _mm256_i64gather_epi64(message.add(8).cast(), gather_mask, 8);
-    w8 = _mm256_shuffle_epi8(w8, bswap_mask);
+    w8 = _mm256_shuffle_epi8(w8, BSWAP_SHUFFLE);
     let mut w9 = _mm256_i64gather_epi64(message.add(9).cast(), gather_mask, 8);
-    w9 = _mm256_shuffle_epi8(w9, bswap_mask);
+    w9 = _mm256_shuffle_epi8(w9, BSWAP_SHUFFLE);
     let mut w10 = _mm256_i64gather_epi64(message.add(10).cast(), gather_mask, 8);
-    w10 = _mm256_shuffle_epi8(w10, bswap_mask);
+    w10 = _mm256_shuffle_epi8(w10, BSWAP_SHUFFLE);
     let mut w11 = _mm256_i64gather_epi64(message.add(11).cast(), gather_mask, 8);
-    w11 = _mm256_shuffle_epi8(w11, bswap_mask);
+    w11 = _mm256_shuffle_epi8(w11, BSWAP_SHUFFLE);
     let mut w12 = _mm256_i64gather_epi64(message.add(12).cast(), gather_mask, 8);
-    w12 = _mm256_shuffle_epi8(w12, bswap_mask);
+    w12 = _mm256_shuffle_epi8(w12, BSWAP_SHUFFLE);
     let mut w13 = _mm256_i64gather_epi64(message.add(13).cast(), gather_mask, 8);
-    w13 = _mm256_shuffle_epi8(w13, bswap_mask);
+    w13 = _mm256_shuffle_epi8(w13, BSWAP_SHUFFLE);
     let mut w14 = _mm256_i64gather_epi64(message.add(14).cast(), gather_mask, 8);
-    w14 = _mm256_shuffle_epi8(w14, bswap_mask);
+    w14 = _mm256_shuffle_epi8(w14, BSWAP_SHUFFLE);
     let mut w15 = _mm256_i64gather_epi64(message.add(15).cast(), gather_mask, 8);
-    w15 = _mm256_shuffle_epi8(w15, bswap_mask);
+    w15 = _mm256_shuffle_epi8(w15, BSWAP_SHUFFLE);
 
     let mut i = 0;
     while i < 64 {
@@ -176,6 +170,18 @@ unsafe fn sha512_quad_message_schedule(schedule: &mut [__m256i; 80], message: *c
     schedule[79] = _mm256_add_epi64(w15, k!(79));
 }
 
+macro_rules! round {
+    ($a:ident, $b:ident, $c:ident, $d:ident, $e:ident, $f:ident, $g:ident, $h:ident, $w_t:expr) => {
+        let t1 = $h
+            .wrapping_add(bsig1($e))
+            .wrapping_add(ch($e, $f, $g))
+            .wrapping_add($w_t as u64);
+        let t2 = bsig0($a).wrapping_add(maj($a, $b, $c));
+        $d = $d.wrapping_add(t1);
+        $h = t1.wrapping_add(t2);
+    };
+}
+
 #[target_feature(enable = "avx,avx2,bmi2")]
 unsafe fn sha512_compress_4_blocks(state: &mut [u64; 8], block4: *const u64) {
     let mut w = [_mm256_setzero_si256(); 80];
@@ -185,18 +191,6 @@ unsafe fn sha512_compress_4_blocks(state: &mut [u64; 8], block4: *const u64) {
     // pressure
     let save_abcd = _mm256_loadu_si256(state.as_ptr().add(0).cast());
     let save_efgh = _mm256_loadu_si256(state.as_ptr().add(4).cast());
-
-    macro_rules! round {
-        ($a:ident, $b:ident, $c:ident, $d:ident, $e:ident, $f:ident, $g:ident, $h:ident, $w_t:expr) => {
-            let t1 = $h
-                .wrapping_add(bsig1($e))
-                .wrapping_add(ch($e, $f, $g))
-                .wrapping_add($w_t as u64);
-            let t2 = bsig0($a).wrapping_add(maj($a, $b, $c));
-            $d = $d.wrapping_add(t1);
-            $h = t1.wrapping_add(t2);
-        };
-    }
 
     // block 1
     let mut a = _mm256_extract_epi64(save_abcd, 0) as u64;
@@ -321,6 +315,130 @@ unsafe fn sha512_compress_4_blocks(state: &mut [u64; 8], block4: *const u64) {
     _mm256_storeu_si256(state.as_ptr().add(4) as *mut _, save_efgh);
 }
 
+/// Reads 32 bytes of input from $block & byte swaps it
+///
+/// This is the first 16 terms of W.
+///
+/// Then adds the matching terms of K (dictated by $i, which should be 0..4).
+///
+/// Returns both W, and W+K
+macro_rules! input {
+    ($block:ident, $i:literal) => {{
+        let w = _mm256_loadu_si256($block.as_ptr().add($i * 32).cast());
+        let w = _mm256_shuffle_epi8(w, BSWAP_SHUFFLE);
+        let k = _mm256_loadu_si256(K.as_ptr().add($i * 4).cast());
+        let wk = _mm256_add_epi64(w, k);
+        (w, wk)
+    }};
+}
+
+/// Computes the next four terms of W schedule, and W+K.
+///
+/// $wm16 contains W[-16:-14], $wm12 contains W[-12:-8], etc.
+macro_rules! schedule {
+    ($wm16:ident, $wm12:ident, $wm8:ident, $wm4:ident, $k:ident) => {{
+        // reminder: W[t] = SSIG1(W[t - 2]) + W[t - 7] + SSIG0(W[t - 15]) + W[t - 16];
+        //
+        // since we're computing this for four consecutive values of t, 0..4, we need:
+        //
+        // - W[t - 16]: W[-16, -15, -14, -13]
+        let wm16_13 = $wm16;
+
+        // - W[t - 15]: W[-15, -14, -13, -12]
+        let wm14_11 = _mm256_permute2x128_si256($wm16, $wm12, 0b0010_0001);
+        let wm15_12 = _mm256_alignr_epi8(wm14_11, $wm16, 8);
+
+        // - W[t - 7]: W[-7, -6, -5, -4]
+        let wm6_3 = _mm256_permute2x128_si256($wm8, $wm4, 0b0010_0001);
+        let wm7_4 = _mm256_alignr_epi8(wm6_3, $wm8, 8);
+
+        // The W[t - 2] term is more complex: it is W[-2, -1] followed by the first
+        // two terms of this function.  That means we must compute this in two phases.
+        let s0_wm15_12 = sigma_0(wm15_12);
+        let w01xx = _mm256_permute4x64_epi64($wm4, 0b11_10_11_10);
+        let s1_w01xx = sigma_1(w01xx);
+        let tmp = _mm256_add_epi64(s0_wm15_12, wm16_13);
+        let tmp = _mm256_add_epi64(wm7_4, tmp);
+        let w01xx = _mm256_add_epi64(s1_w01xx, tmp);
+
+        // finally, compute w[2, 3] based on the new w[0, 1]
+        let w0101 = _mm256_permute4x64_epi64(w01xx, 0b01_00_01_00);
+        let s1_w0101 = sigma_1(w0101);
+        let wxx23 = _mm256_add_epi64(s1_w0101, tmp);
+
+        let w = _mm256_permute2x128_si256(w01xx, wxx23, 0b0011_0000);
+        let wk = _mm256_add_epi64(w, $k);
+        (w, wk)
+    }};
+}
+
+/// AVX2 SHA512 block compression.
+///
+/// This implementation uses the ideas in:
+/// <https://web.archive.org/web/20220121160101/https://www.intel.com/content/dam/www/public/us/en/documents/white-papers/fast-sha512-implementations-ia-processors-paper.pdf>
+/// specifically: we use AVX2 operations for message schedule,
+/// and scalar operations for round computation, interleaved.
+///
+/// That means we interleave computing four words of W, followed by
+/// four rounds.
+#[target_feature(enable = "avx,avx2,bmi2")]
+unsafe fn sha512_compress_block(state: &mut [u64; 8], block: &[u8]) {
+    let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = *state;
+    let (w0_3, wk0_3) = input!(block, 0);
+    round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(wk0_3, 0));
+    round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(wk0_3, 1));
+    round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(wk0_3, 2));
+    round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(wk0_3, 3));
+    let (w4_7, wk4_7) = input!(block, 1);
+    round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(wk4_7, 0));
+    round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(wk4_7, 1));
+    round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(wk4_7, 2));
+    round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(wk4_7, 3));
+    let (w8_11, wk8_11) = input!(block, 2);
+    round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(wk8_11, 0));
+    round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(wk8_11, 1));
+    round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(wk8_11, 2));
+    round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(wk8_11, 3));
+    let (w12_15, wk12_15) = input!(block, 3);
+    round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(wk12_15, 0));
+    round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(wk12_15, 1));
+    round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(wk12_15, 2));
+    round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(wk12_15, 3));
+
+    // window of 16 W values
+    let (mut wm4, mut wm3, mut wm2, mut wm1) = (w0_3, w4_7, w8_11, w12_15);
+
+    for t in (16..80).step_by(8) {
+        let k0 = _mm256_loadu_si256(K.as_ptr().add(t).cast());
+        let (w_t, wk_t) = schedule!(wm4, wm3, wm2, wm1, k0);
+        round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(wk_t, 0));
+        round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(wk_t, 1));
+        round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(wk_t, 2));
+        round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(wk_t, 3));
+
+        let k4 = _mm256_loadu_si256(K.as_ptr().add(t + 4).cast());
+        let (w_t1, wk_t1) = schedule!(wm3, wm2, wm1, w_t, k4);
+        round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(wk_t1, 0));
+        round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(wk_t1, 1));
+        round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(wk_t1, 2));
+        round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(wk_t1, 3));
+
+        wm4 = wm2;
+        wm3 = wm1;
+        wm2 = w_t;
+        wm1 = w_t1;
+    }
+
+    state[0] = state[0].wrapping_add(a);
+    state[1] = state[1].wrapping_add(b);
+    state[2] = state[2].wrapping_add(c);
+    state[3] = state[3].wrapping_add(d);
+    state[4] = state[4].wrapping_add(e);
+    state[5] = state[5].wrapping_add(f);
+    state[6] = state[6].wrapping_add(g);
+    state[7] = state[7].wrapping_add(h);
+}
+
 pub(in crate::low) fn sha512_compress_blocks(state: &mut [u64; 8], blocks: &[u8]) {
     let mut iter4 = blocks.chunks_exact(512);
     for block4 in iter4.by_ref() {
@@ -329,8 +447,18 @@ pub(in crate::low) fn sha512_compress_blocks(state: &mut [u64; 8], blocks: &[u8]
     }
     let blocks = iter4.remainder();
 
-    generic::sha512::sha512_compress_blocks(state, blocks);
+    for block in blocks.chunks_exact(128) {
+        // SAFETY: caller checks cpu features for `bmi2`; `avx` and `avx2` required by crate.
+        unsafe { sha512_compress_block(state, block) }
+    }
 }
+
+const BSWAP_SHUFFLE: __m256i = unsafe {
+    core::mem::transmute([
+        7u8, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13,
+        12, 11, 10, 9, 8,
+    ])
+};
 
 static K: [u64; 80] = [
     0x428a2f98d728ae22,
