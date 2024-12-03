@@ -3,15 +3,15 @@
 //! First parameter is the mandatory URL to GET.
 //! Second parameter is an optional path to CA store.
 
+use std::str::FromStr;
+use std::{env, fs, io};
+
 use http::Uri;
 use http_body_util::{BodyExt, Empty};
 use hyper::body::Bytes;
 use hyper_rustls::ConfigBuilderExt;
 use hyper_util::{client::legacy::Client, rt::TokioExecutor};
 use rustls::RootCertStore;
-
-use std::str::FromStr;
-use std::{env, fs, io};
 
 fn main() {
     // Send GET request and inspect result, with proper error handling.

@@ -1,8 +1,9 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
-use crate::low::zero_bytes;
 use core::mem::{size_of, size_of_val};
+
+use crate::low::zero_bytes;
 
 /// Writes zeroes over the whole of the `v` slice.
 pub(crate) fn zeroise<T: Zeroable>(v: &mut [T]) {

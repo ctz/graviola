@@ -1,13 +1,13 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use core::fmt;
+use core::ops::Range;
+
 use super::util;
 use crate::low;
 use crate::mid::rng::{RandomSource, SystemRandom};
 use crate::Error;
-
-use core::fmt;
-use core::ops::Range;
 
 mod precomp;
 
@@ -1058,8 +1058,9 @@ const CURVE_ORDER_MM: [u64; 4] = [
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use core::mem::size_of_val;
+
+    use super::*;
 
     const CURVE_GENERATOR: AffineMontPoint = AffineMontPoint {
         xy: [

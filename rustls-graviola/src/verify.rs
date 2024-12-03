@@ -1,10 +1,9 @@
+use graviola::hashing;
+use graviola::signing::{ecdsa, rsa};
 use rustls::crypto::WebPkiSupportedAlgorithms;
 use rustls::pki_types::{AlgorithmIdentifier, InvalidSignature, SignatureVerificationAlgorithm};
 use rustls::SignatureScheme;
 use webpki::alg_id;
-
-use graviola::hashing;
-use graviola::signing::{ecdsa, rsa};
 
 pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms {
     all: &[

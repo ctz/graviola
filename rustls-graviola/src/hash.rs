@@ -1,6 +1,5 @@
-use rustls::crypto::hash;
-
 use graviola::hashing::sha2;
+use rustls::crypto::hash;
 
 pub struct Sha256;
 

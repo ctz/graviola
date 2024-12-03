@@ -1,10 +1,11 @@
+use std::io::{Read, Write};
+use std::sync::Arc;
+
 use rustls::crypto::ring::default_provider as baseline;
 use rustls::crypto::{CryptoProvider, SupportedKxGroup};
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::{ClientConfig, ClientConnection, RootCertStore, ServerConfig, ServerConnection};
-use std::io::{Read, Write};
-use std::sync::Arc;
 
 #[test]
 fn all_suites() {

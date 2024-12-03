@@ -1,3 +1,4 @@
+use graviola::aead::{AesGcm, ChaCha20Poly1305};
 use rustls::crypto::cipher::{
     make_tls12_aad, make_tls13_aad, AeadKey, InboundOpaqueMessage, InboundPlainMessage, Iv,
     KeyBlockShape, MessageDecrypter, MessageEncrypter, Nonce, OutboundOpaqueMessage,
@@ -5,8 +6,6 @@ use rustls::crypto::cipher::{
     UnsupportedOperationError, NONCE_LEN,
 };
 use rustls::{ConnectionTrafficSecrets, ContentType, ProtocolVersion};
-
-use graviola::aead::{AesGcm, ChaCha20Poly1305};
 
 pub struct Chacha20Poly1305;
 

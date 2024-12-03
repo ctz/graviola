@@ -1,12 +1,12 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use core::marker::PhantomData;
+
 use super::hash::{Hash, HashOutput};
 use super::hmac::Hmac;
 use crate::mid::rng::RandomSource;
 use crate::Error;
-
-use core::marker::PhantomData;
 
 /// A limited implementation of SP800-90A -- enough for RFC6979 ECDSA.
 pub(crate) struct HmacDrbg<H: Hash> {
