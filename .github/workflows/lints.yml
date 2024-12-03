@@ -45,12 +45,22 @@ jobs:
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: stable
+        components: rustfmt
+
+    - name: Install nightly toolchain
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: nightly-2024-12-03
+        components: rustfmt
 
     - name: clippy
-      run: cargo clippy --all-features -- --deny warnings
+      run: cargo +stable clippy --all-features -- --deny warnings
 
     - name: rustfmt
-      run: cargo fmt --check
+      run: cargo +stable fmt --check
+
+    - name: rustfmt (nightly)
+      run: cargo +nightly-2024-12-03 fmt --check -- --config-path=.rustfmt.unstable.toml
 
     - name: check codegen
       working-directory: admin/parse-asm
