@@ -8,9 +8,10 @@
 //
 // cf. the x86_64 version, on which this one is based.
 
+use core::arch::aarch64::*;
+
 use crate::low;
 use crate::low::aarch64::cpu;
-use core::arch::aarch64::*;
 
 pub(crate) enum AesKey {
     Aes128(AesKey128),

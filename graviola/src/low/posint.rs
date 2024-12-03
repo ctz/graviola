@@ -1,10 +1,10 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use core::ops::{Deref, DerefMut};
+
 use crate::low;
 use crate::Error;
-
-use core::ops::{Deref, DerefMut};
 
 #[derive(Clone, Debug)]
 pub(crate) struct PosInt<const N: usize> {

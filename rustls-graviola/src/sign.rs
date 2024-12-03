@@ -1,9 +1,9 @@
 use core::fmt;
-use rustls::{pki_types, sign, SignatureScheme};
 use std::sync::Arc;
 
 use graviola::hashing;
 use graviola::signing::{ecdsa, rsa};
+use rustls::{pki_types, sign, SignatureScheme};
 
 #[derive(Debug)]
 pub(super) struct Provider;

@@ -5,9 +5,10 @@
 //!
 //! Based on the implementation in low/x86_64/ghash.rs
 
-use crate::low;
 use core::arch::aarch64::*;
 use core::mem;
+
+use crate::low;
 
 pub(crate) struct GhashTable {
     powers: [uint64x2_t; 8],

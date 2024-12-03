@@ -1,4 +1,3 @@
-use serde::Deserialize;
 use std::fs::File;
 
 use graviola::aead::{AesGcm, ChaCha20Poly1305, XChaCha20Poly1305};
@@ -7,6 +6,7 @@ use graviola::hashing::{Sha256, Sha384, Sha512};
 use graviola::key_agreement::{p256, p384, x25519};
 use graviola::signing::{ecdsa, rsa};
 use graviola::Error;
+use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
 struct TestFile {

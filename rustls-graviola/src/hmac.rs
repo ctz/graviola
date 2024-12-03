@@ -1,7 +1,6 @@
-use rustls::crypto;
-
 use graviola::hashing::hmac::Hmac;
 use graviola::hashing::{Sha256, Sha384};
+use rustls::crypto;
 
 pub struct Sha256Hmac;
 
