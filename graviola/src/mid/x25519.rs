@@ -5,31 +5,17 @@ use super::util;
 use crate::low;
 use crate::mid::rng::{RandomSource, SystemRandom};
 
-/// An X25519 private key.
+/// An X25519 ephemeral private key.
+///
+/// This is single-use, which is usually sufficient and desirable for
+/// straightforward key exchange.
+///
+/// Use [`StaticPrivateKey`] if you need to serialize, deserialize,
+/// or do the Diffie-Hellman operation multiple times.
 pub struct PrivateKey([u64; 4]);
 
 impl PrivateKey {
     const BYTES: usize = 32;
-
-    /// Create an X25519 [`PrivateKey`] from a byte slice.
-    ///
-    /// This must be exactly 32 bytes in length.
-    pub fn try_from_slice(b: &[u8]) -> Result<Self, ()> {
-        let _ = low::Entry::new_secret();
-        util::little_endian_slice_to_u64x4(b).map(Self).ok_or(())
-    }
-
-    /// Create an X25519 [`PrivateKey`] from a byte array.
-    pub fn from_array(b: &[u8; Self::BYTES]) -> Self {
-        let _ = low::Entry::new_secret();
-        Self(util::little_endian_to_u64x4(b))
-    }
-
-    /// Extract the bytes of this private key.
-    pub fn as_bytes(&self) -> [u8; Self::BYTES] {
-        let _ = low::Entry::new_secret();
-        util::u64x4_to_little_endian(&self.0)
-    }
 
     /// Generate a new key using the system random number generator.
     ///
@@ -38,7 +24,7 @@ impl PrivateKey {
         let _ = low::Entry::new_secret();
         let mut r = [0u8; Self::BYTES];
         SystemRandom.fill(&mut r)?;
-        Ok(Self::from_array(&r))
+        Ok(Self(util::little_endian_to_u64x4(&r)))
     }
 
     /// Compute the associated public key.
@@ -63,6 +49,62 @@ impl PrivateKey {
 impl Drop for PrivateKey {
     fn drop(&mut self) {
         low::zeroise(&mut self.0);
+    }
+}
+
+/// An X25519 static private key.
+///
+/// This is multi-use, which is usually undesirable for straightforward
+/// key exchange.
+///
+/// However it is necessary for other protocols, like 3DH, HPKE, etc.
+pub struct StaticPrivateKey(PrivateKey);
+
+impl StaticPrivateKey {
+    const BYTES: usize = 32;
+
+    /// Create an X25519 [`StaticPrivateKey`] from a byte slice.
+    ///
+    /// This must be exactly 32 bytes in length.
+    pub fn try_from_slice(b: &[u8]) -> Result<Self, ()> {
+        let _ = low::Entry::new_secret();
+        util::little_endian_slice_to_u64x4(b)
+            .map(|words| Self(PrivateKey(words)))
+            .ok_or(())
+    }
+
+    /// Create an X25519 [`StaticPrivateKey`] from a byte array.
+    pub fn from_array(b: &[u8; Self::BYTES]) -> Self {
+        let _ = low::Entry::new_secret();
+        Self(PrivateKey(util::little_endian_to_u64x4(b)))
+    }
+
+    /// Extract the bytes of this private key.
+    pub fn as_bytes(&self) -> [u8; Self::BYTES] {
+        let _ = low::Entry::new_secret();
+        util::u64x4_to_little_endian(&self.0 .0)
+    }
+
+    /// Generate a new key using the system random number generator.
+    ///
+    /// Fails only if the random source fails.
+    pub fn new_random() -> Result<Self, crate::Error> {
+        let _ = low::Entry::new_secret();
+        PrivateKey::new_random().map(Self)
+    }
+
+    /// Compute the associated public key.
+    pub fn public_key(&self) -> PublicKey {
+        let _ = low::Entry::new_secret();
+        self.0.public_key()
+    }
+
+    /// Do the Diffie-Hellman operation.
+    ///
+    /// `peer` is the peer's public key.  Returns a shared secret.
+    pub fn diffie_hellman(&self, peer: &PublicKey) -> SharedSecret {
+        let _ = low::Entry::new_secret();
+        PrivateKey(self.0 .0).diffie_hellman(peer)
     }
 }
 
@@ -110,7 +152,8 @@ mod tests {
     fn rfc7748_1() {
         let scalar = b"\xa5\x46\xe3\x6b\xf0\x52\x7c\x9d\x3b\x16\x15\x4b\x82\x46\x5e\xdd\x62\x14\x4c\x0a\xc1\xfc\x5a\x18\x50\x6a\x22\x44\xba\x44\x9a\xc4";
         let point = b"\xe6\xdb\x68\x67\x58\x30\x30\xdb\x35\x94\xc1\xa4\x24\xb1\x5f\x7c\x72\x66\x24\xec\x26\xb3\x35\x3b\x10\xa9\x03\xa6\xd0\xab\x1c\x4c";
-        let res = PrivateKey::from_array(scalar).diffie_hellman(&PublicKey::from_array(point));
+        let res =
+            StaticPrivateKey::from_array(scalar).diffie_hellman(&PublicKey::from_array(point));
         assert_eq!(
             &res.0,
             b"\xc3\xda\x55\x37\x9d\xe9\xc6\x90\x8e\x94\xea\x4d\xf2\x8d\x08\x4f\x32\xec\xcf\x03\x49\x1c\x71\xf7\x54\xb4\x07\x55\x77\xa2\x85\x52"
@@ -121,7 +164,8 @@ mod tests {
     fn rfc7748_2() {
         let scalar = b"\x4b\x66\xe9\xd4\xd1\xb4\x67\x3c\x5a\xd2\x26\x91\x95\x7d\x6a\xf5\xc1\x1b\x64\x21\xe0\xea\x01\xd4\x2c\xa4\x16\x9e\x79\x18\xba\x0d";
         let point = b"\xe5\x21\x0f\x12\x78\x68\x11\xd3\xf4\xb7\x95\x9d\x05\x38\xae\x2c\x31\xdb\xe7\x10\x6f\xc0\x3c\x3e\xfc\x4c\xd5\x49\xc7\x15\xa4\x93";
-        let res = PrivateKey::from_array(scalar).diffie_hellman(&PublicKey::from_array(point));
+        let res =
+            StaticPrivateKey::from_array(scalar).diffie_hellman(&PublicKey::from_array(point));
         assert_eq!(
             &res.0,
             b"\x95\xcb\xde\x94\x76\xe8\x90\x7d\x7a\xad\xe4\x5c\xb4\xb8\x73\xf8\x8b\x59\x5a\x68\x79\x9f\xa1\x52\xe6\xf8\xf7\x64\x7a\xac\x79\x57"
@@ -134,7 +178,7 @@ mod tests {
         k[0] = 9;
 
         // After one iteration: 422c8e7a6227d7bca1350b3e2bb7279f7897b87bb6854b783c60e80311ae3079
-        let res = PrivateKey::from_array(&k).public_key();
+        let res = StaticPrivateKey::from_array(&k).public_key();
         assert_eq!(
             &res.as_bytes(),
             b"\x42\x2c\x8e\x7a\x62\x27\xd7\xbc\xa1\x35\x0b\x3e\x2b\xb7\x27\x9f\x78\x97\xb8\x7b\xb6\x85\x4b\x78\x3c\x60\xe8\x03\x11\xae\x30\x79",
@@ -142,13 +186,13 @@ mod tests {
 
         // After 1,000 iterations: 684cf59ba83309552800ef566f2f4d3c1c3887c49360e3875f2eb94d99532c51
         let mut u = PublicKey::from_array(&k);
-        let mut k = PrivateKey::from_array(&res.as_bytes());
+        let mut k = StaticPrivateKey::from_array(&res.as_bytes());
 
         for _ in 1..1000 {
             let new_u = PublicKey::from_array(&k.as_bytes());
             let res = k.diffie_hellman(&u);
             u = new_u;
-            k = PrivateKey::from_array(&res.0);
+            k = StaticPrivateKey::from_array(&res.0);
         }
 
         assert_eq!(
@@ -162,7 +206,7 @@ mod tests {
                 let new_u = PublicKey::from_array(&k.as_bytes());
                 let res = k.diffie_hellman(&u);
                 u = new_u;
-                k = PrivateKey::from_array(&res.0);
+                k = StaticPrivateKey::from_array(&res.0);
             }
 
             assert_eq!(
@@ -174,7 +218,7 @@ mod tests {
 
     #[test]
     fn base_mul() {
-        let res = PrivateKey::from_array(&[1u8; 32]).public_key();
+        let res = StaticPrivateKey::from_array(&[1u8; 32]).public_key();
         // generated manually with cryptography.io
         assert_eq!(
             &res.as_bytes(),

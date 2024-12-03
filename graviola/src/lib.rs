@@ -61,9 +61,23 @@ pub mod doc {
 pub mod key_agreement {
     /// X25519 key agreement.
     ///
+    /// ```
+    /// use graviola::key_agreement::x25519::*;
+    ///
+    /// let alice = PrivateKey::new_random().unwrap();
+    /// let bob = PrivateKey::new_random().unwrap();
+    ///
+    /// let alice_pub = alice.public_key();
+    /// let bob_pub = bob.public_key();
+    ///
+    /// let alice_shared_secret = alice.diffie_hellman(&bob_pub);
+    /// let bob_shared_secret = bob.diffie_hellman(&alice_pub);
+    /// assert_eq!(alice_shared_secret.0, bob_shared_secret.0);
+    /// ```
+    ///
     /// See [RFC7748](https://datatracker.ietf.org/doc/html/rfc7748).
     pub mod x25519 {
-        pub use crate::mid::x25519::{PrivateKey, PublicKey, SharedSecret};
+        pub use crate::mid::x25519::{PrivateKey, PublicKey, SharedSecret, StaticPrivateKey};
     }
 
     /// Elliptic curve Diffie-Hellman on P-256

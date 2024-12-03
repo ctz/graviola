@@ -46,7 +46,14 @@ fn ecdsa_p384() {
 #[test]
 fn ecdh_x25519() {
     use graviola::key_agreement::x25519::PrivateKey;
-    let x25519 = PrivateKey::from_array(&[0xffu8; 32]);
+    let x25519 = PrivateKey::new_random().unwrap();
+    check_zeroed_on_drop(Box::pin(x25519));
+}
+
+#[test]
+fn ecdh_static_x25519() {
+    use graviola::key_agreement::x25519::StaticPrivateKey;
+    let x25519 = StaticPrivateKey::from_array(&[0xffu8; 32]);
     check_zeroed_on_drop(Box::pin(x25519));
 }
 
