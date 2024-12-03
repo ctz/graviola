@@ -438,7 +438,7 @@ fn test_ecdh_x25519() {
         for test in group.tests {
             summary.start(&test);
 
-            let private = x25519::PrivateKey::try_from_slice(&test.private).unwrap();
+            let private = x25519::StaticPrivateKey::try_from_slice(&test.private).unwrap();
             let result = x25519::PublicKey::try_from_slice(&test.public)
                 .and_then(|pubkey| Ok(private.diffie_hellman(&pubkey)));
             match (test.result, &result) {
