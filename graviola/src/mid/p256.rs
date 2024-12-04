@@ -80,34 +80,18 @@ impl PublicKey {
     }
 }
 
-/// A P-256 private key.
+/// A P-256 ephemeral private key.
+///
+/// This can be used at most once for the Diffie-Hellman operation,
+/// and that is the most common usage pattern for key exchange.
 pub struct PrivateKey {
     scalar: Scalar,
 }
 
 impl PrivateKey {
-    /// Decode a private key from `bytes`.
-    ///
-    /// `bytes` may be larger or smaller than the size of `n`: excess bytes
-    /// must be zero.  If given a variable-sized input, this is deemed a
-    /// non-secret property.  Prefer to use fixed-sized inputs.
-    ///
-    /// An error is returned if the magnitude of the value is larger than
-    /// `n` (ie, the input is never reduced mod n),  or the value is zero.
-    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        let _ = low::Entry::new_secret();
-        Scalar::from_bytes_checked(bytes).map(|scalar| Self { scalar })
-    }
-
     /// Generate a new random private key using the system RNG.
     pub fn new_random() -> Result<Self, Error> {
         Self::generate(&mut SystemRandom)
-    }
-
-    /// Return a fixed-length encoding of this private key's value.
-    pub fn as_bytes(&self) -> [u8; Scalar::BYTES] {
-        let _ = low::Entry::new_secret();
-        self.scalar.as_bytes()
     }
 
     /// Derive the corresponding public key, and return it in
@@ -135,11 +119,6 @@ impl PrivateKey {
         }
     }
 
-    pub(crate) fn public_key_x_scalar(&self) -> Scalar {
-        let _ = low::Entry::new_secret();
-        self.public_point().x_scalar()
-    }
-
     fn public_point(&self) -> AffineMontPoint {
         let point = JacobianMontPoint::base_multiply(&self.scalar).as_affine();
         match point.on_curve() {
@@ -161,22 +140,90 @@ impl PrivateKey {
         Err(Error::RngFailed)
     }
 
-    pub(crate) fn raw_ecdsa_sign(&self, k: &Self, e: &Scalar, r: &Scalar) -> Scalar {
-        // this is (e + r * d) / k
-        let lhs_mont = self
-            .scalar
-            .as_mont()
-            .mont_mul(&r.as_mont())
-            .demont()
-            .add(e)
-            .as_mont();
-        k.scalar.inv().mont_mul(&lhs_mont)
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        Scalar::from_bytes_checked(bytes).map(|scalar| Self { scalar })
     }
 }
 
 impl fmt::Debug for PrivateKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("PrivateKey").finish_non_exhaustive()
+    }
+}
+
+/// A P-256 static private key.
+///
+/// This can be used many times for the Diffie-Hellman operation.
+/// It can also be serialized and deserialized.
+pub struct StaticPrivateKey(PrivateKey);
+
+impl StaticPrivateKey {
+    /// Generate a new random private key using the system RNG.
+    pub fn new_random() -> Result<Self, Error> {
+        PrivateKey::generate(&mut SystemRandom).map(Self)
+    }
+
+    /// Decode a private key from `bytes`.
+    ///
+    /// `bytes` may be larger or smaller than the size of `n`: excess bytes
+    /// must be zero.  If given a variable-sized input, this is deemed a
+    /// non-secret property.  Prefer to use fixed-sized inputs.
+    ///
+    /// An error is returned if the magnitude of the value is larger than
+    /// `n` (ie, the input is never reduced mod n),  or the value is zero.
+    pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        let _ = low::Entry::new_secret();
+        PrivateKey::from_bytes(bytes).map(Self)
+    }
+
+    /// Return a fixed-length encoding of this private key's value.
+    pub fn as_bytes(&self) -> [u8; Scalar::BYTES] {
+        let _ = low::Entry::new_secret();
+        self.0.scalar.as_bytes()
+    }
+
+    /// Derive the corresponding public key, and return it in
+    /// X9.62 uncompressed encoding.
+    pub fn public_key_uncompressed(&self) -> [u8; PublicKey::BYTES] {
+        let _ = low::Entry::new_secret();
+        self.0.public_point().as_bytes_uncompressed()
+    }
+
+    /// Do the Diffie-Hellman operation.
+    ///
+    /// `peer` is the peer's public key (and this type means it was
+    /// already checked to be on the curve.)
+    ///
+    /// Returns a [`SharedSecret`].  May return an error in fault conditions.
+    pub fn diffie_hellman(&self, peer: &PublicKey) -> Result<SharedSecret, Error> {
+        let _ = low::Entry::new_secret();
+        PrivateKey {
+            scalar: Scalar(self.0.scalar.0),
+        }
+        .diffie_hellman(peer)
+    }
+
+    pub(crate) fn generate(rng: &mut dyn RandomSource) -> Result<Self, Error> {
+        let _ = low::Entry::new_secret();
+        PrivateKey::generate(rng).map(Self)
+    }
+
+    pub(crate) fn public_key_x_scalar(&self) -> Scalar {
+        let _ = low::Entry::new_secret();
+        self.0.public_point().x_scalar()
+    }
+
+    pub(crate) fn raw_ecdsa_sign(&self, k: &Self, e: &Scalar, r: &Scalar) -> Scalar {
+        // this is (e + r * d) / k
+        let lhs_mont = self
+            .0
+            .scalar
+            .as_mont()
+            .mont_mul(&r.as_mont())
+            .demont()
+            .add(e)
+            .as_mont();
+        k.0.scalar.inv().mont_mul(&lhs_mont)
     }
 }
 
@@ -1145,8 +1192,8 @@ mod tests {
 
     #[test]
     fn test_raw_ecdsa_sign() {
-        let private = PrivateKey::from_bytes(b"\xd1\xf6\xbc\xcc\x3e\x5a\x40\x1b\xcc\x2c\x21\xbe\x34\x90\xed\x38\xde\xf4\x93\x7f\x78\x06\x03\xf5\x2b\x23\xb9\xa6\xfa\x9c\xf6\x0e").unwrap();
-        let k = PrivateKey::from_bytes(b"\xe7\x95\x37\xa1\xd7\x55\x45\x1f\x8c\x3c\xbf\xf7\x84\xea\x5c\x1c\xdf\xe1\x6b\x1d\x13\xe7\xbf\xbb\x04\xd7\xfd\x90\x57\xee\xee\xf7").unwrap();
+        let private = StaticPrivateKey::from_bytes(b"\xd1\xf6\xbc\xcc\x3e\x5a\x40\x1b\xcc\x2c\x21\xbe\x34\x90\xed\x38\xde\xf4\x93\x7f\x78\x06\x03\xf5\x2b\x23\xb9\xa6\xfa\x9c\xf6\x0e").unwrap();
+        let k = StaticPrivateKey::from_bytes(b"\xe7\x95\x37\xa1\xd7\x55\x45\x1f\x8c\x3c\xbf\xf7\x84\xea\x5c\x1c\xdf\xe1\x6b\x1d\x13\xe7\xbf\xbb\x04\xd7\xfd\x90\x57\xee\xee\xf7").unwrap();
         let e = Scalar::from_bytes_checked(b"\x2c\xf2\x4d\xba\x5f\xb0\xa3\x0e\x26\xe8\x3b\x2a\xc5\xb9\xe2\x9e\x1b\x16\x1e\x5c\x1f\xa7\x42\x5e\x73\x04\x33\x62\x93\x8b\x98\x24").unwrap();
         let r = Scalar::from_bytes_checked(b"\x78\xee\x34\xc8\xb6\x52\x29\x54\x96\x19\x79\x45\x2e\x6e\x0c\xe0\x68\x5d\x40\x42\x38\x41\xef\xeb\x06\xfe\x3e\x3f\xf7\xb6\x5d\xf5").unwrap();
         let s = private.raw_ecdsa_sign(&k, &e, &r);

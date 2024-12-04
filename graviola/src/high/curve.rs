@@ -132,7 +132,7 @@ pub(crate) const MAX_SCALAR_LEN: usize = 66;
 pub struct P256;
 
 impl Curve for P256 {
-    type PrivateKey = p256::PrivateKey;
+    type PrivateKey = p256::StaticPrivateKey;
     type PublicKey = p256::PublicKey;
     type Scalar = p256::Scalar;
 
@@ -140,14 +140,14 @@ impl Curve for P256 {
         asn1::oid::id_prime256v1.clone()
     }
 
-    fn generate_random_key(rng: &mut dyn RandomSource) -> Result<p256::PrivateKey, Error> {
-        p256::PrivateKey::generate(rng)
+    fn generate_random_key(rng: &mut dyn RandomSource) -> Result<p256::StaticPrivateKey, Error> {
+        p256::StaticPrivateKey::generate(rng)
     }
 }
 
 impl private::Sealed for P256 {}
 
-impl PrivateKey<P256> for p256::PrivateKey {
+impl PrivateKey<P256> for p256::StaticPrivateKey {
     fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         Self::from_bytes(bytes)
     }

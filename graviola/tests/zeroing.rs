@@ -60,7 +60,7 @@ fn ecdh_static_x25519() {
 #[test]
 fn ecdh_p256() {
     use graviola::key_agreement::p256::PrivateKey;
-    let p256 = PrivateKey::from_bytes(&[0xefu8; 32]).unwrap();
+    let p256 = PrivateKey::new_random().unwrap();
     check_zeroed_on_drop(Box::pin(p256));
 }
 
