@@ -224,7 +224,7 @@ impl Scalar<P256> for p256::Scalar {
 pub struct P384;
 
 impl Curve for P384 {
-    type PrivateKey = p384::PrivateKey;
+    type PrivateKey = p384::StaticPrivateKey;
     type PublicKey = p384::PublicKey;
     type Scalar = p384::Scalar;
 
@@ -232,14 +232,14 @@ impl Curve for P384 {
         asn1::oid::secp384r1.clone()
     }
 
-    fn generate_random_key(rng: &mut dyn RandomSource) -> Result<p384::PrivateKey, Error> {
-        p384::PrivateKey::generate(rng)
+    fn generate_random_key(rng: &mut dyn RandomSource) -> Result<p384::StaticPrivateKey, Error> {
+        p384::StaticPrivateKey::generate(rng)
     }
 }
 
 impl private::Sealed for P384 {}
 
-impl PrivateKey<P384> for p384::PrivateKey {
+impl PrivateKey<P384> for p384::StaticPrivateKey {
     fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
         Self::from_bytes(bytes)
     }
