@@ -401,7 +401,7 @@ fn test_ecdh_p384() {
         for test in group.tests {
             summary.start(&test);
 
-            let private = p384::PrivateKey::from_bytes(&test.private).unwrap();
+            let private = p384::StaticPrivateKey::from_bytes(&test.private).unwrap();
             let result = p384::PublicKey::from_x962_uncompressed(&test.public)
                 .and_then(|pubkey| private.diffie_hellman(&pubkey));
 
