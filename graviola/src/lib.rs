@@ -84,9 +84,29 @@ pub mod key_agreement {
     ///
     /// P-256 is also known as "NISTP256", "prime256v1", or "secp256r1".
     ///
+    /// ```
+    /// use graviola::key_agreement::p256::*;
+    ///
+    /// let alice = PrivateKey::new_random().unwrap();
+    /// let bob = PrivateKey::new_random().unwrap();
+    ///
+    /// let alice_pub = alice.public_key_uncompressed();
+    /// let bob_pub = bob.public_key_uncompressed();
+    ///
+    /// let alice_shared_secret = PublicKey::from_x962_uncompressed(&bob_pub)
+    ///     .and_then(move |bob_pub| alice.diffie_hellman(&bob_pub))
+    ///     .expect("bob gave an invalid public key");
+    ///
+    /// let bob_shared_secret = PublicKey::from_x962_uncompressed(&alice_pub)
+    ///     .and_then(move |alice_pub| bob.diffie_hellman(&alice_pub))
+    ///     .expect("alice gave an invalid public key");
+    ///
+    /// assert_eq!(alice_shared_secret.0, bob_shared_secret.0);
+    /// ```
+    ///
     /// See [SEC1](https://www.secg.org/sec1-v2.pdf) for one definition.
     pub mod p256 {
-        pub use crate::mid::p256::{PrivateKey, PublicKey, SharedSecret};
+        pub use crate::mid::p256::{PrivateKey, PublicKey, SharedSecret, StaticPrivateKey};
     }
 
     /// Elliptic curve Diffie-Hellman on P-384

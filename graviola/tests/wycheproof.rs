@@ -363,7 +363,7 @@ fn test_ecdh_p256() {
         for test in group.tests {
             summary.start(&test);
 
-            let private = p256::PrivateKey::from_bytes(&test.private).unwrap();
+            let private = p256::StaticPrivateKey::from_bytes(&test.private).unwrap();
             let result = p256::PublicKey::from_x962_uncompressed(&test.public)
                 .and_then(|pubkey| private.diffie_hellman(&pubkey));
 
