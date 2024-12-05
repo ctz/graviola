@@ -4,4 +4,5 @@ members = [
   "graviola",
   "graviola-bench",
   "rustls-graviola",
+  "fuzz",
 ]
