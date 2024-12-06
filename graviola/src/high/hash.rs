@@ -215,6 +215,7 @@ impl HashContext for Sha384Context {
 /// This is SHA512.
 ///
 /// SHA512 is standardized in [FIPS180](https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf).
+#[derive(Clone)]
 pub struct Sha512;
 
 impl Hash for Sha512 {
