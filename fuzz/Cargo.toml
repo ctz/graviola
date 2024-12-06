@@ -20,3 +20,10 @@ path = "fuzzer/sha2.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "aead"
+path = "fuzzer/aead.rs"
+test = false
+doc = false
+bench = false
