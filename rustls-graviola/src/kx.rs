@@ -42,9 +42,9 @@ struct ActiveX25519 {
 
 impl crypto::ActiveKeyExchange for ActiveX25519 {
     fn complete(self: Box<Self>, peer: &[u8]) -> Result<crypto::SharedSecret, rustls::Error> {
-        let their_pub = x25519::PublicKey::try_from_slice(peer)
+        let shared_secret = x25519::PublicKey::try_from_slice(peer)
+            .and_then(|their_pub| self.priv_key.diffie_hellman(&their_pub))
             .map_err(|_| rustls::Error::from(rustls::PeerMisbehaved::InvalidKeyShare))?;
-        let shared_secret = self.priv_key.diffie_hellman(&their_pub);
         Ok(crypto::SharedSecret::from(&shared_secret.0[..]))
     }
 

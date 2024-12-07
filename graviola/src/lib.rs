@@ -70,8 +70,8 @@ pub mod key_agreement {
     /// let alice_pub = alice.public_key();
     /// let bob_pub = bob.public_key();
     ///
-    /// let alice_shared_secret = alice.diffie_hellman(&bob_pub);
-    /// let bob_shared_secret = bob.diffie_hellman(&alice_pub);
+    /// let alice_shared_secret = alice.diffie_hellman(&bob_pub).unwrap();
+    /// let bob_shared_secret = bob.diffie_hellman(&alice_pub).unwrap();
     /// assert_eq!(alice_shared_secret.0, bob_shared_secret.0);
     /// ```
     ///
