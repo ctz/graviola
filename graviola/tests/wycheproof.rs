@@ -440,8 +440,10 @@ fn test_ecdh_x25519() {
 
             let private = x25519::StaticPrivateKey::try_from_slice(&test.private).unwrap();
             let result = x25519::PublicKey::try_from_slice(&test.public)
-                .and_then(|pubkey| Ok(private.diffie_hellman(&pubkey)));
+                .and_then(|pubkey| private.diffie_hellman(&pubkey));
             match (test.result, &result) {
+                (ExpectedResult::Acceptable, Err(Error::NotOnCurve))
+                    if test.has_flag("ZeroSharedSecret") => {}
                 (ExpectedResult::Valid | ExpectedResult::Acceptable, Ok(shared)) => {
                     assert_eq!(&shared.0[..], &test.shared)
                 }

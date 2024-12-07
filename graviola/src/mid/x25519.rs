@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
 use super::util;
-use crate::low;
 use crate::mid::rng::{RandomSource, SystemRandom};
+use crate::{low, Error};
 
 /// An X25519 ephemeral private key.
 ///
@@ -20,7 +20,7 @@ impl PrivateKey {
     /// Generate a new key using the system random number generator.
     ///
     /// Fails only if the random source fails.
-    pub fn new_random() -> Result<Self, crate::Error> {
+    pub fn new_random() -> Result<Self, Error> {
         let _ = low::Entry::new_secret();
         let mut r = [0u8; Self::BYTES];
         SystemRandom.fill(&mut r)?;
@@ -37,12 +37,24 @@ impl PrivateKey {
 
     /// Do the Diffie-Hellman operation.
     ///
-    /// `peer` is the peer's public key.  Returns a shared secret.
-    pub fn diffie_hellman(self, peer: &PublicKey) -> SharedSecret {
+    /// `peer` is the peer's public key.
+    ///
+    /// Returns a shared secret.
+    ///
+    /// Fails if the shared secret is zero with [`Error::NotOnCurve`]; see
+    /// <https://datatracker.ietf.org/doc/html/rfc7748#section-6.1>
+    /// for rationale behind this check.
+    pub fn diffie_hellman(self, peer: &PublicKey) -> Result<SharedSecret, Error> {
         let _ = low::Entry::new_secret();
         let mut res = [0u64; 4];
         low::curve25519_x25519(&mut res, &self.0, &peer.0);
-        SharedSecret(util::u64x4_to_little_endian(&res))
+
+        // output is zero (infinity) for small order input points
+        if low::bignum_eq(&res, &ZERO) {
+            Err(Error::NotOnCurve)
+        } else {
+            Ok(SharedSecret(util::u64x4_to_little_endian(&res)))
+        }
     }
 }
 
@@ -51,6 +63,8 @@ impl Drop for PrivateKey {
         low::zeroise(&mut self.0);
     }
 }
+
+const ZERO: [u64; 4] = [0; 4];
 
 /// An X25519 static private key.
 ///
@@ -66,11 +80,11 @@ impl StaticPrivateKey {
     /// Create an X25519 [`StaticPrivateKey`] from a byte slice.
     ///
     /// This must be exactly 32 bytes in length.
-    pub fn try_from_slice(b: &[u8]) -> Result<Self, ()> {
+    pub fn try_from_slice(b: &[u8]) -> Result<Self, Error> {
         let _ = low::Entry::new_secret();
         util::little_endian_slice_to_u64x4(b)
             .map(|words| Self(PrivateKey(words)))
-            .ok_or(())
+            .ok_or(Error::WrongLength)
     }
 
     /// Create an X25519 [`StaticPrivateKey`] from a byte array.
@@ -88,7 +102,7 @@ impl StaticPrivateKey {
     /// Generate a new key using the system random number generator.
     ///
     /// Fails only if the random source fails.
-    pub fn new_random() -> Result<Self, crate::Error> {
+    pub fn new_random() -> Result<Self, Error> {
         let _ = low::Entry::new_secret();
         PrivateKey::new_random().map(Self)
     }
@@ -101,8 +115,14 @@ impl StaticPrivateKey {
 
     /// Do the Diffie-Hellman operation.
     ///
-    /// `peer` is the peer's public key.  Returns a shared secret.
-    pub fn diffie_hellman(&self, peer: &PublicKey) -> SharedSecret {
+    /// `peer` is the peer's public key.
+    ///
+    /// Returns a shared secret.
+    ///
+    /// Fails if the shared secret is zero with [`Error::NotOnCurve`]; see
+    /// <https://datatracker.ietf.org/doc/html/rfc7748#section-6.1>
+    /// for rationale behind this check.
+    pub fn diffie_hellman(&self, peer: &PublicKey) -> Result<SharedSecret, Error> {
         let _ = low::Entry::new_secret();
         PrivateKey(self.0 .0).diffie_hellman(peer)
     }
@@ -117,9 +137,11 @@ impl PublicKey {
     /// Create an X25519 [`PublicKey`] from a byte slice.
     ///
     /// This must be exactly 32 bytes in length.
-    pub fn try_from_slice(b: &[u8]) -> Result<Self, ()> {
+    pub fn try_from_slice(b: &[u8]) -> Result<Self, Error> {
         let _ = low::Entry::new_public();
-        util::little_endian_slice_to_u64x4(b).map(Self).ok_or(())
+        util::little_endian_slice_to_u64x4(b)
+            .map(Self)
+            .ok_or(Error::WrongLength)
     }
 
     /// Create an X25519 [`PublicKey`] from a byte array.
@@ -152,8 +174,9 @@ mod tests {
     fn rfc7748_1() {
         let scalar = b"\xa5\x46\xe3\x6b\xf0\x52\x7c\x9d\x3b\x16\x15\x4b\x82\x46\x5e\xdd\x62\x14\x4c\x0a\xc1\xfc\x5a\x18\x50\x6a\x22\x44\xba\x44\x9a\xc4";
         let point = b"\xe6\xdb\x68\x67\x58\x30\x30\xdb\x35\x94\xc1\xa4\x24\xb1\x5f\x7c\x72\x66\x24\xec\x26\xb3\x35\x3b\x10\xa9\x03\xa6\xd0\xab\x1c\x4c";
-        let res =
-            StaticPrivateKey::from_array(scalar).diffie_hellman(&PublicKey::from_array(point));
+        let res = StaticPrivateKey::from_array(scalar)
+            .diffie_hellman(&PublicKey::from_array(point))
+            .unwrap();
         assert_eq!(
             &res.0,
             b"\xc3\xda\x55\x37\x9d\xe9\xc6\x90\x8e\x94\xea\x4d\xf2\x8d\x08\x4f\x32\xec\xcf\x03\x49\x1c\x71\xf7\x54\xb4\x07\x55\x77\xa2\x85\x52"
@@ -164,8 +187,9 @@ mod tests {
     fn rfc7748_2() {
         let scalar = b"\x4b\x66\xe9\xd4\xd1\xb4\x67\x3c\x5a\xd2\x26\x91\x95\x7d\x6a\xf5\xc1\x1b\x64\x21\xe0\xea\x01\xd4\x2c\xa4\x16\x9e\x79\x18\xba\x0d";
         let point = b"\xe5\x21\x0f\x12\x78\x68\x11\xd3\xf4\xb7\x95\x9d\x05\x38\xae\x2c\x31\xdb\xe7\x10\x6f\xc0\x3c\x3e\xfc\x4c\xd5\x49\xc7\x15\xa4\x93";
-        let res =
-            StaticPrivateKey::from_array(scalar).diffie_hellman(&PublicKey::from_array(point));
+        let res = StaticPrivateKey::from_array(scalar)
+            .diffie_hellman(&PublicKey::from_array(point))
+            .unwrap();
         assert_eq!(
             &res.0,
             b"\x95\xcb\xde\x94\x76\xe8\x90\x7d\x7a\xad\xe4\x5c\xb4\xb8\x73\xf8\x8b\x59\x5a\x68\x79\x9f\xa1\x52\xe6\xf8\xf7\x64\x7a\xac\x79\x57"
@@ -190,7 +214,7 @@ mod tests {
 
         for _ in 1..1000 {
             let new_u = PublicKey::from_array(&k.as_bytes());
-            let res = k.diffie_hellman(&u);
+            let res = k.diffie_hellman(&u).unwrap();
             u = new_u;
             k = StaticPrivateKey::from_array(&res.0);
         }
@@ -204,7 +228,7 @@ mod tests {
             // After 1,000,000 iterations: 7c3911e0ab2586fd864497297e575e6f3bc601c0883c30df5f4dd2d24f665424
             for _ in 1000..1000_000 {
                 let new_u = PublicKey::from_array(&k.as_bytes());
-                let res = k.diffie_hellman(&u);
+                let res = k.diffie_hellman(&u).unwrap();
                 u = new_u;
                 k = StaticPrivateKey::from_array(&res.0);
             }
