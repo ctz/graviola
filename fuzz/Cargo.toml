@@ -27,3 +27,10 @@ path = "fuzzer/aead.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "kx"
+path = "fuzzer/kx.rs"
+test = false
+doc = false
+bench = false
