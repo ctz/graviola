@@ -52,12 +52,7 @@ fn test_graviola_sha512(data: &[u8]) {
 
 fn sha256(c: &mut Criterion) {
     let mut group = c.benchmark_group("sha256");
-    for (size, size_name) in [
-        (32, "32B"),
-        (8192, "8KB"),
-        (65536, "64KB"),
-        (1048576, "1MB"),
-    ] {
+    for (size, size_name) in [(32, "32B"), (8192, "8KB"), (65536, "64KB")] {
         let input = vec![0u8; size];
         group.throughput(Throughput::Bytes(size as u64));
 
@@ -84,12 +79,7 @@ fn sha256(c: &mut Criterion) {
 
 fn sha512(c: &mut Criterion) {
     let mut group = c.benchmark_group("sha512");
-    for (size, size_name) in [
-        (32, "32B"),
-        (8192, "8KB"),
-        (65536, "64KB"),
-        (1048576, "1MB"),
-    ] {
+    for (size, size_name) in [(32, "32B"), (8192, "8KB"), (65536, "64KB")] {
         let input = vec![0u8; size];
         group.throughput(Throughput::Bytes(size as u64));
 
