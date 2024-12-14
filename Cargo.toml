@@ -6,3 +6,6 @@ members = [
   "rustls-graviola",
   "fuzz",
 ]
+
+[profile.bench]
+lto = "thin"
