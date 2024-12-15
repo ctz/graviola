@@ -31,6 +31,11 @@ impl Sha256Context {
 
     /// Add `bytes` to the ongoing hash computation.
     pub fn update(&mut self, bytes: &[u8]) {
+        if self.blockwise.used() == 0 && bytes.len() % Self::BLOCK_SZ == 0 {
+            self.update_blocks(bytes);
+            return;
+        }
+
         let bytes = self.blockwise.add_leading(bytes);
 
         if let Some(block) = self.blockwise.take() {
@@ -158,6 +163,11 @@ impl Sha512Context {
 
     /// Add `bytes` to the ongoing hash computation.
     pub fn update(&mut self, bytes: &[u8]) {
+        if self.blockwise.used() == 0 && bytes.len() % Self::BLOCK_SZ == 0 {
+            self.update_blocks(bytes);
+            return;
+        }
+
         let bytes = self.blockwise.add_leading(bytes);
 
         if let Some(block) = self.blockwise.take() {
