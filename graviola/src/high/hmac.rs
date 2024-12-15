@@ -30,20 +30,18 @@ impl<H: Hash> Hmac<H> {
         }
 
         // compute inner
-        let mut block = key_block;
-        for byte in block.iter_mut() {
+        for byte in key_block.iter_mut() {
             *byte ^= 0x36;
         }
         let mut inner = H::new();
-        inner.update(&block);
+        inner.update(&key_block);
 
         // and outer
-        let mut block = key_block;
-        for byte in block.iter_mut() {
-            *byte ^= 0x5c;
+        for byte in key_block.iter_mut() {
+            *byte ^= 0x5c ^ 0x36;
         }
         let mut outer = H::new();
-        outer.update(&block);
+        outer.update(&key_block);
 
         Self { inner, outer }
     }
