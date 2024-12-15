@@ -869,6 +869,7 @@ dependencies = [
  "criterion",
  "graviola",
  "hex",
+ "hmac",
  "openssl",
  "p256",
  "p384",
