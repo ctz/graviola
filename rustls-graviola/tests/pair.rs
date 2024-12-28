@@ -5,10 +5,14 @@ use rustls::crypto::ring::default_provider as baseline;
 use rustls::crypto::{CryptoProvider, SupportedKxGroup};
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
-use rustls::{ClientConfig, ClientConnection, RootCertStore, ServerConfig, ServerConnection};
+use rustls::{
+    ClientConfig, ClientConnection, HandshakeKind, RootCertStore, ServerConfig, ServerConnection,
+};
 
 #[test]
 fn all_suites() {
+    let _ = env_logger::try_init();
+
     for key_type in KeyType::ALL {
         test_suite(rustls_graviola::suites::TLS13_AES_256_GCM_SHA384, *key_type);
         test_suite(rustls_graviola::suites::TLS13_AES_128_GCM_SHA256, *key_type);
@@ -77,41 +81,62 @@ fn test_suite(suite: rustls::SupportedCipherSuite, key_type: KeyType) {
 }
 
 fn test_client(provider: Arc<CryptoProvider>, key_type: KeyType) {
-    let mut server = server_with(baseline().into(), key_type);
-    let mut client = client_with(provider.clone(), key_type);
+    let server_config = server_config(baseline().into(), key_type);
+    let client_config = client_config(provider.clone(), key_type);
 
-    exercise(&mut client, &mut server);
-    println!("client with {:?} {:?} OK", provider, key_type);
+    assert!(matches!(
+        exercise(client_config.clone(), server_config.clone()),
+        HandshakeKind::Full | HandshakeKind::FullWithHelloRetryRequest
+    ));
+    println!("FULL: client with {:?} {:?} OK", provider, key_type);
+
+    assert_eq!(
+        exercise(client_config.clone(), server_config.clone()),
+        HandshakeKind::Resumed
+    );
+    println!("RESUMED: client with {:?} {:?} OK", provider, key_type);
 }
+
 fn test_server(provider: Arc<CryptoProvider>, key_type: KeyType) {
-    let mut server = server_with(provider.clone(), key_type);
-    let mut client = client_with(baseline().into(), key_type);
+    let server_config = server_config(provider.clone(), key_type);
+    let client_config = client_config(baseline().into(), key_type);
 
-    exercise(&mut client, &mut server);
-    println!("server with {:?} {:?} OK", provider, key_type);
+    assert!(matches!(
+        exercise(client_config.clone(), server_config.clone()),
+        HandshakeKind::Full | HandshakeKind::FullWithHelloRetryRequest
+    ));
+    println!("FULL: server with {:?} {:?} OK", provider, key_type);
+
+    assert_eq!(
+        exercise(client_config, server_config),
+        HandshakeKind::Resumed
+    );
+    println!("RESUMED: server with {:?} {:?} OK", provider, key_type);
 }
-fn server_with(provider: Arc<CryptoProvider>, key_type: KeyType) -> ServerConnection {
-    let server_config = ServerConfig::builder_with_provider(provider)
+
+fn server_config(provider: Arc<CryptoProvider>, key_type: KeyType) -> Arc<ServerConfig> {
+    ServerConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
         .unwrap()
         .with_no_client_auth()
         .with_single_cert(key_type.cert_chain(), key_type.key())
-        .unwrap();
-
-    ServerConnection::new(server_config.into()).unwrap()
+        .unwrap()
+        .into()
 }
 
-fn client_with(provider: Arc<CryptoProvider>, key_type: KeyType) -> ClientConnection {
-    let client_config = ClientConfig::builder_with_provider(provider)
+fn client_config(provider: Arc<CryptoProvider>, key_type: KeyType) -> Arc<ClientConfig> {
+    ClientConfig::builder_with_provider(provider)
         .with_safe_default_protocol_versions()
         .unwrap()
         .with_root_certificates(key_type.ca_certs())
-        .with_no_client_auth();
-
-    ClientConnection::new(client_config.into(), "localhost".try_into().unwrap()).unwrap()
+        .with_no_client_auth()
+        .into()
 }
 
-fn exercise(client: &mut ClientConnection, server: &mut ServerConnection) {
+fn exercise(client_config: Arc<ClientConfig>, server_config: Arc<ServerConfig>) -> HandshakeKind {
+    let mut client = ClientConnection::new(client_config, "localhost".try_into().unwrap()).unwrap();
+    let mut server = ServerConnection::new(server_config).unwrap();
+
     while client.is_handshaking() && server.is_handshaking() {
         let mut buf = [0u8; 1024];
         let wr = client.write_tls(&mut &mut buf[..]).unwrap();
@@ -133,6 +158,13 @@ fn exercise(client: &mut ClientConnection, server: &mut ServerConnection) {
     let mut out = vec![];
     server.reader().read_to_end(&mut out).unwrap();
     assert_eq!(out, b"hello world");
+
+    server.writer().write(b"goodbye").unwrap();
+    let wr = server.write_tls(&mut &mut buf[..]).unwrap();
+    client.read_tls(&mut &buf[..wr]).unwrap();
+    client.process_new_packets().unwrap();
+
+    server.handshake_kind().unwrap()
 }
 
 #[derive(Clone, Copy, Debug)]
