@@ -847,17 +847,140 @@ mod tests {
         );
 
         // necessary positive
+        test_round_trip(&[0x02, 0x02, 0x00, 0xff], Integer::new(&[0x00, 0xff]));
+    }
+
+    #[test]
+    fn test_invalid_bitstring_encodings() {
+        // empty
         assert_eq!(
-            Integer::from_bytes(&[0x02, 0x02, 0x00, 0xff]).unwrap(),
-            Integer::new(&[0x00, 0xff])
+            BitString::from_bytes(&[0x03, 0x00]).unwrap_err(),
+            Error::UnexpectedEof,
+        );
+
+        // not byte-aligned
+        assert_eq!(
+            BitString::from_bytes(&[0x03, 0x01, 0x01]).unwrap_err(),
+            Error::UnhandledBitString,
+        );
+
+        // empty; valid
+        test_round_trip(&[0x03, 0x01, 0x00], BitString { octets: &[] });
+
+        // non-empty; valid
+        test_round_trip(&[0x03, 0x02, 0x00, 0x12], BitString { octets: &[0x12] });
+    }
+
+    #[test]
+    fn test_oid() {
+        // very degenerate case
+        test_round_trip(&[0x06, 0x00], ObjectId::from_path(&[]));
+
+        test_round_trip(&[0x06, 0x01, 0x27], ObjectId::from_path(&[39]));
+
+        test_round_trip(
+            &[0x06, 0x05, 0x2b, 0x81, 0x04, 0x00, 0x22],
+            ObjectId::from_path(&[1, 3, 132, 0, 34]),
+        );
+
+        // meets our self-imposed length limit
+        assert_eq!(
+            ObjectId::from_bytes(&[
+                0x06, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00
+            ])
+            .unwrap(),
+            ObjectId {
+                buf: [0x0; 16],
+                used: 16
+            },
+        );
+
+        // exceeds our self-imposed length limit
+        assert_eq!(
+            ObjectId::from_bytes(&[
+                0x06, 0x11, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00
+            ])
+            .unwrap_err(),
+            Error::UnsupportedLargeObjectId,
         );
     }
 
     #[test]
-    fn test_encode_oid() {
+    fn test_null() {
+        test_round_trip(&[0x05, 0x00], Null);
+
         assert_eq!(
-            ObjectId::from_path(&[1, 3, 132, 0, 34]).as_ref(),
-            &[0x2b, 0x81, 0x04, 0x00, 0x22,]
+            Null::from_bytes(&[0x05, 0x01, 0x00]).unwrap_err(),
+            Error::IllegalNull
         );
+    }
+
+    #[test]
+    fn test_any() {
+        test_round_trip(&[0x05, 0x00], Any::Null(Null));
+        test_round_trip(
+            &[0x02, 0x02, 0x12, 0x34],
+            Any::Integer(Integer::new(&[0x12, 0x34])),
+        );
+        test_round_trip(
+            &[0x04, 0x02, 0x12, 0x34],
+            Any::OctetString(OctetString::new(&[0x12, 0x34])),
+        );
+        test_round_trip(
+            &[0x03, 0x03, 0x00, 0x12, 0x34],
+            Any::BitString(BitString {
+                octets: &[0x12, 0x34],
+            }),
+        );
+        test_round_trip(
+            &[0x06, 0x01, 0x27],
+            Any::ObjectId(ObjectId::from_path(&[39])),
+        );
+
+        assert_eq!(Any::from_bytes(&[0x30]).unwrap_err(), Error::UnexpectedTag);
+    }
+
+    #[test]
+    fn test_optional() {
+        test_round_trip(&[0x06, 0x01, 0x27], Some(ObjectId::from_path(&[39])));
+        test_round_trip(&[], None::<ObjectId>);
+    }
+
+    /// Verify that `value.encode` yields `encoding`, and that decoding
+    /// `encoding` yields a value equal to `value`.
+    fn test_round_trip<'a, T: Type<'a> + PartialEq>(encoding: &'a [u8], value: T) {
+        let decoded = T::from_bytes(encoding).unwrap();
+        assert_eq!(decoded, value);
+        assert_eq!(decoded.encoded_len(), value.encoded_len());
+
+        let mut buffer = vec![0u8; encoding.len()];
+        let mut enc = Encoder::new(&mut buffer);
+        let enc_dec = decoded.encode(&mut enc).unwrap();
+        assert_eq!(encoding, buffer);
+
+        let mut buffer = vec![0u8; encoding.len()];
+        let mut enc = Encoder::new(&mut buffer);
+        let enc_val = value.encode(&mut enc).unwrap();
+        assert_eq!(encoding, buffer);
+
+        assert_eq!(enc_val, enc_dec);
+        test_truncated_encode(value, enc_val);
+    }
+
+    /// Verify that `value.encode` yields `Error::UnexpectedEof` when encoding
+    /// into a buffer that is shorter than `expected_len`.
+    fn test_truncated_encode<'a, T: Type<'a>>(value: T, expected_len: usize) {
+        for i in 0..expected_len {
+            let mut buffer = vec![0u8; i];
+            let mut enc = Encoder::new(&mut buffer);
+            assert_eq!(value.encode(&mut enc).unwrap_err(), Error::UnexpectedEof);
+        }
+
+        // check base case to see we're testing something
+        let mut buffer = vec![0u8; expected_len];
+        let mut enc = Encoder::new(&mut buffer);
+        assert_eq!(value.encode(&mut enc).unwrap(), expected_len);
     }
 }
