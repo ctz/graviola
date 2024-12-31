@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
 use super::asn1::{self, Type};
-use super::curve::{Curve, PrivateKey, PublicKey, Scalar, MAX_SCALAR_LEN};
+use super::curve::{
+    Curve, PrivateKey, PublicKey, Scalar, MAX_SCALAR_LEN, MAX_UNCOMPRESSED_PUBLIC_KEY_LEN,
+};
 use super::hash::{Hash, HashContext};
 use super::hmac_drbg::HmacDrbg;
 use super::pkcs8;
@@ -44,6 +46,36 @@ impl<C: Curve> SigningKey<C> {
         Ok(Self {
             private_key: C::PrivateKey::from_bytes(ecpk.privateKey.into_octets())?,
         })
+    }
+
+    /// Encode this private key in SEC.1 DER format.
+    ///
+    /// The encoding is written to the start of `output`, and the used span is
+    /// returned.  [`Error::WrongLength`] is returned if `output` is not sufficient
+    /// to contain the full encoding.
+    pub fn to_sec1_der<'a>(&self, output: &'a mut [u8]) -> Result<&'a [u8], Error> {
+        let _ = Entry::new_secret();
+
+        let mut encoded_private_key_buf = [0u8; MAX_SCALAR_LEN];
+        let encoded_private_key = self.private_key.encode(&mut encoded_private_key_buf)?;
+
+        let mut encoded_public_key_buf = [0u8; MAX_UNCOMPRESSED_PUBLIC_KEY_LEN];
+        let encoded_public_key = self
+            .private_key
+            .public_key_encode_uncompressed(&mut encoded_public_key_buf)?;
+
+        let ecpk = asn1::pkix::EcPrivateKey {
+            version: asn1::pkix::EcPrivateKeyVer::ecPrivkeyVer1,
+            privateKey: asn1::OctetString::new(encoded_private_key),
+            parameters: C::oid().into(),
+            publicKey: asn1::BitString::new(encoded_public_key).into(),
+        };
+
+        let used = ecpk
+            .encode(&mut asn1::Encoder::new(output))
+            .map_err(Error::Asn1Error)?;
+
+        output.get(..used).ok_or(Error::WrongLength)
     }
 
     /// ECDSA signing, returning a fixed-length signature.
@@ -270,6 +302,8 @@ mod tests {
                 .unwrap()
                 .private_key,
         );
+        check_pairwise_sec1::<curve::P256>(include_bytes!("ecdsa/secp256r1.der"));
+
         check_sign_verify::<curve::P384>(
             SigningKey::<curve::P384>::from_pkcs8_der(include_bytes!("ecdsa/secp384r1.pkcs8.der"))
                 .unwrap()
@@ -280,6 +314,7 @@ mod tests {
                 .unwrap()
                 .private_key,
         );
+        check_pairwise_sec1::<curve::P384>(include_bytes!("ecdsa/secp384r1.der"));
     }
 
     #[test]
@@ -324,6 +359,14 @@ mod tests {
 
         let signature = sk.sign_asn1::<hash::Sha512>(&message, &mut buffer).unwrap();
         vk.verify_asn1::<hash::Sha512>(&message, signature).unwrap();
+    }
+
+    fn check_pairwise_sec1<C: Curve>(sec1_der: &[u8]) {
+        let loaded = SigningKey::<C>::from_sec1_der(sec1_der).unwrap();
+        let mut buf = [0u8; 256];
+        assert!(buf.len() > sec1_der.len());
+        let encoded = loaded.to_sec1_der(&mut buf).unwrap();
+        assert_eq!(sec1_der, encoded);
     }
 
     #[test]
