@@ -121,8 +121,9 @@ mod private {
     pub trait Sealed {}
 }
 
-// enough for P521
-pub(crate) const MAX_SCALAR_LEN: usize = 66;
+// enough for p384
+pub(crate) const MAX_SCALAR_LEN: usize = 48;
+pub(crate) const MAX_UNCOMPRESSED_PUBLIC_KEY_LEN: usize = 97;
 
 /// This is the elliptic curve "P-256".
 ///

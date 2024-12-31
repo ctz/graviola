@@ -204,6 +204,12 @@ impl<'a, T: Type<'a>> Type<'a> for Option<T> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ContextConstructed<'a, const ID: u8, T: Type<'a>>(Option<T>, PhantomData<&'a ()>);
 
+impl<'a, const ID: u8, T: Type<'a>> ContextConstructed<'a, ID, T> {
+    pub(crate) fn absent() -> Self {
+        Self(None, PhantomData)
+    }
+}
+
 impl<'a, const ID: u8, T: Type<'a>> Type<'a> for ContextConstructed<'a, ID, T> {
     fn parse(p: &mut Parser<'a>) -> Result<Self, Error> {
         let tag = Tag::context_constructed(ID);
@@ -236,6 +242,12 @@ impl<'a, const ID: u8, T: Type<'a>> Type<'a> for ContextConstructed<'a, ID, T> {
             None => 0,
             Some(a) => encoded_length_for(a.encoded_len()),
         }
+    }
+}
+
+impl<'a, const ID: u8, T: Type<'a>> From<T> for ContextConstructed<'a, ID, T> {
+    fn from(t: T) -> Self {
+        Self(Some(t), PhantomData)
     }
 }
 
@@ -497,7 +509,6 @@ pub(crate) struct OctetString<'a> {
 }
 
 impl<'a> OctetString<'a> {
-    #[cfg(test)]
     pub(crate) fn new(octets: &'a [u8]) -> Self {
         Self { octets }
     }
@@ -527,6 +538,12 @@ impl<'a> Type<'a> for OctetString<'a> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct BitString<'a> {
     octets: &'a [u8],
+}
+
+impl<'a> BitString<'a> {
+    pub(crate) fn new(octets: &'a [u8]) -> Self {
+        Self { octets }
+    }
 }
 
 impl<'a> Type<'a> for BitString<'a> {
