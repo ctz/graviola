@@ -39,7 +39,6 @@ pub enum KeyFormatError {
     UnsupportedPkcs8Version,
     MismatchedPkcs8Algorithm,
     MismatchedPkcs8Parameters,
-    UnsupportedSec1Version,
     MismatchedSec1Curve,
     MismatchedSec1PublicKey,
 }
