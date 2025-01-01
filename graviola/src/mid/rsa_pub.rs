@@ -7,7 +7,7 @@ use crate::low;
 #[derive(Clone, Debug)]
 pub(crate) struct RsaPublicKey {
     pub(crate) n: RsaPosInt,
-    e: u32,
+    pub(crate) e: u32,
 
     montifier: RsaPosInt,
     one: RsaPosInt,

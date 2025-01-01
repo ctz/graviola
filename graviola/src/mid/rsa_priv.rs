@@ -1,7 +1,7 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
-use super::rsa_pub::RsaPublicKey;
+use super::rsa_pub::{RsaPublicKey, MAX_PUBLIC_MODULUS_BYTES};
 use crate::error::Error;
 use crate::low;
 
@@ -13,6 +13,7 @@ pub(crate) struct RsaPrivateKey {
     d: RsaPosIntD,
     dp: RsaPosIntModP,
     dq: RsaPosIntModP,
+    iqmp: RsaPosIntModP,
 
     iqmp_mont: RsaPosIntModP,
     p_montifier: RsaPosIntModP,
@@ -56,6 +57,7 @@ impl RsaPrivateKey {
             d,
             dp,
             dq,
+            iqmp,
             iqmp_mont,
             p_montifier,
             q_montifier,
@@ -70,6 +72,41 @@ impl RsaPrivateKey {
 
     pub(crate) fn modulus_len_bytes(&self) -> usize {
         self.public.modulus_len_bytes()
+    }
+
+    pub(crate) fn encode_components<'a>(
+        &self,
+        buffer: &'a mut RsaComponentsBuffer,
+    ) -> Result<RsaComponents<'a>, Error> {
+        let (public_modulus, buffer) = buffer.0.split_at_mut(MAX_PUBLIC_MODULUS_BYTES + 1);
+        let (public_exponent, buffer) = buffer.split_at_mut(4);
+        let (p, buffer) = buffer.split_at_mut(MAX_PRIVATE_MODULUS_BYTES + 1);
+        let (q, buffer) = buffer.split_at_mut(MAX_PRIVATE_MODULUS_BYTES + 1);
+        let (d, buffer) = buffer.split_at_mut(MAX_PUBLIC_MODULUS_BYTES + 1);
+        let (dp, buffer) = buffer.split_at_mut(MAX_PRIVATE_MODULUS_BYTES + 1);
+        let (dq, buffer) = buffer.split_at_mut(MAX_PRIVATE_MODULUS_BYTES + 1);
+        let (iqmp, _) = buffer.split_at_mut(MAX_PRIVATE_MODULUS_BYTES + 1);
+
+        let public_modulus = self.public.n.to_bytes_asn1(public_modulus)?;
+        public_exponent.copy_from_slice(&self.public.e.to_be_bytes());
+
+        let p = self.p.to_bytes_asn1(p)?;
+        let q = self.q.to_bytes_asn1(q)?;
+        let d = self.d.to_bytes_asn1(d)?;
+        let dp = self.dp.to_bytes_asn1(dp)?;
+        let dq = self.dq.to_bytes_asn1(dq)?;
+        let iqmp = self.iqmp.to_bytes_asn1(iqmp)?;
+
+        Ok(RsaComponents {
+            public_modulus,
+            public_exponent,
+            p,
+            q,
+            d,
+            dp,
+            dq,
+            iqmp,
+        })
     }
 
     /// returns c ^ d mod n
@@ -124,6 +161,41 @@ impl Drop for RsaPrivateKey {
     fn drop(&mut self) {
         low::zeroise_value(&mut self.p0);
         low::zeroise_value(&mut self.q0);
+    }
+}
+
+pub(crate) struct RsaComponents<'a> {
+    pub(crate) public_modulus: &'a [u8],
+    pub(crate) public_exponent: &'a [u8],
+    pub(crate) p: &'a [u8],
+    pub(crate) q: &'a [u8],
+    pub(crate) d: &'a [u8],
+    pub(crate) dp: &'a [u8],
+    pub(crate) dq: &'a [u8],
+    pub(crate) iqmp: &'a [u8],
+}
+
+pub(crate) struct RsaComponentsBuffer([u8; Self::LEN]);
+
+impl RsaComponentsBuffer {
+    const LEN: usize =
+        // public modulus and private exponent
+        (MAX_PUBLIC_MODULUS_BYTES + 1) * 2 +
+            // public exponent
+            4 +
+            // private moduli and crt components
+            (MAX_PRIVATE_MODULUS_BYTES + 1) * 5;
+}
+
+impl Drop for RsaComponentsBuffer {
+    fn drop(&mut self) {
+        low::zeroise(&mut self.0);
+    }
+}
+
+impl Default for RsaComponentsBuffer {
+    fn default() -> Self {
+        Self([0u8; 4619])
     }
 }
 

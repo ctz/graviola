@@ -213,6 +213,35 @@ impl SigningKey {
         Ok(Self(priv_key))
     }
 
+    /// Encodes an RSA signing key to PKCS#1 DER format.
+    ///
+    /// `output` is the output buffer, and the encoding is written to the start
+    /// of this buffer.  An error is returned if the encoding is larger than
+    /// the supplied buffer.  Otherwise, on success, the range containing the
+    /// encoding is returned.
+    pub fn to_pkcs1_der<'a>(&self, output: &'a mut [u8]) -> Result<&'a [u8], Error> {
+        let _ = Entry::new_secret();
+
+        let mut buf = rsa_priv::RsaComponentsBuffer::default();
+        let components = self.0.encode_components(&mut buf)?;
+
+        let used = pkix::RSAPrivateKey {
+            version: pkix::Version::two_prime,
+            modulus: asn1::Integer::new(components.public_modulus),
+            publicExponent: asn1::Integer::new(components.public_exponent),
+            prime1: asn1::Integer::new(components.p),
+            prime2: asn1::Integer::new(components.q),
+            privateExponent: asn1::Integer::new(components.d),
+            exponent1: asn1::Integer::new(components.dp),
+            exponent2: asn1::Integer::new(components.dq),
+            coefficient: asn1::Integer::new(components.iqmp),
+        }
+        .encode(&mut asn1::Encoder::new(output))
+        .map_err(Error::Asn1Error)?;
+
+        output.get(..used).ok_or(Error::WrongLength)
+    }
+
     /// Decodes an RSA signing key from PKCS#8 DER format.
     ///
     /// This format is defined in
@@ -467,5 +496,21 @@ mod tests {
         let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa8192.der")).unwrap();
 
         check_all_algs(&mut [0u8; 1024], &private_key, &private_key.public_key());
+    }
+
+    #[test]
+    fn pairwise_key_formatting() {
+        check_pkcs1(include_bytes!("rsa/rsa2048.der"));
+        check_pkcs1(include_bytes!("rsa/rsa3072.der"));
+        check_pkcs1(include_bytes!("rsa/rsa4096.der"));
+        check_pkcs1(include_bytes!("rsa/rsa6144.der"));
+        check_pkcs1(include_bytes!("rsa/rsa8192.der"));
+    }
+
+    fn check_pkcs1(pkcs1_der: &[u8]) {
+        let decoded = SigningKey::from_pkcs1_der(pkcs1_der).unwrap();
+        let mut buffer = [0u8; 8192];
+        let encoded = decoded.to_pkcs1_der(&mut buffer).unwrap();
+        assert_eq!(encoded, pkcs1_der);
     }
 }

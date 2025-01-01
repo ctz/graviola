@@ -89,15 +89,30 @@ impl<const N: usize> PosInt<N> {
 
     pub(crate) fn to_bytes<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error> {
         let required_bytes = self.used * 8;
-
-        if out.len() < required_bytes {
-            return Err(Error::OutOfRange);
-        }
-
-        let out = &mut out[..required_bytes];
+        let out = out.get_mut(..required_bytes).ok_or(Error::OutOfRange)?;
 
         for (chunk, word) in out.chunks_exact_mut(8).rev().zip(self.as_words().iter()) {
             chunk.copy_from_slice(&word.to_be_bytes());
+        }
+
+        Ok(out)
+    }
+
+    /// Like `to_bytes`, but guarantees a zero byte prefix.
+    ///
+    /// This means, if the result is used in an ASN.1 encoded integer, the encoding
+    /// is positive.
+    pub(crate) fn to_bytes_asn1<'a>(&self, out: &'a mut [u8]) -> Result<&'a [u8], Error> {
+        let required_bytes = self.used * 8 + 1;
+        let out = out.get_mut(..required_bytes).ok_or(Error::OutOfRange)?;
+
+        out[0] = 0x00;
+        {
+            let (_, val) = out.split_at_mut(1);
+
+            for (chunk, word) in val.chunks_exact_mut(8).rev().zip(self.as_words().iter()) {
+                chunk.copy_from_slice(&word.to_be_bytes());
+            }
         }
 
         Ok(out)
