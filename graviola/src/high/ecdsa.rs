@@ -43,6 +43,12 @@ impl<C: Curve> SigningKey<C> {
             return Err(KeyFormatError::UnsupportedSec1Version.into());
         }
 
+        match ecpk.parameters.inner() {
+            Some(x) if x == &C::oid() => {}
+            None => {}
+            _ => return Err(KeyFormatError::MismatchedSec1Curve.into()),
+        }
+
         Ok(Self {
             private_key: C::PrivateKey::from_bytes(ecpk.privateKey.into_octets())?,
         })
@@ -304,6 +310,11 @@ mod tests {
         );
         check_pairwise_sec1::<curve::P256>(include_bytes!("ecdsa/secp256r1.der"));
 
+        assert_eq!(
+            SigningKey::<curve::P256>::from_sec1_der(include_bytes!("ecdsa/secp384r1.der")).err(),
+            Some(Error::KeyFormatError(KeyFormatError::MismatchedSec1Curve)),
+        );
+
         check_sign_verify::<curve::P384>(
             SigningKey::<curve::P384>::from_pkcs8_der(include_bytes!("ecdsa/secp384r1.pkcs8.der"))
                 .unwrap()
@@ -315,6 +326,11 @@ mod tests {
                 .private_key,
         );
         check_pairwise_sec1::<curve::P384>(include_bytes!("ecdsa/secp384r1.der"));
+
+        assert_eq!(
+            SigningKey::<curve::P384>::from_sec1_der(include_bytes!("ecdsa/secp256r1.der")).err(),
+            Some(Error::KeyFormatError(KeyFormatError::MismatchedSec1Curve)),
+        );
     }
 
     #[test]

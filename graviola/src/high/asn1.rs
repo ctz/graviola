@@ -208,6 +208,10 @@ impl<'a, const ID: u8, T: Type<'a>> ContextConstructed<'a, ID, T> {
     pub(crate) fn absent() -> Self {
         Self(None, PhantomData)
     }
+
+    pub(crate) fn inner(&self) -> &Option<T> {
+        &self.0
+    }
 }
 
 impl<'a, const ID: u8, T: Type<'a>> Type<'a> for ContextConstructed<'a, ID, T> {
