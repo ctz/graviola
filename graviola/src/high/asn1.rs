@@ -548,6 +548,10 @@ impl<'a> BitString<'a> {
     pub(crate) fn new(octets: &'a [u8]) -> Self {
         Self { octets }
     }
+
+    pub(crate) fn as_octets(&self) -> &'a [u8] {
+        self.octets
+    }
 }
 
 impl<'a> Type<'a> for BitString<'a> {

@@ -49,9 +49,19 @@ impl<C: Curve> SigningKey<C> {
             _ => return Err(KeyFormatError::MismatchedSec1Curve.into()),
         }
 
-        Ok(Self {
-            private_key: C::PrivateKey::from_bytes(ecpk.privateKey.into_octets())?,
-        })
+        let private_key = C::PrivateKey::from_bytes(ecpk.privateKey.into_octets())?;
+
+        if let Some(expected_public_key) = ecpk.publicKey.inner() {
+            let mut encoded_public_key_buf = [0u8; MAX_UNCOMPRESSED_PUBLIC_KEY_LEN];
+            let encoded_public_key =
+                private_key.public_key_encode_uncompressed(&mut encoded_public_key_buf)?;
+
+            if encoded_public_key != expected_public_key.as_octets() {
+                return Err(KeyFormatError::MismatchedSec1PublicKey.into());
+            }
+        }
+
+        Ok(Self { private_key })
     }
 
     /// Encode this private key in SEC.1 DER format.
@@ -313,6 +323,15 @@ mod tests {
         assert_eq!(
             SigningKey::<curve::P256>::from_sec1_der(include_bytes!("ecdsa/secp384r1.der")).err(),
             Some(Error::KeyFormatError(KeyFormatError::MismatchedSec1Curve)),
+        );
+        assert_eq!(
+            SigningKey::<curve::P256>::from_sec1_der(include_bytes!(
+                "ecdsa/secp256r1.wrong-public-key.der"
+            ))
+            .err(),
+            Some(Error::KeyFormatError(
+                KeyFormatError::MismatchedSec1PublicKey
+            )),
         );
 
         check_sign_verify::<curve::P384>(
