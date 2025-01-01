@@ -39,9 +39,8 @@ impl<C: Curve> SigningKey<C> {
         let _ = Entry::new_secret();
         let ecpk = asn1::pkix::EcPrivateKey::from_bytes(bytes).map_err(Error::Asn1Error)?;
 
-        if !matches!(ecpk.version, asn1::pkix::EcPrivateKeyVer::ecPrivkeyVer1) {
-            return Err(KeyFormatError::UnsupportedSec1Version.into());
-        }
+        // nb. ecpk.version has one variant, so if it decoded property it is guaranteed
+        // to be EcPrivateKeyVer::ecPrivkeyVer1
 
         match ecpk.parameters.inner() {
             Some(x) if x == &C::oid() => {}
@@ -332,6 +331,13 @@ mod tests {
             Some(Error::KeyFormatError(
                 KeyFormatError::MismatchedSec1PublicKey
             )),
+        );
+        assert_eq!(
+            SigningKey::<curve::P256>::from_sec1_der(include_bytes!(
+                "ecdsa/secp256r1.wrong-version.der"
+            ))
+            .err(),
+            Some(Error::Asn1Error(asn1::Error::UnhandledEnumValue)),
         );
 
         check_sign_verify::<curve::P384>(
