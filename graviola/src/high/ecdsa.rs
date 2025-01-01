@@ -34,6 +34,25 @@ impl<C: Curve> SigningKey<C> {
         .and_then(Self::from_sec1_der)
     }
 
+    /// Encode this private key in PKCS#8 DER format.
+    ///
+    /// The encoding is written to the start of `output`, and the used span is
+    /// returned.  [`Error::WrongLength`] is returned if `output` is not sufficient
+    /// to contain the full encoding.
+    pub fn to_pkcs8_der<'a>(&self, output: &'a mut [u8]) -> Result<&'a [u8], Error> {
+        let _ = Entry::new_secret();
+
+        let mut sec1_buf = [0u8; MAX_SCALAR_LEN + MAX_UNCOMPRESSED_PUBLIC_KEY_LEN + 128];
+        let sec1 = self.to_sec1_der_detail(None, &mut sec1_buf)?;
+
+        pkcs8::encode_pkcs8(
+            sec1,
+            asn1::oid::id_ecPublicKey.clone(),
+            Some(asn1::Any::ObjectId(C::oid())),
+            output,
+        )
+    }
+
     /// Load an ECDSA private key in SEC.1 format.
     pub fn from_sec1_der(bytes: &[u8]) -> Result<Self, Error> {
         let _ = Entry::new_secret();
@@ -70,7 +89,14 @@ impl<C: Curve> SigningKey<C> {
     /// to contain the full encoding.
     pub fn to_sec1_der<'a>(&self, output: &'a mut [u8]) -> Result<&'a [u8], Error> {
         let _ = Entry::new_secret();
+        self.to_sec1_der_detail(Some(C::oid()), output)
+    }
 
+    fn to_sec1_der_detail<'a>(
+        &self,
+        parameters: Option<asn1::ObjectId>,
+        output: &'a mut [u8],
+    ) -> Result<&'a [u8], Error> {
         let mut encoded_private_key_buf = [0u8; MAX_SCALAR_LEN];
         let encoded_private_key = self.private_key.encode(&mut encoded_private_key_buf)?;
 
@@ -82,7 +108,10 @@ impl<C: Curve> SigningKey<C> {
         let ecpk = asn1::pkix::EcPrivateKey {
             version: asn1::pkix::EcPrivateKeyVer::ecPrivkeyVer1,
             privateKey: asn1::OctetString::new(encoded_private_key),
-            parameters: C::oid().into(),
+            parameters: match parameters {
+                Some(x) => x.into(),
+                None => asn1::ContextConstructed::absent(),
+            },
             publicKey: asn1::BitString::new(encoded_public_key).into(),
         };
 
@@ -312,6 +341,8 @@ mod tests {
                 .unwrap()
                 .private_key,
         );
+        check_pairwise_pkcs8::<curve::P256>(include_bytes!("ecdsa/secp256r1.pkcs8.der"));
+
         check_sign_verify::<curve::P256>(
             SigningKey::<curve::P256>::from_sec1_der(include_bytes!("ecdsa/secp256r1.der"))
                 .unwrap()
@@ -345,6 +376,8 @@ mod tests {
                 .unwrap()
                 .private_key,
         );
+        check_pairwise_pkcs8::<curve::P384>(include_bytes!("ecdsa/secp384r1.pkcs8.der"));
+
         check_sign_verify::<curve::P384>(
             SigningKey::<curve::P384>::from_sec1_der(include_bytes!("ecdsa/secp384r1.der"))
                 .unwrap()
@@ -408,6 +441,14 @@ mod tests {
         assert!(buf.len() > sec1_der.len());
         let encoded = loaded.to_sec1_der(&mut buf).unwrap();
         assert_eq!(sec1_der, encoded);
+    }
+
+    fn check_pairwise_pkcs8<C: Curve>(pkcs8_der: &[u8]) {
+        let loaded = SigningKey::<C>::from_pkcs8_der(pkcs8_der).unwrap();
+        let mut buf = [0u8; 256];
+        assert!(buf.len() > pkcs8_der.len());
+        let encoded = loaded.to_pkcs8_der(&mut buf).unwrap();
+        assert_eq!(pkcs8_der, encoded);
     }
 
     #[test]

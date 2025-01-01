@@ -37,3 +37,24 @@ pub(crate) fn decode_pkcs8<'a>(
 
     Ok(pki.privateKey.into_octets())
 }
+
+/// Helper for producing PKCS#8 key encodings.
+pub(crate) fn encode_pkcs8<'a>(
+    private_key_encoding: &'_ [u8],
+    algorithm: asn1::ObjectId,
+    parameters: Option<asn1::Any<'_>>,
+    output: &'a mut [u8],
+) -> Result<&'a [u8], Error> {
+    let len = pkix::PrivateKeyInfo {
+        version: Integer::new(&[0]),
+        privateKeyAlgorithm: pkix::AlgorithmIdentifier {
+            algorithm,
+            parameters,
+        },
+        privateKey: asn1::OctetString::new(private_key_encoding),
+    }
+    .encode(&mut asn1::Encoder::new(output))
+    .map_err(Error::Asn1Error)?;
+
+    output.get(..len).ok_or(Error::WrongLength)
+}
