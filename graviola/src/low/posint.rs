@@ -77,7 +77,7 @@ impl<const N: usize> PosInt<N> {
         let remainder = words.remainder();
         let mut final_word = 0;
         for byte in remainder.iter() {
-            final_word = final_word << 8 | (*byte as u64);
+            final_word = (final_word << 8) | (*byte as u64);
         }
 
         if final_word != 0 {
