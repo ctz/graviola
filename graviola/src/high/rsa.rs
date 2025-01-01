@@ -204,11 +204,12 @@ impl SigningKey {
 
         let p = PosInt::from_bytes(decoded.prime1.as_ref())?.into();
         let q = PosInt::from_bytes(decoded.prime2.as_ref())?.into();
+        let d = PosInt::from_bytes(decoded.privateExponent.as_ref())?.into();
         let dp = PosInt::from_bytes(decoded.exponent1.as_ref())?.into();
         let dq = PosInt::from_bytes(decoded.exponent2.as_ref())?.into();
         let iqmp = PosInt::from_bytes(decoded.coefficient.as_ref())?.into();
 
-        let priv_key = rsa_priv::RsaPrivateKey::new(p, q, dp, dq, iqmp, n, e)?;
+        let priv_key = rsa_priv::RsaPrivateKey::new(p, q, d, dp, dq, iqmp, n, e)?;
         Ok(Self(priv_key))
     }
 

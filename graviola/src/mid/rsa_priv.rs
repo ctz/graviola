@@ -10,6 +10,7 @@ pub(crate) struct RsaPrivateKey {
 
     p: RsaPosIntModP,
     q: RsaPosIntModP,
+    d: RsaPosIntD,
     dp: RsaPosIntModP,
     dq: RsaPosIntModP,
 
@@ -24,6 +25,7 @@ impl RsaPrivateKey {
     pub(crate) fn new(
         p: RsaPosIntModP,
         q: RsaPosIntModP,
+        d: RsaPosIntD,
         dp: RsaPosIntModP,
         dq: RsaPosIntModP,
         iqmp: RsaPosIntModP,
@@ -51,6 +53,7 @@ impl RsaPrivateKey {
             public,
             p,
             q,
+            d,
             dp,
             dq,
             iqmp_mont,
@@ -132,4 +135,5 @@ const MIN_PRIVATE_MODULUS_BITS: usize = 1024;
 const MIN_PRIVATE_MODULUS_BYTES: usize = MIN_PRIVATE_MODULUS_BITS / 8;
 
 type RsaPosIntModP = low::SecretPosInt<MAX_PRIVATE_MODULUS_WORDS>;
+type RsaPosIntD = low::SecretPosInt<{ MAX_PRIVATE_MODULUS_WORDS * 2 }>;
 type RsaPosIntModN = low::PosInt<{ MAX_PRIVATE_MODULUS_WORDS * 2 }>;
