@@ -15,6 +15,7 @@ mod generic {
     #[cfg(test)]
     pub(crate) mod ghash;
     pub(crate) mod poly1305;
+    #[cfg(target_arch = "x86_64")]
     pub(super) mod sha256;
     pub(super) mod sha512;
     pub(super) mod zeroise;
