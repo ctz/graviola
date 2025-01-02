@@ -88,7 +88,7 @@ fn x25519(c: &mut Criterion) {
             black_box(our_public_key);
 
             let peer = graviola::key_agreement::x25519::PublicKey::from_array(PUBLIC_KEY);
-            let secret = our_private_key.diffie_hellman(&peer);
+            let secret = our_private_key.diffie_hellman(&peer).unwrap();
             black_box(secret);
         })
     });
