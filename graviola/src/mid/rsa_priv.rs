@@ -4,6 +4,9 @@
 use super::rsa_pub::{MAX_PUBLIC_MODULUS_BYTES, RsaPublicKey};
 use crate::error::Error;
 use crate::low;
+use crate::mid::rng::RandomSource;
+
+mod generate;
 
 pub(crate) struct RsaPrivateKey {
     public: RsaPublicKey,
@@ -33,13 +36,14 @@ impl RsaPrivateKey {
         n: RsaPosIntModN,
         e: u32,
     ) -> Result<Self, Error> {
-        let p_len = p.len_bytes();
-        if p.is_even()
-            || q.is_even()
-            || dp.is_even()
-            || dq.is_even()
+        let p_len = dbg!(p.len_bytes());
+        if dbg!(p.is_even())
+            || dbg!(q.is_even())
+            || dbg!(dp.is_even())
+            || dbg!(dq.is_even())
             || !(MIN_PRIVATE_MODULUS_BYTES..=MAX_PRIVATE_MODULUS_BYTES).contains(&p_len)
         {
+            println!("bad key");
             return Err(Error::OutOfRange);
         }
 
@@ -71,6 +75,13 @@ impl RsaPrivateKey {
             p0,
             q0,
         })
+    }
+
+    pub(crate) fn generate(
+        size: generate::RsaSize,
+        rng: &mut dyn RandomSource,
+    ) -> Result<Self, Error> {
+        generate::generate_key(size, rng)
     }
 
     pub(crate) fn public_key(&self) -> RsaPublicKey {
@@ -228,3 +239,17 @@ type SecretRsaPosIntD = low::SecretPosInt<{ MAX_PRIVATE_MODULUS_WORDS * 2 }>;
 type RsaPosIntModP = low::PosInt<MAX_PRIVATE_MODULUS_WORDS>;
 type RsaPosIntD = low::PosInt<{ MAX_PRIVATE_MODULUS_WORDS * 2 }>;
 type RsaPosIntModN = low::PosInt<{ MAX_PRIVATE_MODULUS_WORDS * 2 }>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn key_generation() {
+        let key = RsaPrivateKey::generate(
+            generate::RsaSize::Rsa2048,
+            &mut crate::mid::rng::SystemRandom,
+        )
+        .unwrap();
+    }
+}
