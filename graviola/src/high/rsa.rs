@@ -4,6 +4,7 @@
 use crate::high::asn1::{self, pkix, Type};
 use crate::high::hash::{self, Hash};
 use crate::high::{pkcs1, pkcs8};
+use crate::low::zeroise;
 use crate::low::Entry;
 use crate::low::PosInt;
 use crate::mid::rng::SystemRandom;
@@ -240,6 +241,32 @@ impl SigningKey {
         .map_err(Error::Asn1Error)?;
 
         output.get(..used).ok_or(Error::WrongLength)
+    }
+
+    // this is an over-estimate
+    const MAX_PKCS1_BUFFER_LEN: usize = rsa_priv::RsaComponentsBuffer::LEN + 128;
+
+    /// Encodes an RSA signing key to PKCS#8 DER format.
+    ///
+    /// `output` is the output buffer, and the encoding is written to the start
+    /// of this buffer.  An error is returned if the encoding is larger than
+    /// the supplied buffer.  Otherwise, on success, the range containing the
+    /// encoding is returned.
+    pub fn to_pkcs8_der<'a>(&self, output: &'a mut [u8]) -> Result<&'a [u8], Error> {
+        let _ = Entry::new_secret();
+
+        let mut pkcs1_buffer = [0u8; Self::MAX_PKCS1_BUFFER_LEN];
+
+        let rc = pkcs8::encode_pkcs8(
+            self.to_pkcs1_der(&mut pkcs1_buffer)?,
+            asn1::oid::rsaEncryption.clone(),
+            Some(asn1::Any::Null(asn1::Null)),
+            output,
+        );
+
+        zeroise(&mut pkcs1_buffer);
+
+        rc
     }
 
     /// Decodes an RSA signing key from PKCS#8 DER format.
@@ -505,12 +532,25 @@ mod tests {
         check_pkcs1(include_bytes!("rsa/rsa4096.der"));
         check_pkcs1(include_bytes!("rsa/rsa6144.der"));
         check_pkcs1(include_bytes!("rsa/rsa8192.der"));
+
+        check_pkcs8(include_bytes!("rsa/rsa2048.pkcs8.der"));
+        check_pkcs8(include_bytes!("rsa/rsa3072.pkcs8.der"));
+        check_pkcs8(include_bytes!("rsa/rsa4096.pkcs8.der"));
+        check_pkcs8(include_bytes!("rsa/rsa6144.pkcs8.der"));
+        check_pkcs8(include_bytes!("rsa/rsa8192.pkcs8.der"));
     }
 
     fn check_pkcs1(pkcs1_der: &[u8]) {
         let decoded = SigningKey::from_pkcs1_der(pkcs1_der).unwrap();
-        let mut buffer = [0u8; 8192];
+        let mut buffer = [0u8; SigningKey::MAX_PKCS1_BUFFER_LEN];
         let encoded = decoded.to_pkcs1_der(&mut buffer).unwrap();
         assert_eq!(encoded, pkcs1_der);
+    }
+
+    fn check_pkcs8(pkcs8_der: &[u8]) {
+        let decoded = SigningKey::from_pkcs8_der(pkcs8_der).unwrap();
+        let mut buffer = [0u8; SigningKey::MAX_PKCS1_BUFFER_LEN];
+        let encoded = decoded.to_pkcs8_der(&mut buffer).unwrap();
+        assert_eq!(encoded, pkcs8_der);
     }
 }
