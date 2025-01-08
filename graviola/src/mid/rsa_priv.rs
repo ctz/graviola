@@ -178,7 +178,7 @@ pub(crate) struct RsaComponents<'a> {
 pub(crate) struct RsaComponentsBuffer([u8; Self::LEN]);
 
 impl RsaComponentsBuffer {
-    const LEN: usize =
+    pub(crate) const LEN: usize =
         // public modulus and private exponent
         (MAX_PUBLIC_MODULUS_BYTES + 1) * 2 +
             // public exponent
