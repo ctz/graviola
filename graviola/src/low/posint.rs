@@ -21,6 +21,13 @@ impl<const N: usize> PosInt<N> {
         }
     }
 
+    /// Makes a minimum-width, single-word value.
+    pub(crate) fn word(w: u64) -> Self {
+        let mut r = Self::zero();
+        r.push_word(w).unwrap();
+        r
+    }
+
     /// Makes a minimum-width one.
     fn one() -> Self {
         let mut r = Self::zero();
@@ -130,11 +137,20 @@ impl<const N: usize> PosInt<N> {
     }
 
     pub(crate) fn len_bytes(&self) -> usize {
-        (low::bignum_bitsize(self.as_words()) + 7) / 8
+        (self.len_bits() + 7) / 8
+    }
+
+    pub(crate) fn len_bits(&self) -> usize {
+        low::bignum_bitsize(self.as_words())
     }
 
     pub(crate) fn is_even(&self) -> bool {
         self.words[0] & 1 == 0
+    }
+
+    pub(crate) fn is_coprime(&self, other: &Self) -> bool {
+        let mut tmp = vec![0u64; N + N];
+        low::bignum_coprime(self.as_words(), other.as_words(), &mut tmp)
     }
 
     fn as_words(&self) -> &[u64] {
@@ -473,12 +489,42 @@ impl<const N: usize> PosInt<N> {
         accum.from_montgomery(n)
     }
 
+    /// Computes the multiplicative inverse of `self` mod `n`.
+    ///
+    /// For that, `self` and `n` must be coprime: check with `is_coprime()`
+    /// first.
+    #[must_use]
+    pub(crate) fn mod_inverse(&self, n: &Self) -> Self {
+        let mut r = Self::zero();
+        self.debug("mod_inverse a");
+        n.debug("mod_inverse n");
+        r.used = n.used;
+        let mut temp = vec![0u64; N * 3];
+        low::bignum_modinv(
+            r.as_mut_words(),
+            &self.words[..n.used],
+            n.as_words(),
+            &mut temp,
+        );
+        r
+    }
+
     /// Computes `self` + `b`
     #[must_use]
     pub(crate) fn add(&self, b: &Self) -> Self {
         let mut r = Self::zero();
         low::bignum_add(&mut r.words, self.as_words(), b.as_words());
         r.used = low::bignum_digitsize(&r.words);
+        r
+    }
+
+    /// Computes `self` - `b`
+    #[must_use]
+    pub(crate) fn sub(&self, b: &Self) -> Self {
+        let mut r = Self::zero();
+        r.used = self.used;
+        // TODO: could pull in bignum_sub for this.
+        low::bignum_optsub(r.as_mut_words(), self.as_words(), b.as_words(), 1);
         r
     }
 
