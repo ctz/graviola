@@ -43,30 +43,48 @@ pub(super) fn generate_key(
         let p = random_prime(size, random)?;
         let q = random_prime(size, random)?;
 
+        if p.equals(&q) {
+            // for the set of `RsaSizes` supported here, choosing p == q
+            // means `random` is hosed.
+            return Err(Error::RngFailed);
+        }
+
+        // arrange that q < p
+        let (p, q) = if q.less_than(&p) { (p, q) } else { (q, p) };
+
         let n: super::RsaPosIntModN = PosInt::mul(&p, &q);
 
         let one = PosInt::word(1);
+        let e = PosInt::word(PUBLIC_EXPONENT.into());
 
         let p_1 = p.sub(&one);
         let q_1 = q.sub(&one);
 
         let phi = PosInt::mul(&p_1, &q_1);
-
-        let e = PosInt::word(PUBLIC_EXPONENT.into());
-        e.debug("e");
+        p.debug("p");
+        q.debug("q");
         phi.debug("phi");
 
-        if !phi.is_coprime(&e) {
-            continue;
-        }
+        // d = e ^ -1 mod LCM(p - 1, q - 1)
+        //
+        // LCM(p - 1, q - 1) := (p - 1)(q - 1) / GCD(p - 1, q - 1)
+        // ie. φ / GCD(p - 1, q - 1)
+        let gcd_p1q1 = p_1.gcd(&q_1);
+        gcd_p1q1.debug("gcd");
 
-        let d = e.mod_inverse(&phi);
+        let lcm_p1q1 = match gcd_p1q1.into_single_word() {
+            Some(gcm) => phi.exact_div(gcm),
+            None => continue,
+        };
+
+        let d = e.mod_inverse(&lcm_p1q1);
         d.debug("d");
 
         let iqmp = q.mod_inverse(&p);
         iqmp.debug("iqmp");
-        let dp = d.reduce(&p, &p.montifier());
-        let dq = d.reduce(&q, &q.montifier());
+
+        let dp = d.reduce(&p_1, &p_1.montifier());
+        let dq = d.reduce(&q_1, &q_1.montifier());
 
         return super::RsaPrivateKey::new(
             p,

@@ -1,6 +1,7 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use core::cmp;
 use core::ops::{Deref, DerefMut};
 
 use crate::Error;
@@ -151,6 +152,17 @@ impl<const N: usize> PosInt<N> {
     pub(crate) fn is_coprime(&self, other: &Self) -> bool {
         let mut tmp = vec![0u64; N + N];
         low::bignum_coprime(self.as_words(), other.as_words(), &mut tmp)
+    }
+
+    pub(crate) fn gcd(&self, other: &Self) -> Self {
+        let mut tmp = vec![0u64; N + N];
+        // XXX: abuse of bignum_coprime's tmp buffer. contribute a bignum_gcd to s2n-bignum
+        low::bignum_coprime(self.as_words(), other.as_words(), &mut tmp);
+        let used = cmp::max(self.used, other.used);
+        let mut out = Self::zero();
+        out.used = used;
+        out.as_mut_words().copy_from_slice(&tmp[used..used * 2]);
+        out
     }
 
     fn as_words(&self) -> &[u64] {
