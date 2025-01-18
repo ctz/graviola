@@ -149,6 +149,13 @@ impl<const N: usize> PosInt<N> {
         self.words[0] & 1 == 0
     }
 
+    pub(crate) fn into_single_word(self) -> Option<u64> {
+        match self.len_bits() {
+            0..64 => Some(self.words[0]),
+            _ => None,
+        }
+    }
+
     pub(crate) fn is_coprime(&self, other: &Self) -> bool {
         let mut tmp = vec![0u64; N + N];
         low::bignum_coprime(self.as_words(), other.as_words(), &mut tmp)
@@ -163,6 +170,14 @@ impl<const N: usize> PosInt<N> {
         out.used = used;
         out.as_mut_words().copy_from_slice(&tmp[used..used * 2]);
         out
+    }
+
+    pub(crate) fn div(&self, divisor: u64) -> Self {
+        let mut r = Self::zero();
+        r.used = self.used;
+        debug_assert!(divisor != 0);
+        low::bignum_cdiv(r.as_mut_words(), self.as_words(), divisor);
+        r
     }
 
     fn as_words(&self) -> &[u64] {

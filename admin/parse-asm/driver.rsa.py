@@ -294,6 +294,25 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
+    with open("../../thirdparty/s2n-bignum/x86/generic/bignum_cdiv.S") as input, open(
+        "../../graviola/src/low/x86_64/bignum_cdiv.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_amd64)
+        d.emit_rust_function(
+            "bignum_cdiv",
+            parameter_map=[
+                ("inout", "z.len() => _"),
+                ("inout", "z.as_ptr() => _"),
+                ("inout", "x.len() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "m => _"),
+            ],
+            return_map=("out", "ret"),
+            return_value=("u64", "ret", "ret"),
+            rust_decl="fn bignum_cdiv(z: &mut [u64], x: &[u64], m: u64) -> u64",
+        )
+        parse_file(input, d)
+
     # aarch64
     with open(
         "../../thirdparty/s2n-bignum/arm/generic/bignum_montsqr.S"

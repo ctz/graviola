@@ -48,6 +48,7 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::bignum_add_p256::bignum_add_p256;
         pub(crate) use x86_64::bignum_add_p384::bignum_add_p384;
         pub(crate) use x86_64::bignum_bitsize::bignum_bitsize;
+        pub(crate) use x86_64::bignum_cdiv::bignum_cdiv;
         pub(crate) use x86_64::bignum_cmp_lt::bignum_cmp_lt;
         pub(crate) use x86_64::bignum_coprime::bignum_coprime;
         pub(crate) use x86_64::bignum_copy_row_from_table_mux::bignum_copy_row_from_table;

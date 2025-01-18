@@ -7,6 +7,7 @@ pub(crate) mod bignum_add;
 pub(crate) mod bignum_add_p256;
 pub(crate) mod bignum_add_p384;
 pub(crate) mod bignum_bitsize;
+pub(crate) mod bignum_cdiv;
 pub(crate) mod bignum_cmp_lt;
 pub(crate) mod bignum_coprime;
 pub(crate) mod bignum_copy_row_from_table;

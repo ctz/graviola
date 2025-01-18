@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
 //! RSA key generation routines.
+//!
+//! All references below are to FIPS186-5:
+//! <https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf>
 
 use crate::low::{zeroise, PosInt};
 use crate::mid::rng::RandomSource;
@@ -32,6 +35,17 @@ impl RsaSize {
 
     fn private_prime_size_bits(&self) -> usize {
         self.public_modulus_size_bits() / 2
+    }
+
+    fn miller_rabin_rounds(&self) -> usize {
+        // refer to Table B.1.
+        match self {
+            Self::Rsa2048 => 5,
+            Self::Rsa3072 => 4,
+            Self::Rsa4096 => 4,
+            // nb. not included in FIPS186-5.
+            Self::Rsa6144 | Self::Rsa8192 => 4,
+        }
     }
 }
 
@@ -73,9 +87,10 @@ pub(super) fn generate_key(
         gcd_p1q1.debug("gcd");
 
         let lcm_p1q1 = match gcd_p1q1.into_single_word() {
-            Some(gcm) => phi.exact_div(gcm),
+            Some(gcd) => phi.div(gcd),
             None => continue,
         };
+        lcm_p1q1.debug("lcm");
 
         let d = e.mod_inverse(&lcm_p1q1);
         d.debug("d");
@@ -119,7 +134,7 @@ fn random_prime(
 
         let candidate = PosInt::from_bytes(&buffer[..bytes])?;
 
-        if is_prime(&candidate) {
+        if is_prime(&candidate, size) {
             // this is the one we'll use, so it becomes sensitive on return.
             zeroise(&mut buffer[..bytes]);
 
@@ -128,7 +143,7 @@ fn random_prime(
     }
 }
 
-fn is_prime(candidate: &PosInt<{ super::MAX_PRIVATE_MODULUS_WORDS }>) -> bool {
+fn is_prime(candidate: &PosInt<{ super::MAX_PRIVATE_MODULUS_WORDS }>, size: RsaSize) -> bool {
     let small_primes = PosInt::from_bytes(PRODUCT_OF_SMALL_PRIMES).unwrap();
 
     if !candidate.is_coprime(&small_primes) {
@@ -136,8 +151,17 @@ fn is_prime(candidate: &PosInt<{ super::MAX_PRIVATE_MODULUS_WORDS }>) -> bool {
         return false;
     }
 
-    // TODO: Rabin-Miller, with rounds chosen from `RsaSize` or size of candidate
+    for _ in 0..size.miller_rabin_rounds() {
+        if !miller_rabin(candidate, rng) {
+            return false;
+        }
+    }
+
     true
+}
+
+fn miller_rabin(candidate: &PosInt<{ super::MAX_PRIVATE_MODULUS_WORDS }>, rng: &mut dyn RandomSource) -> bool {
+
 }
 
 /// Product of the primes from 3..743, such that the product fits in 1024-bits
