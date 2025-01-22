@@ -130,7 +130,7 @@ impl<const N: usize> PosInt<N> {
     }
 
     pub(crate) fn len_bytes(&self) -> usize {
-        (low::bignum_bitsize(self.as_words()) + 7) / 8
+        low::bignum_bitsize(self.as_words()).wrapping_add(7) / 8
     }
 
     pub(crate) fn is_even(&self) -> bool {
@@ -514,7 +514,10 @@ pub(crate) struct SecretPosInt<const N: usize>(PosInt<N>);
 
 impl<const N: usize> From<PosInt<N>> for SecretPosInt<N> {
     fn from(pi: PosInt<N>) -> Self {
-        Self(pi)
+        Self(PosInt {
+            used: pi.used,
+            words: low::ct::into_secret(pi.words),
+        })
     }
 }
 

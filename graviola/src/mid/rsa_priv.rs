@@ -8,16 +8,16 @@ use crate::low;
 pub(crate) struct RsaPrivateKey {
     public: RsaPublicKey,
 
-    p: RsaPosIntModP,
-    q: RsaPosIntModP,
-    d: RsaPosIntD,
-    dp: RsaPosIntModP,
-    dq: RsaPosIntModP,
-    iqmp: RsaPosIntModP,
+    p: SecretRsaPosIntModP,
+    q: SecretRsaPosIntModP,
+    d: SecretRsaPosIntD,
+    dp: SecretRsaPosIntModP,
+    dq: SecretRsaPosIntModP,
+    iqmp: SecretRsaPosIntModP,
 
-    iqmp_mont: RsaPosIntModP,
-    p_montifier: RsaPosIntModP,
-    q_montifier: RsaPosIntModP,
+    iqmp_mont: SecretRsaPosIntModP,
+    p_montifier: SecretRsaPosIntModP,
+    q_montifier: SecretRsaPosIntModP,
     p0: u64,
     q0: u64,
 }
@@ -44,11 +44,18 @@ impl RsaPrivateKey {
         }
 
         let public = RsaPublicKey::new(n, e)?;
-        let p_montifier: RsaPosIntModP = p.montifier().into();
+        let p_montifier: SecretRsaPosIntModP = p.montifier().into();
         let q_montifier = q.montifier().into();
         let iqmp_mont = iqmp.to_montgomery(&p_montifier, &p).into();
         let p0 = p.mont_neg_inverse();
         let q0 = q.mont_neg_inverse();
+
+        let p = p.into();
+        let q = q.into();
+        let d = d.into();
+        let dp = dp.into();
+        let dq = dq.into();
+        let iqmp = iqmp.into();
 
         Ok(Self {
             public,
@@ -97,6 +104,13 @@ impl RsaPrivateKey {
         let dq = self.dq.to_bytes_asn1(dq)?;
         let iqmp = self.iqmp.to_bytes_asn1(iqmp)?;
 
+        low::ct::public_slice(p);
+        low::ct::public_slice(q);
+        low::ct::public_slice(d);
+        low::ct::public_slice(dp);
+        low::ct::public_slice(dq);
+        low::ct::public_slice(iqmp);
+
         Ok(RsaComponents {
             public_modulus,
             public_exponent,
@@ -144,6 +158,7 @@ impl RsaPrivateKey {
 
         // iv.  Let m = m_2 + q * h.
         let m = m_2.widen().add(&low::PosInt::mul(&self.q, &h));
+        let m = low::ct::into_public(m);
 
         // validate the result as a fault attack countermeasure,
         // at the same time it validates our working above, and
@@ -206,6 +221,8 @@ pub(crate) const MAX_PRIVATE_MODULUS_BYTES: usize = MAX_PRIVATE_MODULUS_BITS / 8
 const MIN_PRIVATE_MODULUS_BITS: usize = 1024;
 const MIN_PRIVATE_MODULUS_BYTES: usize = MIN_PRIVATE_MODULUS_BITS / 8;
 
-type RsaPosIntModP = low::SecretPosInt<MAX_PRIVATE_MODULUS_WORDS>;
-type RsaPosIntD = low::SecretPosInt<{ MAX_PRIVATE_MODULUS_WORDS * 2 }>;
+type SecretRsaPosIntModP = low::SecretPosInt<MAX_PRIVATE_MODULUS_WORDS>;
+type SecretRsaPosIntD = low::SecretPosInt<{ MAX_PRIVATE_MODULUS_WORDS * 2 }>;
+type RsaPosIntModP = low::PosInt<MAX_PRIVATE_MODULUS_WORDS>;
+type RsaPosIntD = low::PosInt<{ MAX_PRIVATE_MODULUS_WORDS * 2 }>;
 type RsaPosIntModN = low::PosInt<{ MAX_PRIVATE_MODULUS_WORDS * 2 }>;
