@@ -24,6 +24,7 @@ impl PrivateKey {
         let _ = low::Entry::new_secret();
         let mut r = [0u8; Self::BYTES];
         SystemRandom.fill(&mut r)?;
+        let r = low::ct::into_secret(r);
         Ok(Self(util::little_endian_to_u64x4(&r)))
     }
 
@@ -32,7 +33,7 @@ impl PrivateKey {
         let _ = low::Entry::new_secret();
         let mut res = [0u64; 4];
         low::curve25519_x25519base(&mut res, &self.0);
-        PublicKey(res)
+        PublicKey(low::ct::into_public(res))
     }
 
     /// Do the Diffie-Hellman operation.
@@ -50,7 +51,7 @@ impl PrivateKey {
         low::curve25519_x25519(&mut res, &self.0, &peer.0);
 
         // output is zero (infinity) for small order input points
-        if low::bignum_eq(&res, &ZERO) {
+        if low::ct::into_public(low::bignum_eq(&res, &ZERO)) {
             Err(Error::NotOnCurve)
         } else {
             Ok(SharedSecret(util::u64x4_to_little_endian(&res)))
@@ -82,6 +83,7 @@ impl StaticPrivateKey {
     /// This must be exactly 32 bytes in length.
     pub fn try_from_slice(b: &[u8]) -> Result<Self, Error> {
         let _ = low::Entry::new_secret();
+        low::ct::secret_slice(b);
         util::little_endian_slice_to_u64x4(b)
             .map(|words| Self(PrivateKey(words)))
             .ok_or(Error::WrongLength)
@@ -90,6 +92,7 @@ impl StaticPrivateKey {
     /// Create an X25519 [`StaticPrivateKey`] from a byte array.
     pub fn from_array(b: &[u8; Self::BYTES]) -> Self {
         let _ = low::Entry::new_secret();
+        low::ct::secret_slice(b);
         Self(PrivateKey(util::little_endian_to_u64x4(b)))
     }
 
@@ -178,7 +181,7 @@ mod tests {
             .diffie_hellman(&PublicKey::from_array(point))
             .unwrap();
         assert_eq!(
-            &res.0,
+            &low::ct::into_public(res.0),
             b"\xc3\xda\x55\x37\x9d\xe9\xc6\x90\x8e\x94\xea\x4d\xf2\x8d\x08\x4f\x32\xec\xcf\x03\x49\x1c\x71\xf7\x54\xb4\x07\x55\x77\xa2\x85\x52"
         );
     }
@@ -191,7 +194,7 @@ mod tests {
             .diffie_hellman(&PublicKey::from_array(point))
             .unwrap();
         assert_eq!(
-            &res.0,
+            &low::ct::into_public(res.0),
             b"\x95\xcb\xde\x94\x76\xe8\x90\x7d\x7a\xad\xe4\x5c\xb4\xb8\x73\xf8\x8b\x59\x5a\x68\x79\x9f\xa1\x52\xe6\xf8\xf7\x64\x7a\xac\x79\x57"
         );
     }
@@ -203,6 +206,7 @@ mod tests {
 
         // After one iteration: 422c8e7a6227d7bca1350b3e2bb7279f7897b87bb6854b783c60e80311ae3079
         let res = StaticPrivateKey::from_array(&k).public_key();
+        let res = low::ct::into_public(res);
         assert_eq!(
             &res.as_bytes(),
             b"\x42\x2c\x8e\x7a\x62\x27\xd7\xbc\xa1\x35\x0b\x3e\x2b\xb7\x27\x9f\x78\x97\xb8\x7b\xb6\x85\x4b\x78\x3c\x60\xe8\x03\x11\xae\x30\x79",
@@ -218,6 +222,8 @@ mod tests {
             u = new_u;
             k = StaticPrivateKey::from_array(&res.0);
         }
+
+        let mut k = low::ct::into_public(k);
 
         assert_eq!(
             &k.as_bytes(),
