@@ -4,6 +4,8 @@
 #[macro_use]
 mod macros;
 
+pub(crate) mod ct;
+
 #[cfg(doc)]
 pub mod inline_assembly_safety;
 

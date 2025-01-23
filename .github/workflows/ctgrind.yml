@@ -1,9 +1,7 @@
-name: coverage
+name: ctgrind
 
 on:
   push:
-    branches:
-      - main
   pull_request:
   schedule:
     - cron: '0 18 * * *'
@@ -17,7 +15,9 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-          - os: macos-latest
+            build:
+          - os: ubuntu-latest
+            build: --release
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -30,20 +30,9 @@ jobs:
       uses: dtolnay/rust-toolchain@master
       with:
         toolchain: stable
-        components: llvm-tools
 
-    - name: Install valgrind on Linux
-      if: runner.os == 'Linux'
+    - name: Install valgrind
       run: sudo apt-get update && sudo apt-get install -y valgrind
 
-    - name: Install cargo-llvm-cov
-      uses: taiki-e/install-action@cargo-llvm-cov
-
-    - name: Measure coverage
-      run: ./admin/coverage --lcov --output-path final.info
-
-    - name: Report to codecov.io
-      uses: codecov/codecov-action@v5
-      with:
-        files: final.info
-        token: ${{ secrets.CODECOV_TOKEN }}
+    - name: ctgrind tests
+      run: admin/ctgrind ${{ matrix.build }}

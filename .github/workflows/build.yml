@@ -36,6 +36,10 @@ jobs:
       if: runner.os == 'Windows'
       uses: ilammy/setup-nasm@v1
 
+    - name: Install valgrind on Linux
+      if: runner.os == 'Linux'
+      run: sudo apt-get update && sudo apt-get install -y valgrind
+
     - name: Install cross
       if: matrix.cross != ''
       uses: taiki-e/setup-cross-toolchain-action@v1
