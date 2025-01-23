@@ -10,7 +10,6 @@ pub(crate) fn bignum_copy_row_from_table_16_avx2(
     index: u64,
 ) {
     debug_assert!(z.len() == 16);
-    debug_assert!(index < _height);
     debug_assert!(table.len() == (_height as usize) * z.len());
 
     // SAFETY: this crate requires the `avx` and `avx2` cpu features

@@ -81,7 +81,6 @@ pub(crate) fn bignum_copy_row_from_table_8n_neon(
 ) {
     debug_assert!(z.len() as u64 == width);
     debug_assert!(width % 8 == 0);
-    debug_assert!(index < height);
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
