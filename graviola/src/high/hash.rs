@@ -425,17 +425,19 @@ mod tests {
             window[2].clone()
         }
 
-        process_cavp(
-            "../thirdparty/cavp/sha2/SHA256Monte.rsp",
-            &mut Cavp::default(),
-        );
-        process_cavp(
-            "../thirdparty/cavp/sha2/SHA384Monte.rsp",
-            &mut Cavp::default(),
-        );
-        process_cavp(
-            "../thirdparty/cavp/sha2/SHA512Monte.rsp",
-            &mut Cavp::default(),
-        );
+        if option_env!("SLOW_TESTS").is_some() {
+            process_cavp(
+                "../thirdparty/cavp/sha2/SHA256Monte.rsp",
+                &mut Cavp::default(),
+            );
+            process_cavp(
+                "../thirdparty/cavp/sha2/SHA384Monte.rsp",
+                &mut Cavp::default(),
+            );
+            process_cavp(
+                "../thirdparty/cavp/sha2/SHA512Monte.rsp",
+                &mut Cavp::default(),
+            );
+        }
     }
 }
