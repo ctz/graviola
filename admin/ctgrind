@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+
+# ensure tests are built: cargo and rustc are not valgrind-friendly
+cargo test --no-run "$@"
+
+# nb. do not run zeroing test, it is extremely valgrind-unfriendly
+valgrind --trace-children=yes --track-origins=yes \
+    cargo test --lib --test wycheproof "$@"
