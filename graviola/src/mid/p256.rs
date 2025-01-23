@@ -121,6 +121,7 @@ impl PrivateKey {
 
     fn public_point(&self) -> AffineMontPoint {
         let point = JacobianMontPoint::base_multiply(&self.scalar).as_affine();
+        let point = low::ct::into_public(point);
         match point.on_curve() {
             true => point,
             false => panic!("internal fault"),
@@ -141,7 +142,9 @@ impl PrivateKey {
     }
 
     fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        Scalar::from_bytes_checked(bytes).map(|scalar| Self { scalar })
+        Scalar::from_bytes_checked(bytes).map(|scalar| Self {
+            scalar: low::ct::into_secret(scalar),
+        })
     }
 }
 
@@ -179,7 +182,7 @@ impl StaticPrivateKey {
     /// Return a fixed-length encoding of this private key's value.
     pub fn as_bytes(&self) -> [u8; Scalar::BYTES] {
         let _ = low::Entry::new_secret();
-        self.0.scalar.as_bytes()
+        low::ct::into_public(self.0.scalar.as_bytes())
     }
 
     /// Derive the corresponding public key, and return it in
@@ -223,7 +226,7 @@ impl StaticPrivateKey {
             .demont()
             .add(e)
             .as_mont();
-        k.0.scalar.inv().mont_mul(&lhs_mont)
+        low::ct::into_public(k.0.scalar.inv().mont_mul(&lhs_mont))
     }
 }
 
@@ -967,9 +970,9 @@ impl BoothRecodeW7 {
         // references
         let sign = !((v >> 7).wrapping_sub(1));
 
-        let d = ((1u16 << 8) - (v as u16) - 1) as u8;
+        let d = (1u16 << 8).wrapping_sub(v as u16).wrapping_sub(1) as u8;
         let d = (d & sign) | (v & !sign);
-        let d = (d >> 1) + (d & 1);
+        let d = (d >> 1).wrapping_add(d & 1);
 
         (d, sign & 1)
     }
@@ -1022,9 +1025,9 @@ impl BoothRecodeW5 {
         // references
         let sign = !((v >> 5).wrapping_sub(1));
 
-        let d = ((1u16 << 6) - (v as u16) - 1) as u8;
+        let d = (1u16 << 6).wrapping_sub(v as u16).wrapping_sub(1) as u8;
         let d = (d & sign) | (v & !sign);
-        let d = (d >> 1) + (d & 1);
+        let d = (d >> 1).wrapping_add(d & 1);
 
         (d, sign & 1)
     }
