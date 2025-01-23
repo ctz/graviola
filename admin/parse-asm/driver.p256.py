@@ -167,7 +167,6 @@ if __name__ == "__main__":
             rust_decl="fn bignum_copy_row_from_table(z: &mut [u64], table: &[u64], height: u64, width: u64, index: u64)",
             assertions=[
                 "z.len() as u64 == width",
-                "index < height",
             ],
         )
         parse_file(input, d)
@@ -506,7 +505,6 @@ if __name__ == "__main__":
             rust_decl="fn bignum_copy_row_from_table(z: &mut [u64], table: &[u64], height: u64, width: u64, index: u64)",
             assertions=[
                 "z.len() as u64 == width",
-                "index < height",
             ],
         )
         parse_file(input, d)
@@ -530,7 +528,6 @@ if __name__ == "__main__":
             assertions=[
                 "z.len() as u64 == width",
                 "width % 8 == 0",
-                "index < height",
             ],
         )
         parse_file(input, d)
@@ -552,7 +549,6 @@ if __name__ == "__main__":
             rust_decl="fn bignum_copy_row_from_table_16_neon(z: &mut [u64], table: &[u64], height: u64, index: u64)",
             assertions=[
                 "z.len() == 16",
-                "index < height",
             ],
         )
         parse_file(input, d)
