@@ -23,53 +23,53 @@ use crate::low::macros::*;
 
 macro_rules! k {
     () => {
-        Q!("x0")
+        "x0"
     };
 }
 macro_rules! z {
     () => {
-        Q!("x1")
+        "x1"
     };
 }
 macro_rules! x {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 
 macro_rules! w {
     () => {
-        Q!("x3")
+        "x3"
     };
 }
 macro_rules! a {
     () => {
-        Q!("x4")
+        "x4"
     };
 }
 macro_rules! m {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 macro_rules! h {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 macro_rules! l {
     () => {
-        Q!("x7")
+        "x7"
     };
 }
 macro_rules! e {
     () => {
-        Q!("x8")
+        "x8"
     };
 }
 macro_rules! i {
     () => {
-        Q!("x9")
+        "x9"
     };
 }
 

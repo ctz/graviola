@@ -23,83 +23,83 @@ use crate::low::macros::*;
 
 macro_rules! k {
     () => {
-        Q!("rdi")
+        "rdi"
     };
 }
 macro_rules! z {
     () => {
-        Q!("rsi")
+        "rsi"
     };
 }
 macro_rules! x {
     () => {
-        Q!("r9")
+        "r9"
     };
 }
 macro_rules! m {
     () => {
-        Q!("rcx")
+        "rcx"
     };
 }
 
 // General temp, low part of product and mul input
 macro_rules! a {
     () => {
-        Q!("rax")
+        "rax"
     };
 }
 // General temp, High part of product
 macro_rules! b {
     () => {
-        Q!("rdx")
+        "rdx"
     };
 }
 // Negated modular inverse
 macro_rules! w {
     () => {
-        Q!("r8")
+        "r8"
     };
 }
 // Inner loop counter
 macro_rules! j {
     () => {
-        Q!("rbx")
+        "rbx"
     };
 }
 // Home for i'th digit or Montgomery multiplier
 macro_rules! d {
     () => {
-        Q!("rbp")
+        "rbp"
     };
 }
 macro_rules! h {
     () => {
-        Q!("r10")
+        "r10"
     };
 }
 macro_rules! e {
     () => {
-        Q!("r11")
+        "r11"
     };
 }
 macro_rules! n {
     () => {
-        Q!("r12")
+        "r12"
     };
 }
 macro_rules! i {
     () => {
-        Q!("r13")
+        "r13"
     };
 }
 macro_rules! c0 {
     () => {
-        Q!("r14")
+        "r14"
     };
 }
 macro_rules! c1 {
     () => {
-        Q!("r15")
+        "r15"
     };
 }
 
@@ -107,18 +107,18 @@ macro_rules! c1 {
 
 macro_rules! t2 {
     () => {
-        Q!("rdx")
+        "rdx"
     };
 }
 
 macro_rules! ashort {
     () => {
-        Q!("eax")
+        "eax"
     };
 }
 macro_rules! jshort {
     () => {
-        Q!("ebx")
+        "ebx"
     };
 }
 

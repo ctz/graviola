@@ -24,7 +24,7 @@ use crate::low::macros::*;
 
 macro_rules! N {
     () => {
-        Q!("8")
+        "8"
     };
 }
 
@@ -32,7 +32,7 @@ macro_rules! N {
 
 macro_rules! res {
     () => {
-        Q!("x20")
+        "x20"
     };
 }
 
@@ -40,12 +40,12 @@ macro_rules! res {
 
 macro_rules! i {
     () => {
-        Q!("x21")
+        "x21"
     };
 }
 macro_rules! d {
     () => {
-        Q!("x22")
+        "x22"
     };
 }
 
@@ -53,42 +53,42 @@ macro_rules! d {
 
 macro_rules! m00 {
     () => {
-        Q!("x10")
+        "x10"
     };
 }
 macro_rules! m01 {
     () => {
-        Q!("x11")
+        "x11"
     };
 }
 macro_rules! m10 {
     () => {
-        Q!("x12")
+        "x12"
     };
 }
 macro_rules! m11 {
     () => {
-        Q!("x13")
+        "x13"
     };
 }
 macro_rules! s00 {
     () => {
-        Q!("x14")
+        "x14"
     };
 }
 macro_rules! s01 {
     () => {
-        Q!("x15")
+        "x15"
     };
 }
 macro_rules! s10 {
     () => {
-        Q!("x16")
+        "x16"
     };
 }
 macro_rules! s11 {
     () => {
-        Q!("x17")
+        "x17"
     };
 }
 
@@ -96,12 +96,12 @@ macro_rules! s11 {
 
 macro_rules! car0 {
     () => {
-        Q!("x9")
+        "x9"
     };
 }
 macro_rules! car1 {
     () => {
-        Q!("x19")
+        "x19"
     };
 }
 
@@ -109,38 +109,38 @@ macro_rules! car1 {
 
 macro_rules! reg0 {
     () => {
-        Q!("x0, #0")
+        "x0, #0"
     };
 }
 macro_rules! reg1 {
     () => {
-        Q!("x1, #0")
+        "x1, #0"
     };
 }
 macro_rules! reg2 {
     () => {
-        Q!("x2, #0")
+        "x2, #0"
     };
 }
 macro_rules! reg3 {
     () => {
-        Q!("x3, #0")
+        "x3, #0"
     };
 }
 macro_rules! reg4 {
     () => {
-        Q!("x4, #0")
+        "x4, #0"
     };
 }
 
 macro_rules! x {
     () => {
-        Q!("x1, #0")
+        "x1, #0"
     };
 }
 macro_rules! z {
     () => {
-        Q!("x0, #0")
+        "x0, #0"
     };
 }
 
@@ -148,7 +148,7 @@ macro_rules! z {
 
 macro_rules! f {
     () => {
-        Q!("sp, #0")
+        "sp, #0"
     };
 }
 macro_rules! g { () => { Q!("sp, # (6 * " N!() ")") } }

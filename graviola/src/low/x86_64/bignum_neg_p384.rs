@@ -17,49 +17,49 @@ use crate::low::macros::*;
 
 macro_rules! z {
     () => {
-        Q!("rdi")
+        "rdi"
     };
 }
 macro_rules! x {
     () => {
-        Q!("rsi")
+        "rsi"
     };
 }
 
 macro_rules! n0 {
     () => {
-        Q!("rax")
+        "rax"
     };
 }
 macro_rules! n1 {
     () => {
-        Q!("rcx")
+        "rcx"
     };
 }
 macro_rules! n2 {
     () => {
-        Q!("rdx")
+        "rdx"
     };
 }
 macro_rules! n3 {
     () => {
-        Q!("r8")
+        "r8"
     };
 }
 macro_rules! n4 {
     () => {
-        Q!("r9")
+        "r9"
     };
 }
 macro_rules! q {
     () => {
-        Q!("r10")
+        "r10"
     };
 }
 
 macro_rules! n0short {
     () => {
-        Q!("eax")
+        "eax"
     };
 }
 

@@ -23,7 +23,7 @@ use crate::low::macros::*;
 
 macro_rules! NUMSIZE {
     () => {
-        Q!("48")
+        "48"
     };
 }
 
@@ -34,7 +34,7 @@ macro_rules! NUMSIZE {
 
 macro_rules! x_1 {
     () => {
-        Q!("rsi + 0")
+        "rsi + 0"
     };
 }
 macro_rules! y_1 { () => { Q!("rsi + " NUMSIZE!()) } }
@@ -42,7 +42,7 @@ macro_rules! z_1 { () => { Q!("rsi + (2 * " NUMSIZE!() ")") } }
 
 macro_rules! x_2 {
     () => {
-        Q!("rcx + 0")
+        "rcx + 0"
     };
 }
 macro_rules! y_2 { () => { Q!("rcx + " NUMSIZE!()) } }
@@ -50,7 +50,7 @@ macro_rules! z_2 { () => { Q!("rcx + (2 * " NUMSIZE!() ")") } }
 
 macro_rules! x_3 {
     () => {
-        Q!("rdi + 0")
+        "rdi + 0"
     };
 }
 macro_rules! y_3 { () => { Q!("rdi + " NUMSIZE!()) } }

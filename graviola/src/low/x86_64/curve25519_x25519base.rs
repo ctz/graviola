@@ -31,7 +31,7 @@ use crate::low::macros::*;
 
 macro_rules! NUMSIZE {
     () => {
-        Q!("32")
+        "32"
     };
 }
 

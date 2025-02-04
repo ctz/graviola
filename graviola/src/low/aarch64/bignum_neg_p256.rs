@@ -16,44 +16,44 @@ use crate::low::macros::*;
 
 macro_rules! z {
     () => {
-        Q!("x0")
+        "x0"
     };
 }
 macro_rules! x {
     () => {
-        Q!("x1")
+        "x1"
     };
 }
 
 macro_rules! p {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 macro_rules! t {
     () => {
-        Q!("x3")
+        "x3"
     };
 }
 
 macro_rules! d0 {
     () => {
-        Q!("x4")
+        "x4"
     };
 }
 macro_rules! d1 {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 macro_rules! d2 {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 macro_rules! d3 {
     () => {
-        Q!("x7")
+        "x7"
     };
 }
 

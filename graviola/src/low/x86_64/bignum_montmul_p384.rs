@@ -22,12 +22,12 @@ use crate::low::macros::*;
 
 macro_rules! z {
     () => {
-        Q!("rdi")
+        "rdi"
     };
 }
 macro_rules! x {
     () => {
-        Q!("rsi")
+        "rsi"
     };
 }
 
@@ -35,7 +35,7 @@ macro_rules! x {
 
 macro_rules! y {
     () => {
-        Q!("rcx")
+        "rcx"
     };
 }
 
@@ -43,22 +43,22 @@ macro_rules! y {
 
 macro_rules! d {
     () => {
-        Q!("rax")
+        "rax"
     };
 }
 macro_rules! u {
     () => {
-        Q!("rdx")
+        "rdx"
     };
 }
 macro_rules! v {
     () => {
-        Q!("rcx")
+        "rcx"
     };
 }
 macro_rules! w {
     () => {
-        Q!("rbx")
+        "rbx"
     };
 }
 

@@ -25,7 +25,7 @@ use crate::low::macros::*;
 
 macro_rules! N {
     () => {
-        Q!("8")
+        "8"
     };
 }
 
@@ -33,7 +33,7 @@ macro_rules! N {
 
 macro_rules! f {
     () => {
-        Q!("rsp + 0")
+        "rsp + 0"
     };
 }
 macro_rules! g { () => { Q!("rsp + (5 * " N!() ")") } }
@@ -58,7 +58,7 @@ macro_rules! NSPACE { () => { Q!("(30 * " N!() ")") } }
 
 macro_rules! F {
     () => {
-        Q!("0")
+        "0"
     };
 }
 macro_rules! G { () => { Q!("(5 * " N!() ")") } }
@@ -68,7 +68,7 @@ macro_rules! MAT { () => { Q!("(24 * " N!() ")") } }
 
 macro_rules! ff {
     () => {
-        Q!("QWORD PTR [rsp]")
+        "QWORD PTR [rsp]"
     };
 }
 macro_rules! gg { () => { Q!("QWORD PTR [rsp + (5 * " N!() ")]") } }

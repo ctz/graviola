@@ -20,80 +20,80 @@ use crate::low::macros::*;
 
 macro_rules! k {
     () => {
-        Q!("x0")
+        "x0"
     };
 }
 macro_rules! z {
     () => {
-        Q!("x1")
+        "x1"
     };
 }
 macro_rules! x {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 macro_rules! m {
     () => {
-        Q!("x3")
+        "x3"
     };
 }
 
 // Negated modular inverse
 macro_rules! w {
     () => {
-        Q!("x4")
+        "x4"
     };
 }
 // Top carry for k'th position
 macro_rules! c0 {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 // Additional top carry for (k+1)'th position
 macro_rules! c1 {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 // Outer loop counter
 macro_rules! i {
     () => {
-        Q!("x7")
+        "x7"
     };
 }
 // Home for i'th digit or Montgomery multiplier
 macro_rules! d {
     () => {
-        Q!("x8")
+        "x8"
     };
 }
 // Inner loop counter
 macro_rules! j {
     () => {
-        Q!("x9")
+        "x9"
     };
 }
 
 macro_rules! h {
     () => {
-        Q!("x10")
+        "x10"
     };
 }
 macro_rules! e {
     () => {
-        Q!("x11")
+        "x11"
     };
 }
 macro_rules! l {
     () => {
-        Q!("x12")
+        "x12"
     };
 }
 macro_rules! a {
     () => {
-        Q!("x13")
+        "x13"
     };
 }
 
@@ -102,7 +102,7 @@ macro_rules! a {
 
 macro_rules! t {
     () => {
-        Q!("x13")
+        "x13"
     };
 }
 
@@ -111,27 +111,27 @@ macro_rules! t {
 
 macro_rules! one {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 macro_rules! e1 {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 macro_rules! e2 {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 macro_rules! e4 {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 macro_rules! e8 {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 

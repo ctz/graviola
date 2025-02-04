@@ -24,7 +24,7 @@ use crate::low::macros::*;
 
 macro_rules! CHUNKSIZE {
     () => {
-        Q!("58")
+        "58"
     };
 }
 
@@ -33,12 +33,12 @@ macro_rules! CHUNKSIZE {
 
 macro_rules! k {
     () => {
-        Q!("rdi")
+        "rdi"
     };
 }
 macro_rules! l {
     () => {
-        Q!("r13")
+        "r13"
     };
 }
 
@@ -46,61 +46,61 @@ macro_rules! l {
 
 macro_rules! mat_mm {
     () => {
-        Q!("QWORD PTR [rsp]")
+        "QWORD PTR [rsp]"
     };
 }
 macro_rules! mat_mn {
     () => {
-        Q!("QWORD PTR [rsp + 8]")
+        "QWORD PTR [rsp + 8]"
     };
 }
 macro_rules! mat_nm {
     () => {
-        Q!("QWORD PTR [rsp + 16]")
+        "QWORD PTR [rsp + 16]"
     };
 }
 macro_rules! mat_nn {
     () => {
-        Q!("QWORD PTR [rsp + 24]")
+        "QWORD PTR [rsp + 24]"
     };
 }
 macro_rules! t {
     () => {
-        Q!("QWORD PTR [rsp + 32]")
+        "QWORD PTR [rsp + 32]"
     };
 }
 // Modular inverse
 macro_rules! v {
     () => {
-        Q!("QWORD PTR [rsp + 40]")
+        "QWORD PTR [rsp + 40]"
     };
 }
 // We reconstruct n as m + 8*k as needed
 macro_rules! m {
     () => {
-        Q!("QWORD PTR [rsp + 48]")
+        "QWORD PTR [rsp + 48]"
     };
 }
 macro_rules! w {
     () => {
-        Q!("QWORD PTR [rsp + 56]")
+        "QWORD PTR [rsp + 56]"
     };
 }
 macro_rules! z {
     () => {
-        Q!("QWORD PTR [rsp + 64]")
+        "QWORD PTR [rsp + 64]"
     };
 }
 // Original b pointer, not b the temp
 macro_rules! bm {
     () => {
-        Q!("QWORD PTR [rsp + 72]")
+        "QWORD PTR [rsp + 72]"
     };
 }
 
 macro_rules! STACKVARSIZE {
     () => {
-        Q!("80")
+        "80"
     };
 }
 
@@ -109,12 +109,12 @@ macro_rules! STACKVARSIZE {
 
 macro_rules! p1 {
     () => {
-        Q!("r8")
+        "r8"
     };
 }
 macro_rules! p2 {
     () => {
-        Q!("r15")
+        "r15"
     };
 }
 
@@ -122,27 +122,27 @@ macro_rules! p2 {
 
 macro_rules! a {
     () => {
-        Q!("rax")
+        "rax"
     };
 }
 macro_rules! b {
     () => {
-        Q!("rbx")
+        "rbx"
     };
 }
 macro_rules! c {
     () => {
-        Q!("rcx")
+        "rcx"
     };
 }
 macro_rules! d {
     () => {
-        Q!("rdx")
+        "rdx"
     };
 }
 macro_rules! i {
     () => {
-        Q!("r9")
+        "r9"
     };
 }
 
@@ -150,32 +150,32 @@ macro_rules! i {
 
 macro_rules! c1 {
     () => {
-        Q!("r10")
+        "r10"
     };
 }
 macro_rules! c2 {
     () => {
-        Q!("r11")
+        "r11"
     };
 }
 macro_rules! h1 {
     () => {
-        Q!("r12")
+        "r12"
     };
 }
 macro_rules! h2 {
     () => {
-        Q!("rbp")
+        "rbp"
     };
 }
 macro_rules! l1 {
     () => {
-        Q!("r14")
+        "r14"
     };
 }
 macro_rules! l2 {
     () => {
-        Q!("rsi")
+        "rsi"
     };
 }
 
@@ -183,22 +183,22 @@ macro_rules! l2 {
 
 macro_rules! m_hi {
     () => {
-        Q!("r12")
+        "r12"
     };
 }
 macro_rules! n_hi {
     () => {
-        Q!("rbp")
+        "rbp"
     };
 }
 macro_rules! m_lo {
     () => {
-        Q!("r14")
+        "r14"
     };
 }
 macro_rules! n_lo {
     () => {
-        Q!("rsi")
+        "rsi"
     };
 }
 
@@ -207,53 +207,53 @@ macro_rules! n_lo {
 
 macro_rules! m_m {
     () => {
-        Q!("r10")
+        "r10"
     };
 }
 macro_rules! m_n {
     () => {
-        Q!("r11")
+        "r11"
     };
 }
 macro_rules! n_m {
     () => {
-        Q!("rcx")
+        "rcx"
     };
 }
 macro_rules! n_n {
     () => {
-        Q!("rdx")
+        "rdx"
     };
 }
 
 macro_rules! ashort {
     () => {
-        Q!("eax")
+        "eax"
     };
 }
 macro_rules! ishort {
     () => {
-        Q!("r9d")
+        "r9d"
     };
 }
 macro_rules! m_mshort {
     () => {
-        Q!("r10d")
+        "r10d"
     };
 }
 macro_rules! m_nshort {
     () => {
-        Q!("r11d")
+        "r11d"
     };
 }
 macro_rules! n_mshort {
     () => {
-        Q!("ecx")
+        "ecx"
     };
 }
 macro_rules! n_nshort {
     () => {
-        Q!("edx")
+        "edx"
     };
 }
 

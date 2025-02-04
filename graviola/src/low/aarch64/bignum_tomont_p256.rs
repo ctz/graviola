@@ -63,48 +63,48 @@ macro_rules! modstep_p256 {
 
 macro_rules! d0 {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 macro_rules! d1 {
     () => {
-        Q!("x3")
+        "x3"
     };
 }
 macro_rules! d2 {
     () => {
-        Q!("x4")
+        "x4"
     };
 }
 macro_rules! d3 {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 macro_rules! d4 {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 
 macro_rules! t0 {
     () => {
-        Q!("x1")
+        "x1"
     };
 }
 macro_rules! t1 {
     () => {
-        Q!("x7")
+        "x7"
     };
 }
 macro_rules! t2 {
     () => {
-        Q!("x8")
+        "x8"
     };
 }
 macro_rules! t3 {
     () => {
-        Q!("x9")
+        "x9"
     };
 }
 

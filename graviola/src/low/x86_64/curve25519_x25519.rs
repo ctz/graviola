@@ -35,7 +35,7 @@ use crate::low::macros::*;
 
 macro_rules! NUMSIZE {
     () => {
-        Q!("32")
+        "32"
     };
 }
 
@@ -51,7 +51,7 @@ macro_rules! swap { () => { Q!("QWORD PTR [rsp + 12 * " NUMSIZE!() "+ 16]") } }
 
 macro_rules! resx {
     () => {
-        Q!("rbp + 0")
+        "rbp + 0"
     };
 }
 

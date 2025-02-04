@@ -17,38 +17,38 @@ use crate::low::macros::*;
 
 macro_rules! m {
     () => {
-        Q!("x0")
+        "x0"
     };
 }
 macro_rules! x {
     () => {
-        Q!("x1")
+        "x1"
     };
 }
 macro_rules! n {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 macro_rules! y {
     () => {
-        Q!("x3")
+        "x3"
     };
 }
 macro_rules! a {
     () => {
-        Q!("x4")
+        "x4"
     };
 }
 macro_rules! c {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 //  We can re-use n for this, not needed when d appears
 macro_rules! d {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 
