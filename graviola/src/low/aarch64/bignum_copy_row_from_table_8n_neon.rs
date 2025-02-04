@@ -20,49 +20,49 @@ use crate::low::macros::*;
 
 macro_rules! z {
     () => {
-        Q!("x0")
+        "x0"
     };
 }
 macro_rules! table {
     () => {
-        Q!("x1")
+        "x1"
     };
 }
 macro_rules! height {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 macro_rules! width {
     () => {
-        Q!("x3")
+        "x3"
     };
 }
 macro_rules! idx {
     () => {
-        Q!("x4")
+        "x4"
     };
 }
 
 macro_rules! i {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 macro_rules! mask {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 macro_rules! j {
     () => {
-        Q!("x7")
+        "x7"
     };
 }
 
 macro_rules! vmask {
     () => {
-        Q!("v16")
+        "v16"
     };
 }
 

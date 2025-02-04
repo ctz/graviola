@@ -23,12 +23,12 @@ use crate::low::macros::*;
 
 macro_rules! k {
     () => {
-        Q!("rdi")
+        "rdi"
     };
 }
 macro_rules! z {
     () => {
-        Q!("rsi")
+        "rsi"
     };
 }
 
@@ -36,12 +36,12 @@ macro_rules! z {
 
 macro_rules! m {
     () => {
-        Q!("r12")
+        "r12"
     };
 }
 macro_rules! t {
     () => {
-        Q!("r13")
+        "r13"
     };
 }
 
@@ -49,56 +49,56 @@ macro_rules! t {
 
 macro_rules! i {
     () => {
-        Q!("rbx")
+        "rbx"
     };
 }
 // Modular inverse; aliased to i, but we never use them together
 macro_rules! w {
     () => {
-        Q!("rbx")
+        "rbx"
     };
 }
 macro_rules! j {
     () => {
-        Q!("rbp")
+        "rbp"
     };
 }
 // Matters that this is RAX for special use in multiplies
 macro_rules! a {
     () => {
-        Q!("rax")
+        "rax"
     };
 }
 // Matters that this is RDX for special use in multiplies
 macro_rules! d {
     () => {
-        Q!("rdx")
+        "rdx"
     };
 }
 // Matters that this is RCX as CL=lo(c) is assumed in shifts
 macro_rules! c {
     () => {
-        Q!("rcx")
+        "rcx"
     };
 }
 macro_rules! h {
     () => {
-        Q!("r11")
+        "r11"
     };
 }
 macro_rules! l {
     () => {
-        Q!("r10")
+        "r10"
     };
 }
 macro_rules! b {
     () => {
-        Q!("r9")
+        "r9"
     };
 }
 macro_rules! n {
     () => {
-        Q!("r8")
+        "r8"
     };
 }
 
@@ -106,33 +106,33 @@ macro_rules! n {
 
 macro_rules! q {
     () => {
-        Q!("r8")
+        "r8"
     };
 }
 macro_rules! r {
     () => {
-        Q!("r9")
+        "r9"
     };
 }
 
 macro_rules! ashort {
     () => {
-        Q!("eax")
+        "eax"
     };
 }
 macro_rules! ishort {
     () => {
-        Q!("ebx")
+        "ebx"
     };
 }
 macro_rules! jshort {
     () => {
-        Q!("ebp")
+        "ebp"
     };
 }
 macro_rules! qshort {
     () => {
-        Q!("r8d")
+        "r8d"
     };
 }
 

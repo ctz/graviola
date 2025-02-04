@@ -23,7 +23,7 @@ use crate::low::macros::*;
 
 macro_rules! NUMSIZE {
     () => {
-        Q!("32")
+        "32"
     };
 }
 
@@ -31,7 +31,7 @@ macro_rules! NUMSIZE {
 
 macro_rules! res {
     () => {
-        Q!("x23")
+        "x23"
     };
 }
 
@@ -39,30 +39,30 @@ macro_rules! res {
 
 macro_rules! tab {
     () => {
-        Q!("x19")
+        "x19"
     };
 }
 
 macro_rules! i {
     () => {
-        Q!("x20")
+        "x20"
     };
 }
 
 macro_rules! bias {
     () => {
-        Q!("x21")
+        "x21"
     };
 }
 
 macro_rules! bf {
     () => {
-        Q!("x22")
+        "x22"
     };
 }
 macro_rules! ix {
     () => {
-        Q!("x22")
+        "x22"
     };
 }
 

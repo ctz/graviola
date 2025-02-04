@@ -62,82 +62,82 @@ macro_rules! modstep_p384 {
 
 macro_rules! d0 {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 macro_rules! d1 {
     () => {
-        Q!("x3")
+        "x3"
     };
 }
 macro_rules! d2 {
     () => {
-        Q!("x4")
+        "x4"
     };
 }
 macro_rules! d3 {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 macro_rules! d4 {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 macro_rules! d5 {
     () => {
-        Q!("x7")
+        "x7"
     };
 }
 macro_rules! d6 {
     () => {
-        Q!("x8")
+        "x8"
     };
 }
 macro_rules! t1 {
     () => {
-        Q!("x9")
+        "x9"
     };
 }
 macro_rules! t2 {
     () => {
-        Q!("x10")
+        "x10"
     };
 }
 macro_rules! t3 {
     () => {
-        Q!("x11")
+        "x11"
     };
 }
 macro_rules! n0 {
     () => {
-        Q!("x8")
+        "x8"
     };
 }
 macro_rules! n1 {
     () => {
-        Q!("x9")
+        "x9"
     };
 }
 macro_rules! n2 {
     () => {
-        Q!("x10")
+        "x10"
     };
 }
 macro_rules! n3 {
     () => {
-        Q!("x11")
+        "x11"
     };
 }
 macro_rules! n4 {
     () => {
-        Q!("x12")
+        "x12"
     };
 }
 macro_rules! n5 {
     () => {
-        Q!("x1")
+        "x1"
     };
 }
 

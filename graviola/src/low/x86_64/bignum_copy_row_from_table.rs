@@ -21,38 +21,38 @@ use crate::low::macros::*;
 
 macro_rules! z {
     () => {
-        Q!("rdi")
+        "rdi"
     };
 }
 macro_rules! table {
     () => {
-        Q!("rsi")
+        "rsi"
     };
 }
 macro_rules! height {
     () => {
-        Q!("rdx")
+        "rdx"
     };
 }
 macro_rules! width {
     () => {
-        Q!("rcx")
+        "rcx"
     };
 }
 macro_rules! idx {
     () => {
-        Q!("r8")
+        "r8"
     };
 }
 
 macro_rules! i {
     () => {
-        Q!("r9")
+        "r9"
     };
 }
 macro_rules! j {
     () => {
-        Q!("r10")
+        "r10"
     };
 }
 

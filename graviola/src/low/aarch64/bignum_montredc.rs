@@ -23,84 +23,84 @@ use crate::low::macros::*;
 
 macro_rules! k {
     () => {
-        Q!("x0")
+        "x0"
     };
 }
 macro_rules! z {
     () => {
-        Q!("x1")
+        "x1"
     };
 }
 macro_rules! n {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 macro_rules! x {
     () => {
-        Q!("x3")
+        "x3"
     };
 }
 macro_rules! m {
     () => {
-        Q!("x4")
+        "x4"
     };
 }
 macro_rules! p {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 
 // Negated modular inverse
 macro_rules! w {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 // Outer loop counter
 macro_rules! i {
     () => {
-        Q!("x7")
+        "x7"
     };
 }
 // Inner loop counter
 macro_rules! j {
     () => {
-        Q!("x8")
+        "x8"
     };
 }
 // Home for Montgomery multiplier
 macro_rules! d {
     () => {
-        Q!("x9")
+        "x9"
     };
 }
 // Top carry for current window
 macro_rules! c {
     () => {
-        Q!("x14")
+        "x14"
     };
 }
 
 macro_rules! h {
     () => {
-        Q!("x10")
+        "x10"
     };
 }
 macro_rules! e {
     () => {
-        Q!("x11")
+        "x11"
     };
 }
 macro_rules! l {
     () => {
-        Q!("x12")
+        "x12"
     };
 }
 macro_rules! a {
     () => {
-        Q!("x13")
+        "x13"
     };
 }
 
@@ -109,27 +109,27 @@ macro_rules! a {
 
 macro_rules! one {
     () => {
-        Q!("x7")
+        "x7"
     };
 }
 macro_rules! e1 {
     () => {
-        Q!("x7")
+        "x7"
     };
 }
 macro_rules! e2 {
     () => {
-        Q!("x8")
+        "x8"
     };
 }
 macro_rules! e4 {
     () => {
-        Q!("x7")
+        "x7"
     };
 }
 macro_rules! e8 {
     () => {
-        Q!("x8")
+        "x8"
     };
 }
 

@@ -25,136 +25,136 @@ use crate::low::macros::*;
 
 macro_rules! z {
     () => {
-        Q!("x0")
+        "x0"
     };
 }
 macro_rules! tbl {
     () => {
-        Q!("x1")
+        "x1"
     };
 }
 macro_rules! height {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 macro_rules! idx {
     () => {
-        Q!("x3")
+        "x3"
     };
 }
 
 macro_rules! mask {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 macro_rules! cnt {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 
 macro_rules! ventry0 {
     () => {
-        Q!("v20")
+        "v20"
     };
 }
 macro_rules! qentry0 {
     () => {
-        Q!("q20")
+        "q20"
     };
 }
 macro_rules! ventry1 {
     () => {
-        Q!("v21")
+        "v21"
     };
 }
 macro_rules! qentry1 {
     () => {
-        Q!("q21")
+        "q21"
     };
 }
 macro_rules! ventry2 {
     () => {
-        Q!("v22")
+        "v22"
     };
 }
 macro_rules! qentry2 {
     () => {
-        Q!("q22")
+        "q22"
     };
 }
 macro_rules! ventry3 {
     () => {
-        Q!("v23")
+        "v23"
     };
 }
 macro_rules! qentry3 {
     () => {
-        Q!("q23")
+        "q23"
     };
 }
 macro_rules! ventry4 {
     () => {
-        Q!("v24")
+        "v24"
     };
 }
 macro_rules! qentry4 {
     () => {
-        Q!("q24")
+        "q24"
     };
 }
 macro_rules! ventry5 {
     () => {
-        Q!("v25")
+        "v25"
     };
 }
 macro_rules! qentry5 {
     () => {
-        Q!("q25")
+        "q25"
     };
 }
 macro_rules! ventry6 {
     () => {
-        Q!("v26")
+        "v26"
     };
 }
 macro_rules! qentry6 {
     () => {
-        Q!("q26")
+        "q26"
     };
 }
 macro_rules! ventry7 {
     () => {
-        Q!("v27")
+        "v27"
     };
 }
 macro_rules! qentry7 {
     () => {
-        Q!("q27")
+        "q27"
     };
 }
 macro_rules! ventry8 {
     () => {
-        Q!("v28")
+        "v28"
     };
 }
 
 macro_rules! vtmp {
     () => {
-        Q!("v16")
+        "v16"
     };
 }
 macro_rules! qtmp {
     () => {
-        Q!("q16")
+        "q16"
     };
 }
 
 macro_rules! vmask {
     () => {
-        Q!("v17")
+        "v17"
     };
 }
 

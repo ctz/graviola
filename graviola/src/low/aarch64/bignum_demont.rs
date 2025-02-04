@@ -21,68 +21,68 @@ use crate::low::macros::*;
 
 macro_rules! k {
     () => {
-        Q!("x0")
+        "x0"
     };
 }
 macro_rules! z {
     () => {
-        Q!("x1")
+        "x1"
     };
 }
 macro_rules! x {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 macro_rules! m {
     () => {
-        Q!("x3")
+        "x3"
     };
 }
 
 // Negated modular inverse
 macro_rules! w {
     () => {
-        Q!("x4")
+        "x4"
     };
 }
 // Outer loop counter
 macro_rules! i {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 // Inner loop counter
 macro_rules! j {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 // Home for Montgomery multiplier
 macro_rules! d {
     () => {
-        Q!("x7")
+        "x7"
     };
 }
 
 macro_rules! h {
     () => {
-        Q!("x8")
+        "x8"
     };
 }
 macro_rules! e {
     () => {
-        Q!("x9")
+        "x9"
     };
 }
 macro_rules! l {
     () => {
-        Q!("x10")
+        "x10"
     };
 }
 macro_rules! a {
     () => {
-        Q!("x11")
+        "x11"
     };
 }
 
@@ -91,27 +91,27 @@ macro_rules! a {
 
 macro_rules! one {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 macro_rules! e1 {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 macro_rules! e2 {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 macro_rules! e4 {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 macro_rules! e8 {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 

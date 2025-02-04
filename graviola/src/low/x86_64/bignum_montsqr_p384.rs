@@ -21,12 +21,12 @@ use crate::low::macros::*;
 
 macro_rules! z {
     () => {
-        Q!("rdi")
+        "rdi"
     };
 }
 macro_rules! x {
     () => {
-        Q!("rsi")
+        "rsi"
     };
 }
 
@@ -34,22 +34,22 @@ macro_rules! x {
 
 macro_rules! d {
     () => {
-        Q!("rax")
+        "rax"
     };
 }
 macro_rules! u {
     () => {
-        Q!("rdx")
+        "rdx"
     };
 }
 macro_rules! v {
     () => {
-        Q!("r10")
+        "r10"
     };
 }
 macro_rules! w {
     () => {
-        Q!("r11")
+        "r11"
     };
 }
 
@@ -57,12 +57,12 @@ macro_rules! w {
 
 macro_rules! zero {
     () => {
-        Q!("rbp")
+        "rbp"
     };
 }
 macro_rules! zeroe {
     () => {
-        Q!("ebp")
+        "ebp"
     };
 }
 

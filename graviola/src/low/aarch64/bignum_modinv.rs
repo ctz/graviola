@@ -23,7 +23,7 @@ use crate::low::macros::*;
 
 macro_rules! CHUNKSIZE {
     () => {
-        Q!("58")
+        "58"
     };
 }
 
@@ -31,22 +31,22 @@ macro_rules! CHUNKSIZE {
 
 macro_rules! k {
     () => {
-        Q!("x0")
+        "x0"
     };
 }
 macro_rules! z {
     () => {
-        Q!("x1")
+        "x1"
     };
 }
 macro_rules! b {
     () => {
-        Q!("x3")
+        "x3"
     };
 }
 macro_rules! w {
     () => {
-        Q!("x4")
+        "x4"
     };
 }
 
@@ -54,12 +54,12 @@ macro_rules! w {
 
 macro_rules! a {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 macro_rules! t {
     () => {
-        Q!("x2")
+        "x2"
     };
 }
 
@@ -67,18 +67,18 @@ macro_rules! t {
 
 macro_rules! l {
     () => {
-        Q!("x5")
+        "x5"
     };
 }
 
 macro_rules! m {
     () => {
-        Q!("x21")
+        "x21"
     };
 }
 macro_rules! n {
     () => {
-        Q!("x22")
+        "x22"
     };
 }
 
@@ -88,28 +88,28 @@ macro_rules! n {
 
 macro_rules! m_m {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 macro_rules! m_n {
     () => {
-        Q!("x7")
+        "x7"
     };
 }
 macro_rules! n_m {
     () => {
-        Q!("x8")
+        "x8"
     };
 }
 macro_rules! n_n {
     () => {
-        Q!("x9")
+        "x9"
     };
 }
 
 macro_rules! j {
     () => {
-        Q!("x6")
+        "x6"
     };
 }
 
@@ -117,17 +117,17 @@ macro_rules! j {
 
 macro_rules! i {
     () => {
-        Q!("x10")
+        "x10"
     };
 }
 macro_rules! t1 {
     () => {
-        Q!("x11")
+        "x11"
     };
 }
 macro_rules! t2 {
     () => {
-        Q!("x12")
+        "x12"
     };
 }
 
@@ -136,54 +136,54 @@ macro_rules! t2 {
 
 macro_rules! m_hi {
     () => {
-        Q!("x13")
+        "x13"
     };
 }
 macro_rules! n_hi {
     () => {
-        Q!("x14")
+        "x14"
     };
 }
 macro_rules! m_lo {
     () => {
-        Q!("x15")
+        "x15"
     };
 }
 macro_rules! n_lo {
     () => {
-        Q!("x16")
+        "x16"
     };
 }
 
 macro_rules! h1 {
     () => {
-        Q!("x13")
+        "x13"
     };
 }
 macro_rules! h2 {
     () => {
-        Q!("x14")
+        "x14"
     };
 }
 macro_rules! l1 {
     () => {
-        Q!("x15")
+        "x15"
     };
 }
 macro_rules! l2 {
     () => {
-        Q!("x16")
+        "x16"
     };
 }
 
 macro_rules! c1 {
     () => {
-        Q!("x17")
+        "x17"
     };
 }
 macro_rules! c2 {
     () => {
-        Q!("x19")
+        "x19"
     };
 }
 
@@ -191,7 +191,7 @@ macro_rules! c2 {
 
 macro_rules! v {
     () => {
-        Q!("x20")
+        "x20"
     };
 }
 

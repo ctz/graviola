@@ -751,8 +751,14 @@ use crate::low::macros::*;
             assert len(value) == 1
             self.register_rust_macro(tokens[0], value)
             value = self.expand_rust_macros_in_macro_decl(*value, indent=0)
+
+            if value.count('"') == 2 and value[0] == '"' and value[-1] == '"':
+                # avoid extra Q! noise if not needed
+                value = value
+            else:
+                value = 'Q!(%s)' % value
             print(
-                """macro_rules! %s { () => { Q!(%s) } }""" % (tokens[0], value),
+                """macro_rules! %s { () => { %s } }""" % (tokens[0], value),
                 file=f,
             )
         else:

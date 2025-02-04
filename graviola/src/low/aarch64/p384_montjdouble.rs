@@ -22,7 +22,7 @@ use crate::low::macros::*;
 
 macro_rules! NUMSIZE {
     () => {
-        Q!("48")
+        "48"
     };
 }
 
@@ -30,12 +30,12 @@ macro_rules! NUMSIZE {
 
 macro_rules! input_z {
     () => {
-        Q!("x23")
+        "x23"
     };
 }
 macro_rules! input_x {
     () => {
-        Q!("x24")
+        "x24"
     };
 }
 

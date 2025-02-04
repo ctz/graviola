@@ -18,12 +18,12 @@ use crate::low::macros::*;
 
 macro_rules! z {
     () => {
-        Q!("rdi")
+        "rdi"
     };
 }
 macro_rules! x {
     () => {
-        Q!("rsi")
+        "rsi"
     };
 }
 
@@ -31,28 +31,28 @@ macro_rules! x {
 
 macro_rules! d {
     () => {
-        Q!("rax")
+        "rax"
     };
 }
 macro_rules! u {
     () => {
-        Q!("rdx")
+        "rdx"
     };
 }
 macro_rules! v {
     () => {
-        Q!("rcx")
+        "rcx"
     };
 }
 
 macro_rules! dshort {
     () => {
-        Q!("eax")
+        "eax"
     };
 }
 macro_rules! ushort {
     () => {
-        Q!("edx")
+        "edx"
     };
 }
 
