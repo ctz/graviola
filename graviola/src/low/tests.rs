@@ -30,6 +30,25 @@ fn zeroise_equiv(len: usize) {
     assert_eq!(expect, bytes);
 }
 
+#[test]
+fn ct_equal() {
+    ct_equal_equiv(&[], &[]);
+
+    for n in 1..1024 {
+        let a = vec![0u8; n];
+
+        for i in 0..n {
+            let mut b = vec![0u8; n];
+            b[i] = i as u8;
+            ct_equal_equiv(&a, &b);
+        }
+    }
+}
+
+fn ct_equal_equiv(a: &[u8], b: &[u8]) {
+    assert_eq!(a == b, super::ct_equal(a, b));
+}
+
 mod model {
     pub(super) fn bignum_mux(p: u64, z: &mut [u64], x_if_p: &[u64], y_if_not_p: &[u64]) {
         if p > 0 {

@@ -120,6 +120,38 @@ pub(in crate::low) fn zero_bytes(ptr: *mut u8, len: usize) {
     }
 }
 
+/// Effectively memcmp(a, b, len), but guaranteed to visit every element
+/// of a and b.
+///
+/// The return value does not follow memcmp semantics: it is zero if
+/// `a == b`, otherwise it is non-zero.
+///
+/// # Safety
+/// The caller must ensure that there are `len` bytes readable at `a` and `b`,
+pub(in crate::low) unsafe fn ct_compare_bytes(a: *const u8, b: *const u8, len: usize) -> u8 {
+    let mut acc = 0u8;
+    core::arch::asm!(
+        "   2: cmp  {len}, 0",
+        "      beq  3f",
+        "      ldrb {tmpa:w}, [{a}]",
+        "      ldrb {tmpb:w}, [{b}]",
+        "      eor  {tmpa:w}, {tmpa:w}, {tmpb:w}",
+        "      orr  {acc:w}, {acc:w}, {tmpa:w}",
+        "      add  {a}, {a}, 1",
+        "      add  {b}, {b}, 1",
+        "      sub  {len}, {len}, 1",
+        "      b    2b",
+        "   3:  ",
+        a = inout(reg) a => _,
+        b = inout(reg) b => _,
+        len = inout(reg) len => _,
+        tmpa = inout(reg) 0u8 => _,
+        tmpb = inout(reg) 0u8 => _,
+        acc = inout(reg) acc,
+    );
+    acc
+}
+
 pub(crate) fn verify_cpu_features() {
     assert!(
         is_aarch64_feature_detected!("neon"),

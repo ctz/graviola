@@ -52,7 +52,6 @@ pub(crate) mod cpu;
 pub(crate) mod curve25519_x25519;
 pub(crate) mod curve25519_x25519base;
 pub(crate) mod ghash;
-pub(crate) mod optimise_barrier;
 pub(crate) mod p256_montjadd;
 pub(crate) mod p256_montjdouble;
 pub(crate) mod p256_montjmixadd;
