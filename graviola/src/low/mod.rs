@@ -40,7 +40,7 @@ cfg_if::cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
         mod x86_64;
 
-        pub(in crate::low) use x86_64::cpu::{enter_cpu_state, zero_bytes, leave_cpu_state, verify_cpu_features};
+        pub(in crate::low) use x86_64::cpu::{enter_cpu_state, zero_bytes, ct_compare_bytes, leave_cpu_state, verify_cpu_features};
         pub(crate) use x86_64::chacha20;
         pub(crate) use x86_64::aes::AesKey;
         pub(crate) use x86_64::aes_gcm;
@@ -88,7 +88,6 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::curve25519_x25519::curve25519_x25519;
         pub(crate) use x86_64::curve25519_x25519base::curve25519_x25519base;
         pub(crate) use x86_64::ghash;
-        pub(crate) use x86_64::optimise_barrier::optimise_barrier_u8;
         pub(crate) use x86_64::p256_montjadd::p256_montjadd;
         pub(crate) use x86_64::p256_montjdouble::p256_montjdouble;
         pub(crate) use x86_64::p256_montjmixadd::p256_montjmixadd;
@@ -99,7 +98,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(target_arch = "aarch64")] {
         mod aarch64;
 
-        pub(in crate::low) use aarch64::cpu::{enter_cpu_state, zero_bytes, leave_cpu_state, verify_cpu_features};
+        pub(in crate::low) use aarch64::cpu::{enter_cpu_state, zero_bytes, ct_compare_bytes, leave_cpu_state, verify_cpu_features};
         pub(crate) use aarch64::aes::AesKey;
         pub(crate) use aarch64::aes_gcm;
         pub(crate) use aarch64::bignum_add::bignum_add;
@@ -152,7 +151,6 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::p384_montjadd::p384_montjadd;
         pub(crate) use aarch64::p384_montjdouble::p384_montjdouble;
         pub(crate) use aarch64::sha256::sha256_compress_blocks;
-        pub(crate) use aarch64::optimise_barrier::optimise_barrier_u8;
 
         pub(crate) use generic::chacha20;
         pub(crate) use generic::sha512::sha512_compress_blocks;
