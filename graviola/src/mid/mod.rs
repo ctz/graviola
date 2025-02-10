@@ -7,6 +7,7 @@ pub(super) mod aes_gcm;
 pub(super) mod chacha20poly1305;
 pub(super) mod p256;
 pub(super) mod p384;
+pub mod quic;
 pub(super) mod rng;
 pub(super) mod rsa_priv;
 pub(super) mod rsa_pub;
