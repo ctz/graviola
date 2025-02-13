@@ -14,13 +14,22 @@ graviola = { version = "0.2.1", path = "../graviola" }
 rustls = { version = "0.23.18", default-features = false, features = ["std", "tls12"] }
 
 [dev-dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
 env_logger = "0.11"
 http = "1"
 http-body-util = "0.1"
 hyper = { version = "1", default-features = false }
 hyper-rustls = { version = "0.27", default-features = false, features = ["native-tokio", "http1", "tls12", "logging"] }
 hyper-util = { version = "0.1", default-features = false, features = ["server-auto"] }
+quinn = { version = "0.11", default-features = false, features = ["log", "runtime-tokio", "rustls"] }
+quinn-proto = { version = "0.11", default-features = false, features = ["log", "rustls"] }
+rcgen = "0.13"
 rustls = { version = "0.23.23", default-features = false, features = ["ring"] }
 rustls-pemfile = "2"
 tokio = { version = "1.0", features = ["io-std", "macros", "net", "rt-multi-thread"] }
 tokio-rustls = { version = "0.26", default-features = false }
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+tracing-futures = { version = "0.2.0", default-features = false, features = ["std-future"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["env-filter", "fmt", "ansi", "time", "local-time"] }
+url = "2"
