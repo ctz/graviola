@@ -15,6 +15,8 @@ libcrux-ml-kem = { version = "0.0.6", default-features = false, features = ["mlk
 rustls = { version = "0.23.18", default-features = false, features = ["std", "tls12"] }
 
 [dev-dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
 env_logger = "0.11"
 http = "1"
 http-body-util = "0.1"
@@ -24,6 +26,16 @@ hyper-util = { version = "0.1", default-features = false, features = ["server-au
 rustls = { version = "0.23.23", default-features = false, features = ["aws-lc-rs", "ring"] }
 tokio = { version = "1.0", features = ["io-std", "macros", "net", "rt-multi-thread"] }
 tokio-rustls = { version = "0.26", default-features = false }
+
+# quic stuff. TODO(matheus23): Look through this again
+quinn = { version = "0.11", default-features = false, features = ["log", "runtime-tokio", "rustls"] }
+quinn-proto = { version = "0.11", default-features = false, features = ["log", "rustls"] }
+rcgen = "0.13"
+rustls-pemfile = "2"
+tracing = { version = "0.1", default-features = false, features = ["std"] }
+tracing-futures = { version = "0.2.0", default-features = false, features = ["std-future"] }
+tracing-subscriber = { version = "0.3", default-features = false, features = ["env-filter", "fmt", "ansi", "time", "local-time"] }
+url = "2"
 
 [features]
 default = ["libcrux-ml-kem"]
