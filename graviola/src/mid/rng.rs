@@ -15,7 +15,7 @@ pub(crate) struct SystemRandom;
 
 impl RandomSource for SystemRandom {
     fn fill(&mut self, out: &mut [u8]) -> Result<(), Error> {
-        getrandom::getrandom(out).map_err(|_| Error::RngFailed)
+        getrandom::fill(out).map_err(|_| Error::RngFailed)
     }
 }
 
