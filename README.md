@@ -88,7 +88,7 @@ We are grateful to:
 ### AEADs
 
 - [x] AES-GCM
-- [x] chacha20-poly1305
+- [x] chacha20-poly1305 and xchacha20-poly1305
 
 ## Assorted technical details
 
