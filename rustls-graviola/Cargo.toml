@@ -12,7 +12,6 @@ readme = "README.md"
 [dependencies]
 graviola = { version = "0.2.0", path = "../graviola" }
 rustls = { version = "0.23.18", default-features = false, features = ["std", "tls12"] }
-rustls-pki-types = "1.11"
 
 [dev-dependencies]
 env_logger = "0.11"
