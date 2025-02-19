@@ -16,6 +16,7 @@ impl Entry {
     /// Must be called at top-level crate entry points for public functions.
     ///
     /// Public functions have no secret data in their arguments or return values.
+    #[must_use]
     pub(crate) fn new_public() -> Self {
         verify_cpu_features();
 
@@ -29,6 +30,7 @@ impl Entry {
     ///
     /// Secret functions have secret data in their arguments or return values
     /// (directly, or transitively).
+    #[must_use]
     pub(crate) fn new_secret() -> Self {
         verify_cpu_features();
         let cpu_state = enter_cpu_state();

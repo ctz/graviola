@@ -21,7 +21,7 @@ impl PrivateKey {
     ///
     /// Fails only if the random source fails.
     pub fn new_random() -> Result<Self, Error> {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         let mut r = [0u8; Self::BYTES];
         SystemRandom.fill(&mut r)?;
         let r = low::ct::into_secret(r);
@@ -30,7 +30,7 @@ impl PrivateKey {
 
     /// Compute the associated public key.
     pub fn public_key(&self) -> PublicKey {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         let mut res = [0u64; 4];
         low::curve25519_x25519base(&mut res, &self.0);
         PublicKey(low::ct::into_public(res))
@@ -46,7 +46,7 @@ impl PrivateKey {
     /// <https://datatracker.ietf.org/doc/html/rfc7748#section-6.1>
     /// for rationale behind this check.
     pub fn diffie_hellman(self, peer: &PublicKey) -> Result<SharedSecret, Error> {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         let mut res = [0u64; 4];
         low::curve25519_x25519(&mut res, &self.0, &peer.0);
 
@@ -82,7 +82,7 @@ impl StaticPrivateKey {
     ///
     /// This must be exactly 32 bytes in length.
     pub fn try_from_slice(b: &[u8]) -> Result<Self, Error> {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         low::ct::secret_slice(b);
         util::little_endian_slice_to_u64x4(b)
             .map(|words| Self(PrivateKey(words)))
@@ -91,14 +91,14 @@ impl StaticPrivateKey {
 
     /// Create an X25519 [`StaticPrivateKey`] from a byte array.
     pub fn from_array(b: &[u8; Self::BYTES]) -> Self {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         low::ct::secret_slice(b);
         Self(PrivateKey(util::little_endian_to_u64x4(b)))
     }
 
     /// Extract the bytes of this private key.
     pub fn as_bytes(&self) -> [u8; Self::BYTES] {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         util::u64x4_to_little_endian(&self.0 .0)
     }
 
@@ -106,13 +106,13 @@ impl StaticPrivateKey {
     ///
     /// Fails only if the random source fails.
     pub fn new_random() -> Result<Self, Error> {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         PrivateKey::new_random().map(Self)
     }
 
     /// Compute the associated public key.
     pub fn public_key(&self) -> PublicKey {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         self.0.public_key()
     }
 
@@ -126,7 +126,7 @@ impl StaticPrivateKey {
     /// <https://datatracker.ietf.org/doc/html/rfc7748#section-6.1>
     /// for rationale behind this check.
     pub fn diffie_hellman(&self, peer: &PublicKey) -> Result<SharedSecret, Error> {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         PrivateKey(self.0 .0).diffie_hellman(peer)
     }
 }
@@ -141,7 +141,7 @@ impl PublicKey {
     ///
     /// This must be exactly 32 bytes in length.
     pub fn try_from_slice(b: &[u8]) -> Result<Self, Error> {
-        let _ = low::Entry::new_public();
+        let _entry = low::Entry::new_public();
         util::little_endian_slice_to_u64x4(b)
             .map(Self)
             .ok_or(Error::WrongLength)
@@ -149,13 +149,13 @@ impl PublicKey {
 
     /// Create an X25519 [`PublicKey`] from a byte array.
     pub fn from_array(b: &[u8; Self::BYTES]) -> Self {
-        let _ = low::Entry::new_public();
+        let _entry = low::Entry::new_public();
         Self(util::little_endian_to_u64x4(b))
     }
 
     /// Extract the bytes of this public key.
     pub fn as_bytes(&self) -> [u8; Self::BYTES] {
-        let _ = low::Entry::new_public();
+        let _entry = low::Entry::new_public();
         util::u64x4_to_little_endian(&self.0)
     }
 }

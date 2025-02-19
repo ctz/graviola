@@ -34,7 +34,7 @@ impl ChaCha20Poly1305 {
         cipher_inout: &mut [u8],
         tag_out: &mut [u8; 16],
     ) {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         self.cipher(nonce, aad, cipher_inout, tag_out, true);
     }
 
@@ -57,7 +57,7 @@ impl ChaCha20Poly1305 {
         cipher_inout: &mut [u8],
         tag: &[u8],
     ) -> Result<(), Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         let mut actual_tag = [0u8; 16];
         self.cipher(nonce, aad, cipher_inout, &mut actual_tag, false);
 
