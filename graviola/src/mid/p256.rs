@@ -27,14 +27,14 @@ impl PublicKey {
     /// uncompressed encoding.  An error is returned if the point is
     /// not on the curve.
     pub fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
-        let _ = low::Entry::new_public();
+        let _entry = low::Entry::new_public();
         let point = AffineMontPoint::from_x962_uncompressed(bytes)?;
         Ok(Self::from_affine(point))
     }
 
     /// Encodes this public key using the X9.62 uncompressed encoding.
     pub fn as_bytes_uncompressed(&self) -> [u8; Self::BYTES] {
-        let _ = low::Entry::new_public();
+        let _entry = low::Entry::new_public();
         self.point.as_bytes_uncompressed()
     }
 
@@ -97,7 +97,7 @@ impl PrivateKey {
     /// Derive the corresponding public key, and return it in
     /// X9.62 uncompressed encoding.
     pub fn public_key_uncompressed(&self) -> [u8; PublicKey::BYTES] {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         self.public_point().as_bytes_uncompressed()
     }
 
@@ -108,7 +108,7 @@ impl PrivateKey {
     ///
     /// Returns a [`SharedSecret`].  May return an error in fault conditions.
     pub fn diffie_hellman(self, peer: &PublicKey) -> Result<SharedSecret, Error> {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         let result =
             JacobianMontPoint::multiply_wnaf_5(&self.scalar, &peer.precomp_wnaf_5).as_affine();
         match result.on_curve() {
@@ -129,7 +129,7 @@ impl PrivateKey {
     }
 
     pub(crate) fn generate(rng: &mut dyn RandomSource) -> Result<Self, Error> {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         for _ in 0..64 {
             let mut r = [0u8; Scalar::BYTES];
             rng.fill(&mut r)?;
@@ -175,20 +175,20 @@ impl StaticPrivateKey {
     /// An error is returned if the magnitude of the value is larger than
     /// `n` (ie, the input is never reduced mod n),  or the value is zero.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, Error> {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         PrivateKey::from_bytes(bytes).map(Self)
     }
 
     /// Return a fixed-length encoding of this private key's value.
     pub fn as_bytes(&self) -> [u8; Scalar::BYTES] {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         low::ct::into_public(self.0.scalar.as_bytes())
     }
 
     /// Derive the corresponding public key, and return it in
     /// X9.62 uncompressed encoding.
     pub fn public_key_uncompressed(&self) -> [u8; PublicKey::BYTES] {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         self.0.public_point().as_bytes_uncompressed()
     }
 
@@ -199,7 +199,7 @@ impl StaticPrivateKey {
     ///
     /// Returns a [`SharedSecret`].  May return an error in fault conditions.
     pub fn diffie_hellman(&self, peer: &PublicKey) -> Result<SharedSecret, Error> {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         PrivateKey {
             scalar: Scalar(self.0.scalar.0),
         }
@@ -207,12 +207,12 @@ impl StaticPrivateKey {
     }
 
     pub(crate) fn generate(rng: &mut dyn RandomSource) -> Result<Self, Error> {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         PrivateKey::generate(rng).map(Self)
     }
 
     pub(crate) fn public_key_x_scalar(&self) -> Scalar {
-        let _ = low::Entry::new_secret();
+        let _entry = low::Entry::new_secret();
         self.0.public_point().x_scalar()
     }
 

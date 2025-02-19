@@ -25,7 +25,7 @@ impl VerifyingKey {
     /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#appendix-A.1.1)
     /// (and earlier standards, including the original PKCS#1 standard).
     pub fn from_pkcs1_der(bytes: &[u8]) -> Result<Self, Error> {
-        let _ = Entry::new_public();
+        let _entry = Entry::new_public();
         let decoded = pkix::RSAPublicKey::from_bytes(bytes).map_err(Error::Asn1Error)?;
 
         if decoded.modulus.is_negative() {
@@ -51,7 +51,7 @@ impl VerifyingKey {
     ///
     /// [`Error::BadSignature`] is returned if the signature is invalid.
     pub fn verify_pkcs1_sha256(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
-        let _ = Entry::new_public();
+        let _entry = Entry::new_public();
         let hash = hash::Sha256::hash(message);
         self._verify_pkcs1(signature, pkcs1::DIGESTINFO_SHA256, hash.as_ref())
     }
@@ -63,7 +63,7 @@ impl VerifyingKey {
     ///
     /// [`Error::BadSignature`] is returned if the signature is invalid.
     pub fn verify_pkcs1_sha384(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
-        let _ = Entry::new_public();
+        let _entry = Entry::new_public();
         let hash = hash::Sha384::hash(message);
         self._verify_pkcs1(signature, pkcs1::DIGESTINFO_SHA384, hash.as_ref())
     }
@@ -75,7 +75,7 @@ impl VerifyingKey {
     ///
     /// [`Error::BadSignature`] is returned if the signature is invalid.
     pub fn verify_pkcs1_sha512(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
-        let _ = Entry::new_public();
+        let _entry = Entry::new_public();
         let hash = hash::Sha512::hash(message);
         self._verify_pkcs1(signature, pkcs1::DIGESTINFO_SHA512, hash.as_ref())
     }
@@ -116,7 +116,7 @@ impl VerifyingKey {
     /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#section-8.1)
     /// (and earlier standards, including the original PKCS#1 standard).
     pub fn verify_pss_sha256(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
-        let _ = Entry::new_public();
+        let _entry = Entry::new_public();
         self._verify_pss::<hash::Sha256>(signature, message)
     }
 
@@ -134,7 +134,7 @@ impl VerifyingKey {
     /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#section-8.1)
     /// (and earlier standards, including the original PKCS#1 standard).
     pub fn verify_pss_sha384(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
-        let _ = Entry::new_public();
+        let _entry = Entry::new_public();
         self._verify_pss::<hash::Sha384>(signature, message)
     }
 
@@ -152,7 +152,7 @@ impl VerifyingKey {
     /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#section-8.1)
     /// (and earlier standards, including the original PKCS#1 standard).
     pub fn verify_pss_sha512(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
-        let _ = Entry::new_public();
+        let _entry = Entry::new_public();
         self._verify_pss::<hash::Sha512>(signature, message)
     }
 
@@ -185,7 +185,7 @@ impl SigningKey {
     /// [RFC8017](https://datatracker.ietf.org/doc/html/rfc8017#appendix-A.1.2)
     /// (and earlier standards, including the original PKCS#1 standard).
     pub fn from_pkcs1_der(bytes: &[u8]) -> Result<Self, Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         let decoded = pkix::RSAPrivateKey::from_bytes(bytes).map_err(Error::Asn1Error)?;
 
         if !matches!(decoded.version, pkix::Version::two_prime) {
@@ -221,7 +221,7 @@ impl SigningKey {
     /// the supplied buffer.  Otherwise, on success, the range containing the
     /// encoding is returned.
     pub fn to_pkcs1_der<'a>(&self, output: &'a mut [u8]) -> Result<&'a [u8], Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
 
         let mut buf = rsa_priv::RsaComponentsBuffer::default();
         let components = self.0.encode_components(&mut buf)?;
@@ -253,7 +253,7 @@ impl SigningKey {
     /// the supplied buffer.  Otherwise, on success, the range containing the
     /// encoding is returned.
     pub fn to_pkcs8_der<'a>(&self, output: &'a mut [u8]) -> Result<&'a [u8], Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
 
         let mut pkcs1_buffer = [0u8; Self::MAX_PKCS1_BUFFER_LEN];
 
@@ -277,7 +277,7 @@ impl SigningKey {
     ///
     /// `privateKeyAlgorithm` inside this encoding must be `rsaEncryption`.
     pub fn from_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         pkcs8::decode_pkcs8(
             bytes,
             &asn1::oid::rsaEncryption,
@@ -288,13 +288,13 @@ impl SigningKey {
 
     /// Returns the matching public key.
     pub fn public_key(&self) -> VerifyingKey {
-        let _ = Entry::new_public();
+        let _entry = Entry::new_public();
         VerifyingKey(self.0.public_key())
     }
 
     /// Returns the public modulus length, in bytes.
     pub fn modulus_len_bytes(&self) -> usize {
-        let _ = Entry::new_public();
+        let _entry = Entry::new_public();
         self.0.public_key().modulus_len_bytes()
     }
 
@@ -312,7 +312,7 @@ impl SigningKey {
         signature: &'a mut [u8],
         message: &[u8],
     ) -> Result<&'a [u8], Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         let hash = hash::Sha256::hash(message);
         self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA256, hash.as_ref())
     }
@@ -331,7 +331,7 @@ impl SigningKey {
         signature: &'a mut [u8],
         message: &[u8],
     ) -> Result<&'a [u8], Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         let hash = hash::Sha384::hash(message);
         self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA384, hash.as_ref())
     }
@@ -350,7 +350,7 @@ impl SigningKey {
         signature: &'a mut [u8],
         message: &[u8],
     ) -> Result<&'a [u8], Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         let hash = hash::Sha512::hash(message);
         self._sign_pkcs1(signature, pkcs1::DIGESTINFO_SHA512, hash.as_ref())
     }
@@ -372,7 +372,7 @@ impl SigningKey {
         signature: &'a mut [u8],
         message: &[u8],
     ) -> Result<&'a [u8], Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         self._sign_pss::<hash::Sha256>(signature, message)
     }
 
@@ -393,7 +393,7 @@ impl SigningKey {
         signature: &'a mut [u8],
         message: &[u8],
     ) -> Result<&'a [u8], Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         self._sign_pss::<hash::Sha384>(signature, message)
     }
 
@@ -414,7 +414,7 @@ impl SigningKey {
         signature: &'a mut [u8],
         message: &[u8],
     ) -> Result<&'a [u8], Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         self._sign_pss::<hash::Sha512>(signature, message)
     }
 

@@ -25,7 +25,7 @@ pub struct SigningKey<C: Curve> {
 impl<C: Curve> SigningKey<C> {
     /// Load an ECDSA private key in PKCS#8 format.
     pub fn from_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         pkcs8::decode_pkcs8(
             bytes,
             &asn1::oid::id_ecPublicKey,
@@ -40,7 +40,7 @@ impl<C: Curve> SigningKey<C> {
     /// returned.  [`Error::WrongLength`] is returned if `output` is not sufficient
     /// to contain the full encoding.
     pub fn to_pkcs8_der<'a>(&self, output: &'a mut [u8]) -> Result<&'a [u8], Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
 
         let mut sec1_buf = [0u8; MAX_SCALAR_LEN + MAX_UNCOMPRESSED_PUBLIC_KEY_LEN + 128];
         let sec1 = self.to_sec1_der_detail(None, &mut sec1_buf)?;
@@ -55,7 +55,7 @@ impl<C: Curve> SigningKey<C> {
 
     /// Load an ECDSA private key in SEC.1 format.
     pub fn from_sec1_der(bytes: &[u8]) -> Result<Self, Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         let ecpk = asn1::pkix::EcPrivateKey::from_bytes(bytes).map_err(Error::Asn1Error)?;
 
         // nb. ecpk.version has one variant, so if it decoded property it is guaranteed
@@ -88,7 +88,7 @@ impl<C: Curve> SigningKey<C> {
     /// returned.  [`Error::WrongLength`] is returned if `output` is not sufficient
     /// to contain the full encoding.
     pub fn to_sec1_der<'a>(&self, output: &'a mut [u8]) -> Result<&'a [u8], Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         self.to_sec1_der_detail(Some(C::oid()), output)
     }
 
@@ -135,7 +135,7 @@ impl<C: Curve> SigningKey<C> {
         message: &[&[u8]],
         signature: &'a mut [u8],
     ) -> Result<&'a [u8], Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         let mut random = [0u8; 16];
         SystemRandom.fill(&mut random)?;
         self.rfc6979_sign_with_random::<H>(message, &random, signature)
@@ -150,7 +150,7 @@ impl<C: Curve> SigningKey<C> {
         message: &[&[u8]],
         asn1_signature: &'a mut [u8],
     ) -> Result<&'a [u8], Error> {
-        let _ = Entry::new_secret();
+        let _entry = Entry::new_secret();
         let mut fixed_sig = [0u8; MAX_SCALAR_LEN * 2];
         let fixed_sig = self.sign::<H>(message, &mut fixed_sig)?;
 
@@ -238,7 +238,7 @@ pub struct VerifyingKey<C: Curve> {
 impl<C: Curve> VerifyingKey<C> {
     /// Create a `VerifyingKey` by decoding an X9.62 uncompressed point.
     pub fn from_x962_uncompressed(encoded: &[u8]) -> Result<Self, Error> {
-        let _ = Entry::new_public();
+        let _entry = Entry::new_public();
         C::PublicKey::from_x962_uncompressed(encoded).map(|public_key| Self { public_key })
     }
 
@@ -252,7 +252,7 @@ impl<C: Curve> VerifyingKey<C> {
     /// Returns `Ok(())` when the signature is valid, or an error if not (typically --
     /// but not limited to -- `Error::BadSignature`).
     pub fn verify<H: Hash>(&self, message: &[&[u8]], signature: &[u8]) -> Result<(), Error> {
-        let _ = Entry::new_public();
+        let _entry = Entry::new_public();
         if signature.len() != C::Scalar::LEN_BYTES * 2 {
             return Err(Error::WrongLength);
         }
@@ -282,7 +282,7 @@ impl<C: Curve> VerifyingKey<C> {
     /// This does a straightforward conversion from ASN.1 to fixed length,
     /// and then calls [`Self::verify()`] -- see the documentation for more.
     pub fn verify_asn1<H: Hash>(&self, message: &[&[u8]], signature: &[u8]) -> Result<(), Error> {
-        let _ = Entry::new_public();
+        let _entry = Entry::new_public();
         let sig =
             asn1::pkix::EcdsaSigValue::from_bytes(signature).map_err(|_| Error::BadSignature)?;
         if sig.r.is_negative() || sig.s.is_negative() {
