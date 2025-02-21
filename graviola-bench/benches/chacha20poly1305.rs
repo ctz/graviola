@@ -1,5 +1,5 @@
 mod criterion;
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
 fn test_ring_chacha(key: &ring::aead::LessSafeKey, nonce: &[u8; 12], aad: &[u8], plain: &[u8]) {
     let mut ct = plain.to_vec();
@@ -54,7 +54,7 @@ fn bench_chacha20poly1305(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(size as u64));
 
         group.bench_with_input(BenchmarkId::new("ring", size_name), &input, |b, input| {
-            use ring::aead::{LessSafeKey, UnboundKey, CHACHA20_POLY1305};
+            use ring::aead::{CHACHA20_POLY1305, LessSafeKey, UnboundKey};
             let key = UnboundKey::new(&CHACHA20_POLY1305, &key).unwrap();
             let key = LessSafeKey::new(key);
             b.iter(|| test_ring_chacha(&key, &nonce, &aad, input));
@@ -63,7 +63,7 @@ fn bench_chacha20poly1305(c: &mut Criterion) {
             BenchmarkId::new("aws-lc-rs", size_name),
             &input,
             |b, input| {
-                use aws_lc_rs::aead::{LessSafeKey, UnboundKey, CHACHA20_POLY1305};
+                use aws_lc_rs::aead::{CHACHA20_POLY1305, LessSafeKey, UnboundKey};
                 let key = UnboundKey::new(&CHACHA20_POLY1305, &key).unwrap();
                 let key = LessSafeKey::new(key);
                 b.iter(|| test_aws_chacha(&key, &nonce, &aad, input));

@@ -1,9 +1,9 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
-use crate::low::ghash::{Ghash, GhashTable};
-use crate::low::{aes_gcm, ct_equal, AesKey, Entry};
 use crate::Error;
+use crate::low::ghash::{Ghash, GhashTable};
+use crate::low::{AesKey, Entry, aes_gcm, ct_equal};
 
 /// An AES-GCM key.
 ///

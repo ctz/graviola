@@ -1,2 +1,3 @@
+style_edition = "2024"
 group_imports = "StdExternalCrate"
 format_code_in_doc_comments = true

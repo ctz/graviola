@@ -1,5 +1,5 @@
 mod criterion;
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 const PUBLIC_KEY: &[u8; 65] = b"\x04\
 \x62\xd5\xbd\x33\x72\xaf\x75\xfe\x85\xa0\x40\x71\x5d\x0f\x50\x24\x28\xe0\x70\x46\x86\x8b\x0b\xfd\xfa\x61\xd7\x31\xaf\xe4\x4f\x26\
@@ -80,8 +80,8 @@ fn ecdh(c: &mut Criterion) {
     });
 
     group.bench_function("p256-rustcrypto", |b| {
-        use p256::ecdh::EphemeralSecret;
         use p256::PublicKey;
+        use p256::ecdh::EphemeralSecret;
 
         b.iter(|| {
             let our_private_key = EphemeralSecret::random(&mut rand_core::OsRng);
@@ -193,7 +193,7 @@ fn ecdsa_verify(c: &mut Criterion) {
     });
 
     group.bench_function("rustcrypto", |b| {
-        use p256::ecdsa::{signature::Verifier, Signature, VerifyingKey};
+        use p256::ecdsa::{Signature, VerifyingKey, signature::Verifier};
         let verifying_key = VerifyingKey::from_sec1_bytes(public_key).unwrap();
 
         b.iter(|| {
@@ -262,7 +262,7 @@ fn ecdsa_sign(c: &mut Criterion) {
     });
 
     group.bench_function("rustcrypto", |b| {
-        use p256::ecdsa::{signature::Signer, Signature, SigningKey};
+        use p256::ecdsa::{Signature, SigningKey, signature::Signer};
         let signing_key = SigningKey::random(&mut rand_core::OsRng);
 
         b.iter(|| {
@@ -273,7 +273,7 @@ fn ecdsa_sign(c: &mut Criterion) {
 
     group.bench_function("graviola", |b| {
         use graviola::hashing::Sha256;
-        use graviola::signing::ecdsa::{Curve, SigningKey, P256};
+        use graviola::signing::ecdsa::{Curve, P256, SigningKey};
         let private_key = <P256 as Curve>::PrivateKey::new_random().unwrap();
         let signing_key = SigningKey::<P256> { private_key };
 

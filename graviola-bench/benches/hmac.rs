@@ -1,5 +1,5 @@
 mod criterion;
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use hmac::Mac;
 
 fn test_ring_sha256(key: &[u8], data: &[u8]) {
