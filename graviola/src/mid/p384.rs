@@ -5,9 +5,9 @@ use core::fmt;
 use core::ops::Range;
 
 use super::util;
+use crate::Error;
 use crate::low;
 use crate::mid::rng::{RandomSource, SystemRandom};
-use crate::Error;
 
 mod precomp;
 
@@ -1048,8 +1048,10 @@ mod tests {
         let e = Scalar::from_bytes_checked(b"\x2c\xf2\x4d\xba\x5f\xb0\xa3\x0e\x26\xe8\x3b\x2a\xc5\xb9\xe2\x9e\x1b\x16\x1e\x5c\x1f\xa7\x42\x5e\x73\x04\x33\x62\x93\x8b\x98\x24").unwrap();
         let r = Scalar::from_bytes_checked(b"\x78\xee\x34\xc8\xb6\x52\x29\x54\x96\x19\x79\x45\x2e\x6e\x0c\xe0\x68\x5d\x40\x42\x38\x41\xef\xeb\x06\xfe\x3e\x3f\xf7\xb6\x5d\xf5").unwrap();
         let s = private.raw_ecdsa_sign(&k, &e, &r);
-        assert_eq!(format!("{:02x?}", s.as_bytes()),
-               "[1f, 8d, d6, 1c, 4c, 84, 18, 24, 7c, 87, 54, 13, ad, e1, 0f, 3c, d7, b2, c8, c1, f7, 9d, c0, 88, 77, 9c, 01, 30, a7, af, 85, 5b, b8, d1, d2, ea, 05, 87, ba, 17, 1c, 4c, 57, 83, ad, 8c, 9a, a1]");
+        assert_eq!(
+            format!("{:02x?}", s.as_bytes()),
+            "[1f, 8d, d6, 1c, 4c, 84, 18, 24, 7c, 87, 54, 13, ad, e1, 0f, 3c, d7, b2, c8, c1, f7, 9d, c0, 88, 77, 9c, 01, 30, a7, af, 85, 5b, b8, d1, d2, ea, 05, 87, ba, 17, 1c, 4c, 57, 83, ad, 8c, 9a, a1]"
+        );
     }
 
     #[test]

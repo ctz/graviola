@@ -52,7 +52,7 @@ jobs:
     - name: Install nightly toolchain
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: nightly-2024-12-03
+        toolchain: nightly-2025-02-14
         components: rustfmt
 
     - name: clippy
@@ -62,7 +62,7 @@ jobs:
       run: cargo +stable fmt --check
 
     - name: rustfmt (nightly)
-      run: cargo +nightly-2024-12-03 fmt --check -- --config-path=.rustfmt.unstable.toml
+      run: cargo +nightly-2025-02-14 fmt --check -- --config-path=.rustfmt.unstable.toml
 
     - name: check codegen
       working-directory: admin/parse-asm

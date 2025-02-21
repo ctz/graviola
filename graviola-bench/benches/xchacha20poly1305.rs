@@ -1,5 +1,5 @@
 mod criterion;
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
 fn test_rc_chacha(
     key: &chacha20poly1305::XChaCha20Poly1305,

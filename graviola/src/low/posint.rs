@@ -3,8 +3,8 @@
 
 use core::ops::{Deref, DerefMut};
 
-use crate::low;
 use crate::Error;
+use crate::low;
 
 #[derive(Clone, Debug)]
 pub(crate) struct PosInt<const N: usize> {
@@ -598,19 +598,25 @@ mod tests {
     #[test]
     fn from_bytes() {
         // no bytes -> zero
-        assert!(PosInt::<1>::from_bytes(&[])
-            .unwrap()
-            .pub_equals(&PosInt::<1>::zero()));
+        assert!(
+            PosInt::<1>::from_bytes(&[])
+                .unwrap()
+                .pub_equals(&PosInt::<1>::zero())
+        );
 
         // from single zero byte
-        assert!(PosInt::<1>::from_bytes(&[0])
-            .unwrap()
-            .pub_equals(&PosInt::<1>::zero()));
+        assert!(
+            PosInt::<1>::from_bytes(&[0])
+                .unwrap()
+                .pub_equals(&PosInt::<1>::zero())
+        );
 
         // can parse exactly 8N bytes
-        assert!(PosInt::<1>::from_bytes(&[0; 8])
-            .unwrap()
-            .pub_equals(&PosInt::<1>::zero()));
+        assert!(
+            PosInt::<1>::from_bytes(&[0; 8])
+                .unwrap()
+                .pub_equals(&PosInt::<1>::zero())
+        );
 
         // cannot parse > 8N bytes (excluding leading zeroes)
         assert_eq!(

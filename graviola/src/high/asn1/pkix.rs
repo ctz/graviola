@@ -80,7 +80,7 @@ asn1_struct! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::high::asn1::{oid, Any, Encoder, Error, Integer, Null, Parser, Type};
+    use crate::high::asn1::{Any, Encoder, Error, Integer, Null, Parser, Type, oid};
 
     #[test]
     fn parse_public_key() {

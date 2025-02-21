@@ -1,15 +1,15 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
-use crate::high::asn1::{self, pkix, Type};
+use crate::Error;
+use crate::high::asn1::{self, Type, pkix};
 use crate::high::hash::{self, Hash};
 use crate::high::{pkcs1, pkcs8};
-use crate::low::zeroise;
 use crate::low::Entry;
 use crate::low::PosInt;
+use crate::low::zeroise;
 use crate::mid::rng::SystemRandom;
 use crate::mid::{rsa_priv, rsa_pub};
-use crate::Error;
 
 /// An RSA verification public key.
 ///

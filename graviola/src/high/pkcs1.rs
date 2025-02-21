@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
 use super::hash::{Hash, HashContext};
-use crate::mid::rng::RandomSource;
 use crate::Error;
+use crate::mid::rng::RandomSource;
 
 /// This is EMSA-PKCS1-v1_5-ENCODE
 ///
@@ -246,7 +246,7 @@ fn mgf1_xor<H: Hash>(seed: &[u8], h_len: usize, out: &mut [u8]) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::high::asn1::{self, oid, pkix, Type};
+    use crate::high::asn1::{self, Type, oid, pkix};
     use crate::high::hash;
     use crate::mid::rng::SliceRandomSource;
 
