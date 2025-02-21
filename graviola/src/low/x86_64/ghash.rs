@@ -186,10 +186,12 @@ macro_rules! reduce {
 #[inline]
 #[target_feature(enable = "pclmulqdq,avx")]
 unsafe fn _mul(a: __m128i, b: __m128i) -> __m128i {
-    let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
-    let bx = xor_halves(b);
-    mul!(lo, mi, hi, a, b, bx);
-    reduce!(lo, mi, hi)
+    unsafe {
+        let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
+        let bx = xor_halves(b);
+        mul!(lo, mi, hi, a, b, bx);
+        reduce!(lo, mi, hi)
+    }
 }
 
 #[inline]
@@ -205,33 +207,39 @@ pub(crate) unsafe fn _mul8(
     x7: __m128i,
     x8: __m128i,
 ) -> __m128i {
-    let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
-    mul!(lo, mi, hi, x1, table.powers[7], table.powers_xor[7]);
-    mul!(lo, mi, hi, x2, table.powers[6], table.powers_xor[6]);
-    mul!(lo, mi, hi, x3, table.powers[5], table.powers_xor[5]);
-    mul!(lo, mi, hi, x4, table.powers[4], table.powers_xor[4]);
-    mul!(lo, mi, hi, x5, table.powers[3], table.powers_xor[3]);
-    mul!(lo, mi, hi, x6, table.powers[2], table.powers_xor[2]);
-    mul!(lo, mi, hi, x7, table.powers[1], table.powers_xor[1]);
-    mul!(lo, mi, hi, x8, table.powers[0], table.powers_xor[0]);
-    reduce!(lo, mi, hi)
+    unsafe {
+        let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
+        mul!(lo, mi, hi, x1, table.powers[7], table.powers_xor[7]);
+        mul!(lo, mi, hi, x2, table.powers[6], table.powers_xor[6]);
+        mul!(lo, mi, hi, x3, table.powers[5], table.powers_xor[5]);
+        mul!(lo, mi, hi, x4, table.powers[4], table.powers_xor[4]);
+        mul!(lo, mi, hi, x5, table.powers[3], table.powers_xor[3]);
+        mul!(lo, mi, hi, x6, table.powers[2], table.powers_xor[2]);
+        mul!(lo, mi, hi, x7, table.powers[1], table.powers_xor[1]);
+        mul!(lo, mi, hi, x8, table.powers[0], table.powers_xor[0]);
+        reduce!(lo, mi, hi)
+    }
 }
 
 #[target_feature(enable = "avx")]
 unsafe fn gf128_big_endian(h: __m128i) -> __m128i {
-    // takes a raw hash subkey, and arranges that it can
-    // be used in big endian ordering.
-    let t = _mm_shuffle_epi32(h, 0b11_01_00_11);
-    let t = _mm_srai_epi32(t, 31);
-    let h = _mm_add_epi64(h, h);
-    let t = _mm_and_si128(GF128_POLY_CARRY_MASK, t);
-    _mm_xor_si128(h, t)
+    unsafe {
+        // takes a raw hash subkey, and arranges that it can
+        // be used in big endian ordering.
+        let t = _mm_shuffle_epi32(h, 0b11_01_00_11);
+        let t = _mm_srai_epi32(t, 31);
+        let h = _mm_add_epi64(h, h);
+        let t = _mm_and_si128(GF128_POLY_CARRY_MASK, t);
+        _mm_xor_si128(h, t)
+    }
 }
 
 #[target_feature(enable = "avx")]
 unsafe fn xor_halves(h: __m128i) -> __m128i {
-    let hx = _mm_shuffle_epi32(h, 0b01_00_11_10);
-    _mm_xor_si128(hx, h)
+    unsafe {
+        let hx = _mm_shuffle_epi32(h, 0b01_00_11_10);
+        _mm_xor_si128(hx, h)
+    }
 }
 
 #[inline]

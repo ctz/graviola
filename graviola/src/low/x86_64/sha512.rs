@@ -20,62 +20,70 @@ fn maj(x: u64, y: u64, z: u64) -> u64 {
 
 #[inline]
 unsafe fn bsig0(x: u64) -> u64 {
-    // equiv. x.rotate_right(28) ^ x.rotate_right(34) ^ x.rotate_right(39)
-    let mut ret;
-    core::arch::asm!(
-        "  rorx {t}, {x}, 28",
-        "  rorx {r}, {x}, 34",
-        "  xor  {r}, {t}",
-        "  rorx {t}, {x}, 39",
-        "  xor  {r}, {t}",
-        x = in(reg) x,
-        r = out(reg) ret,
-        t = out(reg) _,
-        options(nostack, nomem, pure),
-    );
-    ret
+    unsafe {
+        // equiv. x.rotate_right(28) ^ x.rotate_right(34) ^ x.rotate_right(39)
+        let mut ret;
+        core::arch::asm!(
+            "  rorx {t}, {x}, 28",
+            "  rorx {r}, {x}, 34",
+            "  xor  {r}, {t}",
+            "  rorx {t}, {x}, 39",
+            "  xor  {r}, {t}",
+            x = in(reg) x,
+            r = out(reg) ret,
+            t = out(reg) _,
+            options(nostack, nomem, pure),
+        );
+        ret
+    }
 }
 
 #[inline]
 unsafe fn bsig1(x: u64) -> u64 {
-    // equiv. x.rotate_right(14) ^ x.rotate_right(18) ^ x.rotate_right(41)
-    let mut ret;
-    core::arch::asm!(
-        "  rorx {t}, {x}, 14",
-        "  rorx {r}, {x}, 18",
-        "  xor  {r}, {t}",
-        "  rorx {t}, {x}, 41",
-        "  xor  {r}, {t}",
-        x = in(reg) x,
-        r = out(reg) ret,
-        t = out(reg) _,
-        options(nostack, nomem, pure),
-    );
-    ret
+    unsafe {
+        // equiv. x.rotate_right(14) ^ x.rotate_right(18) ^ x.rotate_right(41)
+        let mut ret;
+        core::arch::asm!(
+            "  rorx {t}, {x}, 14",
+            "  rorx {r}, {x}, 18",
+            "  xor  {r}, {t}",
+            "  rorx {t}, {x}, 41",
+            "  xor  {r}, {t}",
+            x = in(reg) x,
+            r = out(reg) ret,
+            t = out(reg) _,
+            options(nostack, nomem, pure),
+        );
+        ret
+    }
 }
 
 #[inline]
 #[target_feature(enable = "avx,avx2")]
 unsafe fn sigma_0(w: __m256i) -> __m256i {
-    _mm256_xor_si256(
+    unsafe {
         _mm256_xor_si256(
-            _mm256_xor_si256(_mm256_srli_epi64(w, 7), _mm256_srli_epi64(w, 8)),
-            _mm256_xor_si256(_mm256_srli_epi64(w, 1), _mm256_slli_epi64(w, 56)),
-        ),
-        _mm256_slli_epi64(w, 63),
-    )
+            _mm256_xor_si256(
+                _mm256_xor_si256(_mm256_srli_epi64(w, 7), _mm256_srli_epi64(w, 8)),
+                _mm256_xor_si256(_mm256_srli_epi64(w, 1), _mm256_slli_epi64(w, 56)),
+            ),
+            _mm256_slli_epi64(w, 63),
+        )
+    }
 }
 
 #[inline]
 #[target_feature(enable = "avx,avx2")]
 unsafe fn sigma_1(w: __m256i) -> __m256i {
-    _mm256_xor_si256(
+    unsafe {
         _mm256_xor_si256(
-            _mm256_xor_si256(_mm256_srli_epi64(w, 6), _mm256_srli_epi64(w, 61)),
-            _mm256_xor_si256(_mm256_srli_epi64(w, 19), _mm256_slli_epi64(w, 3)),
-        ),
-        _mm256_slli_epi64(w, 45),
-    )
+            _mm256_xor_si256(
+                _mm256_xor_si256(_mm256_srli_epi64(w, 6), _mm256_srli_epi64(w, 61)),
+                _mm256_xor_si256(_mm256_srli_epi64(w, 19), _mm256_slli_epi64(w, 3)),
+            ),
+            _mm256_slli_epi64(w, 45),
+        )
+    }
 }
 
 macro_rules! k {
@@ -99,75 +107,77 @@ macro_rules! schedule_round {
 
 #[target_feature(enable = "avx,avx2,bmi2")]
 unsafe fn sha512_quad_message_schedule(schedule: &mut [__m256i; 80], message: *const u64) {
-    let gather_mask = _mm256_setr_epi64x(0, 16, 32, 48);
-    let mut w0 = _mm256_i64gather_epi64(message.add(0).cast(), gather_mask, 8);
-    w0 = _mm256_shuffle_epi8(w0, BSWAP_SHUFFLE);
-    let mut w1 = _mm256_i64gather_epi64(message.add(1).cast(), gather_mask, 8);
-    w1 = _mm256_shuffle_epi8(w1, BSWAP_SHUFFLE);
-    let mut w2 = _mm256_i64gather_epi64(message.add(2).cast(), gather_mask, 8);
-    w2 = _mm256_shuffle_epi8(w2, BSWAP_SHUFFLE);
-    let mut w3 = _mm256_i64gather_epi64(message.add(3).cast(), gather_mask, 8);
-    w3 = _mm256_shuffle_epi8(w3, BSWAP_SHUFFLE);
-    let mut w4 = _mm256_i64gather_epi64(message.add(4).cast(), gather_mask, 8);
-    w4 = _mm256_shuffle_epi8(w4, BSWAP_SHUFFLE);
-    let mut w5 = _mm256_i64gather_epi64(message.add(5).cast(), gather_mask, 8);
-    w5 = _mm256_shuffle_epi8(w5, BSWAP_SHUFFLE);
-    let mut w6 = _mm256_i64gather_epi64(message.add(6).cast(), gather_mask, 8);
-    w6 = _mm256_shuffle_epi8(w6, BSWAP_SHUFFLE);
-    let mut w7 = _mm256_i64gather_epi64(message.add(7).cast(), gather_mask, 8);
-    w7 = _mm256_shuffle_epi8(w7, BSWAP_SHUFFLE);
-    let mut w8 = _mm256_i64gather_epi64(message.add(8).cast(), gather_mask, 8);
-    w8 = _mm256_shuffle_epi8(w8, BSWAP_SHUFFLE);
-    let mut w9 = _mm256_i64gather_epi64(message.add(9).cast(), gather_mask, 8);
-    w9 = _mm256_shuffle_epi8(w9, BSWAP_SHUFFLE);
-    let mut w10 = _mm256_i64gather_epi64(message.add(10).cast(), gather_mask, 8);
-    w10 = _mm256_shuffle_epi8(w10, BSWAP_SHUFFLE);
-    let mut w11 = _mm256_i64gather_epi64(message.add(11).cast(), gather_mask, 8);
-    w11 = _mm256_shuffle_epi8(w11, BSWAP_SHUFFLE);
-    let mut w12 = _mm256_i64gather_epi64(message.add(12).cast(), gather_mask, 8);
-    w12 = _mm256_shuffle_epi8(w12, BSWAP_SHUFFLE);
-    let mut w13 = _mm256_i64gather_epi64(message.add(13).cast(), gather_mask, 8);
-    w13 = _mm256_shuffle_epi8(w13, BSWAP_SHUFFLE);
-    let mut w14 = _mm256_i64gather_epi64(message.add(14).cast(), gather_mask, 8);
-    w14 = _mm256_shuffle_epi8(w14, BSWAP_SHUFFLE);
-    let mut w15 = _mm256_i64gather_epi64(message.add(15).cast(), gather_mask, 8);
-    w15 = _mm256_shuffle_epi8(w15, BSWAP_SHUFFLE);
+    unsafe {
+        let gather_mask = _mm256_setr_epi64x(0, 16, 32, 48);
+        let mut w0 = _mm256_i64gather_epi64(message.add(0).cast(), gather_mask, 8);
+        w0 = _mm256_shuffle_epi8(w0, BSWAP_SHUFFLE);
+        let mut w1 = _mm256_i64gather_epi64(message.add(1).cast(), gather_mask, 8);
+        w1 = _mm256_shuffle_epi8(w1, BSWAP_SHUFFLE);
+        let mut w2 = _mm256_i64gather_epi64(message.add(2).cast(), gather_mask, 8);
+        w2 = _mm256_shuffle_epi8(w2, BSWAP_SHUFFLE);
+        let mut w3 = _mm256_i64gather_epi64(message.add(3).cast(), gather_mask, 8);
+        w3 = _mm256_shuffle_epi8(w3, BSWAP_SHUFFLE);
+        let mut w4 = _mm256_i64gather_epi64(message.add(4).cast(), gather_mask, 8);
+        w4 = _mm256_shuffle_epi8(w4, BSWAP_SHUFFLE);
+        let mut w5 = _mm256_i64gather_epi64(message.add(5).cast(), gather_mask, 8);
+        w5 = _mm256_shuffle_epi8(w5, BSWAP_SHUFFLE);
+        let mut w6 = _mm256_i64gather_epi64(message.add(6).cast(), gather_mask, 8);
+        w6 = _mm256_shuffle_epi8(w6, BSWAP_SHUFFLE);
+        let mut w7 = _mm256_i64gather_epi64(message.add(7).cast(), gather_mask, 8);
+        w7 = _mm256_shuffle_epi8(w7, BSWAP_SHUFFLE);
+        let mut w8 = _mm256_i64gather_epi64(message.add(8).cast(), gather_mask, 8);
+        w8 = _mm256_shuffle_epi8(w8, BSWAP_SHUFFLE);
+        let mut w9 = _mm256_i64gather_epi64(message.add(9).cast(), gather_mask, 8);
+        w9 = _mm256_shuffle_epi8(w9, BSWAP_SHUFFLE);
+        let mut w10 = _mm256_i64gather_epi64(message.add(10).cast(), gather_mask, 8);
+        w10 = _mm256_shuffle_epi8(w10, BSWAP_SHUFFLE);
+        let mut w11 = _mm256_i64gather_epi64(message.add(11).cast(), gather_mask, 8);
+        w11 = _mm256_shuffle_epi8(w11, BSWAP_SHUFFLE);
+        let mut w12 = _mm256_i64gather_epi64(message.add(12).cast(), gather_mask, 8);
+        w12 = _mm256_shuffle_epi8(w12, BSWAP_SHUFFLE);
+        let mut w13 = _mm256_i64gather_epi64(message.add(13).cast(), gather_mask, 8);
+        w13 = _mm256_shuffle_epi8(w13, BSWAP_SHUFFLE);
+        let mut w14 = _mm256_i64gather_epi64(message.add(14).cast(), gather_mask, 8);
+        w14 = _mm256_shuffle_epi8(w14, BSWAP_SHUFFLE);
+        let mut w15 = _mm256_i64gather_epi64(message.add(15).cast(), gather_mask, 8);
+        w15 = _mm256_shuffle_epi8(w15, BSWAP_SHUFFLE);
 
-    let mut i = 0;
-    while i < 64 {
-        schedule_round!(schedule, i, w1, w14, w0, w9);
-        schedule_round!(schedule, i, w2, w15, w1, w10);
-        schedule_round!(schedule, i, w3, w0, w2, w11);
-        schedule_round!(schedule, i, w4, w1, w3, w12);
-        schedule_round!(schedule, i, w5, w2, w4, w13);
-        schedule_round!(schedule, i, w6, w3, w5, w14);
-        schedule_round!(schedule, i, w7, w4, w6, w15);
-        schedule_round!(schedule, i, w8, w5, w7, w0);
-        schedule_round!(schedule, i, w9, w6, w8, w1);
-        schedule_round!(schedule, i, w10, w7, w9, w2);
-        schedule_round!(schedule, i, w11, w8, w10, w3);
-        schedule_round!(schedule, i, w12, w9, w11, w4);
-        schedule_round!(schedule, i, w13, w10, w12, w5);
-        schedule_round!(schedule, i, w14, w11, w13, w6);
-        schedule_round!(schedule, i, w15, w12, w14, w7);
-        schedule_round!(schedule, i, w0, w13, w15, w8);
+        let mut i = 0;
+        while i < 64 {
+            schedule_round!(schedule, i, w1, w14, w0, w9);
+            schedule_round!(schedule, i, w2, w15, w1, w10);
+            schedule_round!(schedule, i, w3, w0, w2, w11);
+            schedule_round!(schedule, i, w4, w1, w3, w12);
+            schedule_round!(schedule, i, w5, w2, w4, w13);
+            schedule_round!(schedule, i, w6, w3, w5, w14);
+            schedule_round!(schedule, i, w7, w4, w6, w15);
+            schedule_round!(schedule, i, w8, w5, w7, w0);
+            schedule_round!(schedule, i, w9, w6, w8, w1);
+            schedule_round!(schedule, i, w10, w7, w9, w2);
+            schedule_round!(schedule, i, w11, w8, w10, w3);
+            schedule_round!(schedule, i, w12, w9, w11, w4);
+            schedule_round!(schedule, i, w13, w10, w12, w5);
+            schedule_round!(schedule, i, w14, w11, w13, w6);
+            schedule_round!(schedule, i, w15, w12, w14, w7);
+            schedule_round!(schedule, i, w0, w13, w15, w8);
+        }
+        schedule[64] = _mm256_add_epi64(w0, k!(64));
+        schedule[65] = _mm256_add_epi64(w1, k!(65));
+        schedule[66] = _mm256_add_epi64(w2, k!(66));
+        schedule[67] = _mm256_add_epi64(w3, k!(67));
+        schedule[68] = _mm256_add_epi64(w4, k!(68));
+        schedule[69] = _mm256_add_epi64(w5, k!(69));
+        schedule[70] = _mm256_add_epi64(w6, k!(70));
+        schedule[71] = _mm256_add_epi64(w7, k!(71));
+        schedule[72] = _mm256_add_epi64(w8, k!(72));
+        schedule[73] = _mm256_add_epi64(w9, k!(73));
+        schedule[74] = _mm256_add_epi64(w10, k!(74));
+        schedule[75] = _mm256_add_epi64(w11, k!(75));
+        schedule[76] = _mm256_add_epi64(w12, k!(76));
+        schedule[77] = _mm256_add_epi64(w13, k!(77));
+        schedule[78] = _mm256_add_epi64(w14, k!(78));
+        schedule[79] = _mm256_add_epi64(w15, k!(79));
     }
-    schedule[64] = _mm256_add_epi64(w0, k!(64));
-    schedule[65] = _mm256_add_epi64(w1, k!(65));
-    schedule[66] = _mm256_add_epi64(w2, k!(66));
-    schedule[67] = _mm256_add_epi64(w3, k!(67));
-    schedule[68] = _mm256_add_epi64(w4, k!(68));
-    schedule[69] = _mm256_add_epi64(w5, k!(69));
-    schedule[70] = _mm256_add_epi64(w6, k!(70));
-    schedule[71] = _mm256_add_epi64(w7, k!(71));
-    schedule[72] = _mm256_add_epi64(w8, k!(72));
-    schedule[73] = _mm256_add_epi64(w9, k!(73));
-    schedule[74] = _mm256_add_epi64(w10, k!(74));
-    schedule[75] = _mm256_add_epi64(w11, k!(75));
-    schedule[76] = _mm256_add_epi64(w12, k!(76));
-    schedule[77] = _mm256_add_epi64(w13, k!(77));
-    schedule[78] = _mm256_add_epi64(w14, k!(78));
-    schedule[79] = _mm256_add_epi64(w15, k!(79));
 }
 
 macro_rules! round {
@@ -184,135 +194,137 @@ macro_rules! round {
 
 #[target_feature(enable = "avx,avx2,bmi2")]
 unsafe fn sha512_compress_4_blocks(state: &mut [u64; 8], block4: *const u64) {
-    let mut w = [_mm256_setzero_si256(); 80];
-    sha512_quad_message_schedule(&mut w, block4);
+    unsafe {
+        let mut w = [_mm256_setzero_si256(); 80];
+        sha512_quad_message_schedule(&mut w, block4);
 
-    // keep intermediate state in ymm registers to reduce scalar register
-    // pressure
-    let save_abcd = _mm256_loadu_si256(state.as_ptr().add(0).cast());
-    let save_efgh = _mm256_loadu_si256(state.as_ptr().add(4).cast());
+        // keep intermediate state in ymm registers to reduce scalar register
+        // pressure
+        let save_abcd = _mm256_loadu_si256(state.as_ptr().add(0).cast());
+        let save_efgh = _mm256_loadu_si256(state.as_ptr().add(4).cast());
 
-    // block 1
-    let mut a = _mm256_extract_epi64(save_abcd, 0) as u64;
-    let mut b = _mm256_extract_epi64(save_abcd, 1) as u64;
-    let mut c = _mm256_extract_epi64(save_abcd, 2) as u64;
-    let mut d = _mm256_extract_epi64(save_abcd, 3) as u64;
-    let mut e = _mm256_extract_epi64(save_efgh, 0) as u64;
-    let mut f = _mm256_extract_epi64(save_efgh, 1) as u64;
-    let mut g = _mm256_extract_epi64(save_efgh, 2) as u64;
-    let mut h = _mm256_extract_epi64(save_efgh, 3) as u64;
-    for w_t in w.chunks_exact(8) {
-        round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(w_t[0], 0));
-        round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(w_t[1], 0));
-        round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(w_t[2], 0));
-        round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(w_t[3], 0));
-        round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(w_t[4], 0));
-        round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(w_t[5], 0));
-        round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(w_t[6], 0));
-        round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(w_t[7], 0));
+        // block 1
+        let mut a = _mm256_extract_epi64(save_abcd, 0) as u64;
+        let mut b = _mm256_extract_epi64(save_abcd, 1) as u64;
+        let mut c = _mm256_extract_epi64(save_abcd, 2) as u64;
+        let mut d = _mm256_extract_epi64(save_abcd, 3) as u64;
+        let mut e = _mm256_extract_epi64(save_efgh, 0) as u64;
+        let mut f = _mm256_extract_epi64(save_efgh, 1) as u64;
+        let mut g = _mm256_extract_epi64(save_efgh, 2) as u64;
+        let mut h = _mm256_extract_epi64(save_efgh, 3) as u64;
+        for w_t in w.chunks_exact(8) {
+            round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(w_t[0], 0));
+            round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(w_t[1], 0));
+            round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(w_t[2], 0));
+            round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(w_t[3], 0));
+            round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(w_t[4], 0));
+            round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(w_t[5], 0));
+            round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(w_t[6], 0));
+            round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(w_t[7], 0));
+        }
+
+        let save_abcd = _mm256_add_epi64(
+            save_abcd,
+            _mm256_set_epi64x(d as i64, c as i64, b as i64, a as i64),
+        );
+        let save_efgh = _mm256_add_epi64(
+            save_efgh,
+            _mm256_set_epi64x(h as i64, g as i64, f as i64, e as i64),
+        );
+
+        // block 2
+        let mut a = _mm256_extract_epi64(save_abcd, 0) as u64;
+        let mut b = _mm256_extract_epi64(save_abcd, 1) as u64;
+        let mut c = _mm256_extract_epi64(save_abcd, 2) as u64;
+        let mut d = _mm256_extract_epi64(save_abcd, 3) as u64;
+        let mut e = _mm256_extract_epi64(save_efgh, 0) as u64;
+        let mut f = _mm256_extract_epi64(save_efgh, 1) as u64;
+        let mut g = _mm256_extract_epi64(save_efgh, 2) as u64;
+        let mut h = _mm256_extract_epi64(save_efgh, 3) as u64;
+
+        for w_t in w.chunks_exact(8) {
+            round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(w_t[0], 1));
+            round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(w_t[1], 1));
+            round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(w_t[2], 1));
+            round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(w_t[3], 1));
+            round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(w_t[4], 1));
+            round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(w_t[5], 1));
+            round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(w_t[6], 1));
+            round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(w_t[7], 1));
+        }
+
+        let save_abcd = _mm256_add_epi64(
+            save_abcd,
+            _mm256_set_epi64x(d as i64, c as i64, b as i64, a as i64),
+        );
+        let save_efgh = _mm256_add_epi64(
+            save_efgh,
+            _mm256_set_epi64x(h as i64, g as i64, f as i64, e as i64),
+        );
+
+        // block 3
+        let mut a = _mm256_extract_epi64(save_abcd, 0) as u64;
+        let mut b = _mm256_extract_epi64(save_abcd, 1) as u64;
+        let mut c = _mm256_extract_epi64(save_abcd, 2) as u64;
+        let mut d = _mm256_extract_epi64(save_abcd, 3) as u64;
+        let mut e = _mm256_extract_epi64(save_efgh, 0) as u64;
+        let mut f = _mm256_extract_epi64(save_efgh, 1) as u64;
+        let mut g = _mm256_extract_epi64(save_efgh, 2) as u64;
+        let mut h = _mm256_extract_epi64(save_efgh, 3) as u64;
+
+        for w_t in w.chunks_exact(8) {
+            round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(w_t[0], 2));
+            round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(w_t[1], 2));
+            round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(w_t[2], 2));
+            round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(w_t[3], 2));
+            round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(w_t[4], 2));
+            round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(w_t[5], 2));
+            round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(w_t[6], 2));
+            round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(w_t[7], 2));
+        }
+
+        let save_abcd = _mm256_add_epi64(
+            save_abcd,
+            _mm256_set_epi64x(d as i64, c as i64, b as i64, a as i64),
+        );
+        let save_efgh = _mm256_add_epi64(
+            save_efgh,
+            _mm256_set_epi64x(h as i64, g as i64, f as i64, e as i64),
+        );
+
+        // block 4
+        let mut a = _mm256_extract_epi64(save_abcd, 0) as u64;
+        let mut b = _mm256_extract_epi64(save_abcd, 1) as u64;
+        let mut c = _mm256_extract_epi64(save_abcd, 2) as u64;
+        let mut d = _mm256_extract_epi64(save_abcd, 3) as u64;
+        let mut e = _mm256_extract_epi64(save_efgh, 0) as u64;
+        let mut f = _mm256_extract_epi64(save_efgh, 1) as u64;
+        let mut g = _mm256_extract_epi64(save_efgh, 2) as u64;
+        let mut h = _mm256_extract_epi64(save_efgh, 3) as u64;
+
+        for w_t in w.chunks_exact(8) {
+            round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(w_t[0], 3));
+            round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(w_t[1], 3));
+            round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(w_t[2], 3));
+            round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(w_t[3], 3));
+            round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(w_t[4], 3));
+            round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(w_t[5], 3));
+            round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(w_t[6], 3));
+            round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(w_t[7], 3));
+        }
+
+        let save_abcd = _mm256_add_epi64(
+            save_abcd,
+            _mm256_set_epi64x(d as i64, c as i64, b as i64, a as i64),
+        );
+        let save_efgh = _mm256_add_epi64(
+            save_efgh,
+            _mm256_set_epi64x(h as i64, g as i64, f as i64, e as i64),
+        );
+
+        _mm256_storeu_si256(state.as_ptr().add(0) as *mut _, save_abcd);
+        _mm256_storeu_si256(state.as_ptr().add(4) as *mut _, save_efgh);
     }
-
-    let save_abcd = _mm256_add_epi64(
-        save_abcd,
-        _mm256_set_epi64x(d as i64, c as i64, b as i64, a as i64),
-    );
-    let save_efgh = _mm256_add_epi64(
-        save_efgh,
-        _mm256_set_epi64x(h as i64, g as i64, f as i64, e as i64),
-    );
-
-    // block 2
-    let mut a = _mm256_extract_epi64(save_abcd, 0) as u64;
-    let mut b = _mm256_extract_epi64(save_abcd, 1) as u64;
-    let mut c = _mm256_extract_epi64(save_abcd, 2) as u64;
-    let mut d = _mm256_extract_epi64(save_abcd, 3) as u64;
-    let mut e = _mm256_extract_epi64(save_efgh, 0) as u64;
-    let mut f = _mm256_extract_epi64(save_efgh, 1) as u64;
-    let mut g = _mm256_extract_epi64(save_efgh, 2) as u64;
-    let mut h = _mm256_extract_epi64(save_efgh, 3) as u64;
-
-    for w_t in w.chunks_exact(8) {
-        round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(w_t[0], 1));
-        round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(w_t[1], 1));
-        round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(w_t[2], 1));
-        round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(w_t[3], 1));
-        round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(w_t[4], 1));
-        round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(w_t[5], 1));
-        round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(w_t[6], 1));
-        round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(w_t[7], 1));
-    }
-
-    let save_abcd = _mm256_add_epi64(
-        save_abcd,
-        _mm256_set_epi64x(d as i64, c as i64, b as i64, a as i64),
-    );
-    let save_efgh = _mm256_add_epi64(
-        save_efgh,
-        _mm256_set_epi64x(h as i64, g as i64, f as i64, e as i64),
-    );
-
-    // block 3
-    let mut a = _mm256_extract_epi64(save_abcd, 0) as u64;
-    let mut b = _mm256_extract_epi64(save_abcd, 1) as u64;
-    let mut c = _mm256_extract_epi64(save_abcd, 2) as u64;
-    let mut d = _mm256_extract_epi64(save_abcd, 3) as u64;
-    let mut e = _mm256_extract_epi64(save_efgh, 0) as u64;
-    let mut f = _mm256_extract_epi64(save_efgh, 1) as u64;
-    let mut g = _mm256_extract_epi64(save_efgh, 2) as u64;
-    let mut h = _mm256_extract_epi64(save_efgh, 3) as u64;
-
-    for w_t in w.chunks_exact(8) {
-        round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(w_t[0], 2));
-        round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(w_t[1], 2));
-        round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(w_t[2], 2));
-        round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(w_t[3], 2));
-        round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(w_t[4], 2));
-        round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(w_t[5], 2));
-        round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(w_t[6], 2));
-        round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(w_t[7], 2));
-    }
-
-    let save_abcd = _mm256_add_epi64(
-        save_abcd,
-        _mm256_set_epi64x(d as i64, c as i64, b as i64, a as i64),
-    );
-    let save_efgh = _mm256_add_epi64(
-        save_efgh,
-        _mm256_set_epi64x(h as i64, g as i64, f as i64, e as i64),
-    );
-
-    // block 4
-    let mut a = _mm256_extract_epi64(save_abcd, 0) as u64;
-    let mut b = _mm256_extract_epi64(save_abcd, 1) as u64;
-    let mut c = _mm256_extract_epi64(save_abcd, 2) as u64;
-    let mut d = _mm256_extract_epi64(save_abcd, 3) as u64;
-    let mut e = _mm256_extract_epi64(save_efgh, 0) as u64;
-    let mut f = _mm256_extract_epi64(save_efgh, 1) as u64;
-    let mut g = _mm256_extract_epi64(save_efgh, 2) as u64;
-    let mut h = _mm256_extract_epi64(save_efgh, 3) as u64;
-
-    for w_t in w.chunks_exact(8) {
-        round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(w_t[0], 3));
-        round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(w_t[1], 3));
-        round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(w_t[2], 3));
-        round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(w_t[3], 3));
-        round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(w_t[4], 3));
-        round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(w_t[5], 3));
-        round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(w_t[6], 3));
-        round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(w_t[7], 3));
-    }
-
-    let save_abcd = _mm256_add_epi64(
-        save_abcd,
-        _mm256_set_epi64x(d as i64, c as i64, b as i64, a as i64),
-    );
-    let save_efgh = _mm256_add_epi64(
-        save_efgh,
-        _mm256_set_epi64x(h as i64, g as i64, f as i64, e as i64),
-    );
-
-    _mm256_storeu_si256(state.as_ptr().add(0) as *mut _, save_abcd);
-    _mm256_storeu_si256(state.as_ptr().add(4) as *mut _, save_efgh);
 }
 
 /// Reads 32 bytes of input from $block & byte swaps it
@@ -383,60 +395,62 @@ macro_rules! schedule {
 /// four rounds.
 #[target_feature(enable = "avx,avx2,bmi2")]
 unsafe fn sha512_compress_block(state: &mut [u64; 8], block: &[u8]) {
-    let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = *state;
-    let (w0_3, wk0_3) = input!(block, 0);
-    round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(wk0_3, 0));
-    round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(wk0_3, 1));
-    round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(wk0_3, 2));
-    round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(wk0_3, 3));
-    let (w4_7, wk4_7) = input!(block, 1);
-    round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(wk4_7, 0));
-    round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(wk4_7, 1));
-    round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(wk4_7, 2));
-    round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(wk4_7, 3));
-    let (w8_11, wk8_11) = input!(block, 2);
-    round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(wk8_11, 0));
-    round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(wk8_11, 1));
-    round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(wk8_11, 2));
-    round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(wk8_11, 3));
-    let (w12_15, wk12_15) = input!(block, 3);
-    round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(wk12_15, 0));
-    round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(wk12_15, 1));
-    round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(wk12_15, 2));
-    round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(wk12_15, 3));
+    unsafe {
+        let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = *state;
+        let (w0_3, wk0_3) = input!(block, 0);
+        round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(wk0_3, 0));
+        round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(wk0_3, 1));
+        round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(wk0_3, 2));
+        round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(wk0_3, 3));
+        let (w4_7, wk4_7) = input!(block, 1);
+        round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(wk4_7, 0));
+        round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(wk4_7, 1));
+        round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(wk4_7, 2));
+        round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(wk4_7, 3));
+        let (w8_11, wk8_11) = input!(block, 2);
+        round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(wk8_11, 0));
+        round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(wk8_11, 1));
+        round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(wk8_11, 2));
+        round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(wk8_11, 3));
+        let (w12_15, wk12_15) = input!(block, 3);
+        round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(wk12_15, 0));
+        round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(wk12_15, 1));
+        round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(wk12_15, 2));
+        round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(wk12_15, 3));
 
-    // window of 16 W values
-    let (mut wm4, mut wm3, mut wm2, mut wm1) = (w0_3, w4_7, w8_11, w12_15);
+        // window of 16 W values
+        let (mut wm4, mut wm3, mut wm2, mut wm1) = (w0_3, w4_7, w8_11, w12_15);
 
-    for t in (16..80).step_by(8) {
-        let k0 = _mm256_loadu_si256(K.as_ptr().add(t).cast());
-        let (w_t, wk_t) = schedule!(wm4, wm3, wm2, wm1, k0);
-        round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(wk_t, 0));
-        round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(wk_t, 1));
-        round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(wk_t, 2));
-        round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(wk_t, 3));
+        for t in (16..80).step_by(8) {
+            let k0 = _mm256_loadu_si256(K.as_ptr().add(t).cast());
+            let (w_t, wk_t) = schedule!(wm4, wm3, wm2, wm1, k0);
+            round!(a, b, c, d, e, f, g, h, _mm256_extract_epi64(wk_t, 0));
+            round!(h, a, b, c, d, e, f, g, _mm256_extract_epi64(wk_t, 1));
+            round!(g, h, a, b, c, d, e, f, _mm256_extract_epi64(wk_t, 2));
+            round!(f, g, h, a, b, c, d, e, _mm256_extract_epi64(wk_t, 3));
 
-        let k4 = _mm256_loadu_si256(K.as_ptr().add(t + 4).cast());
-        let (w_t1, wk_t1) = schedule!(wm3, wm2, wm1, w_t, k4);
-        round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(wk_t1, 0));
-        round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(wk_t1, 1));
-        round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(wk_t1, 2));
-        round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(wk_t1, 3));
+            let k4 = _mm256_loadu_si256(K.as_ptr().add(t + 4).cast());
+            let (w_t1, wk_t1) = schedule!(wm3, wm2, wm1, w_t, k4);
+            round!(e, f, g, h, a, b, c, d, _mm256_extract_epi64(wk_t1, 0));
+            round!(d, e, f, g, h, a, b, c, _mm256_extract_epi64(wk_t1, 1));
+            round!(c, d, e, f, g, h, a, b, _mm256_extract_epi64(wk_t1, 2));
+            round!(b, c, d, e, f, g, h, a, _mm256_extract_epi64(wk_t1, 3));
 
-        wm4 = wm2;
-        wm3 = wm1;
-        wm2 = w_t;
-        wm1 = w_t1;
+            wm4 = wm2;
+            wm3 = wm1;
+            wm2 = w_t;
+            wm1 = w_t1;
+        }
+
+        state[0] = state[0].wrapping_add(a);
+        state[1] = state[1].wrapping_add(b);
+        state[2] = state[2].wrapping_add(c);
+        state[3] = state[3].wrapping_add(d);
+        state[4] = state[4].wrapping_add(e);
+        state[5] = state[5].wrapping_add(f);
+        state[6] = state[6].wrapping_add(g);
+        state[7] = state[7].wrapping_add(h);
     }
-
-    state[0] = state[0].wrapping_add(a);
-    state[1] = state[1].wrapping_add(b);
-    state[2] = state[2].wrapping_add(c);
-    state[3] = state[3].wrapping_add(d);
-    state[4] = state[4].wrapping_add(e);
-    state[5] = state[5].wrapping_add(f);
-    state[6] = state[6].wrapping_add(g);
-    state[7] = state[7].wrapping_add(h);
 }
 
 pub(in crate::low) fn sha512_compress_blocks(state: &mut [u64; 8], blocks: &[u8]) {
