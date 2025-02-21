@@ -37,69 +37,71 @@ macro_rules! round {
 
 #[target_feature(enable = "neon,sha2")]
 unsafe fn sha256(state: &mut [u32; 8], blocks: &[u8]) {
-    let mut state0 = vld1q_u32(state[0..4].as_ptr());
-    let mut state1 = vld1q_u32(state[4..8].as_ptr());
+    unsafe {
+        let mut state0 = vld1q_u32(state[0..4].as_ptr());
+        let mut state1 = vld1q_u32(state[4..8].as_ptr());
 
-    let k0 = k!(0);
-    let k1 = k!(1);
-    let k2 = k!(2);
-    let k3 = k!(3);
-    let k4 = k!(4);
-    let k5 = k!(5);
-    let k6 = k!(6);
-    let k7 = k!(7);
-    let k8 = k!(8);
-    let k9 = k!(9);
-    let k10 = k!(10);
-    let k11 = k!(11);
-    let k12 = k!(12);
-    let k13 = k!(13);
-    let k14 = k!(14);
-    let k15 = k!(15);
+        let k0 = k!(0);
+        let k1 = k!(1);
+        let k2 = k!(2);
+        let k3 = k!(3);
+        let k4 = k!(4);
+        let k5 = k!(5);
+        let k6 = k!(6);
+        let k7 = k!(7);
+        let k8 = k!(8);
+        let k9 = k!(9);
+        let k10 = k!(10);
+        let k11 = k!(11);
+        let k12 = k!(12);
+        let k13 = k!(13);
+        let k14 = k!(14);
+        let k15 = k!(15);
 
-    for block in blocks.chunks_exact(64) {
-        let state0_prev = state0;
-        let state1_prev = state1;
+        for block in blocks.chunks_exact(64) {
+            let state0_prev = state0;
+            let state1_prev = state1;
 
-        // prefetch next block
-        cpu::prefetch_ro(block.as_ptr().add(64));
+            // prefetch next block
+            cpu::prefetch_ro(block.as_ptr().add(64));
 
-        let msg0 = vld1q_u32(block[0..].as_ptr() as *const _);
-        let msg1 = vld1q_u32(block[16..].as_ptr() as *const _);
-        let msg2 = vld1q_u32(block[32..].as_ptr() as *const _);
-        let msg3 = vld1q_u32(block[48..].as_ptr() as *const _);
+            let msg0 = vld1q_u32(block[0..].as_ptr() as *const _);
+            let msg1 = vld1q_u32(block[16..].as_ptr() as *const _);
+            let msg2 = vld1q_u32(block[32..].as_ptr() as *const _);
+            let msg3 = vld1q_u32(block[48..].as_ptr() as *const _);
 
-        let msg0 = vreinterpretq_u32_u8(vrev32q_u8(vreinterpretq_u8_u32(msg0)));
-        let msg1 = vreinterpretq_u32_u8(vrev32q_u8(vreinterpretq_u8_u32(msg1)));
-        let msg2 = vreinterpretq_u32_u8(vrev32q_u8(vreinterpretq_u8_u32(msg2)));
-        let msg3 = vreinterpretq_u32_u8(vrev32q_u8(vreinterpretq_u8_u32(msg3)));
+            let msg0 = vreinterpretq_u32_u8(vrev32q_u8(vreinterpretq_u8_u32(msg0)));
+            let msg1 = vreinterpretq_u32_u8(vrev32q_u8(vreinterpretq_u8_u32(msg1)));
+            let msg2 = vreinterpretq_u32_u8(vrev32q_u8(vreinterpretq_u8_u32(msg2)));
+            let msg3 = vreinterpretq_u32_u8(vrev32q_u8(vreinterpretq_u8_u32(msg3)));
 
-        round!(msg0, msg1, msg2, msg3, state0, state1, k0);
-        round!(msg1, msg2, msg3, msg0, state0, state1, k1);
-        round!(msg2, msg3, msg0, msg1, state0, state1, k2);
-        round!(msg3, msg0, msg1, msg2, state0, state1, k3);
+            round!(msg0, msg1, msg2, msg3, state0, state1, k0);
+            round!(msg1, msg2, msg3, msg0, state0, state1, k1);
+            round!(msg2, msg3, msg0, msg1, state0, state1, k2);
+            round!(msg3, msg0, msg1, msg2, state0, state1, k3);
 
-        round!(msg0, msg1, msg2, msg3, state0, state1, k4);
-        round!(msg1, msg2, msg3, msg0, state0, state1, k5);
-        round!(msg2, msg3, msg0, msg1, state0, state1, k6);
-        round!(msg3, msg0, msg1, msg2, state0, state1, k7);
+            round!(msg0, msg1, msg2, msg3, state0, state1, k4);
+            round!(msg1, msg2, msg3, msg0, state0, state1, k5);
+            round!(msg2, msg3, msg0, msg1, state0, state1, k6);
+            round!(msg3, msg0, msg1, msg2, state0, state1, k7);
 
-        round!(msg0, msg1, msg2, msg3, state0, state1, k8);
-        round!(msg1, msg2, msg3, msg0, state0, state1, k9);
-        round!(msg2, msg3, msg0, msg1, state0, state1, k10);
-        round!(msg3, msg0, msg1, msg2, state0, state1, k11);
+            round!(msg0, msg1, msg2, msg3, state0, state1, k8);
+            round!(msg1, msg2, msg3, msg0, state0, state1, k9);
+            round!(msg2, msg3, msg0, msg1, state0, state1, k10);
+            round!(msg3, msg0, msg1, msg2, state0, state1, k11);
 
-        round!(msg0, state0, state1, k12);
-        round!(msg1, state0, state1, k13);
-        round!(msg2, state0, state1, k14);
-        round!(msg3, state0, state1, k15);
+            round!(msg0, state0, state1, k12);
+            round!(msg1, state0, state1, k13);
+            round!(msg2, state0, state1, k14);
+            round!(msg3, state0, state1, k15);
 
-        state0 = vaddq_u32(state0, state0_prev);
-        state1 = vaddq_u32(state1, state1_prev);
+            state0 = vaddq_u32(state0, state0_prev);
+            state1 = vaddq_u32(state1, state1_prev);
+        }
+
+        vst1q_u32(state[0..4].as_mut_ptr(), state0);
+        vst1q_u32(state[4..8].as_mut_ptr(), state1);
     }
-
-    vst1q_u32(state[0..4].as_mut_ptr(), state0);
-    vst1q_u32(state[4..8].as_mut_ptr(), state1);
 }
 
 #[repr(align(16))]

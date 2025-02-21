@@ -43,76 +43,78 @@ macro_rules! round {
 
 #[target_feature(enable = "sha,sse4.1,ssse3")]
 unsafe fn sha256(state: &mut [u32; 8], blocks: &[u8]) {
-    let little_endian_shuffle = _mm_set_epi64x(0x0c0d0e0f08090a0b, 0x0405060700010203);
+    unsafe {
+        let little_endian_shuffle = _mm_set_epi64x(0x0c0d0e0f08090a0b, 0x0405060700010203);
 
-    let state0 = _mm_loadu_si128(state[0..4].as_ptr() as *const _);
-    let state1 = _mm_loadu_si128(state[4..8].as_ptr() as *const _);
+        let state0 = _mm_loadu_si128(state[0..4].as_ptr() as *const _);
+        let state1 = _mm_loadu_si128(state[4..8].as_ptr() as *const _);
 
-    let tmp = _mm_shuffle_epi32(state0, 0b10_11_00_01);
-    let state1 = _mm_shuffle_epi32(state1, 0b00_01_10_11);
-    let mut state0 = _mm_alignr_epi8(tmp, state1, 8);
-    let mut state1 = _mm_blend_epi16(state1, tmp, 0xf0);
+        let tmp = _mm_shuffle_epi32(state0, 0b10_11_00_01);
+        let state1 = _mm_shuffle_epi32(state1, 0b00_01_10_11);
+        let mut state0 = _mm_alignr_epi8(tmp, state1, 8);
+        let mut state1 = _mm_blend_epi16(state1, tmp, 0xf0);
 
-    let k0 = k!(0);
-    let k1 = k!(1);
-    let k2 = k!(2);
-    let k3 = k!(3);
-    let k4 = k!(4);
-    let k5 = k!(5);
-    let k6 = k!(6);
-    let k7 = k!(7);
-    let k8 = k!(8);
-    let k9 = k!(9);
-    let k10 = k!(10);
-    let k11 = k!(11);
-    let k12 = k!(12);
-    let k13 = k!(13);
-    let k14 = k!(14);
-    let k15 = k!(15);
+        let k0 = k!(0);
+        let k1 = k!(1);
+        let k2 = k!(2);
+        let k3 = k!(3);
+        let k4 = k!(4);
+        let k5 = k!(5);
+        let k6 = k!(6);
+        let k7 = k!(7);
+        let k8 = k!(8);
+        let k9 = k!(9);
+        let k10 = k!(10);
+        let k11 = k!(11);
+        let k12 = k!(12);
+        let k13 = k!(13);
+        let k14 = k!(14);
+        let k15 = k!(15);
 
-    for block in blocks.chunks_exact(64) {
-        let state0_prev = state0;
-        let state1_prev = state1;
+        for block in blocks.chunks_exact(64) {
+            let state0_prev = state0;
+            let state1_prev = state1;
 
-        let msg0 = _mm_loadu_si128(block[0..].as_ptr() as *const _);
-        let msg0 = _mm_shuffle_epi8(msg0, little_endian_shuffle);
-        let msg1 = _mm_loadu_si128(block[16..].as_ptr() as *const _);
-        let msg1 = _mm_shuffle_epi8(msg1, little_endian_shuffle);
-        let msg2 = _mm_loadu_si128(block[32..].as_ptr() as *const _);
-        let msg2 = _mm_shuffle_epi8(msg2, little_endian_shuffle);
-        let msg3 = _mm_loadu_si128(block[48..].as_ptr() as *const _);
-        let msg3 = _mm_shuffle_epi8(msg3, little_endian_shuffle);
+            let msg0 = _mm_loadu_si128(block[0..].as_ptr() as *const _);
+            let msg0 = _mm_shuffle_epi8(msg0, little_endian_shuffle);
+            let msg1 = _mm_loadu_si128(block[16..].as_ptr() as *const _);
+            let msg1 = _mm_shuffle_epi8(msg1, little_endian_shuffle);
+            let msg2 = _mm_loadu_si128(block[32..].as_ptr() as *const _);
+            let msg2 = _mm_shuffle_epi8(msg2, little_endian_shuffle);
+            let msg3 = _mm_loadu_si128(block[48..].as_ptr() as *const _);
+            let msg3 = _mm_shuffle_epi8(msg3, little_endian_shuffle);
 
-        round!(msg0, state0, state1, k0);
-        round!(msg1, msg0, state0, state1, k1);
-        round!(msg2, msg1, state0, state1, k2);
-        round!(msg3, msg2, msg0, state0, state1, k3);
-        round!(msg0, msg3, msg1, state0, state1, k4);
-        round!(msg1, msg0, msg2, state0, state1, k5);
-        round!(msg2, msg1, msg3, state0, state1, k6);
-        round!(msg3, msg2, msg0, state0, state1, k7);
-        round!(msg0, msg3, msg1, state0, state1, k8);
-        round!(msg1, msg0, msg2, state0, state1, k9);
-        round!(msg2, msg1, msg3, state0, state1, k10);
-        round!(msg3, msg2, msg0, state0, state1, k11);
-        round!(msg0, msg3, msg1, state0, state1, k12);
-        round!(msg1, msg0, msg2, state0, state1, k13);
-        round!(msg2, msg1, msg3, state0, state1, k14);
-        round!(msg3, state0, state1, k15);
-        let _ = msg1;
-        let _ = msg0;
+            round!(msg0, state0, state1, k0);
+            round!(msg1, msg0, state0, state1, k1);
+            round!(msg2, msg1, state0, state1, k2);
+            round!(msg3, msg2, msg0, state0, state1, k3);
+            round!(msg0, msg3, msg1, state0, state1, k4);
+            round!(msg1, msg0, msg2, state0, state1, k5);
+            round!(msg2, msg1, msg3, state0, state1, k6);
+            round!(msg3, msg2, msg0, state0, state1, k7);
+            round!(msg0, msg3, msg1, state0, state1, k8);
+            round!(msg1, msg0, msg2, state0, state1, k9);
+            round!(msg2, msg1, msg3, state0, state1, k10);
+            round!(msg3, msg2, msg0, state0, state1, k11);
+            round!(msg0, msg3, msg1, state0, state1, k12);
+            round!(msg1, msg0, msg2, state0, state1, k13);
+            round!(msg2, msg1, msg3, state0, state1, k14);
+            round!(msg3, state0, state1, k15);
+            let _ = msg1;
+            let _ = msg0;
 
-        state0 = _mm_add_epi32(state0, state0_prev);
-        state1 = _mm_add_epi32(state1, state1_prev);
+            state0 = _mm_add_epi32(state0, state0_prev);
+            state1 = _mm_add_epi32(state1, state1_prev);
+        }
+
+        let tmp = _mm_shuffle_epi32(state0, 0b00_01_10_11);
+        let state1 = _mm_shuffle_epi32(state1, 0b10_11_00_01);
+        let state0 = _mm_blend_epi16(tmp, state1, 0xf0);
+        let state1 = _mm_alignr_epi8(state1, tmp, 8);
+
+        _mm_storeu_si128(state[0..4].as_mut_ptr() as *mut _, state0);
+        _mm_storeu_si128(state[4..8].as_mut_ptr() as *mut _, state1);
     }
-
-    let tmp = _mm_shuffle_epi32(state0, 0b00_01_10_11);
-    let state1 = _mm_shuffle_epi32(state1, 0b10_11_00_01);
-    let state0 = _mm_blend_epi16(tmp, state1, 0xf0);
-    let state1 = _mm_alignr_epi8(state1, tmp, 8);
-
-    _mm_storeu_si128(state[0..4].as_mut_ptr() as *mut _, state0);
-    _mm_storeu_si128(state[4..8].as_mut_ptr() as *mut _, state1);
 }
 
 #[repr(align(16))]

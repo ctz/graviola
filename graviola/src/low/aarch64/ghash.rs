@@ -197,10 +197,12 @@ macro_rules! reduce {
 
 #[target_feature(enable = "neon,aes")]
 unsafe fn _mul(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
-    let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
-    let bx = xor_halves(b);
-    mul!(lo, mi, hi, a, b, bx);
-    reduce!(lo, mi, hi)
+    unsafe {
+        let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
+        let bx = xor_halves(b);
+        mul!(lo, mi, hi, a, b, bx);
+        reduce!(lo, mi, hi)
+    }
 }
 
 #[target_feature(enable = "neon,aes")]
@@ -215,43 +217,49 @@ unsafe fn _mul8(
     g: uint64x2_t,
     h: uint64x2_t,
 ) -> uint64x2_t {
-    let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
-    mul!(lo, mi, hi, a, table.powers[7], table.powers_xor[7]);
-    mul!(lo, mi, hi, b, table.powers[6], table.powers_xor[6]);
-    mul!(lo, mi, hi, c, table.powers[5], table.powers_xor[5]);
-    mul!(lo, mi, hi, d, table.powers[4], table.powers_xor[4]);
-    mul!(lo, mi, hi, e, table.powers[3], table.powers_xor[3]);
-    mul!(lo, mi, hi, f, table.powers[2], table.powers_xor[2]);
-    mul!(lo, mi, hi, g, table.powers[1], table.powers_xor[1]);
-    mul!(lo, mi, hi, h, table.powers[0], table.powers_xor[0]);
-    reduce!(lo, mi, hi)
+    unsafe {
+        let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
+        mul!(lo, mi, hi, a, table.powers[7], table.powers_xor[7]);
+        mul!(lo, mi, hi, b, table.powers[6], table.powers_xor[6]);
+        mul!(lo, mi, hi, c, table.powers[5], table.powers_xor[5]);
+        mul!(lo, mi, hi, d, table.powers[4], table.powers_xor[4]);
+        mul!(lo, mi, hi, e, table.powers[3], table.powers_xor[3]);
+        mul!(lo, mi, hi, f, table.powers[2], table.powers_xor[2]);
+        mul!(lo, mi, hi, g, table.powers[1], table.powers_xor[1]);
+        mul!(lo, mi, hi, h, table.powers[0], table.powers_xor[0]);
+        reduce!(lo, mi, hi)
+    }
 }
 
 #[target_feature(enable = "neon")]
 unsafe fn xor_halves(h: uint64x2_t) -> uint64x2_t {
-    let hx = vextq_u64(h, h, 1);
-    veorq_u64(hx, h)
+    unsafe {
+        let hx = vextq_u64(h, h, 1);
+        veorq_u64(hx, h)
+    }
 }
 
 #[target_feature(enable = "neon")]
 unsafe fn gf128_big_endian(h: uint64x2_t) -> uint64x2_t {
-    // takes a raw hash subkey, and arranges that it can
-    // be used in big endian ordering.
-    let t = vreinterpretq_s32_u64(h);
-    let (a, c, d) = (
-        vgetq_lane_s32::<3>(t),
-        vgetq_lane_s32::<1>(t),
-        vgetq_lane_s32::<0>(t),
-    );
-    let t = vsetq_lane_s32(a, t, 3);
-    let t = vsetq_lane_s32(c, t, 2);
-    let t = vsetq_lane_s32(d, t, 1);
-    let t = vsetq_lane_s32(a, t, 0);
+    unsafe {
+        // takes a raw hash subkey, and arranges that it can
+        // be used in big endian ordering.
+        let t = vreinterpretq_s32_u64(h);
+        let (a, c, d) = (
+            vgetq_lane_s32::<3>(t),
+            vgetq_lane_s32::<1>(t),
+            vgetq_lane_s32::<0>(t),
+        );
+        let t = vsetq_lane_s32(a, t, 3);
+        let t = vsetq_lane_s32(c, t, 2);
+        let t = vsetq_lane_s32(d, t, 1);
+        let t = vsetq_lane_s32(a, t, 0);
 
-    let t = vreinterpretq_u64_s32(vshrq_n_s32(t, 31));
-    let h = vaddq_u64(h, h);
-    let t = vandq_u64(GF128_POLY_CARRY_MASK, t);
-    veorq_u64(h, t)
+        let t = vreinterpretq_u64_s32(vshrq_n_s32(t, 31));
+        let h = vaddq_u64(h, h);
+        let t = vandq_u64(GF128_POLY_CARRY_MASK, t);
+        veorq_u64(h, t)
+    }
 }
 
 // the intrinsics exist, but have the wrong types :(
@@ -259,17 +267,21 @@ unsafe fn gf128_big_endian(h: uint64x2_t) -> uint64x2_t {
 #[inline]
 #[target_feature(enable = "neon,aes")]
 unsafe fn vmull_p64_fix(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
-    let a = vgetq_lane_u64::<0>(a);
-    let b = vgetq_lane_u64::<0>(b);
-    mem::transmute(vmull_p64(a, b))
+    unsafe {
+        let a = vgetq_lane_u64::<0>(a);
+        let b = vgetq_lane_u64::<0>(b);
+        mem::transmute(vmull_p64(a, b))
+    }
 }
 
 #[inline]
 #[target_feature(enable = "neon,aes")]
 unsafe fn vmull_high_p64_fix(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
-    let a = vgetq_lane_u64::<1>(a);
-    let b = vgetq_lane_u64::<1>(b);
-    mem::transmute(vmull_p64(a, b))
+    unsafe {
+        let a = vgetq_lane_u64::<1>(a);
+        let b = vgetq_lane_u64::<1>(b);
+        mem::transmute(vmull_p64(a, b))
+    }
 }
 
 #[inline]

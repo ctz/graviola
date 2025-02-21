@@ -154,7 +154,7 @@ mod tests {
     }
 
     #[test]
-    fn gen() {
+    fn make_generator() {
         let g = make_ticket_generator().unwrap();
         assert!(g.enabled());
         assert_eq!(g.lifetime(), ONE_TICKET_LIFETIME_SECS);

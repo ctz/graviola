@@ -67,9 +67,9 @@ impl XChaCha20 {
 
 fn core(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 64]) {
     let [mut z0, mut z1, mut z2, mut z3] = SIGMA;
-    let [mut z4, mut z5, mut z6, mut z7] = key0;
-    let [mut z8, mut z9, mut za, mut zb] = key1;
-    let [mut zc, mut zd, mut ze, mut zf] = nonce;
+    let &[mut z4, mut z5, mut z6, mut z7] = key0;
+    let &[mut z8, mut z9, mut za, mut zb] = key1;
+    let &[mut zc, mut zd, mut ze, mut zf] = nonce;
 
     let (x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, xa, xb, xc, xd, xe, xf) = (
         z0, z1, z2, z3, z4, z5, z6, z7, z8, z9, za, zb, zc, zd, ze, zf,
@@ -136,9 +136,9 @@ fn core(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 64]) 
 
 fn hchacha(key0: &mut [u32; 4], key1: &mut [u32; 4], nonce: &[u32; 4]) {
     let [mut z0, mut z1, mut z2, mut z3] = SIGMA;
-    let [mut z4, mut z5, mut z6, mut z7] = key0;
-    let [mut z8, mut z9, mut za, mut zb] = key1;
-    let [mut zc, mut zd, mut ze, mut zf] = nonce;
+    let &mut [mut z4, mut z5, mut z6, mut z7] = key0;
+    let &mut [mut z8, mut z9, mut za, mut zb] = key1;
+    let &[mut zc, mut zd, mut ze, mut zf] = nonce;
 
     macro_rules! quarter {
         ($a:ident, $b:ident, $c:ident, $d:ident) => {
