@@ -1,5 +1,5 @@
 mod criterion;
-use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
 fn test_ring_aes_gcm(key: &ring::aead::LessSafeKey, nonce: &[u8; 12], aad: &[u8], plain: &[u8]) {
     let mut ct = plain.to_vec();
@@ -57,7 +57,7 @@ fn aes128_gcm(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(size as u64));
 
         group.bench_with_input(BenchmarkId::new("ring", size_name), &input, |b, input| {
-            use ring::aead::{LessSafeKey, UnboundKey, AES_128_GCM};
+            use ring::aead::{AES_128_GCM, LessSafeKey, UnboundKey};
             let key = UnboundKey::new(&AES_128_GCM, &key).unwrap();
             let key = LessSafeKey::new(key);
             b.iter(|| test_ring_aes_gcm(&key, &nonce, &aad, input));
@@ -66,7 +66,7 @@ fn aes128_gcm(c: &mut Criterion) {
             BenchmarkId::new("aws-lc-rs", size_name),
             &input,
             |b, input| {
-                use aws_lc_rs::aead::{LessSafeKey, UnboundKey, AES_128_GCM};
+                use aws_lc_rs::aead::{AES_128_GCM, LessSafeKey, UnboundKey};
                 let key = UnboundKey::new(&AES_128_GCM, &key).unwrap();
                 let key = LessSafeKey::new(key);
                 b.iter(|| test_aws_aes_gcm(&key, &nonce, &aad, input));
@@ -103,7 +103,7 @@ fn aes256_gcm(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(size as u64));
 
         group.bench_with_input(BenchmarkId::new("ring", size_name), &input, |b, input| {
-            use ring::aead::{LessSafeKey, UnboundKey, AES_256_GCM};
+            use ring::aead::{AES_256_GCM, LessSafeKey, UnboundKey};
             let key = UnboundKey::new(&AES_256_GCM, &key).unwrap();
             let key = LessSafeKey::new(key);
             b.iter(|| test_ring_aes_gcm(&key, &nonce, &aad, input));
@@ -112,7 +112,7 @@ fn aes256_gcm(c: &mut Criterion) {
             BenchmarkId::new("aws-lc-rs", size_name),
             &input,
             |b, input| {
-                use aws_lc_rs::aead::{LessSafeKey, UnboundKey, AES_256_GCM};
+                use aws_lc_rs::aead::{AES_256_GCM, LessSafeKey, UnboundKey};
                 let key = UnboundKey::new(&AES_256_GCM, &key).unwrap();
                 let key = LessSafeKey::new(key);
                 b.iter(|| test_aws_aes_gcm(&key, &nonce, &aad, input));

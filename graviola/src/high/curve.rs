@@ -1,11 +1,11 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use crate::Error;
 use crate::high::asn1;
 use crate::mid::p256;
 use crate::mid::p384;
 use crate::mid::rng::RandomSource;
-use crate::Error;
 
 /// A generalisation of elliptic curves for use with ECDSA.
 pub trait Curve: private::Sealed {

@@ -1,10 +1,10 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use crate::Error;
 use crate::low::chacha20::XChaCha20;
 use crate::low::poly1305::Poly1305;
-use crate::low::{ct_equal, zeroise, Entry};
-use crate::Error;
+use crate::low::{Entry, ct_equal, zeroise};
 
 /// A XChaCha20Poly1305 key.
 ///

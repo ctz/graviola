@@ -1,5 +1,5 @@
 mod criterion;
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
 use sha2::Digest;
 
 fn test_ring_sha256(data: &[u8]) {

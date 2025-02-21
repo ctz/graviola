@@ -1,5 +1,5 @@
 mod criterion;
-use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
+use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
 
 fn rsa2048_pkcs1_sha256_sign(c: &mut Criterion) {
     let private_key = include_bytes!("../../graviola/src/high/rsa/rsa2048.der");

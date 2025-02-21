@@ -3,7 +3,7 @@
 
 use super::util;
 use crate::mid::rng::{RandomSource, SystemRandom};
-use crate::{low, Error};
+use crate::{Error, low};
 
 /// An X25519 ephemeral private key.
 ///
@@ -99,7 +99,7 @@ impl StaticPrivateKey {
     /// Extract the bytes of this private key.
     pub fn as_bytes(&self) -> [u8; Self::BYTES] {
         let _entry = low::Entry::new_secret();
-        util::u64x4_to_little_endian(&self.0 .0)
+        util::u64x4_to_little_endian(&self.0.0)
     }
 
     /// Generate a new key using the system random number generator.
@@ -127,7 +127,7 @@ impl StaticPrivateKey {
     /// for rationale behind this check.
     pub fn diffie_hellman(&self, peer: &PublicKey) -> Result<SharedSecret, Error> {
         let _entry = low::Entry::new_secret();
-        PrivateKey(self.0 .0).diffie_hellman(peer)
+        PrivateKey(self.0.0).diffie_hellman(peer)
     }
 }
 
