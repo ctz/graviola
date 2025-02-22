@@ -1,7 +1,7 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
-use super::rsa_pub::{RsaPublicKey, MAX_PUBLIC_MODULUS_BYTES};
+use super::rsa_pub::{MAX_PUBLIC_MODULUS_BYTES, RsaPublicKey};
 use crate::error::Error;
 use crate::low;
 

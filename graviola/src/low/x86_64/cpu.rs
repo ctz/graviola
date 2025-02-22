@@ -52,30 +52,32 @@ pub(in crate::low) fn zero_bytes(ptr: *mut u8, len: usize) {
 
 #[target_feature(enable = "avx")]
 unsafe fn _zero_bytes(ptr: *mut u8, len: usize) {
-    // SAFETY: writes to `len` bytes at `ptr`, which the caller guarantees
-    core::arch::asm!(
-        "       vpxor   {zero}, {zero}, {zero}",
-        // by-32 loop
-        "   2:  cmp {len}, 32",
-        "       jl  3f",
-        "       vmovdqu [{ptr}], {zero}",
-        "       add {ptr}, 32",
-        "       sub {len}, 32",
-        "       jmp 2b",
-        // by-1 loop
-        "   3:  sub {len}, 1",
-        "       jl  4f",
-        "       mov byte ptr [{ptr}], 0",
-        "       add {ptr}, 1",
-        "       jmp 3b",
-        "   4:  ",
+    unsafe {
+        // SAFETY: writes to `len` bytes at `ptr`, which the caller guarantees
+        core::arch::asm!(
+            "       vpxor   {zero}, {zero}, {zero}",
+            // by-32 loop
+            "   2:  cmp {len}, 32",
+            "       jl  3f",
+            "       vmovdqu [{ptr}], {zero}",
+            "       add {ptr}, 32",
+            "       sub {len}, 32",
+            "       jmp 2b",
+            // by-1 loop
+            "   3:  sub {len}, 1",
+            "       jl  4f",
+            "       mov byte ptr [{ptr}], 0",
+            "       add {ptr}, 1",
+            "       jmp 3b",
+            "   4:  ",
 
-        ptr = inout(reg) ptr => _,
-        len = inout(reg) len => _,
+            ptr = inout(reg) ptr => _,
+            len = inout(reg) len => _,
 
-        // clobbers
-        zero = out(ymm_reg) _,
-    )
+            // clobbers
+            zero = out(ymm_reg) _,
+        )
+    }
 }
 
 /// Effectively memcmp(a, b, len), but guaranteed to visit every element
@@ -87,25 +89,27 @@ unsafe fn _zero_bytes(ptr: *mut u8, len: usize) {
 /// # Safety
 /// The caller must ensure that there are `len` bytes readable at `a` and `b`,
 pub(in crate::low) unsafe fn ct_compare_bytes(a: *const u8, b: *const u8, len: usize) -> u8 {
-    let mut acc = 0u8;
-    core::arch::asm!(
-        "   2: cmp {len}, 0",
-        "      je  3f",
-        "      mov {tmp}, [{a}]",
-        "      xor {tmp}, [{b}]",
-        "      or  {acc}, {tmp}",
-        "      add {a}, 1",
-        "      add {b}, 1",
-        "      sub {len}, 1",
-        "      jmp 2b",
-        "   3:  ",
-        a = inout(reg) a => _,
-        b = inout(reg) b => _,
-        len = inout(reg) len => _,
-        tmp = inout(reg_byte) 0u8 => _,
-        acc = inout(reg_byte) acc,
-    );
-    acc
+    unsafe {
+        let mut acc = 0u8;
+        core::arch::asm!(
+            "   2: cmp {len}, 0",
+            "      je  3f",
+            "      mov {tmp}, [{a}]",
+            "      xor {tmp}, [{b}]",
+            "      or  {acc}, {tmp}",
+            "      add {a}, 1",
+            "      add {b}, 1",
+            "      sub {len}, 1",
+            "      jmp 2b",
+            "   3:  ",
+            a = inout(reg) a => _,
+            b = inout(reg) b => _,
+            len = inout(reg) len => _,
+            tmp = inout(reg_byte) 0u8 => _,
+            acc = inout(reg_byte) acc,
+        );
+        acc
+    }
 }
 
 /// This macro interdicts is_x86_feature_detected to

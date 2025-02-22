@@ -3,13 +3,13 @@
 
 use super::asn1::{self, Type};
 use super::curve::{
-    Curve, PrivateKey, PublicKey, Scalar, MAX_SCALAR_LEN, MAX_UNCOMPRESSED_PUBLIC_KEY_LEN,
+    Curve, MAX_SCALAR_LEN, MAX_UNCOMPRESSED_PUBLIC_KEY_LEN, PrivateKey, PublicKey, Scalar,
 };
 use super::hash::{Hash, HashContext};
 use super::hmac_drbg::HmacDrbg;
 use super::pkcs8;
 use crate::error::{Error, KeyFormatError};
-use crate::low::{zeroise, Entry};
+use crate::low::{Entry, zeroise};
 use crate::mid::rng::{RandomSource, SystemRandom};
 
 /// An ECDSA signing key, on curve `C`.
