@@ -24,6 +24,7 @@ pub(crate) fn bignum_jac_point_select_p256(z: &mut [u64; 12], table: &[u64], ind
 
 #[target_feature(enable = "avx,avx2")]
 unsafe fn _select_aff_p256(z: &mut [u64; 8], table: &[u64], index: u8) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         // SAFETY: prefetches do not fault and are not architecturally visible
         _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
@@ -61,6 +62,7 @@ unsafe fn _select_aff_p256(z: &mut [u64; 8], table: &[u64], index: u8) {
 
 #[target_feature(enable = "avx,avx2")]
 unsafe fn _select_jac_p256(z: &mut [u64; 12], table: &[u64], index: u8) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         // SAFETY: prefetches do not fault and are not architecturally visible
         _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);

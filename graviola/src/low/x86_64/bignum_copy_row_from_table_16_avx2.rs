@@ -18,6 +18,7 @@ pub(crate) fn bignum_copy_row_from_table_16_avx2(
 
 #[target_feature(enable = "avx,avx2")]
 unsafe fn _bignum_copy_row_from_table_16_avx2(z: &mut [u64], table: &[u64], index: u64) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         // SAFETY: prefetches do not fault and are not architecturally visible
         _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
@@ -41,7 +42,7 @@ unsafe fn _bignum_copy_row_from_table_16_avx2(z: &mut [u64], table: &[u64], inde
             let mask = _mm256_cmpeq_epi64(index, desired_index);
             index = _mm256_add_epi64(index, ones);
 
-            // SAFETY: `row` is exactly 16 words; `loadu` does relaxes 256-bit alignment req.
+            // SAFETY: `row` is exactly 16 words; `loadu` relaxes 256-bit alignment req.
             let row0 = _mm256_loadu_si256(row.as_ptr().add(0).cast());
             let row1 = _mm256_loadu_si256(row.as_ptr().add(4).cast());
             let row2 = _mm256_loadu_si256(row.as_ptr().add(8).cast());

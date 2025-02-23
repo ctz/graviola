@@ -20,9 +20,11 @@ fn maj(x: u64, y: u64, z: u64) -> u64 {
 
 #[inline]
 unsafe fn bsig0(x: u64) -> u64 {
+    // equiv. x.rotate_right(28) ^ x.rotate_right(34) ^ x.rotate_right(39)
+    let mut ret;
+
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
-        // equiv. x.rotate_right(28) ^ x.rotate_right(34) ^ x.rotate_right(39)
-        let mut ret;
         core::arch::asm!(
             "  rorx {t}, {x}, 28",
             "  rorx {r}, {x}, 34",
@@ -34,15 +36,16 @@ unsafe fn bsig0(x: u64) -> u64 {
             t = out(reg) _,
             options(nostack, nomem, pure),
         );
-        ret
     }
+    ret
 }
 
 #[inline]
 unsafe fn bsig1(x: u64) -> u64 {
+    // equiv. x.rotate_right(14) ^ x.rotate_right(18) ^ x.rotate_right(41)
+    let mut ret;
+    // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
-        // equiv. x.rotate_right(14) ^ x.rotate_right(18) ^ x.rotate_right(41)
-        let mut ret;
         core::arch::asm!(
             "  rorx {t}, {x}, 14",
             "  rorx {r}, {x}, 18",
@@ -54,13 +57,14 @@ unsafe fn bsig1(x: u64) -> u64 {
             t = out(reg) _,
             options(nostack, nomem, pure),
         );
-        ret
     }
+    ret
 }
 
 #[inline]
 #[target_feature(enable = "avx,avx2")]
 unsafe fn sigma_0(w: __m256i) -> __m256i {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         _mm256_xor_si256(
             _mm256_xor_si256(
@@ -75,6 +79,7 @@ unsafe fn sigma_0(w: __m256i) -> __m256i {
 #[inline]
 #[target_feature(enable = "avx,avx2")]
 unsafe fn sigma_1(w: __m256i) -> __m256i {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         _mm256_xor_si256(
             _mm256_xor_si256(
@@ -107,6 +112,7 @@ macro_rules! schedule_round {
 
 #[target_feature(enable = "avx,avx2,bmi2")]
 unsafe fn sha512_quad_message_schedule(schedule: &mut [__m256i; 80], message: *const u64) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let gather_mask = _mm256_setr_epi64x(0, 16, 32, 48);
         let mut w0 = _mm256_i64gather_epi64(message.add(0).cast(), gather_mask, 8);
@@ -194,6 +200,7 @@ macro_rules! round {
 
 #[target_feature(enable = "avx,avx2,bmi2")]
 unsafe fn sha512_compress_4_blocks(state: &mut [u64; 8], block4: *const u64) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let mut w = [_mm256_setzero_si256(); 80];
         sha512_quad_message_schedule(&mut w, block4);
@@ -395,6 +402,7 @@ macro_rules! schedule {
 /// four rounds.
 #[target_feature(enable = "avx,avx2,bmi2")]
 unsafe fn sha512_compress_block(state: &mut [u64; 8], block: &[u8]) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = *state;
         let (w0_3, wk0_3) = input!(block, 0);

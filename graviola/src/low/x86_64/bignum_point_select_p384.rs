@@ -13,6 +13,7 @@ pub(crate) fn bignum_jac_point_select_p384(z: &mut [u64; 18], table: &[u64], ind
 
 #[target_feature(enable = "avx,avx2")]
 unsafe fn _select_jac_p384(z: &mut [u64; 18], table: &[u64], index: u8) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
         _mm_prefetch(table.as_ptr().add(16).cast(), _MM_HINT_T0);

@@ -197,6 +197,7 @@ macro_rules! reduce {
 
 #[target_feature(enable = "neon,aes")]
 unsafe fn _mul(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
         let bx = xor_halves(b);
@@ -217,6 +218,7 @@ unsafe fn _mul8(
     g: uint64x2_t,
     h: uint64x2_t,
 ) -> uint64x2_t {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
         mul!(lo, mi, hi, a, table.powers[7], table.powers_xor[7]);
@@ -233,6 +235,7 @@ unsafe fn _mul8(
 
 #[target_feature(enable = "neon")]
 unsafe fn xor_halves(h: uint64x2_t) -> uint64x2_t {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let hx = vextq_u64(h, h, 1);
         veorq_u64(hx, h)
@@ -241,6 +244,7 @@ unsafe fn xor_halves(h: uint64x2_t) -> uint64x2_t {
 
 #[target_feature(enable = "neon")]
 unsafe fn gf128_big_endian(h: uint64x2_t) -> uint64x2_t {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         // takes a raw hash subkey, and arranges that it can
         // be used in big endian ordering.
@@ -267,6 +271,7 @@ unsafe fn gf128_big_endian(h: uint64x2_t) -> uint64x2_t {
 #[inline]
 #[target_feature(enable = "neon,aes")]
 unsafe fn vmull_p64_fix(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let a = vgetq_lane_u64::<0>(a);
         let b = vgetq_lane_u64::<0>(b);
@@ -277,6 +282,7 @@ unsafe fn vmull_p64_fix(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
 #[inline]
 #[target_feature(enable = "neon,aes")]
 unsafe fn vmull_high_p64_fix(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let a = vgetq_lane_u64::<1>(a);
         let b = vgetq_lane_u64::<1>(b);

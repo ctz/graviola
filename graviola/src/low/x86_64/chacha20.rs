@@ -98,6 +98,7 @@ macro_rules! rotate_left_128 {
 
 #[target_feature(enable = "ssse3,avx2")]
 unsafe fn format_key(key: &[u8; 32], nonce: &[u8; 16]) -> ChaCha20 {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let z07 = _mm256_set_m128i(
             _mm_lddqu_si128(SIGMA.as_ptr().cast()),
@@ -115,6 +116,7 @@ unsafe fn format_key(key: &[u8; 32], nonce: &[u8; 16]) -> ChaCha20 {
 /// Computes 8 blocks.  Does _NOT_ handle ragged output.
 #[target_feature(enable = "avx2")]
 unsafe fn core_8x(t07: __m256i, z8f: &mut __m256i, xor_out_512: &mut [u8]) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let t8f = *z8f;
         *z8f = _mm256_add_epi32(*z8f, _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, 8));
@@ -355,6 +357,7 @@ unsafe fn core_8x(t07: __m256i, z8f: &mut __m256i, xor_out_512: &mut [u8]) {
 /// be 0..64 bytes).
 #[target_feature(enable = "avx2")]
 unsafe fn core_2x(t07: __m256i, z8f: &mut __m256i, xor_out: &mut [u8]) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let t8f = *z8f;
         let blocks_used = if xor_out.len() > 32 { 2 } else { 1 };
@@ -457,6 +460,7 @@ unsafe fn core_2x(t07: __m256i, z8f: &mut __m256i, xor_out: &mut [u8]) {
 
 #[target_feature(enable = "ssse3,avx2")]
 unsafe fn hchacha(key: &[u8; 32], nonce: &[u8; 24]) -> ChaCha20 {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let mut z03 = _mm_lddqu_si128(SIGMA.as_ptr().cast());
         let mut z47 = _mm_lddqu_si128(key[0..16].as_ptr().cast());

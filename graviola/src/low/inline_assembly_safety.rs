@@ -71,3 +71,20 @@
 //! For this reason, it is unsound if `ret` is called in the outer
 //! frame.  However, our inline assembly can contain leaf internal
 //! functions: these may `ret` back to the outer frame.
+//!
+//! # Safety of intrinsics
+//!
+//! The above sections "Using unsupported instructions" also apply
+//! to intrinsics, and the same arrangements exist to avoid ever
+//! issuing an unsupported instruction.
+//!
+//! In general, intrinsics are less hazardous to use than inline
+//! assembly.  However, since they are intended to be drop-in
+//! replacements for their counterparts in C/C++, they are less
+//! Rust-friendly than they could otherwise be.  For example,
+//! an analog of `_mm_loadu_si128` could take `&[u8; 16]` as its
+//! argument, rather than a pointer.  That would externalise the
+//! requirements on that function, and allow it to be safe
+//! (though only if `target_feature` `sse2` was statically
+//! guaranteed at compile-time, and would require safe-transmute
+//! to be available for non-byte types).

@@ -37,6 +37,7 @@ macro_rules! round {
 
 #[target_feature(enable = "neon,sha2")]
 unsafe fn sha256(state: &mut [u32; 8], blocks: &[u8]) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let mut state0 = vld1q_u32(state[0..4].as_ptr());
         let mut state1 = vld1q_u32(state[4..8].as_ptr());
