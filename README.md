@@ -108,12 +108,16 @@ Only RSA signing and verification are provided.  Our policy on RSA encryption is
 ### ECC
 All ECC field and scalar arithmetic are provided by s2n-bignum.
 
-P256 base point multiplication uses 7-bit exponent window in wNAF form (this costs a 148KB constant table).
-Variable point multiplication uses a 5-bit exponent window in wNAF form.
+P256 base point multiplication uses a 7-bit exponent window with Booth encoding
+(this costs a 148KB constant table).
+Variable point multiplication uses a 5-bit exponent window with Booth encoding.
 
-P384 base and variable point multiplication both use a 5-bit exponent window in wNAF form.
+P384 base and variable point multiplication both use a 5-bit exponent window with Booth encoding.
 (This means we're leaving a some P384 base point performance on the table, in exchange for code space.
 P384 performance seems to be less important than P256.)
+
+Both use the same exponent representations for "public" and "secret" exponents --
+however the table selection for "public" exponents is specialized at compile-time.
 
 ECDSA follows RFC6979 for generation of `k`, but adds additional non-critical random input.
 We do this to avoid the theoretical fragility of RFC6979 under fault conditions.

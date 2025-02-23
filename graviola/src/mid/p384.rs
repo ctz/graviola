@@ -15,7 +15,7 @@ mod precomp;
 #[derive(Clone, Debug)]
 pub struct PublicKey {
     point: AffineMontPoint,
-    precomp_wnaf_5: JacobianMontPointTableW5,
+    precomp_w5: JacobianMontPointTableW5,
 }
 
 impl PublicKey {
@@ -40,7 +40,7 @@ impl PublicKey {
 
     fn from_affine(point: AffineMontPoint) -> Self {
         Self {
-            precomp_wnaf_5: point.public_precomp_wnaf_5(),
+            precomp_w5: point.public_precomp_w5(),
             point,
         }
     }
@@ -54,7 +54,7 @@ impl PublicKey {
         // 5. Compute: R = (xR, yR) = u1 G + u2 QU
         //  If R = O, output "invalid" and stop.
         let lhs = JacobianMontPoint::public_base_multiply(&u1);
-        let rhs = JacobianMontPoint::public_multiply_wnaf_5(&u2, &self.precomp_wnaf_5);
+        let rhs = JacobianMontPoint::public_multiply_w5(&u2, &self.precomp_w5);
 
         // nb. if lhs == rhs, then we need a doubling rather than addition
         // (even complete point addition formula is only defined for P != Q)
@@ -110,8 +110,7 @@ impl PrivateKey {
     /// Returns a [`SharedSecret`].  May return an error in fault conditions.
     pub fn diffie_hellman(self, peer: &PublicKey) -> Result<SharedSecret, Error> {
         let _entry = low::Entry::new_secret();
-        let result =
-            JacobianMontPoint::multiply_wnaf_5(&self.scalar, &peer.precomp_wnaf_5).as_affine();
+        let result = JacobianMontPoint::multiply_w5(&self.scalar, &peer.precomp_w5).as_affine();
         match result.on_curve() {
             true => Ok(SharedSecret(util::u64x6_to_big_endian(
                 &result.x().demont().0,
@@ -330,7 +329,7 @@ impl AffineMontPoint {
             .as_affine()
     }
 
-    fn public_precomp_wnaf_5(&self) -> JacobianMontPointTableW5 {
+    fn public_precomp_w5(&self) -> JacobianMontPointTableW5 {
         let mut r = [JacobianMontPoint::zero(); 16];
 
         // indices into r are intuitively 1-based; index i contains i * G,
@@ -421,22 +420,22 @@ impl JacobianMontPoint {
     }
 
     fn base_multiply(scalar: &Scalar) -> Self {
-        Self::multiply_wnaf_5(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_5)
+        Self::multiply_w5(scalar, &precomp::CURVE_GENERATOR_PRECOMP_W5)
     }
 
     fn public_base_multiply(scalar: &Scalar) -> Self {
-        Self::public_multiply_wnaf_5(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_5)
+        Self::public_multiply_w5(scalar, &precomp::CURVE_GENERATOR_PRECOMP_W5)
     }
 
-    fn multiply_wnaf_5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
-        Self::_multiply_wnaf_5::<true>(scalar, precomp)
+    fn multiply_w5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
+        Self::_multiply_w5::<true>(scalar, precomp)
     }
 
-    fn public_multiply_wnaf_5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
-        Self::_multiply_wnaf_5::<false>(scalar, precomp)
+    fn public_multiply_w5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
+        Self::_multiply_w5::<false>(scalar, precomp)
     }
 
-    fn _multiply_wnaf_5<const SECRET: bool>(
+    fn _multiply_w5<const SECRET: bool>(
         scalar: &Scalar,
         precomp: &JacobianMontPointTableW5,
     ) -> Self {
@@ -1101,11 +1100,11 @@ mod tests {
     }
 
     #[test]
-    fn base_point_precomp_wnaf_5() {
-        let precomp = CURVE_GENERATOR.public_precomp_wnaf_5();
+    fn base_point_precomp_w5() {
+        let precomp = CURVE_GENERATOR.public_precomp_w5();
 
         println!(
-            "pub(super) static CURVE_GENERATOR_PRECOMP_WNAF_5: super::JacobianMontPointTableW5 = ["
+            "pub(super) static CURVE_GENERATOR_PRECOMP_W5: super::JacobianMontPointTableW5 = ["
         );
         let mut i = 1;
         for point in precomp.chunks_exact(18) {
