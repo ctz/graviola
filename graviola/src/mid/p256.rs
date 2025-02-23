@@ -15,7 +15,7 @@ mod precomp;
 #[derive(Clone, Debug)]
 pub struct PublicKey {
     point: AffineMontPoint,
-    precomp_wnaf_5: JacobianMontPointTableW5,
+    precomp_w5: JacobianMontPointTableW5,
 }
 
 impl PublicKey {
@@ -40,7 +40,7 @@ impl PublicKey {
 
     fn from_affine(point: AffineMontPoint) -> Self {
         Self {
-            precomp_wnaf_5: point.public_precomp_wnaf_5(),
+            precomp_w5: point.public_precomp_w5(),
             point,
         }
     }
@@ -54,7 +54,7 @@ impl PublicKey {
         // 5. Compute: R = (xR, yR) = u1 G + u2 QU
         //  If R = O, output "invalid" and stop.
         let lhs = JacobianMontPoint::public_base_multiply(&u1);
-        let rhs = JacobianMontPoint::public_multiply_wnaf_5(&u2, &self.precomp_wnaf_5);
+        let rhs = JacobianMontPoint::public_multiply_w5(&u2, &self.precomp_w5);
 
         // nb. if lhs == rhs, then we need a doubling rather than addition
         // (even complete point addition formula is only defined for P != Q)
@@ -109,8 +109,7 @@ impl PrivateKey {
     /// Returns a [`SharedSecret`].  May return an error in fault conditions.
     pub fn diffie_hellman(self, peer: &PublicKey) -> Result<SharedSecret, Error> {
         let _entry = low::Entry::new_secret();
-        let result =
-            JacobianMontPoint::multiply_wnaf_5(&self.scalar, &peer.precomp_wnaf_5).as_affine();
+        let result = JacobianMontPoint::multiply_w5(&self.scalar, &peer.precomp_w5).as_affine();
         match result.on_curve() {
             true => Ok(SharedSecret(util::u64x4_to_big_endian(
                 &result.x().demont().0,
@@ -351,18 +350,19 @@ impl AffineMontPoint {
         self.xy[Self::Y].copy_from_slice(&result.0);
     }
 
-    /// Precomputes wNAF form (with 𝑤=6) for the point `self`
+    /// Precomputes a table (with 𝑤=6) for the point `self`
     ///
     /// 64 is the row size, 2**6.
-    /// 37 is the table height, ceil(256/7) (wNAF gives us one bit
-    /// extra free, in exchange for a negation to compute a negative
-    /// point from the precomputed positive point -- this is ~free).
+    /// 37 is the table height, ceil(256/7) (Booth encoding gives us
+    /// one bit extra free, in exchange for a negation to compute a
+    /// negative point from the precomputed positive point -- this is
+    /// ~free).
     ///
     /// This should not be used at runtime, since (for brevity) it
     /// does excessive point representation conversions, and recomputes
-    /// items in a given row several times (compare `public_precomp_wnaf_5`).
+    /// items in a given row several times (compare `public_precomp_w5`).
     #[cfg(test)]
-    fn public_precomp_wnaf_7_slow(&self) -> [[Self; 64]; 37] {
+    fn public_precomp_w7_slow(&self) -> [[Self; 64]; 37] {
         let mut r = [[Self::default(); 64]; 37];
 
         for window in 0..((256 + 6) / 7) {
@@ -382,7 +382,7 @@ impl AffineMontPoint {
         r
     }
 
-    fn public_precomp_wnaf_5(&self) -> JacobianMontPointTableW5 {
+    fn public_precomp_w5(&self) -> JacobianMontPointTableW5 {
         let mut r = [JacobianMontPoint::zero(); 16];
 
         // indices into r are intuitively 1-based; index i contains i * G,
@@ -491,17 +491,14 @@ impl JacobianMontPoint {
     }
 
     fn base_multiply(scalar: &Scalar) -> Self {
-        Self::multiply_wnaf_7::<true>(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_7)
+        Self::multiply_w7::<true>(scalar, &precomp::CURVE_GENERATOR_PRECOMP_W7)
     }
 
     fn public_base_multiply(scalar: &Scalar) -> Self {
-        Self::multiply_wnaf_7::<false>(scalar, &precomp::CURVE_GENERATOR_PRECOMP_WNAF_7)
+        Self::multiply_w7::<false>(scalar, &precomp::CURVE_GENERATOR_PRECOMP_W7)
     }
 
-    fn multiply_wnaf_7<const SECRET: bool>(
-        scalar: &Scalar,
-        precomp: &AffineMontPointTableW7,
-    ) -> Self {
+    fn multiply_w7<const SECRET: bool>(scalar: &Scalar, precomp: &AffineMontPointTableW7) -> Self {
         let mut terms = scalar.booth_recoded_w7();
         // unwrap: number of terms is constant
         let (digit, sign) = terms.next().unwrap();
@@ -545,15 +542,15 @@ impl JacobianMontPoint {
         result
     }
 
-    fn multiply_wnaf_5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
-        Self::_multiply_wnaf_5::<true>(scalar, precomp)
+    fn multiply_w5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
+        Self::_multiply_w5::<true>(scalar, precomp)
     }
 
-    fn public_multiply_wnaf_5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
-        Self::_multiply_wnaf_5::<false>(scalar, precomp)
+    fn public_multiply_w5(scalar: &Scalar, precomp: &JacobianMontPointTableW5) -> Self {
+        Self::_multiply_w5::<false>(scalar, precomp)
     }
 
-    fn _multiply_wnaf_5<const SECRET: bool>(
+    fn _multiply_w5<const SECRET: bool>(
         scalar: &Scalar,
         precomp: &JacobianMontPointTableW5,
     ) -> Self {
@@ -1256,12 +1253,10 @@ mod tests {
     }
 
     #[test]
-    fn base_point_precomp_wnaf_7() {
-        let precomp = CURVE_GENERATOR.public_precomp_wnaf_7_slow();
+    fn base_point_precomp_w7() {
+        let precomp = CURVE_GENERATOR.public_precomp_w7_slow();
 
-        println!(
-            "pub(super) static CURVE_GENERATOR_PRECOMP_WNAF_7: super::AffineMontPointTableW7 = ["
-        );
+        println!("pub(super) static CURVE_GENERATOR_PRECOMP_W7: super::AffineMontPointTableW7 = [");
         for w in 0..37 {
             println!("    // 1G..64G << {}", w * 7);
             println!("    [");
