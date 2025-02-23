@@ -14,6 +14,7 @@ pub(crate) fn bignum_jac_point_select_p384(z: &mut [u64; 18], table: &[u64], ind
 
 #[target_feature(enable = "neon")]
 unsafe fn _select_jac_p384(z: &mut [u64; 18], table: &[u64], index: u8) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let mut acc0: uint32x4_t = mem::transmute(0u128);
         let mut acc1 = acc0;

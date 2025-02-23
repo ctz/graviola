@@ -186,6 +186,7 @@ macro_rules! reduce {
 #[inline]
 #[target_feature(enable = "pclmulqdq,avx")]
 unsafe fn _mul(a: __m128i, b: __m128i) -> __m128i {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
         let bx = xor_halves(b);
@@ -207,6 +208,7 @@ pub(crate) unsafe fn _mul8(
     x7: __m128i,
     x8: __m128i,
 ) -> __m128i {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
         mul!(lo, mi, hi, x1, table.powers[7], table.powers_xor[7]);
@@ -223,6 +225,7 @@ pub(crate) unsafe fn _mul8(
 
 #[target_feature(enable = "avx")]
 unsafe fn gf128_big_endian(h: __m128i) -> __m128i {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         // takes a raw hash subkey, and arranges that it can
         // be used in big endian ordering.
@@ -236,6 +239,7 @@ unsafe fn gf128_big_endian(h: __m128i) -> __m128i {
 
 #[target_feature(enable = "avx")]
 unsafe fn xor_halves(h: __m128i) -> __m128i {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let hx = _mm_shuffle_epi32(h, 0b01_00_11_10);
         _mm_xor_si128(hx, h)

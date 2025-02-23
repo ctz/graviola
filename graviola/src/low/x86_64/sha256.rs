@@ -43,6 +43,7 @@ macro_rules! round {
 
 #[target_feature(enable = "sha,sse4.1,ssse3")]
 unsafe fn sha256(state: &mut [u32; 8], blocks: &[u8]) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let little_endian_shuffle = _mm_set_epi64x(0x0c0d0e0f08090a0b, 0x0405060700010203);
 

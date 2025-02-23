@@ -39,15 +39,16 @@ unsafe fn _cipher<const ENC: bool>(
     aad: &[u8],
     cipher_inout: &mut [u8],
 ) {
-    unsafe {
-        ghash.add(aad);
+    ghash.add(aad);
 
-        let (rk_first, rks, rk_last) = key.round_keys();
+    let (rk_first, rks, rk_last) = key.round_keys();
 
-        let mut counter = Counter::new(initial_counter);
-        let mut by8_iter = cipher_inout.chunks_exact_mut(128);
+    let mut counter = Counter::new(initial_counter);
+    let mut by8_iter = cipher_inout.chunks_exact_mut(128);
 
-        for blocks in by8_iter.by_ref() {
+    for blocks in by8_iter.by_ref() {
+        // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
+        unsafe {
             // prefetch to avoid any stall later
             _mm_prefetch(blocks.as_ptr().add(0) as *const _, _MM_HINT_T0);
             _mm_prefetch(blocks.as_ptr().add(64) as *const _, _MM_HINT_T0);
@@ -135,18 +136,21 @@ unsafe fn _cipher<const ENC: bool>(
             let a1 = _mm_xor_si128(ghash.current, a1);
             ghash.current = ghash::_mul8(ghash.table, a1, a2, a3, a4, a5, a6, a7, a8);
         }
+    }
 
-        let cipher_inout = by8_iter.into_remainder();
+    let cipher_inout = by8_iter.into_remainder();
 
-        if !ENC {
-            ghash.add(cipher_inout);
-        }
+    if !ENC {
+        ghash.add(cipher_inout);
+    }
 
-        {
-            let mut blocks_iter = cipher_inout.chunks_exact_mut(16);
-            for block in blocks_iter.by_ref() {
-                let c1 = counter.next();
+    {
+        let mut blocks_iter = cipher_inout.chunks_exact_mut(16);
+        for block in blocks_iter.by_ref() {
+            let c1 = counter.next();
 
+            // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
+            unsafe {
                 let mut c1 = _mm_xor_si128(c1, rk_first);
 
                 for rk in rks {
@@ -159,16 +163,19 @@ unsafe fn _cipher<const ENC: bool>(
 
                 _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
             }
+        }
 
-            let cipher_inout = blocks_iter.into_remainder();
-            if !cipher_inout.is_empty() {
-                let mut block = [0u8; 16];
-                let len = cipher_inout.len();
-                debug_assert!(len < 16);
-                block[..len].copy_from_slice(cipher_inout);
+        let cipher_inout = blocks_iter.into_remainder();
+        if !cipher_inout.is_empty() {
+            let mut block = [0u8; 16];
+            let len = cipher_inout.len();
+            debug_assert!(len < 16);
+            block[..len].copy_from_slice(cipher_inout);
 
-                let c1 = counter.next();
+            let c1 = counter.next();
 
+            // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
+            unsafe {
                 let mut c1 = _mm_xor_si128(c1, rk_first);
 
                 for rk in rks {
@@ -181,14 +188,14 @@ unsafe fn _cipher<const ENC: bool>(
                 let c1 = _mm_xor_si128(c1, p1);
 
                 _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
-
-                cipher_inout.copy_from_slice(&block[..len]);
             }
-        }
 
-        if ENC {
-            ghash.add(cipher_inout);
+            cipher_inout.copy_from_slice(&block[..len]);
         }
+    }
+
+    if ENC {
+        ghash.add(cipher_inout);
     }
 }
 

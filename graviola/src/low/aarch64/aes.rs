@@ -47,6 +47,7 @@ impl AesKey {
 
     #[target_feature(enable = "aes,neon")]
     unsafe fn _ctr(&self, initial_counter: &[u8; 16], cipher_inout: &mut [u8]) {
+        // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
         unsafe {
             // counter and inc are big endian, so must be vrev32q_u8'd before use
             let counter = vld1q_u8(initial_counter.as_ptr().cast());
@@ -248,6 +249,7 @@ fn sub_word(w: u32) -> u32 {
 
 #[target_feature(enable = "aes")]
 unsafe fn _sub_word(w: u32) -> u32 {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         // we have the `aese` instruction, which is
         // `sub_word(shift_rows(w), S)`. however, fortunately
@@ -268,6 +270,7 @@ const RCON: [u32; 10] = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0
 
 #[target_feature(enable = "aes")]
 unsafe fn aes128_block(round_keys: &[uint8x16_t; 11], block_inout: &mut [u8]) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let block = vld1q_u8(block_inout.as_ptr() as *const _);
         let block = _aes128_block(round_keys, block);
@@ -278,6 +281,7 @@ unsafe fn aes128_block(round_keys: &[uint8x16_t; 11], block_inout: &mut [u8]) {
 #[target_feature(enable = "aes")]
 #[inline]
 unsafe fn _aes128_block(round_keys: &[uint8x16_t; 11], block: uint8x16_t) -> uint8x16_t {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let block = vaeseq_u8(block, round_keys[0]);
         let block = vaesmcq_u8(block);
@@ -346,6 +350,7 @@ unsafe fn _aes128_8_blocks(
     uint8x16_t,
     uint8x16_t,
 ) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[0]);
         round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[1]);
@@ -380,6 +385,7 @@ unsafe fn _aes128_8_blocks(
 
 #[target_feature(enable = "aes")]
 unsafe fn aes256_block(round_keys: &[uint8x16_t; 15], block_inout: &mut [u8]) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let block = vld1q_u8(block_inout.as_ptr() as *const _);
         let block = _aes256_block(round_keys, block);
@@ -390,6 +396,7 @@ unsafe fn aes256_block(round_keys: &[uint8x16_t; 15], block_inout: &mut [u8]) {
 #[target_feature(enable = "aes")]
 #[inline]
 unsafe fn _aes256_block(round_keys: &[uint8x16_t; 15], block: uint8x16_t) -> uint8x16_t {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let block = vaeseq_u8(block, round_keys[0]);
         let block = vaesmcq_u8(block);
@@ -444,6 +451,7 @@ unsafe fn _aes256_8_blocks(
     uint8x16_t,
     uint8x16_t,
 ) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[0]);
         round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[1]);

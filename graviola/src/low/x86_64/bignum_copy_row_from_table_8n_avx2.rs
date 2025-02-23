@@ -25,6 +25,7 @@ unsafe fn _bignum_copy_row_from_table_8n_avx2(
     width: u64,
     index: u64,
 ) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         // SAFETY: prefetches do not fault and are not architecturally visible
         _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);

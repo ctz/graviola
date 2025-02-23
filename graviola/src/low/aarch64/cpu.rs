@@ -16,8 +16,8 @@ pub(crate) fn leave_cpu_state(old: u32) {
 
 #[target_feature(enable = "neon")]
 unsafe fn zero_neon_registers() {
+    // SAFETY: inline assembly. all written registers are listed as clobbers.
     unsafe {
-        // SAFETY: inline assembly. all written registers are listed as clobbers.
         core::arch::asm!(
             "       eor v0.16b, v0.16b, v0.16b",
             "       eor v1.16b, v1.16b, v1.16b",
@@ -131,6 +131,7 @@ pub(in crate::low) fn zero_bytes(ptr: *mut u8, len: usize) {
 /// # Safety
 /// The caller must ensure that there are `len` bytes readable at `a` and `b`,
 pub(in crate::low) unsafe fn ct_compare_bytes(a: *const u8, b: *const u8, len: usize) -> u8 {
+    // SAFETY: inline assembly.
     unsafe {
         let mut acc = 0u8;
         core::arch::asm!(

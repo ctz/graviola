@@ -25,6 +25,7 @@ pub(crate) fn bignum_jac_point_select_p256(z: &mut [u64; 12], table: &[u64], ind
 
 #[target_feature(enable = "neon")]
 unsafe fn _select_aff_p256(z: &mut [u64; 8], table: &[u64], index: u8) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         // SAFETY: u128 and uint32x4_t have same size and meaning
         let mut acc0: uint32x4_t = mem::transmute(0u128);
@@ -65,6 +66,7 @@ unsafe fn _select_aff_p256(z: &mut [u64; 8], table: &[u64], index: u8) {
 
 #[target_feature(enable = "neon")]
 unsafe fn _select_jac_p256(z: &mut [u64; 12], table: &[u64], index: u8) {
+    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     unsafe {
         let mut acc0: uint32x4_t = mem::transmute(0u128);
         let mut acc1 = acc0;
