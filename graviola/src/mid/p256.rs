@@ -57,7 +57,7 @@ impl PublicKey {
         let rhs = JacobianMontPoint::public_multiply_w5(&u2, &self.precomp_w5);
 
         // nb. if lhs == rhs, then we need a doubling rather than addition
-        // (even complete point addition formula is only defined for P != Q)
+        // (because `p256_montjadd` doesn't handle P + P.)
         let point = if lhs.public_eq(&rhs) {
             lhs.double()
         } else {
