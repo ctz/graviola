@@ -48,3 +48,40 @@ impl From<KeyFormatError> for Error {
         Self::KeyFormatError(kfe)
     }
 }
+
+impl core::fmt::Display for KeyFormatError {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::UnsupportedPkcs8Version => write!(f, "unsupported PKCS#8 version"),
+            Self::MismatchedPkcs8Algorithm => write!(f, "mismatched PKCS#8 algorithm"),
+            Self::MismatchedPkcs8Parameters => write!(f, "mismatched PKCS#8 parameters"),
+            Self::MismatchedSec1Curve => write!(f, "mismatched SEC1 curve"),
+            Self::MismatchedSec1PublicKey => write!(f, "mismatched SEC1 public key"),
+        }
+    }
+}
+
+impl core::fmt::Display for Error {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        match self {
+            Self::WrongLength => write!(f, "some slice was the wrong length"),
+            Self::NotUncompressed => write!(
+                f,
+                "a compressed elliptic curve point encoding was encountered"
+            ),
+            Self::NotOnCurve => write!(f, "a public key was invalid"),
+            Self::OutOfRange => write!(f, "a value was too small or large"),
+            Self::RngFailed => write!(
+                f,
+                "a random number generator returned an error or fixed values"
+            ),
+            Self::BadSignature => write!(f, "presented signature is invalid"),
+            Self::DecryptFailed => write!(f, "presented AEAD tag/aad/ciphertext/nonce was wrong"),
+            Self::Asn1Error(e) => write!(f, "an ASN.1 encoding/decoding error: {e}"),
+            Self::KeyFormatError(e) => write!(f, "a key formatting/validation error: {e}"),
+        }
+    }
+}
+
+impl std::error::Error for KeyFormatError {}
+impl std::error::Error for Error {}
