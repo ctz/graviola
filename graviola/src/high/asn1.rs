@@ -1027,4 +1027,42 @@ mod tests {
         let mut enc = Encoder::new(&mut buffer);
         assert_eq!(value.encode(&mut enc).unwrap(), expected_len);
     }
+
+    #[test]
+    fn test_error_display() {
+        assert_eq!(format!("{}", Error::UnexpectedTag), "unexpected tag");
+        assert_eq!(
+            format!("{}", Error::UnexpectedEof),
+            "unexpected end of input"
+        );
+        assert_eq!(
+            format!("{}", Error::UnexpectedTrailingData),
+            "unexpected trailing data"
+        );
+        assert_eq!(
+            format!("{}", Error::NonCanonicalEncoding),
+            "non-canonical encoding"
+        );
+        assert_eq!(
+            format!("{}", Error::UnhandledEnumValue),
+            "unhandled enum value"
+        );
+        assert_eq!(
+            format!("{}", Error::IntegerOutOfRange),
+            "integer out of range"
+        );
+        assert_eq!(format!("{}", Error::IllegalNull), "illegal null");
+        assert_eq!(
+            format!("{}", Error::UnsupportedLargeObjectId),
+            "unsupported large object identifier"
+        );
+        assert_eq!(
+            format!("{}", Error::UnsupportedLargeObjectLength),
+            "unsupported large object length"
+        );
+        assert_eq!(
+            format!("{}", Error::UnhandledBitString),
+            "unhandled bit string"
+        );
+    }
 }
