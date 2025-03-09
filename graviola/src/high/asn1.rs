@@ -758,16 +758,16 @@ pub enum Error {
 impl core::fmt::Display for Error {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            Error::UnexpectedTag => write!(f, "unexpected tag"),
-            Error::UnexpectedEof => write!(f, "unexpected end of input"),
-            Error::UnexpectedTrailingData => write!(f, "unexpected trailing data"),
-            Error::NonCanonicalEncoding => write!(f, "non-canonical encoding"),
-            Error::UnhandledEnumValue => write!(f, "unhandled enum value"),
-            Error::IntegerOutOfRange => write!(f, "integer out of range"),
-            Error::IllegalNull => write!(f, "illegal null"),
-            Error::UnsupportedLargeObjectId => write!(f, "unsupported large object identifier"),
-            Error::UnsupportedLargeObjectLength => write!(f, "unsupported large object length"),
-            Error::UnhandledBitString => write!(f, "unhandled bit string"),
+            Self::UnexpectedTag => write!(f, "unexpected tag"),
+            Self::UnexpectedEof => write!(f, "unexpected end of input"),
+            Self::UnexpectedTrailingData => write!(f, "unexpected trailing data"),
+            Self::NonCanonicalEncoding => write!(f, "non-canonical encoding"),
+            Self::UnhandledEnumValue => write!(f, "unhandled enum value"),
+            Self::IntegerOutOfRange => write!(f, "integer out of range"),
+            Self::IllegalNull => write!(f, "illegal null"),
+            Self::UnsupportedLargeObjectId => write!(f, "unsupported large object identifier"),
+            Self::UnsupportedLargeObjectLength => write!(f, "unsupported large object length"),
+            Self::UnhandledBitString => write!(f, "unhandled bit string"),
         }
     }
 }
