@@ -104,6 +104,8 @@ impl RsaPrivateKey {
         let dq = self.dq.to_bytes_asn1(dq)?;
         let iqmp = self.iqmp.to_bytes_asn1(iqmp)?;
 
+        // We are exporting this key; it is leaving the confines of this
+        // library and becoming public data.
         low::ct::public_slice(p);
         low::ct::public_slice(q);
         low::ct::public_slice(d);
