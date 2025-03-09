@@ -122,6 +122,31 @@ impl<C: Curve> SigningKey<C> {
         output.get(..used).ok_or(Error::WrongLength)
     }
 
+    /// Encode this private key's corresponding public key in SubjectPublicKeyInfo DER format.
+    ///
+    /// The encoding is written to the start of `output`, and the used span is
+    /// returned.  [`Error::WrongLength`] is returned if `output` is not sufficient
+    /// to contain the full encoding.
+    pub fn to_spki_der<'a>(&self, output: &'a mut [u8]) -> Result<&'a [u8], Error> {
+        let mut pub_key_buffer = [0u8; MAX_UNCOMPRESSED_PUBLIC_KEY_LEN];
+        let pub_key_buffer = self
+            .private_key
+            .public_key_encode_uncompressed(&mut pub_key_buffer)?;
+
+        let spki = asn1::pkix::SubjectPublicKeyInfo {
+            algorithm: asn1::pkix::AlgorithmIdentifier {
+                algorithm: asn1::oid::id_ecPublicKey.clone(),
+                parameters: Some(asn1::Any::ObjectId(C::oid())),
+            },
+            subjectPublicKey: asn1::BitString::new(pub_key_buffer),
+        };
+
+        let len = spki
+            .encode(&mut asn1::Encoder::new(output))
+            .map_err(Error::Asn1Error)?;
+        Ok(&output[..len])
+    }
+
     /// ECDSA signing, returning a fixed-length signature.
     ///
     /// The `message` is hashed using `H`.  The message is a sequence of byte

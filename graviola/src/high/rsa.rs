@@ -44,6 +44,45 @@ impl VerifyingKey {
         Ok(Self(pub_key))
     }
 
+    /// Encodes this RSA verification key in SubjectPublicKeyInfo DER format.
+    ///
+    /// The `SubjectPublicKeyInfo.algorithm` identifier is `rsaEncryption`.
+    ///
+    /// `output` is the output buffer, and the encoding is written to the start
+    /// of this buffer.  An error is returned if the encoding is larger than
+    /// the supplied buffer.  Otherwise, on success, the range containing the
+    /// encoding is returned.
+    pub fn to_spki_der<'a>(&self, output: &'a mut [u8]) -> Result<&'a [u8], Error> {
+        let _entry = Entry::new_public();
+
+        let mut buffer = [0u8; rsa_pub::MAX_PUBLIC_MODULUS_BYTES + 1];
+        let public_modulus = self.0.n.to_bytes_asn1(&mut buffer)?;
+        let public_exponent = self.0.e.to_be_bytes();
+
+        let pub_key = pkix::RSAPublicKey {
+            modulus: asn1::Integer::new(public_modulus),
+            publicExponent: asn1::Integer::new(&public_exponent),
+        };
+        let mut pub_key_buffer = [0u8; rsa_pub::MAX_PUBLIC_MODULUS_BYTES + 64];
+        let used = pub_key
+            .encode(&mut asn1::Encoder::new(&mut pub_key_buffer))
+            .map_err(Error::Asn1Error)?;
+        let pub_key_buffer = &pub_key_buffer[..used];
+
+        let spki = pkix::SubjectPublicKeyInfo {
+            algorithm: pkix::AlgorithmIdentifier {
+                algorithm: asn1::oid::rsaEncryption.clone(),
+                parameters: Some(asn1::Any::Null(asn1::Null)),
+            },
+            subjectPublicKey: asn1::BitString::new(pub_key_buffer),
+        };
+
+        let len = spki
+            .encode(&mut asn1::Encoder::new(output))
+            .map_err(Error::Asn1Error)?;
+        Ok(&output[..len])
+    }
+
     /// Verifies `signature`, using RSASSA-PKCS1-v1_5 with SHA-256.
     ///
     /// `message` is the (unhashed) signed message.  It is hashed

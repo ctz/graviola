@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use graviola::hashing;
 use graviola::signing::{ecdsa, rsa};
+use rustls::pki_types::SubjectPublicKeyInfoDer;
 use rustls::{SignatureScheme, pki_types, sign};
 
 #[derive(Debug)]
@@ -112,6 +113,17 @@ impl sign::SigningKey for Rsa {
     fn algorithm(&self) -> rustls::SignatureAlgorithm {
         rustls::SignatureAlgorithm::RSA
     }
+
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+        let size = self.0.modulus_len_bytes() + 64;
+        let mut buffer = vec![0u8; size];
+
+        let pk = self.0.public_key();
+        let used = pk.to_spki_der(&mut buffer).ok()?.len();
+
+        buffer.truncate(used);
+        Some(SubjectPublicKeyInfoDer::from(buffer))
+    }
 }
 
 impl fmt::Debug for Rsa {
@@ -170,6 +182,15 @@ impl sign::SigningKey for EcdsaP256 {
     fn algorithm(&self) -> rustls::SignatureAlgorithm {
         rustls::SignatureAlgorithm::ECDSA
     }
+
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+        let mut buffer = vec![0u8; 128];
+
+        let used = self.0.to_spki_der(&mut buffer).ok()?.len();
+
+        buffer.truncate(used);
+        Some(SubjectPublicKeyInfoDer::from(buffer))
+    }
 }
 
 impl sign::Signer for EcdsaP256 {
@@ -210,6 +231,15 @@ impl sign::SigningKey for EcdsaP384 {
 
     fn algorithm(&self) -> rustls::SignatureAlgorithm {
         rustls::SignatureAlgorithm::ECDSA
+    }
+
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+        let mut buffer = vec![0u8; 128];
+
+        let used = self.0.to_spki_der(&mut buffer).ok()?.len();
+
+        buffer.truncate(used);
+        Some(SubjectPublicKeyInfoDer::from(buffer))
     }
 }
 

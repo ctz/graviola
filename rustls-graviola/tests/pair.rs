@@ -5,6 +5,7 @@ use rustls::crypto::ring::default_provider as baseline;
 use rustls::crypto::{CryptoProvider, SupportedKxGroup};
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
+use rustls::sign::CertifiedKey;
 use rustls::{
     ClientConfig, ClientConnection, HandshakeKind, RootCertStore, ServerConfig, ServerConnection,
 };
@@ -20,6 +21,7 @@ fn all_suites() {
             rustls_graviola::suites::TLS13_CHACHA20_POLY1305_SHA256,
             *key_type,
         );
+        test_keys_match(&rustls_graviola::default_provider(), *key_type);
     }
 
     for key_type in KeyType::RSA {
@@ -165,6 +167,13 @@ fn exercise(client_config: Arc<ClientConfig>, server_config: Arc<ServerConfig>) 
     client.process_new_packets().unwrap();
 
     server.handshake_kind().unwrap()
+}
+
+fn test_keys_match(provider: &CryptoProvider, key_type: KeyType) {
+    CertifiedKey::from_der(key_type.cert_chain(), key_type.key(), provider)
+        .unwrap()
+        .keys_match()
+        .unwrap();
 }
 
 #[derive(Clone, Copy, Debug)]
