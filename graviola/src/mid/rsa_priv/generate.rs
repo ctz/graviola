@@ -6,9 +6,9 @@
 //! All references below are to FIPS186-5:
 //! <https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.186-5.pdf>
 
-use crate::low::{zeroise, PosInt};
-use crate::mid::rng::RandomSource;
 use crate::Error;
+use crate::low::{PosInt, zeroise};
+use crate::mid::rng::RandomSource;
 
 /// Supported RSA key sizes for key generation.
 ///
@@ -129,12 +129,12 @@ fn random_prime(
         // set top two bits to ensure the product of two primes, n, is the right size.
         buffer[0] |= 0b1100_0000;
 
-        // set bottom bit: an even number (of size bounded by RsaSize) is never prime
+        // set bottom bit: an even number (of given `size`) is never prime
         buffer[bytes - 1] |= 0b0000_0001;
 
         let candidate = PosInt::from_bytes(&buffer[..bytes])?;
 
-        if is_prime(&candidate, size) {
+        if is_prime(&candidate, size, random)? {
             // this is the one we'll use, so it becomes sensitive on return.
             zeroise(&mut buffer[..bytes]);
 
@@ -143,25 +143,87 @@ fn random_prime(
     }
 }
 
-fn is_prime(candidate: &PosInt<{ super::MAX_PRIVATE_MODULUS_WORDS }>, size: RsaSize) -> bool {
+fn is_prime(
+    candidate: &PosInt<{ super::MAX_PRIVATE_MODULUS_WORDS }>,
+    size: RsaSize,
+    rng: &mut dyn RandomSource,
+) -> Result<bool, Error> {
     let small_primes = PosInt::from_bytes(PRODUCT_OF_SMALL_PRIMES).unwrap();
 
     if !candidate.is_coprime(&small_primes) {
         println!("small primes fail");
-        return false;
+        return Ok(false);
     }
 
-    for _ in 0..size.miller_rabin_rounds() {
-        if !miller_rabin(candidate, rng) {
-            return false;
-        }
-    }
-
-    true
+    miller_rabin(candidate, size, rng)
 }
 
-fn miller_rabin(candidate: &PosInt<{ super::MAX_PRIVATE_MODULUS_WORDS }>, rng: &mut dyn RandomSource) -> bool {
+fn miller_rabin(
+    w: &PosInt<{ super::MAX_PRIVATE_MODULUS_WORDS }>,
+    size: RsaSize,
+    rng: &mut dyn RandomSource,
+) -> Result<bool, Error> {
+    // See FIPS186-5 B.3.1:
+    // 1. Let a be the largest integer such that 2 ^ a divides w - 1.
+    // 2. m = (w - 1) / 2 ^ a.
+    let w1 = w.sub(&PosInt::word(1));
+    let a = w1.count_trailing_zeroes();
+    let m = w1.shift_right(a);
 
+    // Arithmetic below is done in montgomery form mod w.
+    let w_montifier = w.montifier();
+    let w_0 = w.mont_neg_inverse();
+    let mont_w1 = w1.to_montgomery(&w_montifier, &w);
+    let mont_one = w.fixed_one().mont_mul(&w_montifier, &w, w_0);
+
+    // 3. wlen = len(w).
+    let w_bytes = size.private_prime_size_bits() / 8;
+
+    // 4. For i = 1 to iterations do
+    let mut iter = 1..=size.miller_rabin_rounds();
+    loop {
+        // 4.1. Obtain a string b of wlen bits from a DRBG.
+        //      Convert b to an integer using the algorithm in B.2.1.
+        let mut buffer = [0u8; super::MAX_PRIVATE_MODULUS_BYTES];
+        rng.fill(&mut buffer[..w_bytes])?;
+        let b = PosInt::from_bytes(&buffer[..w_bytes])?;
+
+        // 4.2. If ((b ≤ 1) or (b ≥ w − 1)), then go to step 4.1.
+        if b.len_bits() <= 1 || !w1.less_than(&b) {
+            continue;
+        }
+
+        // 4.3. z = b ^ m mod w.
+        let b = b.to_montgomery(&w_montifier, &w);
+        let mut z = b.mont_exp(&m, &w, &w_montifier, w_0);
+
+        // 4.4. If ((z = 1) or (z = w − 1)), then go to step 4.7.
+        if !z.equals(&mont_one) && !z.equals(&mont_w1) {
+            // 4.5. For j = 1 to a − 1 do.
+            for j in 1..a {
+                // 4.5.1. z = z ^ 2 mod w.
+                z = z.mont_sqr(&w, w_0);
+
+                // 4.5.2. If (z = w − 1), then go to step 4.7.
+                if z.equals(&mont_w1) {
+                    break;
+                }
+
+                // 4.5.3 If (z = 1), then go to step 4.6.
+                // 4.6. Return COMPOSITE.
+                if z.equals(&mont_one) {
+                    return Ok(false);
+                }
+            }
+        }
+
+        // 4.7. Continue
+        // (and, therefore, consume a MR iteration.)
+        if iter.next().is_none() {
+            // 5. Return PROBABLY PRIME.
+            return Ok(true);
+        }
+    }
 }
 
 /// Product of the primes from 3..743, such that the product fits in 1024-bits
