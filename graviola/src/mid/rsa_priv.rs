@@ -139,16 +139,16 @@ impl RsaPrivateKey {
         // public information, there is little use for base blinding.
         //
         // Exponent and modulus blinding are _also_ relatively unnecessary,
-        // since our `PosInt::mont_exp` is side-channel silent.
+        // since our `PosInt::mod_exp` is side-channel silent.
         // See the commentary there for why I think that is the case.
 
         // i.   Let m_1 = c^dP mod p and m_2 = c^dQ mod q.
         // (do reductions of c first, so the mod exp can be done at
         // width of p or q rather than pq.)
         let cmp = c.reduce(&self.p, &self.p_montifier);
-        let m_1 = cmp.mont_exp(&self.dp, &self.p, &self.p_montifier, self.p0);
+        let m_1 = cmp.mod_exp(&self.dp, &self.p, &self.p_montifier, self.p0);
         let cmq = c.reduce(&self.q, &self.q_montifier);
-        let m_2 = cmq.mont_exp(&self.dq, &self.q, &self.q_montifier, self.q0);
+        let m_2 = cmq.mod_exp(&self.dq, &self.q, &self.q_montifier, self.q0);
 
         // ii. If u > 2, let m_i = c^(d_i) mod r_i, i = 3, ..., u.
         // (we don't support multiprime rsa)
