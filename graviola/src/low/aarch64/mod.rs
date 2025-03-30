@@ -54,6 +54,8 @@ pub(crate) mod bignum_tomont_p384;
 pub(crate) mod cpu;
 pub(crate) mod curve25519_x25519;
 pub(crate) mod curve25519_x25519base;
+#[allow(dead_code)] // TODO(phlip9): remove
+pub(crate) mod edwards25519_decode;
 pub(crate) mod ghash;
 pub(crate) mod p256_montjadd;
 pub(crate) mod p256_montjdouble;

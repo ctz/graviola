@@ -31,10 +31,10 @@
 # );
 #
 # # s2n-bignum
-# uint64_t edwards25519_decode(uint64_t out_z[8], const uint8_t c[32]);
 # void bignum_madd_n25519(uint64_t out_z[4], uint64_t x[4], uint64_t y[4], uint64_t c[4]);
 # void bignum_mod_n25519(uint64_t out_z[4], uint64_t k, uint64_t *x);
 # void bignum_neg_p25519(uint64_t out_z[4], uint64_t x[4]);
+# uint64_t edwards25519_decode(uint64_t out_z[8], const uint8_t c[32]);
 # void edwards25519_encode(uint8_t out_z[static 32], uint64_t p[static 8]);
 # void edwards25519_scalarmulbase(uint64_t out_res[8], uint64_t scalar[4]);
 # void edwards25519_scalarmuldouble(uint64_t out_res[8], uint64_t scalar[4], uint64_t point[8], uint64_t bscalar[4]);
@@ -63,6 +63,24 @@ if __name__ == "__main__":
             return_value=("u64", "ret", "ret == 0"),
             return_map=("out", "ret"),
             hoist=["proc", "edwards25519_decode_loop", "ret"],
+            rust_decl="fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool",
+        )
+        parse_file(input, d)
+
+    with open(
+        "../../thirdparty/s2n-bignum/arm/curve25519/edwards25519_decode_alt.S"
+    ) as input, open(
+        "../../graviola/src/low/aarch64/edwards25519_decode.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_aarch64)
+        d.emit_rust_function(
+            "edwards25519_decode_alt",
+            parameter_map=[
+                ("inout", "z.as_mut_ptr() => ret"),
+                ("inout", "c.as_ptr() => _"),
+            ],
+            return_value=("u64", "ret", "ret == 0"),
+            hoist=["proc", "edwards25519_decode_alt_loop", "ret"],
             rust_decl="fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool",
         )
         parse_file(input, d)
