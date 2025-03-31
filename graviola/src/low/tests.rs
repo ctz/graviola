@@ -58,3 +58,17 @@ mod model {
         }
     }
 }
+
+#[test]
+fn test_edwards25519_decode() {
+    use hex::FromHex;
+
+    // valid pubkey from RFC 8032
+    let pk_hex = "d75a980182b10ab7d54bfed3c964073a0ee172f3daa62325af021a68f707511a";
+    let pk = <[u8; 32]>::from_hex(pk_hex).unwrap();
+    let mut point = [0u64; 8];
+    assert!(super::edwards25519_decode(&mut point, &pk));
+
+    // invalid pubkey
+    assert!(!super::edwards25519_decode(&mut point, &[0xffu8; 32]));
+}
