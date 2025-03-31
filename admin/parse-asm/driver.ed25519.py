@@ -48,6 +48,7 @@ from driver import (
 )
 
 if __name__ == "__main__":
+    # edwards25519_decode (x86_64)
     with open(
         "../../thirdparty/s2n-bignum/x86/curve25519/edwards25519_decode.S"
     ) as input, open(
@@ -67,6 +68,27 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
+    # edwards25519_scalarmulbase (x86_64)
+    with open(
+        "../../thirdparty/s2n-bignum/x86/curve25519/edwards25519_scalarmulbase.S"
+    ) as input, open(
+        "../../graviola/src/low/x86_64/edwards25519_scalarmulbase.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_amd64)
+        d.add_const_symbol("edwards25519_scalarmulbase_0g")
+        d.add_const_symbol("edwards25519_scalarmulbase_251g")
+        d.add_const_symbol("edwards25519_scalarmulbase_gtable")
+        d.emit_rust_function(
+            "edwards25519_scalarmulbase",
+            parameter_map=[
+                ("inout", "res.as_mut_ptr() => _"),
+                ("inout", "scalar.as_ptr() => _"),
+            ],
+            rust_decl="fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4])",
+        )
+        parse_file(input, d)
+
+    # edwards25519_decode (aarch64)
     with open(
         "../../thirdparty/s2n-bignum/arm/curve25519/edwards25519_decode_alt.S"
     ) as input, open(
