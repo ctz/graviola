@@ -156,6 +156,8 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::curve25519_x25519base::curve25519_x25519base;
         #[allow(unused_imports)] // TODO(phlip9): remove
         pub(crate) use aarch64::edwards25519_decode::edwards25519_decode;
+        #[allow(unused_imports)] // TODO(phlip9): remove
+        pub(crate) use aarch64::edwards25519_scalarmulbase::edwards25519_scalarmulbase;
         pub(crate) use aarch64::ghash;
         pub(crate) use aarch64::p256_montjadd::p256_montjadd;
         pub(crate) use aarch64::p256_montjdouble::p256_montjdouble;
