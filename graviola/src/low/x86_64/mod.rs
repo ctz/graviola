@@ -59,6 +59,7 @@ pub(crate) mod curve25519_x25519;
 pub(crate) mod curve25519_x25519base;
 pub(crate) mod edwards25519_decode;
 pub(crate) mod edwards25519_scalarmulbase;
+pub(crate) mod edwards25519_scalarmuldouble;
 pub(crate) mod ghash;
 pub(crate) mod p256_montjadd;
 pub(crate) mod p256_montjdouble;
