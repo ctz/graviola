@@ -88,6 +88,25 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
+    # bignum_mod_n25519 (x86_64)
+    with open(
+        "../../thirdparty/s2n-bignum/x86/curve25519/bignum_mod_n25519.S"
+    ) as input, open(
+        "../../graviola/src/low/x86_64/bignum_mod_n25519.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_amd64)
+        d.emit_rust_function(
+            "bignum_mod_n25519",
+            parameter_map=[
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.len() => _"),
+                ("inout", "x.as_ptr() => _"),
+            ],
+            hoist=["linear", "bignum_mod_n25519_shortinput", "jmp"],
+            rust_decl="fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64])",
+        )
+        parse_file(input, d)
+
     # edwards25519_decode (aarch64)
     with open(
         "../../thirdparty/s2n-bignum/arm/curve25519/edwards25519_decode_alt.S"
