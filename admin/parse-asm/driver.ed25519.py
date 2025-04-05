@@ -219,3 +219,20 @@ if __name__ == "__main__":
             rust_decl="fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64])",
         )
         parse_file(input, d)
+
+    # bignum_neg_p25519 (aarch64)
+    with open(
+        "../../thirdparty/s2n-bignum/arm/curve25519/bignum_neg_p25519.S"
+    ) as input, open(
+        "../../graviola/src/low/aarch64/bignum_neg_p25519.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_aarch64)
+        d.emit_rust_function(
+            "bignum_neg_p25519",
+            parameter_map=[
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "x.as_ptr() => _"),
+            ],
+            rust_decl="fn bignum_neg_p25519(z: &mut [u64; 4], x: &[u64; 4])",
+        )
+        parse_file(input, d)
