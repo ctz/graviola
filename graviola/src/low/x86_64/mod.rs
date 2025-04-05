@@ -43,6 +43,7 @@ pub(crate) mod bignum_montsqr_p256;
 pub(crate) mod bignum_montsqr_p384;
 pub(crate) mod bignum_mul;
 pub(crate) mod bignum_mux;
+pub(crate) mod bignum_neg_p25519;
 pub(crate) mod bignum_neg_p256;
 pub(crate) mod bignum_neg_p384;
 pub(crate) mod bignum_negmodinv;
