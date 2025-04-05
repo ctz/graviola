@@ -95,6 +95,7 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::curve25519_x25519base::curve25519_x25519base;
         pub(crate) use x86_64::edwards25519_decode::edwards25519_decode;
         pub(crate) use x86_64::edwards25519_scalarmulbase::edwards25519_scalarmulbase;
+        pub(crate) use x86_64::edwards25519_scalarmuldouble::edwards25519_scalarmuldouble;
         pub(crate) use x86_64::ghash;
         pub(crate) use x86_64::p256_montjadd::p256_montjadd;
         pub(crate) use x86_64::p256_montjdouble::p256_montjdouble;
