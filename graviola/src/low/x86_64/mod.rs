@@ -64,6 +64,8 @@ pub(crate) mod curve25519_x25519base;
 pub(crate) mod edwards25519_decode;
 #[allow(dead_code)] // TODO(phlip9): remove
 pub(crate) mod edwards25519_scalarmulbase;
+#[allow(dead_code)] // TODO(phlip9): remove
+pub(crate) mod edwards25519_scalarmuldouble;
 pub(crate) mod ghash;
 pub(crate) mod p256_montjadd;
 pub(crate) mod p256_montjdouble;
