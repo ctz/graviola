@@ -83,6 +83,7 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::bignum_montsqr_p384::bignum_montsqr_p384;
         pub(crate) use x86_64::bignum_mul::bignum_mul;
         pub(crate) use x86_64::bignum_mux::bignum_mux;
+        pub(crate) use x86_64::bignum_neg_p25519::bignum_neg_p25519;
         pub(crate) use x86_64::bignum_neg_p256::bignum_neg_p256;
         pub(crate) use x86_64::bignum_neg_p384::bignum_neg_p384;
         pub(crate) use x86_64::bignum_negmodinv::bignum_negmodinv;
