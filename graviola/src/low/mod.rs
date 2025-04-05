@@ -130,6 +130,7 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::bignum_kmul_32_64::bignum_kmul_32_64;
         pub(crate) use aarch64::bignum_ksqr_16_32::bignum_ksqr_16_32;
         pub(crate) use aarch64::bignum_ksqr_32_64::bignum_ksqr_32_64;
+        pub(crate) use aarch64::bignum_madd_n25519::bignum_madd_n25519;
         pub(crate) use aarch64::bignum_mod_n25519::bignum_mod_n25519;
         pub(crate) use aarch64::bignum_mod_n256::bignum_mod_n256;
         pub(crate) use aarch64::bignum_mod_n384::bignum_mod_n384;
