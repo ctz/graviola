@@ -27,6 +27,7 @@ pub(crate) mod bignum_kmul_16_32;
 pub(crate) mod bignum_kmul_32_64;
 pub(crate) mod bignum_ksqr_16_32;
 pub(crate) mod bignum_ksqr_32_64;
+pub(crate) mod bignum_mod_n25519;
 pub(crate) mod bignum_mod_n256;
 pub(crate) mod bignum_mod_n384;
 pub(crate) mod bignum_modadd;
