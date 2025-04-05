@@ -203,6 +203,27 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
+    # edwards25519_scalarmuldouble (aarch64)
+    with open(
+        "../../thirdparty/s2n-bignum/arm/curve25519/edwards25519_scalarmuldouble_alt.S"
+    ) as input, open(
+        "../../graviola/src/low/aarch64/edwards25519_scalarmuldouble.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_aarch64)
+        d.add_const_symbol("edwards25519_scalarmuldouble_alt_table")
+        d.emit_rust_function(
+            "edwards25519_scalarmuldouble_alt",
+            parameter_map=[
+                ("inout", "res.as_mut_ptr() => _"),
+                ("inout", "scalar.as_ptr() => _"),
+                ("inout", "point.as_ptr() => _"),
+                ("inout", "bscalar.as_ptr() => _"),
+            ],
+            hoist=["proc", "edwards25519_scalarmuldouble_alt_pepadd", "ret"],
+            rust_decl="fn edwards25519_scalarmuldouble(res: &mut [u64; 8], scalar: &[u64; 4], point: &[u64; 8], bscalar: &[u64; 4])",
+        )
+        parse_file(input, d)
+
     # bignum_madd_n25519 (aarch64)
     with open(
         "../../thirdparty/s2n-bignum/arm/curve25519/bignum_madd_n25519_alt.S"
