@@ -160,6 +160,30 @@ impl<const N: usize> PosInt<N> {
         self.len_bits() == 0
     }
 
+    /// Returns `self` >> shift.
+    ///
+    /// This leaks the value of `shift` / 64, because this affects
+    /// the number of words it reads from `self`.
+    pub(crate) fn shift_right_vartime(&self, shift: usize) -> Self {
+        debug_assert!(shift != 0 && shift < self.len_bits());
+
+        let bits = shift & 63;
+        let words = (shift - bits) / 64;
+
+        let mut r = Self::zero();
+        r.used = self.used - words;
+        low::bignum_shr_small(r.as_mut_words(), &self.as_words()[words..], bits as u8);
+        r
+    }
+
+    /// Returns `self` >> 1.
+    pub(crate) fn shift_right_1(&self) -> Self {
+        let mut r = Self::zero();
+        r.used = self.used;
+        low::bignum_shr_small(r.as_mut_words(), self.as_words(), 1);
+        r
+    }
+
     fn as_words(&self) -> &[u64] {
         &self.words[..self.used]
     }
