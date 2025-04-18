@@ -160,6 +160,12 @@ impl<const N: usize> PosInt<N> {
         self.len_bits() == 0
     }
 
+    /// Return true if `gcd(self, other)` is one
+    pub(crate) fn is_coprime(&self, other: &Self) -> bool {
+        let mut tmp = vec![0u64; N + N];
+        low::bignum_coprime(self.as_words(), other.as_words(), &mut tmp)
+    }
+
     /// Returns `self` >> shift.
     ///
     /// This leaks the value of `shift` / 64, because this affects
