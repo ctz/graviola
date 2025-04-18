@@ -42,6 +42,22 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
+    with open(
+        "../../thirdparty/s2n-bignum/x86/generic/bignum_ctz.S"
+    ) as input, open("../../graviola/src/low/x86_64/bignum_ctz.rs", "w") as output:
+        d = RustDriver(output, Architecture_amd64)
+        d.emit_rust_function(
+            "bignum_ctz",
+            parameter_map=[
+                ("inout", "x.len() => _"),
+                ("inout", "x.as_ptr() => _"),
+            ],
+            return_map=("out", "ret"),
+            return_value=("u64", "ret", "ret as usize"),
+            rust_decl="fn bignum_ctz(x: &[u64]) -> usize",
+        )
+        parse_file(input, d)
+
     with open("../../thirdparty/s2n-bignum/x86/generic/bignum_lt.S") as input, open(
         "../../graviola/src/low/x86_64/bignum_cmp_lt.rs", "w"
     ) as output:
@@ -307,6 +323,21 @@ if __name__ == "__main__":
             ],
             return_value=("u64", "ret", "ret as usize"),
             rust_decl="fn bignum_bitsize(x: &[u64]) -> usize",
+        )
+        parse_file(input, d)
+
+    with open(
+        "../../thirdparty/s2n-bignum/arm/generic/bignum_ctz.S"
+    ) as input, open("../../graviola/src/low/aarch64/bignum_ctz.rs", "w") as output:
+        d = RustDriver(output, Architecture_aarch64)
+        d.emit_rust_function(
+            "bignum_ctz",
+            parameter_map=[
+                ("inout", "x.len() => ret"),
+                ("inout", "x.as_ptr() => _"),
+            ],
+            return_value=("u64", "ret", "ret as usize"),
+            rust_decl="fn bignum_ctz(x: &[u64]) -> usize",
         )
         parse_file(input, d)
 
