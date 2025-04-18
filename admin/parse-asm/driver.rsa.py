@@ -290,6 +290,26 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
+    with open("../../thirdparty/s2n-bignum/x86/generic/bignum_coprime.S") as input, open(
+        "../../graviola/src/low/x86_64/bignum_coprime.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_amd64)
+        d.emit_rust_function(
+            "bignum_coprime",
+            parameter_map=[
+                ("inout", "x.len() => _"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.len() => _"),
+                ("inout", "y.as_ptr() => _"),
+                ("inout", "t.as_mut_ptr() => _"),
+            ],
+            assertions=["t.len() >= 2 * core::cmp::max(x.len(), y.len())"],
+            return_map=("out", "ret"),
+            return_value=("u64", "ret", "ret > 0"),
+            rust_decl="fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool",
+        )
+        parse_file(input, d)
+
     with open("../../thirdparty/s2n-bignum/x86/generic/bignum_shr_small.S") as input, open(
         "../../graviola/src/low/x86_64/bignum_shr_small.rs", "w"
     ) as output:
@@ -596,6 +616,25 @@ if __name__ == "__main__":
             ],
             assertions=["z.len() == x.len()"],
             rust_decl="fn bignum_negmodinv(z: &mut [u64], x: &[u64])",
+        )
+        parse_file(input, d)
+
+    with open("../../thirdparty/s2n-bignum/arm/generic/bignum_coprime.S") as input, open(
+        "../../graviola/src/low/aarch64/bignum_coprime.rs", "w"
+    ) as output:
+        d = RustDriver(output, Architecture_aarch64)
+        d.emit_rust_function(
+            "bignum_coprime",
+            parameter_map=[
+                ("inout", "x.len() => ret"),
+                ("inout", "x.as_ptr() => _"),
+                ("inout", "y.len() => _"),
+                ("inout", "y.as_ptr() => _"),
+                ("inout", "t.as_mut_ptr() => _"),
+            ],
+            assertions=["t.len() >= 2 * core::cmp::max(x.len(), y.len())"],
+            return_value=("u64", "ret", "ret > 0"),
+            rust_decl="fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool",
         )
         parse_file(input, d)
 
