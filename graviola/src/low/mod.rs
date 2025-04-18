@@ -84,6 +84,7 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::bignum_neg_p384::bignum_neg_p384;
         pub(crate) use x86_64::bignum_negmodinv::bignum_negmodinv;
         pub(crate) use x86_64::bignum_optsub::bignum_optsub;
+        pub(crate) use x86_64::bignum_shr_small::bignum_shr_small;
         pub(crate) use x86_64::bignum_tomont_p256::bignum_tomont_p256;
         pub(crate) use x86_64::bignum_tomont_p384::bignum_tomont_p384;
         pub(crate) use x86_64::curve25519_x25519::curve25519_x25519;
@@ -142,6 +143,7 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::bignum_neg_p384::bignum_neg_p384;
         pub(crate) use aarch64::bignum_negmodinv::bignum_negmodinv;
         pub(crate) use aarch64::bignum_optsub::bignum_optsub;
+        pub(crate) use aarch64::bignum_shr_small::bignum_shr_small;
         pub(crate) use aarch64::bignum_tomont_p256::bignum_tomont_p256;
         pub(crate) use aarch64::bignum_tomont_p384::bignum_tomont_p384;
         pub(crate) use aarch64::curve25519_x25519::curve25519_x25519;
