@@ -21,6 +21,13 @@ impl<const N: usize> PosInt<N> {
         }
     }
 
+    /// Makes a minimum-width, single-word value.
+    pub(crate) fn word(w: u64) -> Self {
+        let mut r = Self::zero();
+        r.push_word(w).unwrap();
+        r
+    }
+
     /// Makes a minimum-width one.
     fn one() -> Self {
         let mut r = Self::zero();
@@ -130,11 +137,23 @@ impl<const N: usize> PosInt<N> {
     }
 
     pub(crate) fn len_bytes(&self) -> usize {
-        low::bignum_bitsize(self.as_words()).wrapping_add(7) / 8
+        self.len_bits().wrapping_add(7) / 8
+    }
+
+    pub(crate) fn len_bits(&self) -> usize {
+        low::bignum_bitsize(self.as_words())
     }
 
     pub(crate) fn is_even(&self) -> bool {
         self.words[0] & 1 == 0
+    }
+
+    fn is_odd(&self) -> bool {
+        !self.is_even()
+    }
+
+    pub(crate) fn is_zero(&self) -> bool {
+        self.len_bits() == 0
     }
 
     fn as_words(&self) -> &[u64] {
@@ -175,6 +194,7 @@ impl<const N: usize> PosInt<N> {
         self.words[..s_used] == other.words[..o_used]
     }
 
+    /// Returns `self` < `other`.
     pub(crate) fn less_than(&self, other: &Self) -> bool {
         low::bignum_cmp_lt(self.as_words(), other.as_words()) > 0
     }
@@ -703,5 +723,40 @@ mod tests {
 
         let expect_8 = PosInt::<8>::from_bytes(b"\x34\x64\x15\xf5\x75\xf1\xb7\x01\x8b\x1d\xc4\x68\xde\x4b\xf7\x6e\x6f\x62\x87\xa1\x44\x08\x6f\xb1\x85\x9c\xf3\x84\x41\x64\x48\x9d\x16\xe7\xb0\xd0\xd3\x56\x13\xba\xa2\xb9\xa6\x12\x1a\x6c\x2f\x93\xcd\xe4\x20\xfa\x41\xa4\xef\xa2\xab\xcd\x8b\x48\x19\x62\x4a\xcc").unwrap();
         assert!(xy_8.pub_equals(&expect_8));
+    }
+
+    #[test]
+    fn basics() {
+        let zero = PosInt::<1>::zero();
+        let one = PosInt::<1>::one();
+        let two = PosInt::<1>::word(2);
+        let max_one_word = PosInt::<1>::word(u64::MAX);
+
+        assert_eq!(zero.len_bits(), 0);
+        assert!(zero.is_even());
+        assert!(zero.is_zero());
+        assert!(zero.equals(&zero));
+        assert!(zero.less_than(&one));
+        assert!(!one.less_than(&zero));
+
+        assert_eq!(one.len_bits(), 1);
+        assert!(one.is_odd());
+        assert!(!one.is_zero());
+        assert!(one.equals(&one));
+
+        assert_eq!(two.len_bits(), 2);
+        assert!(two.is_even());
+        assert!(two.equals(&two));
+
+        assert_eq!(max_one_word.len_bits(), 64);
+        assert!(max_one_word.is_odd());
+        assert!(max_one_word.equals(&max_one_word));
+        assert!(one.less_than(&max_one_word));
+
+        let two_words = PosInt::<2>::from_bytes(&[0xff; 16]).unwrap();
+        assert_eq!(two_words.len_bits(), 128);
+        assert!(two_words.is_odd());
+        assert!(two_words.equals(&two_words));
+        assert!(two_words.fixed_one().less_than(&two_words));
     }
 }
