@@ -13,6 +13,7 @@ pub(crate) mod bignum_copy_row_from_table_16_neon;
 pub(crate) mod bignum_copy_row_from_table_32_neon;
 pub(crate) mod bignum_copy_row_from_table_8n_neon;
 pub(crate) mod bignum_copy_row_from_table_mux;
+pub(crate) mod bignum_ctz;
 pub(crate) mod bignum_demont;
 pub(crate) mod bignum_demont_p256;
 pub(crate) mod bignum_demont_p384;

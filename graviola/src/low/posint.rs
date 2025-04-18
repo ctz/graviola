@@ -144,6 +144,10 @@ impl<const N: usize> PosInt<N> {
         low::bignum_bitsize(self.as_words())
     }
 
+    pub(crate) fn count_trailing_zeroes(&self) -> usize {
+        low::bignum_ctz(self.as_words())
+    }
+
     pub(crate) fn is_even(&self) -> bool {
         self.words[0] & 1 == 0
     }
@@ -736,16 +740,19 @@ mod tests {
         assert!(zero.is_even());
         assert!(zero.is_zero());
         assert!(zero.equals(&zero));
+        assert_eq!(zero.count_trailing_zeroes(), 0);
         assert!(zero.less_than(&one));
         assert!(!one.less_than(&zero));
 
         assert_eq!(one.len_bits(), 1);
         assert!(one.is_odd());
         assert!(!one.is_zero());
+        assert_eq!(one.count_trailing_zeroes(), 0);
         assert!(one.equals(&one));
 
         assert_eq!(two.len_bits(), 2);
         assert!(two.is_even());
+        assert_eq!(two.count_trailing_zeroes(), 1);
         assert!(two.equals(&two));
 
         assert_eq!(max_one_word.len_bits(), 64);
