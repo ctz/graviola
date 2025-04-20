@@ -4,13 +4,13 @@ use sha2::Digest;
 
 fn test_ring_sha256(data: &[u8]) {
     let mut ctx = ring::digest::Context::new(&ring::digest::SHA256);
-    ctx.update(&data);
+    ctx.update(data);
     black_box(ctx.finish());
 }
 
 fn test_ring_sha512(data: &[u8]) {
     let mut ctx = ring::digest::Context::new(&ring::digest::SHA512);
-    ctx.update(&data);
+    ctx.update(data);
     black_box(ctx.finish());
 }
 

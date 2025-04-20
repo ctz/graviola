@@ -816,7 +816,7 @@ impl Scalar {
 
     #[cfg(test)]
     fn small_u64(v: u64) -> Self {
-        Scalar([v, 0, 0, 0])
+        Self([v, 0, 0, 0])
     }
 
     /// Private test for zero
@@ -1259,19 +1259,19 @@ mod tests {
         let precomp = CURVE_GENERATOR.public_precomp_w7_slow();
 
         println!("pub(super) static CURVE_GENERATOR_PRECOMP_W7: super::AffineMontPointTableW7 = [");
-        for w in 0..37 {
-            println!("    // 1G..64G << {}", w * 7);
+        for (power, row) in precomp.iter().enumerate() {
+            println!("    // 1G..64G << {}", power * 7);
             println!("    [");
-            for p in 0..64 {
-                for j in 0..8 {
-                    println!("            0x{:016x}, ", precomp[w][p].xy[j]);
+            for column in row {
+                for w in column.xy {
+                    println!("            0x{:016x}, ", w);
                 }
             }
             println!("    ],");
         }
         println!("];");
 
-        println!("");
+        println!();
         println!("table size is {} bytes", size_of_val(&precomp));
     }
 }

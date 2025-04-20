@@ -179,7 +179,7 @@ mod tests {
 
         for i in 0..ehello.len() {
             let mut ehello_tmp = ehello.clone();
-            ehello_tmp[i] = ehello_tmp[i] ^ 1;
+            ehello_tmp[i] ^= 1;
             assert_eq!(None, t.decrypt(&ehello_tmp));
         }
     }

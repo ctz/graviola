@@ -26,7 +26,7 @@ impl AesGcm {
     /// `key` must be 16 or 32 bytes, corresponding
     /// to AES-128 or AES-256.  This function panics otherwise.
     ///
-    /// (Note: this crate does not support AES-192).  
+    /// (Note: this crate does not support AES-192).
     pub fn new(key: &[u8]) -> Self {
         let _entry = Entry::new_secret();
         let key = AesKey::new(key);
@@ -171,8 +171,7 @@ mod tests {
         let (cipher, tag) = expected.split_at(expected.len() - 16);
         let mut plain = cipher.to_vec();
 
-        t.decrypt(b"noncenonceno", b"aad", &mut plain, &tag)
-            .unwrap();
+        t.decrypt(b"noncenonceno", b"aad", &mut plain, tag).unwrap();
 
         assert_eq!(plain, &[b'p'; 4164]);
     }
@@ -271,8 +270,10 @@ mod tests {
             &mut State::default(),
         );
 
-        let mut state = State::default();
-        state.encrypt = true;
+        let mut state = State {
+            encrypt: true,
+            ..Default::default()
+        };
         process_cavp("../thirdparty/cavp/gcm/gcmEncryptExtIV128.rsp", &mut state);
         process_cavp("../thirdparty/cavp/gcm/gcmEncryptExtIV256.rsp", &mut state);
     }
