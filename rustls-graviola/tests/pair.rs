@@ -161,7 +161,7 @@ fn exercise(client_config: Arc<ClientConfig>, server_config: Arc<ServerConfig>) 
     server.reader().read_to_end(&mut out).unwrap();
     assert_eq!(out, b"hello world");
 
-    server.writer().write(b"goodbye").unwrap();
+    let _ = server.writer().write(b"goodbye").unwrap();
     let wr = server.write_tls(&mut &mut buf[..]).unwrap();
     client.read_tls(&mut &buf[..wr]).unwrap();
     client.process_new_packets().unwrap();

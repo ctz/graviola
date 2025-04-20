@@ -17,10 +17,8 @@ fn rsa2048_pkcs1_sha256_sign(c: &mut Criterion) {
 
         b.iter(|| {
             let mut signature = [0u8; 256];
-            black_box(
-                key.sign(&signature::RSA_PKCS1_SHA256, &rng, message, &mut signature)
-                    .unwrap(),
-            );
+            black_box(key.sign(&signature::RSA_PKCS1_SHA256, &rng, message, &mut signature))
+                .unwrap();
         })
     });
 
@@ -32,10 +30,8 @@ fn rsa2048_pkcs1_sha256_sign(c: &mut Criterion) {
 
         b.iter(|| {
             let mut signature = [0u8; 256];
-            black_box(
-                key.sign(&signature::RSA_PKCS1_SHA256, &rng, message, &mut signature)
-                    .unwrap(),
-            );
+            black_box(key.sign(&signature::RSA_PKCS1_SHA256, &rng, message, &mut signature))
+                .unwrap();
         })
     });
 

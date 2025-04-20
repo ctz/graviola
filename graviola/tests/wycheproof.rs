@@ -572,7 +572,7 @@ fn test_rsa_pkcs1_verify() {
         "rsa_signature_8192_sha384_test.json",
         "rsa_signature_8192_sha512_test.json",
     ] {
-        let data_file = File::open(&format!("../thirdparty/wycheproof/testvectors_v1/{file}"))
+        let data_file = File::open(format!("../thirdparty/wycheproof/testvectors_v1/{file}"))
             .expect("failed to open data file");
         println!("file: {data_file:?}");
 
@@ -619,7 +619,7 @@ fn test_rsa_pss_verify() {
         "rsa_pss_4096_sha512_mgf1_64_test.json",
         "rsa_pss_misc_test.json",
     ] {
-        let data_file = File::open(&format!("../thirdparty/wycheproof/testvectors_v1/{file}"))
+        let data_file = File::open(format!("../thirdparty/wycheproof/testvectors_v1/{file}"))
             .expect("failed to open data file");
         println!("file: {data_file:?}");
 

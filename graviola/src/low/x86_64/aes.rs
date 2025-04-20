@@ -271,6 +271,7 @@ mod tests {
 
     fn to_u128(v: __m128i) -> u128 {
         let mut u = 0;
+        // SAFETY: __m128i has the same layout/meaning as u128
         unsafe {
             _mm_store_si128(&mut u as *mut u128 as *mut _, v);
         }

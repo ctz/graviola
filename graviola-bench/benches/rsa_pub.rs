@@ -16,7 +16,7 @@ fn rsa2048_pkcs1_sha256_verify(c: &mut Criterion) {
             signature::UnparsedPublicKey::new(&signature::RSA_PKCS1_2048_8192_SHA256, public_key);
 
         b.iter(|| {
-            black_box(peer_public_key.verify(message, signature).unwrap());
+            black_box(peer_public_key.verify(message, signature)).unwrap();
         })
     });
 
@@ -26,7 +26,7 @@ fn rsa2048_pkcs1_sha256_verify(c: &mut Criterion) {
             signature::UnparsedPublicKey::new(&signature::RSA_PKCS1_2048_8192_SHA256, public_key);
 
         b.iter(|| {
-            black_box(peer_public_key.verify(message, signature).unwrap());
+            black_box(peer_public_key.verify(message, signature)).unwrap();
         })
     });
 
@@ -39,7 +39,7 @@ fn rsa2048_pkcs1_sha256_verify(c: &mut Criterion) {
 
         b.iter(|| {
             let signature = rsa::pkcs1v15::Signature::try_from(&signature[..]).unwrap();
-            black_box(peer_public_key.verify(message, &signature).unwrap());
+            black_box(peer_public_key.verify(message, &signature)).unwrap();
         });
     });
 
@@ -48,11 +48,7 @@ fn rsa2048_pkcs1_sha256_verify(c: &mut Criterion) {
             graviola::signing::rsa::VerifyingKey::from_pkcs1_der(public_key).unwrap();
 
         b.iter(|| {
-            black_box(
-                peer_public_key
-                    .verify_pkcs1_sha256(signature, message)
-                    .unwrap(),
-            );
+            black_box(peer_public_key.verify_pkcs1_sha256(signature, message)).unwrap();
         })
     });
 }

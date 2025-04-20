@@ -706,7 +706,7 @@ impl Scalar {
 
     #[cfg(test)]
     fn small_u64(v: u64) -> Self {
-        Scalar([v, 0, 0, 0, 0, 0])
+        Self([v, 0, 0, 0, 0, 0])
     }
 
     /// Private test for zero
@@ -1118,7 +1118,7 @@ mod tests {
         }
         println!("];");
 
-        println!("");
+        println!();
         println!("table size is {} bytes", size_of_val(&precomp));
     }
 }

@@ -232,7 +232,7 @@ mod tests {
 
         if option_env!("SLOW_TESTS").is_some() {
             // After 1,000,000 iterations: 7c3911e0ab2586fd864497297e575e6f3bc601c0883c30df5f4dd2d24f665424
-            for _ in 1000..1000_000 {
+            for _ in 1000..1_000_000 {
                 let new_u = PublicKey::from_array(&k.as_bytes());
                 let res = k.diffie_hellman(&u).unwrap();
                 u = new_u;

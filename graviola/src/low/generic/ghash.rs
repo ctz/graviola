@@ -4,7 +4,6 @@
 /// An extremely slow, by-the-book implementation.
 ///
 /// Useful as a test model for faster implementations.
-
 pub(crate) struct GhashTable {
     h: u128,
 }

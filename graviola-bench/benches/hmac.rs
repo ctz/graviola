@@ -5,14 +5,14 @@ use hmac::Mac;
 fn test_ring_sha256(key: &[u8], data: &[u8]) {
     let mut ctx =
         ring::hmac::Context::with_key(&ring::hmac::Key::new(ring::hmac::HMAC_SHA256, key));
-    ctx.update(&data);
+    ctx.update(data);
     black_box(ctx.sign());
 }
 
 fn test_ring_sha384(key: &[u8], data: &[u8]) {
     let mut ctx =
         ring::hmac::Context::with_key(&ring::hmac::Key::new(ring::hmac::HMAC_SHA384, key));
-    ctx.update(&data);
+    ctx.update(data);
     black_box(ctx.sign());
 }
 
@@ -21,7 +21,7 @@ fn test_aws_sha256(key: &[u8], data: &[u8]) {
         aws_lc_rs::hmac::HMAC_SHA256,
         key,
     ));
-    ctx.update(&data);
+    ctx.update(data);
     black_box(ctx.sign());
 }
 
@@ -30,7 +30,7 @@ fn test_aws_sha384(key: &[u8], data: &[u8]) {
         aws_lc_rs::hmac::HMAC_SHA384,
         key,
     ));
-    ctx.update(&data);
+    ctx.update(data);
     black_box(ctx.sign());
 }
 

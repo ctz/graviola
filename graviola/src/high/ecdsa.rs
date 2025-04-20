@@ -564,7 +564,7 @@ mod tests {
 
         let mut asn1_sig = [0u8; 128];
         let asn1_sig = SigningKey::<curve::P256>::fixed_to_asn1(&signature, &mut asn1_sig).unwrap();
-        v.verify_asn1::<hash::Sha256>(&[b"sample"], &asn1_sig)
+        v.verify_asn1::<hash::Sha256>(&[b"sample"], asn1_sig)
             .unwrap();
 
         k.rfc6979_sign_with_random::<hash::Sha256>(&[b"test"], &[], &mut signature)
@@ -583,8 +583,7 @@ mod tests {
 
         let mut asn1_sig = [0u8; 128];
         let asn1_sig = SigningKey::<curve::P256>::fixed_to_asn1(&signature, &mut asn1_sig).unwrap();
-        v.verify_asn1::<hash::Sha256>(&[b"test"], &asn1_sig)
-            .unwrap();
+        v.verify_asn1::<hash::Sha256>(&[b"test"], asn1_sig).unwrap();
 
         k.rfc6979_sign_with_random::<hash::Sha512>(&[b"sample"], &[], &mut signature)
             .unwrap();
@@ -602,7 +601,7 @@ mod tests {
 
         let mut asn1_sig = [0u8; 128];
         let asn1_sig = SigningKey::<curve::P256>::fixed_to_asn1(&signature, &mut asn1_sig).unwrap();
-        v.verify_asn1::<hash::Sha512>(&[b"sample"], &asn1_sig)
+        v.verify_asn1::<hash::Sha512>(&[b"sample"], asn1_sig)
             .unwrap();
 
         k.rfc6979_sign_with_random::<hash::Sha512>(&[b"test"], &[], &mut signature)
@@ -621,8 +620,7 @@ mod tests {
 
         let mut asn1_sig = [0u8; 128];
         let asn1_sig = SigningKey::<curve::P256>::fixed_to_asn1(&signature, &mut asn1_sig).unwrap();
-        v.verify_asn1::<hash::Sha512>(&[b"test"], &asn1_sig)
-            .unwrap();
+        v.verify_asn1::<hash::Sha512>(&[b"test"], asn1_sig).unwrap();
 
         // This is an extra test vector from
         // <https://github.com/C2SP/CCTV/tree/main/RFC6979>
