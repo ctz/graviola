@@ -36,8 +36,6 @@ impl RsaPrivateKey {
         let p_len = p.len_bytes();
         if p.is_even()
             || q.is_even()
-            || dp.is_even()
-            || dq.is_even()
             || !(MIN_PRIVATE_MODULUS_BYTES..=MAX_PRIVATE_MODULUS_BYTES).contains(&p_len)
         {
             return Err(Error::OutOfRange);
