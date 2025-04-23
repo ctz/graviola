@@ -61,6 +61,10 @@ name = "rsa_priv"
 harness = false
 
 [[bench]]
+name = "rsa_gen"
+harness = false
+
+[[bench]]
 name = "chacha20poly1305"
 harness = false
 
