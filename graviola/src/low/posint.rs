@@ -29,7 +29,7 @@ impl<const N: usize> PosInt<N> {
     }
 
     /// Makes a minimum-width one.
-    fn one() -> Self {
+    pub(crate) fn one() -> Self {
         let mut r = Self::zero();
         r.words[0] = 1;
         r.used = 1;
@@ -249,7 +249,7 @@ impl<const N: usize> PosInt<N> {
     /// This leaks the value of `shift` / 64, because this affects
     /// the number of words it reads from `self`.
     pub(crate) fn shift_right_vartime(&self, shift: usize) -> Self {
-        debug_assert!(shift != 0 && shift < self.len_bits());
+        debug_assert!(shift < self.len_bits());
 
         let bits = shift & 63;
         let words = (shift - bits) / 64;
@@ -333,7 +333,7 @@ impl<const N: usize> PosInt<N> {
         mont.used = n.used;
         low::bignum_montmul(
             mont.as_mut_words(),
-            self.as_words(),
+            &self.words[..n.used],
             montifier.as_words(),
             n.as_words(),
         );
@@ -361,7 +361,7 @@ impl<const N: usize> PosInt<N> {
 
         let mut tmp = Self::zero();
         tmp.used = n.used;
-        low::bignum_montsqr(tmp.as_mut_words(), self.as_words(), n.as_words());
+        low::bignum_montsqr(tmp.as_mut_words(), &self.words[..n.used], n.as_words());
         tmp
     }
 
@@ -379,8 +379,8 @@ impl<const N: usize> PosInt<N> {
         tmp.used = n.used;
         low::bignum_montmul(
             tmp.as_mut_words(),
-            self.as_words(),
-            v.as_words(),
+            &self.words[..n.used],
+            &v.words[..n.used],
             n.as_words(),
         );
         tmp

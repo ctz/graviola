@@ -4,6 +4,10 @@
 use super::rsa_pub::{MAX_PUBLIC_MODULUS_BYTES, RsaPublicKey};
 use crate::error::Error;
 use crate::low;
+use crate::mid::rng::RandomSource;
+
+mod generate;
+pub use generate::KeySize;
 
 pub(crate) struct RsaPrivateKey {
     public: RsaPublicKey,
@@ -69,6 +73,14 @@ impl RsaPrivateKey {
             p0,
             q0,
         })
+    }
+
+    pub(crate) fn generate(
+        size: KeySize,
+        candidate_source: &mut dyn RandomSource,
+        witness_source: &mut dyn RandomSource,
+    ) -> Result<Self, Error> {
+        generate::generate_key(size, candidate_source, witness_source)
     }
 
     pub(crate) fn public_key(&self) -> RsaPublicKey {
