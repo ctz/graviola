@@ -545,6 +545,24 @@ impl<const N: usize> PosInt<N> {
         accum
     }
 
+    /// Computes the multiplicative inverse of `self` mod `n`.
+    ///
+    /// For that, `self` and `n` must be coprime: check with `is_coprime()`
+    /// first.
+    #[must_use]
+    pub(crate) fn mod_inverse(&self, n: &Self) -> Self {
+        let mut r = Self::zero();
+        r.used = n.used;
+        let mut temp = vec![0u64; N * 3];
+        low::bignum_modinv(
+            r.as_mut_words(),
+            &self.words[..n.used],
+            n.as_words(),
+            &mut temp,
+        );
+        r
+    }
+
     /// Computes `self` + `b`
     #[must_use]
     pub(crate) fn add(&self, b: &Self) -> Self {
