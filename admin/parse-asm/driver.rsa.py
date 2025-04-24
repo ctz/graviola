@@ -112,8 +112,10 @@ if __name__ == "__main__":
                 ("inout", "y.len() => _"),
                 ("inout", "y.as_ptr() => _"),
             ],
+            return_map=("out", "ret"),
+            return_value=("u64", "ret", "ret"),
             hoist=["linear", "tail", "ret"],
-            rust_decl="fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64])",
+            rust_decl="fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) -> u64",
         )
         parse_file(input, d)
 
@@ -424,15 +426,16 @@ if __name__ == "__main__":
         d.emit_rust_function(
             "bignum_add",
             parameter_map=[
-                ("inout", "z.len() => _"),
+                ("inout", "z.len() => ret"),
                 ("inout", "z.as_mut_ptr() => _"),
                 ("inout", "x.len() => _"),
                 ("inout", "x.as_ptr() => _"),
                 ("inout", "y.len() => _"),
                 ("inout", "y.as_ptr() => _"),
             ],
+            return_value=("u64", "ret", "ret"),
             hoist=["linear", "tail", "ret"],
-            rust_decl="fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64])",
+            rust_decl="fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) -> u64",
         )
         parse_file(input, d)
 
