@@ -166,6 +166,84 @@ impl<const N: usize> PosInt<N> {
         low::bignum_coprime(self.as_words(), other.as_words(), &mut tmp)
     }
 
+    /// Returns the multiplicative inverse of `self` mod `m`.
+    ///
+    /// Unlike `mod_inverse`, this function does not require `m` to be odd.
+    ///
+    /// Returns `None` if `self` and `m` are both even, or are zero.
+    pub(crate) fn invert_vartime(&self, m: &Self) -> Option<Self> {
+        // See https://github.com/mit-plv/fiat-crypto/blob/b4f94a230ea6d322318988724fdace4d5f0eaf69/src/Arithmetic/BinaryExtendedGCD.v
+        // for details, which describes a variation on the algorithm in HAC
+        // algorithm 14.61 <https://cacr.uwaterloo.ca/hac/about/chap14.pdf>
+
+        let x = self;
+        let y = m;
+
+        // We're not interested in handling the case where both `a` and `m` are even.
+        // (steps 1 and 2 in HAC).  This fixes `g` as 1, so is eliminated.
+        if x.is_zero() || y.is_zero() || (x.is_even() && y.is_even()) {
+            return None;
+        }
+
+        // 3. u <- a, v <- m, A <- 1, B <- 0, C <- 0, D <- 1.
+        let mut u = x.clone();
+        let mut v = y.clone();
+        let mut a = Self::one();
+        let mut b = Self::zero();
+        let mut c = Self::zero();
+        let mut d = Self::one();
+
+        a.expand(y);
+        b.expand(x);
+        c.expand(y);
+        d.expand(x);
+
+        loop {
+            if u.is_odd() && v.is_odd() {
+                if v.less_than(&u) {
+                    u = u.sub(&v);
+                    a = a.add_mod(&c, y);
+                    b = b.add_mod(&d, x);
+                } else {
+                    v = v.sub(&u);
+                    c = c.add_mod(&a, y);
+                    d = d.add_mod(&b, x);
+                }
+            }
+
+            assert!(u.is_even() || v.is_even());
+
+            if u.is_even() {
+                u = u.shift_right_1();
+
+                if a.is_odd() || b.is_odd() {
+                    a = a.add_shift_right_1(y);
+                    b = b.add_shift_right_1(x);
+                } else {
+                    a = a.shift_right_1();
+                    b = b.shift_right_1();
+                }
+            } else {
+                v = v.shift_right_1();
+
+                if c.is_odd() || d.is_odd() {
+                    c = c.add_shift_right_1(y);
+                    d = d.add_shift_right_1(x);
+                } else {
+                    c = c.shift_right_1();
+                    d = d.shift_right_1();
+                }
+            }
+
+            if v.is_zero() {
+                match u.len_bits() {
+                    1 => return Some(a),
+                    _ => return None,
+                }
+            }
+        }
+    }
+
     /// Returns `self` >> shift.
     ///
     /// This leaks the value of `shift` / 64, because this affects
