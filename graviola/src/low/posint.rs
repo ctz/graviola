@@ -554,6 +554,48 @@ impl<const N: usize> PosInt<N> {
         r
     }
 
+    /// Computes (`self` + `b`) >> 1
+    #[must_use]
+    pub(crate) fn add_shift_right_1(&self, b: &Self) -> Self {
+        let mut tmp = Self::zero();
+        let carry = low::bignum_add(&mut tmp.words, self.as_words(), b.as_words());
+        tmp.used = low::bignum_digitsize(&tmp.words);
+
+        let mut r = Self::zero();
+        low::bignum_shr_small(&mut r.words, tmp.as_words(), 1);
+        r.used = tmp.used;
+
+        // insert carry at top
+        r.words[r.used - 1] |= carry << 63;
+
+        r
+    }
+
+    /// Computes `self` + `b` mod `m`
+    #[must_use]
+    pub(crate) fn add_mod(&self, b: &Self, m: &Self) -> Self {
+        let mut r = Self::zero();
+        r.used = m.used;
+        low::bignum_modadd(
+            r.as_mut_words(),
+            &self.words[..m.used],
+            &b.words[..m.used],
+            m.as_words(),
+        );
+        r.used = low::bignum_digitsize(&r.words);
+        r
+    }
+
+    /// Computes `self` - `b`
+    #[must_use]
+    pub(crate) fn sub(&self, b: &Self) -> Self {
+        let mut r = Self::zero();
+        r.used = self.used;
+        // TODO: could pull in bignum_sub for this.
+        low::bignum_optsub(r.as_mut_words(), self.as_words(), b.as_words(), 1);
+        r
+    }
+
     /// Computes `self` - `b` mod `p`
     #[must_use]
     pub(crate) fn sub_mod(&self, b: &Self, p: &Self) -> Self {
@@ -795,5 +837,26 @@ mod tests {
         assert!(two_words.is_odd());
         assert!(two_words.equals(&two_words));
         assert!(two_words.fixed_one().less_than(&two_words));
+    }
+
+    #[test]
+    fn test_add_shift_right_1() {
+        let a = PosInt::<1> {
+            words: [0x8000_0000_0000_0021; 1],
+            used: 1,
+        };
+        let b = PosInt::<1> {
+            words: [0x8421_8421_8421_8421; 1],
+            used: 1,
+        };
+        let c = a.add_shift_right_1(&b);
+        assert_eq!(c.as_words(), &[0x8210_c210_c210_c221]);
+
+        let b = PosInt::<1> {
+            words: [0x0421_8421_8421_8421; 1],
+            used: 1,
+        };
+        let c = a.add_shift_right_1(&b);
+        assert_eq!(c.as_words(), &[0x4210_c210_c210_c221]);
     }
 }

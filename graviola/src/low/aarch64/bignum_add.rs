@@ -73,7 +73,8 @@ macro_rules! d {
 /// Does the z := x + y operation, truncating modulo p words in general and
 /// returning a top carry (0 or 1) in the p'th place, only adding the input
 /// words below p (as well as m and n respectively) to get the sum and carry.
-pub(crate) fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) {
+pub(crate) fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) -> u64 {
+    let ret: u64;
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
@@ -160,7 +161,7 @@ pub(crate) fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) {
         Q!("    cbnz            " p!() ", " Label!("tailloop", 15, Before)),
         Q!("    mov             " "x0, xzr"),
         Q!(Label!("hoist_finish", 8) ":"),
-        inout("x0") z.len() => _,
+        inout("x0") z.len() => ret,
         inout("x1") z.as_mut_ptr() => _,
         inout("x2") x.len() => _,
         inout("x3") x.as_ptr() => _,
@@ -172,4 +173,5 @@ pub(crate) fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) {
         out("x8") _,
             )
     };
+    ret
 }
