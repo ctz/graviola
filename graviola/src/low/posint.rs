@@ -563,6 +563,55 @@ impl<const N: usize> PosInt<N> {
         r
     }
 
+    /// Computes `self` mod `m`, where m` may be even.
+    ///
+    /// Use `reduce()` if `m` is odd; it will be faster.
+    #[must_use]
+    pub(crate) fn reduce_even<const M: usize>(&self, m: &PosInt<M>) -> PosInt<M> {
+        assert!(M < N);
+
+        let mut r = PosInt::<M>::zero();
+        r.used = m.used;
+        let mut addend = r.clone();
+
+        // First, observe that any value of M-1 words cannot change
+        // when reduced by m (M := |m|).  So we can copy these top words
+        // in directly.
+        let limit = r.used.saturating_sub(1);
+        let i = self.used.saturating_sub(limit);
+        r.words[..limit].copy_from_slice(&self.words[i..self.used]);
+
+        // For the remaining bits, we double-and-add them.
+        for j in (0..i).rev() {
+            let word = self.words[j];
+
+            for b in (0..64).rev() {
+                let bit = (word >> b) & 1;
+
+                // First, double r mod m; ie shift it left once.
+                // TODO: `bignum_moddouble` should be faster.
+                let mut next = r.clone();
+                low::bignum_modadd(
+                    next.as_mut_words(),
+                    r.as_words(),
+                    r.as_words(),
+                    m.as_words(),
+                );
+
+                // Now add the new bit.  This might add zero.
+                addend.words[0] = bit;
+                low::bignum_modadd(
+                    r.as_mut_words(),
+                    next.as_words(),
+                    addend.as_words(),
+                    m.as_words(),
+                );
+            }
+        }
+
+        r
+    }
+
     /// Computes `self` + `b`
     #[must_use]
     pub(crate) fn add(&self, b: &Self) -> Self {
@@ -855,6 +904,40 @@ mod tests {
         assert!(two_words.is_odd());
         assert!(two_words.equals(&two_words));
         assert!(two_words.fixed_one().less_than(&two_words));
+    }
+
+    #[test]
+    fn test_reduce_even() {
+        let mut a = PosInt::<32>::zero();
+        for i in 0..32 {
+            a.push_word(0x8000_1234_5678_0000 + i).unwrap();
+        }
+        let m = PosInt::<16> {
+            used: 16,
+            words: [0xff55_3322_ff55_3322; 16],
+        };
+        let c = a.reduce_even(&m);
+        assert_eq!(
+            c.as_words(),
+            &[
+                0x1e0a0609caf9e1b2,
+                0x1e0a0609caf9e1b4,
+                0x1e0a0609caf9e1b6,
+                0x1e0a0609caf9e1b8,
+                0x1e0a0609caf9e1ba,
+                0x1e0a0609caf9e1bc,
+                0x1e0a0609caf9e1be,
+                0x1e0a0609caf9e1c0,
+                0x1e0a0609caf9e1c2,
+                0x1e0a0609caf9e1c4,
+                0x1e0a0609caf9e1c6,
+                0x1e0a0609caf9e1c8,
+                0x1e0a0609caf9e1ca,
+                0x1e0a0609caf9e1cc,
+                0x1e0a0609caf9e1ce,
+                0x1e0a0609caf9e1d0
+            ]
+        );
     }
 
     #[test]
