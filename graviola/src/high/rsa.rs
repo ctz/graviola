@@ -1,6 +1,8 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+pub use rsa_priv::KeySize;
+
 use crate::Error;
 use crate::high::asn1::{self, Type, pkix};
 use crate::high::hash::{self, Hash};
@@ -215,9 +217,41 @@ impl VerifyingKey {
 ///
 /// Keys supported by this library have public moduli between
 /// 2048- and 8192-bits.  Only two-prime RSA keys are supported.
+///
+/// You can generate a new key using [`SigningKey::generate()`], and then
+/// serialize it using [`SigningKey::to_pkcs1_der()`] or [`SigningKey::to_pkcs8_der()`].
+///
+/// ```
+/// use graviola::signing::rsa::{KeySize, SigningKey};
+/// let key = SigningKey::generate(KeySize::Rsa2048)?;
+/// let mut buffer = [0u8; 2048];
+/// let buffer = key.to_pkcs8_der(&mut buffer)?;
+/// std::fs::write("key.der", buffer)?;
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+///
+/// You can decode an existing key using [`SigningKey::from_pkcs1_der()`]
+/// or [`SigningKey::from_pkcs8_der()`], depending on the format you have it in.
 pub struct SigningKey(rsa_priv::RsaPrivateKey);
 
 impl SigningKey {
+    /// Generates a new RSA signing key.
+    ///
+    /// `size` is the desired key size.  This library supports a selection of common key sizes.
+    ///
+    /// Key generation is a slow process, especially for larger key sizes.  As an indication,
+    /// an 2048-bit key takes about 30 milliseconds, while an 8192-bit key may take 15 seconds or more.
+    /// The time required is non-deterministic, and does not have an upper bound.
+    ///
+    /// # Warning
+    /// Unlike other private key operations in Graviola, RSA key generation is not side-channel safe.
+    /// Avoid generating keys in untrusted multi-tenant or physical environments.
+    pub fn generate(size: KeySize) -> Result<Self, Error> {
+        let _entry = Entry::new_secret();
+        rsa_priv::RsaPrivateKey::generate(size, &mut SystemRandom, &mut SystemRandom)
+            .map(SigningKey)
+    }
+
     /// Decodes an RSA signing key from PKCS#1 DER format.
     ///
     /// This format is defined in
@@ -591,5 +625,22 @@ mod tests {
         let mut buffer = [0u8; SigningKey::MAX_PKCS1_BUFFER_LEN];
         let encoded = decoded.to_pkcs8_der(&mut buffer).unwrap();
         assert_eq!(encoded, pkcs8_der);
+    }
+
+    #[test]
+    fn key_generation_smoke_test() {
+        let mut sizes = vec![2048, 3072];
+
+        if option_env!("SLOW_TESTS").is_some() {
+            sizes.extend_from_slice(&[4096, 6144, 8192]);
+        }
+
+        for size in sizes {
+            println!("generating {size:?}...");
+            let start = std::time::Instant::now();
+            let key = SigningKey::generate(KeySize::try_from(size).unwrap()).unwrap();
+            println!("generated (took {}ms)", start.elapsed().as_millis());
+            check_all_algs(&mut [0u8; 1024], &key, &key.public_key());
+        }
     }
 }

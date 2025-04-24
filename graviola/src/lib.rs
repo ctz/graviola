@@ -144,7 +144,7 @@ pub mod key_agreement {
 pub mod signing {
     /// RSA signatures.
     pub mod rsa {
-        pub use crate::high::rsa::{SigningKey, VerifyingKey};
+        pub use crate::high::rsa::{KeySize, SigningKey, VerifyingKey};
     }
 
     /// ECDSA signatures.
