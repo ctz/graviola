@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Subtract modulo m, z := (x - y) mod m, assuming x and y reduced
 // Inputs x[k], y[k], m[k]; output z[k]
 //
-//    extern void bignum_modsub
-//     (uint64_t k, uint64_t *z, uint64_t *x, uint64_t *y, uint64_t *m);
+//    extern void bignum_modsub(uint64_t k, uint64_t *z, const uint64_t *x,
+//                              const uint64_t *y, const uint64_t *m);
 //
 // Standard ARM ABI: X0 = k, X1 = z, X2 = x, X3 = y, X4 = m
 // ----------------------------------------------------------------------------
@@ -79,26 +79,26 @@ pub(crate) fn bignum_modsub(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
 
 
         Q!("    adds            " j!() ", " k!() ", xzr"),
-        Q!("    beq             " Label!("end", 2, After)),
+        Q!("    beq             " Label!("bignum_modsub_end", 2, After)),
         Q!("    subs            " i!() ", xzr, xzr"),
 
         // Subtract z := x - y and record a mask for the carry x - y < 0
 
-        Q!(Label!("subloop", 3) ":"),
+        Q!(Label!("bignum_modsub_subloop", 3) ":"),
         Q!("    ldr             " a!() ", [" x!() ", " i!() "]"),
         Q!("    ldr             " b!() ", [" y!() ", " i!() "]"),
         Q!("    sbcs            " a!() ", " a!() ", " b!()),
         Q!("    str             " a!() ", [" z!() ", " i!() "]"),
         Q!("    add             " i!() ", " i!() ", #8"),
         Q!("    sub             " j!() ", " j!() ", #1"),
-        Q!("    cbnz            " j!() ", " Label!("subloop", 3, Before)),
+        Q!("    cbnz            " j!() ", " Label!("bignum_modsub_subloop", 3, Before)),
         Q!("    csetm           " c!() ", cc"),
 
         // Now do a masked addition z := z + [c] * m
 
         Q!("    mov             " j!() ", " k!()),
         Q!("    adds            " i!() ", xzr, xzr"),
-        Q!(Label!("addloop", 4) ":"),
+        Q!(Label!("bignum_modsub_addloop", 4) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " i!() "]"),
         Q!("    ldr             " b!() ", [" m!() ", " i!() "]"),
         Q!("    and             " b!() ", " b!() ", " c!()),
@@ -106,9 +106,9 @@ pub(crate) fn bignum_modsub(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
         Q!("    str             " a!() ", [" z!() ", " i!() "]"),
         Q!("    add             " i!() ", " i!() ", #8"),
         Q!("    sub             " j!() ", " j!() ", #1"),
-        Q!("    cbnz            " j!() ", " Label!("addloop", 4, Before)),
+        Q!("    cbnz            " j!() ", " Label!("bignum_modsub_addloop", 4, Before)),
 
-        Q!(Label!("end", 2) ":"),
+        Q!(Label!("bignum_modsub_end", 2) ":"),
         inout("x0") z.len() => _,
         inout("x1") z.as_mut_ptr() => _,
         inout("x2") x.as_ptr() => _,

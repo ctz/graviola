@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Test bignums for coprimality, gcd(x,y) = 1
 // Inputs x[m], y[n]; output function return; temporary buffer t[>=2*max(m,n)]
 //
-//    extern uint64_t bignum_coprime
-//     (uint64_t m, uint64_t *x, uint64_t n, uint64_t *y, uint64_t *t);
+//    extern uint64_t bignum_coprime(uint64_t m, const uint64_t *x, uint64_t n,
+//                                   const uint64_t *y, uint64_t *t);
 //
 // Test for whether two bignums are coprime (no common factor besides 1).
 // This is equivalent to testing if their gcd is 1, but a bit faster than
@@ -270,6 +270,7 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // Save all required registers and make room on stack for all the above vars
@@ -291,7 +292,7 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
         Q!("    mov             " k!() ", rax"),
 
         Q!("    test            " "rax, rax"),
-        Q!("    jz              " Label!("end", 2, After)),
+        Q!("    jz              " Label!("bignum_coprime_end", 2, After)),
 
         // Set up inside w two size-k buffers m and n
 
@@ -301,41 +302,41 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
 
         Q!("    xor             " i!() ", " i!()),
         Q!("    test            " arg1!() ", " arg1!()),
-        Q!("    jz              " Label!("xpadloop", 3, After)),
-        Q!(Label!("xloop", 4) ":"),
+        Q!("    jz              " Label!("bignum_coprime_xpadloop", 3, After)),
+        Q!(Label!("bignum_coprime_xloop", 4) ":"),
         Q!("    mov             " a!() ", [" arg2!() "+ 8 * " i!() "]"),
         Q!("    mov             " "[" m!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " arg1!()),
-        Q!("    jc              " Label!("xloop", 4, Before)),
+        Q!("    jc              " Label!("bignum_coprime_xloop", 4, Before)),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jnc             " Label!("xskip", 5, After)),
-        Q!(Label!("xpadloop", 3) ":"),
+        Q!("    jnc             " Label!("bignum_coprime_xskip", 5, After)),
+        Q!(Label!("bignum_coprime_xpadloop", 3) ":"),
         Q!("    mov             " "QWORD PTR [" m!() "+ 8 * " i!() "], 0"),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("xpadloop", 3, Before)),
-        Q!(Label!("xskip", 5) ":"),
+        Q!("    jc              " Label!("bignum_coprime_xpadloop", 3, Before)),
+        Q!(Label!("bignum_coprime_xskip", 5) ":"),
 
         // Copy the input y into the buffer n, padding with zeros as needed
 
         Q!("    xor             " i!() ", " i!()),
         Q!("    test            " arg3!() ", " arg3!()),
-        Q!("    jz              " Label!("ypadloop", 6, After)),
-        Q!(Label!("yloop", 7) ":"),
+        Q!("    jz              " Label!("bignum_coprime_ypadloop", 6, After)),
+        Q!(Label!("bignum_coprime_yloop", 7) ":"),
         Q!("    mov             " a!() ", [" arg4!() "+ 8 * " i!() "]"),
         Q!("    mov             " "[" n!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " arg3!()),
-        Q!("    jc              " Label!("yloop", 7, Before)),
+        Q!("    jc              " Label!("bignum_coprime_yloop", 7, Before)),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jnc             " Label!("yskip", 8, After)),
-        Q!(Label!("ypadloop", 6) ":"),
+        Q!("    jnc             " Label!("bignum_coprime_yskip", 8, After)),
+        Q!(Label!("bignum_coprime_ypadloop", 6) ":"),
         Q!("    mov             " "QWORD PTR [" n!() "+ 8 * " i!() "], 0"),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("ypadloop", 6, Before)),
-        Q!(Label!("yskip", 8) ":"),
+        Q!("    jc              " Label!("bignum_coprime_ypadloop", 6, Before)),
+        Q!(Label!("bignum_coprime_yskip", 8) ":"),
 
         // Set up the outer loop count of 64 * sum of input sizes.
         // The invariant is that m * n < 2^t at all times.
@@ -361,7 +362,7 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
         Q!("    sub             " b!() ", 1"),
 
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("swaploop", 9) ":"),
+        Q!(Label!("bignum_coprime_swaploop", 9) ":"),
         Q!("    mov             " a!() ", [" m!() "+ 8 * " i!() "]"),
         Q!("    mov             " c!() ", [" n!() "+ 8 * " i!() "]"),
         Q!("    mov             " d!() ", " a!()),
@@ -373,11 +374,11 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
         Q!("    mov             " "[" n!() "+ 8 * " i!() "], " c!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jnz             " Label!("swaploop", 9, Before)),
+        Q!("    jnz             " Label!("bignum_coprime_swaploop", 9, Before)),
 
         // Start of the main outer loop iterated t / CHUNKSIZE times
 
-        Q!(Label!("outerloop", 12) ":"),
+        Q!(Label!("bignum_coprime_outerloop", 12) ":"),
 
         // We need only bother with sharper l = min k (ceil(t/64)) digits
         // Either both m and n fit in l digits, or m has become zero and so
@@ -403,7 +404,7 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
         // and in this case h1 and h2 are those words
 
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("toploop", 13) ":"),
+        Q!(Label!("bignum_coprime_toploop", 13) ":"),
         Q!("    mov             " b!() ", [" m!() "+ 8 * " i!() "]"),
         Q!("    mov             " c!() ", [" n!() "+ 8 * " i!() "]"),
         Q!("    mov             " c1!() ", " c2!()),
@@ -419,7 +420,7 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
         Q!("    sbb             " c2!() ", " c2!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " l!()),
-        Q!("    jc              " Label!("toploop", 13, Before)),
+        Q!("    jc              " Label!("bignum_coprime_toploop", 13, Before)),
 
         Q!("    mov             " a!() ", " h1!()),
         Q!("    or              " a!() ", " h2!()),
@@ -479,7 +480,7 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
         // The actual computation computes updates before actually swapping and
         // then corrects as needed.
 
-        Q!(Label!("innerloop", 14) ":"),
+        Q!(Label!("bignum_coprime_innerloop", 14) ":"),
 
         Q!("    xor             " "eax, eax"),
         Q!("    xor             " "ebx, ebx"),
@@ -516,7 +517,7 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
         // End of the inner for-loop
 
         Q!("    dec             " i!()),
-        Q!("    jnz             " Label!("innerloop", 14, Before)),
+        Q!("    jnz             " Label!("bignum_coprime_innerloop", 14, Before)),
 
         // Unstash the temporary variables
 
@@ -546,7 +547,7 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
         Q!("    xor             " l1!() ", " l1!()),
         Q!("    xor             " h2!() ", " h2!()),
         Q!("    xor             " l2!() ", " l2!()),
-        Q!(Label!("crossloop", 15) ":"),
+        Q!(Label!("bignum_coprime_crossloop", 15) ":"),
 
         Q!("    mov             " c!() ", [" m!() "+ 8 * " i!() "]"),
         Q!("    mov             " a!() ", " mat_mm!()),
@@ -584,7 +585,7 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
 
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " l!()),
-        Q!("    jc              " Label!("crossloop", 15, Before)),
+        Q!("    jc              " Label!("bignum_coprime_crossloop", 15, Before)),
 
         // Now fix the signs of m and n if they have gone negative
 
@@ -593,7 +594,7 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
         Q!("    mov             " c2!() ", " h2!()),
         Q!("    xor             " l1!() ", " h1!()),
         Q!("    xor             " l2!() ", " h2!()),
-        Q!(Label!("optnegloop", 16) ":"),
+        Q!(Label!("bignum_coprime_optnegloop", 16) ":"),
         Q!("    mov             " a!() ", [" m!() "+ 8 * " i!() "]"),
         Q!("    xor             " a!() ", " h1!()),
         Q!("    neg             " c1!()),
@@ -608,14 +609,14 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
         Q!("    mov             " "[" n!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " l!()),
-        Q!("    jc              " Label!("optnegloop", 16, Before)),
+        Q!("    jc              " Label!("bignum_coprime_optnegloop", 16, Before)),
         Q!("    sub             " l1!() ", " c1!()),
         Q!("    sub             " l2!() ", " c2!()),
 
         // Now shift them right CHUNKSIZE bits
 
         Q!("    mov             " i!() ", " l!()),
-        Q!(Label!("shiftloop", 17) ":"),
+        Q!(Label!("bignum_coprime_shiftloop", 17) ":"),
         Q!("    mov             " a!() ", [" m!() "+ 8 * " i!() "-8]"),
         Q!("    mov             " h1!() ", " a!()),
         Q!("    shrd            " a!() ", " l1!() ", " CHUNKSIZE!()),
@@ -627,7 +628,7 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
         Q!("    mov             " "[" n!() "+ 8 * " i!() "-8], " a!()),
         Q!("    mov             " l2!() ", " h2!()),
         Q!("    dec             " i!()),
-        Q!("    jnz             " Label!("shiftloop", 17, Before)),
+        Q!("    jnz             " Label!("bignum_coprime_shiftloop", 17, Before)),
 
         // End of main loop. We can stop if t' <= 0 since then m * n < 2^0, which
         // since n is odd (in the main cases where we had one or other input odd)
@@ -636,25 +637,25 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
         // optimized digit bound l could collapse to 0.
 
         Q!("    sub             " t!() ", " CHUNKSIZE!()),
-        Q!("    jnbe            " Label!("outerloop", 12, Before)),
+        Q!("    jnbe            " Label!("bignum_coprime_outerloop", 12, Before)),
 
         // Now compare n with 1 (OR of the XORs in a)
 
         Q!("    mov             " a!() ", [" n!() "]"),
         Q!("    xor             " a!() ", 1"),
         Q!("    cmp             " k!() ", 1"),
-        Q!("    jz              " Label!("finalcomb", 18, After)),
+        Q!("    jz              " Label!("bignum_coprime_finalcomb", 18, After)),
         Q!("    mov             " ishort!() ", 1"),
-        Q!(Label!("compareloop", 19) ":"),
+        Q!(Label!("bignum_coprime_compareloop", 19) ":"),
         Q!("    or              " a!() ", [" n!() "+ 8 * " i!() "]"),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("compareloop", 19, Before)),
+        Q!("    jc              " Label!("bignum_coprime_compareloop", 19, Before)),
 
         // Now combine that with original "evenor" oddness flag
         // The final condition is lsb(evenor) = 1 AND a = 0
 
-        Q!(Label!("finalcomb", 18) ":"),
+        Q!(Label!("bignum_coprime_finalcomb", 18) ":"),
         Q!("    neg             " a!()),
         Q!("    sbb             " a!() ", " a!()),
         Q!("    inc             " a!()),
@@ -662,7 +663,7 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
 
         // The end
 
-        Q!(Label!("end", 2) ":"),
+        Q!(Label!("bignum_coprime_end", 2) ":"),
         Q!("    add             " "rsp, " STACKVARSIZE!()),
         Q!("    pop             " "r15"),
         Q!("    pop             " "r14"),

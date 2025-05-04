@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Montgomery square, z := (x^2 / 2^{64k}) mod m
 // Inputs x[k], m[k]; output z[k]
 //
-//    extern void bignum_montsqr
-//      (uint64_t k, uint64_t *z, uint64_t *x, uint64_t *m);
+//    extern void bignum_montsqr(uint64_t k, uint64_t *z, const uint64_t *x,
+//                               const uint64_t *m);
 //
 // Does z := (x^2 / 2^{64k}) mod m, assuming x^2 <= 2^{64k} * m, which is
 // guaranteed in particular if x < m initially (the "intended" case).
@@ -151,7 +151,7 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
 
         // If k = 0 the whole operation is trivial
 
-        Q!("    cbz             " k!() ", " Label!("end", 2, After)),
+        Q!("    cbz             " k!() ", " Label!("bignum_montsqr_end", 2, After)),
 
         // Compute word-level negated modular inverse w for m == m[0].
         // This is essentially the same as word_negmodinv.
@@ -175,17 +175,17 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         // this keeps the code slightly simpler.
 
         Q!("    mov             " i!() ", xzr"),
-        Q!(Label!("zoop", 3) ":"),
+        Q!(Label!("bignum_montsqr_zoop", 3) ":"),
         Q!("    str             " "xzr, [" z!() ", " i!() ", lsl #3]"),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    bcc             " Label!("zoop", 3, Before)),
+        Q!("    bcc             " Label!("bignum_montsqr_zoop", 3, Before)),
         Q!("    mov             " c0!() ", xzr"),
 
         // Outer loop pulling down digits d=x[i], multiplying by x and reducing
 
         Q!("    mov             " i!() ", xzr"),
-        Q!(Label!("outerloop", 4) ":"),
+        Q!(Label!("bignum_montsqr_outerloop", 4) ":"),
 
         // Multiply-add loop where we always have CF + previous high part h to add in
         // Note that in general we do need yet one more carry in this phase and hence
@@ -194,7 +194,7 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         Q!("    ldr             " d!() ", [" x!() ", " i!() ", lsl #3]"),
         Q!("    mov             " j!() ", xzr"),
         Q!("    adds            " h!() ", xzr, xzr"),
-        Q!(Label!("maddloop", 5) ":"),
+        Q!(Label!("bignum_montsqr_maddloop", 5) ":"),
         Q!("    ldr             " a!() ", [" x!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " e!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    mul             " l!() ", " d!() ", " a!()),
@@ -205,7 +205,7 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         Q!("    str             " e!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " t!() ", " j!() ", " k!()),
-        Q!("    cbnz            " t!() ", " Label!("maddloop", 5, Before)),
+        Q!("    cbnz            " t!() ", " Label!("bignum_montsqr_maddloop", 5, Before)),
         Q!("    adcs            " c0!() ", " c0!() ", " h!()),
         Q!("    adc             " c1!() ", xzr, xzr"),
 
@@ -219,8 +219,8 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         Q!("    adds            " e!() ", " e!() ", " l!()),
         Q!("    mov             " j!() ", #1"),
         Q!("    sub             " t!() ", " k!() ", #1"),
-        Q!("    cbz             " t!() ", " Label!("montend", 6, After)),
-        Q!(Label!("montloop", 7) ":"),
+        Q!("    cbz             " t!() ", " Label!("bignum_montsqr_montend", 6, After)),
+        Q!(Label!("bignum_montsqr_montloop", 7) ":"),
         Q!("    ldr             " a!() ", [" m!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " e!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    mul             " l!() ", " d!() ", " a!()),
@@ -232,8 +232,8 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         Q!("    str             " e!() ", [" z!() ", " l!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " t!() ", " j!() ", " k!()),
-        Q!("    cbnz            " t!() ", " Label!("montloop", 7, Before)),
-        Q!(Label!("montend", 6) ":"),
+        Q!("    cbnz            " t!() ", " Label!("bignum_montsqr_montloop", 7, Before)),
+        Q!(Label!("bignum_montsqr_montend", 6) ":"),
         Q!("    adcs            " h!() ", " c0!() ", " h!()),
         Q!("    adc             " c0!() ", " c1!() ", xzr"),
         Q!("    sub             " l!() ", " j!() ", #1"),
@@ -243,19 +243,19 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
 
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    bcc             " Label!("outerloop", 4, Before)),
+        Q!("    bcc             " Label!("bignum_montsqr_outerloop", 4, Before)),
 
         // Now do a comparison of (c0::z) with (0::m) to set a final correction mask
         // indicating that (c0::z) >= m and so we need to subtract m.
 
         Q!("    subs            " j!() ", xzr, xzr"),
-        Q!(Label!("cmploop", 8) ":"),
+        Q!(Label!("bignum_montsqr_cmploop", 8) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " e!() ", [" m!() ", " j!() ", lsl #3]"),
         Q!("    sbcs            " "xzr, " a!() ", " e!()),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " t!() ", " j!() ", " k!()),
-        Q!("    cbnz            " t!() ", " Label!("cmploop", 8, Before)),
+        Q!("    cbnz            " t!() ", " Label!("bignum_montsqr_cmploop", 8, Before)),
 
         Q!("    sbcs            " "xzr, " c0!() ", xzr"),
         Q!("    csetm           " c0!() ", cs"),
@@ -263,7 +263,7 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         // Now do a masked subtraction of m for the final reduced result.
 
         Q!("    subs            " j!() ", xzr, xzr"),
-        Q!(Label!("corrloop", 9) ":"),
+        Q!(Label!("bignum_montsqr_corrloop", 9) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " e!() ", [" m!() ", " j!() ", lsl #3]"),
         Q!("    and             " e!() ", " e!() ", " c0!()),
@@ -271,9 +271,9 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         Q!("    str             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " t!() ", " j!() ", " k!()),
-        Q!("    cbnz            " t!() ", " Label!("corrloop", 9, Before)),
+        Q!("    cbnz            " t!() ", " Label!("bignum_montsqr_corrloop", 9, Before)),
 
-        Q!(Label!("end", 2) ":"),
+        Q!(Label!("bignum_montsqr_end", 2) ":"),
         inout("x0") z.len() => _,
         inout("x1") z.as_mut_ptr() => _,
         inout("x2") x.as_ptr() => _,

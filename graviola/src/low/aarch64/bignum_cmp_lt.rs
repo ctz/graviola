@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Compare bignums, x < y
 // Inputs x[m], y[n]; output function return
 //
-//    extern uint64_t bignum_lt
-//     (uint64_t m, uint64_t *x, uint64_t n, uint64_t *y);
+//    extern uint64_t bignum_lt(uint64_t m, const uint64_t *x, uint64_t n,
+//                              const uint64_t *y);
 //
 // Standard ARM ABI: X0 = m, X1 = x, X2 = n, X3 = y, returns X0
 // ----------------------------------------------------------------------------
@@ -68,52 +68,52 @@ pub(crate) fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64 {
         // Speculatively form m := m - n and do case split
 
         Q!("    subs            " m!() ", " m!() ", " n!()),
-        Q!("    bcc             " Label!("ylonger", 2, After)),
+        Q!("    bcc             " Label!("bignum_lt_ylonger", 2, After)),
 
         // The case where x is longer or of the same size (m >= n)
         // Note that CF=1 initially by the fact that we reach this point
 
-        Q!("    cbz             " n!() ", " Label!("xtest", 3, After)),
-        Q!(Label!("xmainloop", 4) ":"),
+        Q!("    cbz             " n!() ", " Label!("bignum_lt_xtest", 3, After)),
+        Q!(Label!("bignum_lt_xmainloop", 4) ":"),
         Q!("    ldr             " a!() ", [" x!() ", " i!() ", lsl #3]"),
         Q!("    ldr             " d!() ", [" y!() ", " i!() ", lsl #3]"),
         Q!("    sbcs            " "xzr, " a!() ", " d!()),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    sub             " n!() ", " n!() ", #1"),
-        Q!("    cbnz            " n!() ", " Label!("xmainloop", 4, Before)),
-        Q!(Label!("xtest", 3) ":"),
-        Q!("    cbz             " m!() ", " Label!("xskip", 5, After)),
-        Q!(Label!("xtoploop", 6) ":"),
+        Q!("    cbnz            " n!() ", " Label!("bignum_lt_xmainloop", 4, Before)),
+        Q!(Label!("bignum_lt_xtest", 3) ":"),
+        Q!("    cbz             " m!() ", " Label!("bignum_lt_xskip", 5, After)),
+        Q!(Label!("bignum_lt_xtoploop", 6) ":"),
         Q!("    ldr             " a!() ", [" x!() ", " i!() ", lsl #3]"),
         Q!("    sbcs            " "xzr, " a!() ", xzr"),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    sub             " m!() ", " m!() ", #1"),
-        Q!("    cbnz            " m!() ", " Label!("xtoploop", 6, Before)),
-        Q!(Label!("xskip", 5) ":"),
+        Q!("    cbnz            " m!() ", " Label!("bignum_lt_xtoploop", 6, Before)),
+        Q!(Label!("bignum_lt_xskip", 5) ":"),
         Q!("    cset            " "x0, cc"),
-        // linear hoisting in -> ret after ytoploop
+        // linear hoisting in -> ret after bignum_lt_ytoploop
         Q!("    b               " Label!("hoist_finish", 7, After)),
 
         // The case where y is longer (n > m)
         // The first "adds" also makes sure CF=1 initially in this branch
 
-        Q!(Label!("ylonger", 2) ":"),
+        Q!(Label!("bignum_lt_ylonger", 2) ":"),
         Q!("    adds            " m!() ", " m!() ", " n!()),
-        Q!("    cbz             " m!() ", " Label!("ytoploop", 8, After)),
+        Q!("    cbz             " m!() ", " Label!("bignum_lt_ytoploop", 8, After)),
         Q!("    sub             " n!() ", " n!() ", " m!()),
-        Q!(Label!("ymainloop", 9) ":"),
+        Q!(Label!("bignum_lt_ymainloop", 9) ":"),
         Q!("    ldr             " a!() ", [" x!() ", " i!() ", lsl #3]"),
         Q!("    ldr             " d!() ", [" y!() ", " i!() ", lsl #3]"),
         Q!("    sbcs            " "xzr, " a!() ", " d!()),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    sub             " m!() ", " m!() ", #1"),
-        Q!("    cbnz            " m!() ", " Label!("ymainloop", 9, Before)),
-        Q!(Label!("ytoploop", 8) ":"),
+        Q!("    cbnz            " m!() ", " Label!("bignum_lt_ymainloop", 9, Before)),
+        Q!(Label!("bignum_lt_ytoploop", 8) ":"),
         Q!("    ldr             " a!() ", [" y!() ", " i!() ", lsl #3]"),
         Q!("    sbcs            " "xzr, xzr, " a!()),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    sub             " n!() ", " n!() ", #1"),
-        Q!("    cbnz            " n!() ", " Label!("ytoploop", 8, Before)),
+        Q!("    cbnz            " n!() ", " Label!("bignum_lt_ytoploop", 8, Before)),
 
         Q!("    cset            " "x0, cc"),
         Q!(Label!("hoist_finish", 7) ":"),

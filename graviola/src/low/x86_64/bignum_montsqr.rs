@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Montgomery square, z := (x^2 / 2^{64k}) mod m
 // Inputs x[k], m[k]; output z[k]
 //
-//    extern void bignum_montsqr
-//      (uint64_t k, uint64_t *z, uint64_t *x, uint64_t *m);
+//    extern void bignum_montsqr(uint64_t k, uint64_t *z, const uint64_t *x,
+//                               const uint64_t *m);
 //
 // Does z := (x^2 / 2^{64k}) mod m, assuming x^2 <= 2^{64k} * m, which is
 // guaranteed in particular if x < m initially (the "intended" case).
@@ -135,6 +135,7 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // Save registers
@@ -149,7 +150,7 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         // If k = 0 the whole operation is trivial
 
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("end", 2, After)),
+        Q!("    jz              " Label!("bignum_montsqr_end", 2, After)),
 
         // Move x input into its permanent home, since we need rdx for multiplications
 
@@ -194,17 +195,17 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
 
         Q!("    xor             " i!() ", " i!()),
         Q!("    xor             " j!() ", " j!()),
-        Q!(Label!("zoop", 3) ":"),
+        Q!(Label!("bignum_montsqr_zoop", 3) ":"),
         Q!("    mov             " "[" z!() "+ 8 * " j!() "], " i!()),
         Q!("    inc             " j!()),
         Q!("    cmp             " j!() ", " k!()),
-        Q!("    jc              " Label!("zoop", 3, Before)),
+        Q!("    jc              " Label!("bignum_montsqr_zoop", 3, Before)),
 
         Q!("    xor             " c0!() ", " c0!()),
 
         // Outer loop pulling down digits d=x[i], multiplying by x and reducing
 
-        Q!(Label!("outerloop", 4) ":"),
+        Q!(Label!("bignum_montsqr_outerloop", 4) ":"),
 
         // Multiply-add loop where we always have CF + previous high part h to add in.
         // Note that in general we do need yet one more carry in this phase and hence
@@ -216,7 +217,7 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         Q!("    xor             " c1!() ", " c1!()),
         Q!("    mov             " n!() ", " k!()),
 
-        Q!(Label!("maddloop", 5) ":"),
+        Q!(Label!("bignum_montsqr_maddloop", 5) ":"),
         Q!("    adc             " h!() ", [" z!() "+ 8 * " j!() "]"),
         Q!("    sbb             " e!() ", " e!()),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " j!() "]"),
@@ -227,7 +228,7 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         Q!("    mov             " h!() ", rdx"),
         Q!("    inc             " j!()),
         Q!("    dec             " n!()),
-        Q!("    jnz             " Label!("maddloop", 5, Before)),
+        Q!("    jnz             " Label!("bignum_montsqr_maddloop", 5, Before)),
         Q!("    adc             " c0!() ", " h!()),
         Q!("    adc             " c1!() ", " c1!()),
 
@@ -243,9 +244,9 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         Q!("    mov             " jshort!() ", 1"),
         Q!("    mov             " n!() ", " k!()),
         Q!("    dec             " n!()),
-        Q!("    jz              " Label!("montend", 6, After)),
+        Q!("    jz              " Label!("bignum_montsqr_montend", 6, After)),
 
-        Q!(Label!("montloop", 7) ":"),
+        Q!(Label!("bignum_montsqr_montloop", 7) ":"),
         Q!("    adc             " h!() ", [" z!() "+ 8 * " j!() "]"),
         Q!("    sbb             " e!() ", " e!()),
         Q!("    mov             " a!() ", [" m!() "+ 8 * " j!() "]"),
@@ -256,9 +257,9 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         Q!("    mov             " h!() ", rdx"),
         Q!("    inc             " j!()),
         Q!("    dec             " n!()),
-        Q!("    jnz             " Label!("montloop", 7, Before)),
+        Q!("    jnz             " Label!("bignum_montsqr_montloop", 7, Before)),
 
-        Q!(Label!("montend", 6) ":"),
+        Q!(Label!("bignum_montsqr_montend", 6) ":"),
         Q!("    adc             " h!() ", " c0!()),
         Q!("    adc             " c1!() ", 0"),
         Q!("    mov             " c0!() ", " c1!()),
@@ -268,19 +269,19 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
 
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("outerloop", 4, Before)),
+        Q!("    jc              " Label!("bignum_montsqr_outerloop", 4, Before)),
 
         // Now do a comparison of (c0::z) with (0::m) to set a final correction mask
         // indicating that (c0::z) >= m and so we need to subtract m.
 
         Q!("    xor             " j!() ", " j!()),
         Q!("    mov             " n!() ", " k!()),
-        Q!(Label!("cmploop", 8) ":"),
+        Q!(Label!("bignum_montsqr_cmploop", 8) ":"),
         Q!("    mov             " a!() ", [" z!() "+ 8 * " j!() "]"),
         Q!("    sbb             " a!() ", [" m!() "+ 8 * " j!() "]"),
         Q!("    inc             " j!()),
         Q!("    dec             " n!()),
-        Q!("    jnz             " Label!("cmploop", 8, Before)),
+        Q!("    jnz             " Label!("bignum_montsqr_cmploop", 8, Before)),
 
         Q!("    sbb             " c0!() ", 0"),
         Q!("    sbb             " d!() ", " d!()),
@@ -290,7 +291,7 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
 
         Q!("    xor             " e!() ", " e!()),
         Q!("    xor             " j!() ", " j!()),
-        Q!(Label!("corrloop", 9) ":"),
+        Q!(Label!("bignum_montsqr_corrloop", 9) ":"),
         Q!("    mov             " a!() ", [" m!() "+ 8 * " j!() "]"),
         Q!("    and             " a!() ", " d!()),
         Q!("    neg             " e!()),
@@ -298,9 +299,9 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
         Q!("    sbb             " e!() ", " e!()),
         Q!("    inc             " j!()),
         Q!("    cmp             " j!() ", " k!()),
-        Q!("    jc              " Label!("corrloop", 9, Before)),
+        Q!("    jc              " Label!("bignum_montsqr_corrloop", 9, Before)),
 
-        Q!(Label!("end", 2) ":"),
+        Q!(Label!("bignum_montsqr_end", 2) ":"),
         Q!("    pop             " "r15"),
         Q!("    pop             " "r14"),
         Q!("    pop             " "r13"),

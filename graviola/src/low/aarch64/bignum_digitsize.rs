@@ -9,7 +9,7 @@ use crate::low::macros::*;
 // Return size of bignum in digits (64-bit word)
 // Input x[k]; output function return
 //
-//    extern uint64_t bignum_digitsize (uint64_t k, uint64_t *x);
+//    extern uint64_t bignum_digitsize(uint64_t k, const uint64_t *x);
 //
 // In the case of a zero bignum as input the result is 0
 //
@@ -56,22 +56,22 @@ pub(crate) fn bignum_digitsize(z: &[u64]) -> usize {
 
         // If the bignum is zero-length, x0 is already the right answer of 0
 
-        Q!("    cbz             " k!() ", " Label!("end", 2, After)),
+        Q!("    cbz             " k!() ", " Label!("bignum_digitsize_end", 2, After)),
 
         // Run over the words j = 0..i-1, and set i := j + 1 when hitting nonzero a[j]
 
         Q!("    mov             " i!() ", xzr"),
         Q!("    mov             " j!() ", xzr"),
-        Q!(Label!("loop", 3) ":"),
+        Q!(Label!("bignum_digitsize_loop", 3) ":"),
         Q!("    ldr             " a!() ", [" x!() ", " j!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    cmp             " a!() ", #0"),
         Q!("    csel            " i!() ", " j!() ", " i!() ", ne"),
         Q!("    cmp             " j!() ", " k!()),
-        Q!("    bne             " Label!("loop", 3, Before)),
+        Q!("    bne             " Label!("bignum_digitsize_loop", 3, Before)),
 
         Q!("    mov             " "x0, " i!()),
-        Q!(Label!("end", 2) ":"),
+        Q!(Label!("bignum_digitsize_end", 2) ":"),
         inout("x0") z.len() => ret,
         inout("x1") z.as_ptr() => _,
         // clobbers
