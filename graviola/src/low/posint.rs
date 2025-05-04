@@ -276,6 +276,14 @@ impl<const N: usize> PosInt<N> {
         &mut self.words[..self.used]
     }
 
+    /// This is `as_words()`, but taking the length of `len`.
+    ///
+    /// This is safe assuming `len.used` is in range (a fundamental invariant in this type)
+    /// because `len` and `self` share the same type.
+    fn as_words_with_len_of(&self, len: &Self) -> &[u64] {
+        &self.words[..len.used]
+    }
+
     /// Constant-time equality
     pub(crate) fn equals(&self, other: &Self) -> bool {
         low::bignum_eq(self.as_words(), other.as_words())
@@ -333,8 +341,8 @@ impl<const N: usize> PosInt<N> {
         mont.used = n.used;
         low::bignum_montmul(
             mont.as_mut_words(),
-            &self.words[..n.used],
-            montifier.as_words(),
+            self.as_words_with_len_of(n),
+            montifier.as_words_with_len_of(n),
             n.as_words(),
         );
         mont
@@ -361,7 +369,11 @@ impl<const N: usize> PosInt<N> {
 
         let mut tmp = Self::zero();
         tmp.used = n.used;
-        low::bignum_montsqr(tmp.as_mut_words(), &self.words[..n.used], n.as_words());
+        low::bignum_montsqr(
+            tmp.as_mut_words(),
+            self.as_words_with_len_of(n),
+            n.as_words(),
+        );
         tmp
     }
 
@@ -379,8 +391,8 @@ impl<const N: usize> PosInt<N> {
         tmp.used = n.used;
         low::bignum_montmul(
             tmp.as_mut_words(),
-            &self.words[..n.used],
-            &v.words[..n.used],
+            self.as_words_with_len_of(n),
+            v.as_words_with_len_of(n),
             n.as_words(),
         );
         tmp
@@ -634,7 +646,7 @@ impl<const N: usize> PosInt<N> {
         let mut temp = vec![0u64; N * 3];
         low::bignum_modinv(
             r.as_mut_words(),
-            &self.words[..n.used],
+            self.as_words_with_len_of(n),
             n.as_words(),
             &mut temp,
         );
@@ -723,8 +735,8 @@ impl<const N: usize> PosInt<N> {
         r.used = m.used;
         low::bignum_modadd(
             r.as_mut_words(),
-            &self.words[..m.used],
-            &b.words[..m.used],
+            self.as_words_with_len_of(m),
+            b.as_words_with_len_of(m),
             m.as_words(),
         );
         r.used = low::bignum_digitsize(&r.words);
