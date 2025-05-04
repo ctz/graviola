@@ -9,8 +9,7 @@ use crate::low::macros::*;
 // Reduce modulo group order, z := x mod n_384
 // Input x[6]; output z[6]
 //
-//    extern void bignum_mod_n384_6
-//      (uint64_t z[static 6], uint64_t x[static 6]);
+//    extern void bignum_mod_n384_6(uint64_t z[static 6], const uint64_t x[static 6]);
 //
 // Reduction is modulo the group order of the NIST curve P-384.
 //
@@ -84,6 +83,7 @@ pub(crate) fn bignum_mod_n384(z: &mut [u64; 6], x: &[u64; 6]) {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // Load the input and compute x + (2^384 - n_384)

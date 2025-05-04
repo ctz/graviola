@@ -9,7 +9,7 @@ use crate::low::macros::*;
 // Modular inverse modulo p_384 = 2^384 - 2^128 - 2^96 + 2^32 - 1
 // Input x[6]; output z[6]
 //
-// extern void bignum_inv_p384(uint64_t z[static 6],uint64_t x[static 6]);
+// extern void bignum_inv_p384(uint64_t z[static 6],const uint64_t x[static 6]);
 //
 // If the 6-digit input x is coprime to p_384, i.e. is not divisible
 // by it, returns z < p_384 such that x * z == 1 (mod p_384). Note that
@@ -924,9 +924,9 @@ pub(crate) fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6]) {
 
         Q!("    mov             " i!() ", #15"),
         Q!("    mov             " d!() ", #1"),
-        Q!("    b               " Label!("midloop", 2, After)),
+        Q!("    b               " Label!("bignum_inv_p384_midloop", 2, After)),
 
-        Q!(Label!("loop", 3) ":"),
+        Q!(Label!("bignum_inv_p384_loop", 3) ":"),
 
         // Separate the matrix elements into sign-magnitude pairs
 
@@ -1365,7 +1365,7 @@ pub(crate) fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6]) {
         Q!("    stp             " "x3, x4, [" v!() "+ 16]"),
         Q!("    stp             " "x5, x6, [" v!() "+ 32]"),
 
-        Q!(Label!("midloop", 2) ":"),
+        Q!(Label!("bignum_inv_p384_midloop", 2) ":"),
 
         Q!("    mov             " "x1, " d!()),
         Q!("    ldr             " "x2, [" f!() "]"),
@@ -1376,7 +1376,7 @@ pub(crate) fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6]) {
         // Next iteration
 
         Q!("    subs            " i!() ", " i!() ", #1"),
-        Q!("    bne             " Label!("loop", 3, Before)),
+        Q!("    bne             " Label!("bignum_inv_p384_loop", 3, Before)),
 
         // The 15th and last iteration does not need anything except the
         // u value and the sign of f; the latter can be obtained from the

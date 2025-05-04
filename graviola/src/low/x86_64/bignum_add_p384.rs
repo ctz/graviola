@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Add modulo p_384, z := (x + y) mod p_384, assuming x and y reduced
 // Inputs x[6], y[6]; output z[6]
 //
-//    extern void bignum_add_p384
-//     (uint64_t z[static 6], uint64_t x[static 6], uint64_t y[static 6]);
+//    extern void bignum_add_p384(uint64_t z[static 6], const uint64_t x[static 6],
+//                                const uint64_t y[static 6]);
 //
 // Standard x86-64 ABI: RDI = z, RSI = x, RDX = y
 // Microsoft x64 ABI:   RCX = z, RDX = x, R8 = y
@@ -95,6 +95,7 @@ pub(crate) fn bignum_add_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6]) {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // Add the inputs as 2^384 * c + [d5;d4;d3;d2;d1;d0] = x + y

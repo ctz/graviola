@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Montgomery square, z := (x^2 / 2^384) mod p_384
 // Input x[6]; output z[6]
 //
-//    extern void bignum_montsqr_p384_neon
-//     (uint64_t z[static 6], uint64_t x[static 6]);
+//    extern void bignum_montsqr_p384(uint64_t z[static 6],
+//                                    const uint64_t x[static 6]);
 //
 // Does z := (x^2 / 2^384) mod p_384, assuming x^2 <= 2^384 * p_384, which is
 // guaranteed in particular if x < p_384 initially (the "intended" case).
@@ -18,7 +18,8 @@ use crate::low::macros::*;
 // Standard ARM ABI: X0 = z, X1 = x
 // ----------------------------------------------------------------------------
 
-// bignum_montsqr_p384_neon is functionally equivalent to bignum_montsqr_p384.
+// bignum_montsqr_p384 is functionally equivalent to
+// unopt/bignum_montsqr_p384_base.
 // It is written in a way that
 // 1. A subset of scalar multiplications in bignum_montsqr_p384 are carefully
 //    chosen and vectorized
