@@ -9,8 +9,9 @@ use crate::low::macros::*;
 // Montgomery multiply, z := (x * y / 2^384) mod p_384
 // Inputs x[6], y[6]; output z[6]
 //
-//    extern void bignum_montmul_p384_neon
-//     (uint64_t z[static 6], uint64_t x[static 6], uint64_t y[static 6]);
+//    extern void bignum_montmul_p384(uint64_t z[static 6],
+//                                    const uint64_t x[static 6],
+//                                    const uint64_t y[static 6]);
 //
 // Does z := (2^{-384} * x * y) mod p_384, assuming that the inputs x and y
 // satisfy x * y <= 2^384 * p_384 (in particular this is true if we are in
@@ -19,7 +20,8 @@ use crate::low::macros::*;
 // Standard ARM ABI: X0 = z, X1 = x, X2 = y
 // ----------------------------------------------------------------------------
 
-// bignum_montmul_p384_neon is functionally equivalent to bignum_montmul_p384.
+// bignum_montmul_p384 is functionally equivalent to
+// unopt/bignum_montmul_p384_base.
 // It is written in a way that
 // 1. A subset of scalar multiplications in bignum_montmul_p384 are carefully
 //    chosen and vectorized
@@ -28,9 +30,9 @@ use crate::low::macros::*;
 //
 // The output program of step 1. is as follows:
 //
-//        stp	x19, x20, [sp, #-16]!
-//        stp	x21, x22, [sp, #-16]!
-//        stp	x23, x24, [sp, #-16]!
+//        stp   x19, x20, [sp, #-16]!
+//        stp   x21, x22, [sp, #-16]!
+//        stp   x23, x24, [sp, #-16]!
 //        ldp x3, x21, [x1]
 //        ldr q30, [x1]
 //        ldp x8, x24, [x1, #16]
@@ -437,9 +439,9 @@ use crate::low::macros::*;
 //        stp x10, x5, [x0]                       // @slothy:writes=buffer0
 //        stp x24, x8, [x0, #16]                  // @slothy:writes=buffer16
 //        stp x21, x2, [x0, #32]                  // @slothy:writes=buffer32
-//        ldp	x23, x24, [sp], #16
-//        ldp	x21, x22, [sp], #16
-//        ldp	x19, x20, [sp], #16
+//        ldp   x23, x24, [sp], #16
+//        ldp   x21, x22, [sp], #16
+//        ldp   x19, x20, [sp], #16
 //        ret
 //
 // The bash script used for step 2 is as follows:
