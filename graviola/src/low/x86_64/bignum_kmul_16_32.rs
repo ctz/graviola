@@ -9,9 +9,10 @@ use crate::low::macros::*;
 // Multiply z := x * y
 // Inputs x[16], y[16]; output z[32]; temporary buffer t[>=32]
 //
-//    extern void bignum_kmul_16_32
-//     (uint64_t z[static 32], uint64_t x[static 16], uint64_t y[static 16],
-//      uint64_t t[static 32])
+//    extern void bignum_kmul_16_32(uint64_t z[static 32],
+//                                  const uint64_t x[static 16],
+//                                  const uint64_t y[static 16],
+//                                  uint64_t t[static 32]);
 //
 // In this x86 code the final temporary space argument t is unused, but
 // it is retained in the prototype above for API consistency with ARM.
@@ -34,6 +35,7 @@ pub(crate) fn bignum_kmul_16_32(z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u6
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
         Q!("    push            " "rbx"),
         Q!("    push            " "rbp"),
         Q!("    push            " "r12"),

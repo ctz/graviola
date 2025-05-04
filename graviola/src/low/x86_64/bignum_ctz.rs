@@ -9,7 +9,7 @@ use crate::low::macros::*;
 // Count trailing zero bits
 // Input x[k]; output function return
 //
-//    extern uint64_t bignum_ctz (uint64_t k, uint64_t *x);
+//    extern uint64_t bignum_ctz(uint64_t k, const uint64_t *x);
 //
 //
 // In the case of a zero bignum as input the result is 64 * k
@@ -68,13 +68,14 @@ pub(crate) fn bignum_ctz(x: &[u64]) -> usize {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // If the bignum is zero-length, just return 0
 
         Q!("    xor             " "rax, rax"),
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("end", 2, After)),
+        Q!("    jz              " Label!("bignum_ctz_end", 2, After)),
 
         // Use w = a[i-1] to store nonzero words in a top-down sweep
         // Set the initial default to be as if we had a 1 word directly above
@@ -83,13 +84,13 @@ pub(crate) fn bignum_ctz(x: &[u64]) -> usize {
         Q!("    inc             " i!()),
         Q!("    mov             " wshort!() ", 1"),
 
-        Q!(Label!("loop", 3) ":"),
+        Q!(Label!("bignum_ctz_loop", 3) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " k!() "-8]"),
         Q!("    test            " a!() ", " a!()),
         Q!("    cmovne          " i!() ", " k!()),
         Q!("    cmovne          " w!() ", " a!()),
         Q!("    dec             " k!()),
-        Q!("    jnz             " Label!("loop", 3, Before)),
+        Q!("    jnz             " Label!("bignum_ctz_loop", 3, Before)),
 
         // Now w = a[i-1] is the lowest nonzero word, or in the zero case the
         // default of the "extra" 1 = a[k]. We now want 64*(i-1) + ctz(w).
@@ -101,7 +102,7 @@ pub(crate) fn bignum_ctz(x: &[u64]) -> usize {
         Q!("    bsf             " "rax, " w!()),
         Q!("    add             " "rax, " i!()),
 
-        Q!(Label!("end", 2) ":"),
+        Q!(Label!("bignum_ctz_end", 2) ":"),
         inout("rdi") x.len() => _,
         inout("rsi") x.as_ptr() => _,
         out("rax") ret,

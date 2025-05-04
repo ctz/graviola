@@ -9,8 +9,9 @@ use crate::low::macros::*;
 // Square, z := x^2
 // Input x[32]; output z[64]; temporary buffer t[>=72]
 //
-//    extern void bignum_ksqr_32_64
-//     (uint64_t z[static 64], uint64_t x[static 32], uint64_t t[static 72]);
+//    extern void bignum_ksqr_32_64(uint64_t z[static 64],
+//                                  const uint64_t x[static 32],
+//                                  uint64_t t[static 72]);
 //
 // This is a Karatsuba-style function squaring half-sized results
 // and using temporary buffer t for intermediate results. The size of 72
@@ -36,6 +37,7 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
         Q!("    push            " "rbp"),
         Q!("    push            " "rbx"),
         Q!("    push            " "r12"),
@@ -43,10 +45,10 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
         Q!("    push            " "r14"),
         Q!("    push            " "r15"),
         Q!("    mov             " "rcx, rdx"),
-        Q!("    call            " Label!("local_bignum_sqr_16_32", 2, After)),
+        Q!("    call            " Label!("bignum_ksqr_32_64_local_bignum_sqr_16_32", 2, After)),
         Q!("    lea             " "rsi, [rsi + 0x80]"),
         Q!("    lea             " "rdi, [rdi + 0x100]"),
-        Q!("    call            " Label!("local_bignum_sqr_16_32", 2, After)),
+        Q!("    call            " Label!("bignum_ksqr_32_64_local_bignum_sqr_16_32", 2, After)),
         Q!("    mov             " "rax, QWORD PTR [rsi -0x80]"),
         Q!("    sub             " "rax, QWORD PTR [rsi]"),
         Q!("    mov             " "QWORD PTR [rcx], rax"),
@@ -328,7 +330,7 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
         Q!("    mov             " "rsi, rcx"),
         Q!("    lea             " "rcx, [rdi -0x100]"),
         Q!("    lea             " "rdi, [rsi + 0x100]"),
-        Q!("    call            " Label!("local_bignum_sqr_16_32", 2, After)),
+        Q!("    call            " Label!("bignum_ksqr_32_64_local_bignum_sqr_16_32", 2, After)),
         Q!("    mov             " "rax, QWORD PTR [rsi + 0x80]"),
         Q!("    sub             " "rax, QWORD PTR [rdi]"),
         Q!("    mov             " "QWORD PTR [rcx + 0x80], rax"),
@@ -450,10 +452,10 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
         Q!("    pop             " "r12"),
         Q!("    pop             " "rbx"),
         Q!("    pop             " "rbp"),
-        // proc hoisting in -> ret after local_bignum_sqr_16_32
+        // proc hoisting in -> ret after bignum_ksqr_32_64_local_bignum_sqr_16_32
         Q!("    jmp             " Label!("hoist_finish", 3, After)),
 
-        Q!(Label!("local_bignum_sqr_16_32", 2) ":"),
+        Q!(Label!("bignum_ksqr_32_64_local_bignum_sqr_16_32", 2) ":"),
         Q!("    xor             " "ebp, ebp"),
         Q!("    mov             " "rdx, QWORD PTR [rsi]"),
         Q!("    mulx            " "rax, r9, QWORD PTR [rsi + 0x8]"),

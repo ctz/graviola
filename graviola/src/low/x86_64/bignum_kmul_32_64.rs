@@ -9,9 +9,10 @@ use crate::low::macros::*;
 // Multiply z := x * y
 // Inputs x[32], y[32]; output z[64]; temporary buffer t[>=96]
 //
-//    extern void bignum_kmul_32_64
-//     (uint64_t z[static 64], uint64_t x[static 32], uint64_t y[static 32],
-//      uint64_t t[static 96])
+//    extern void bignum_kmul_32_64(uint64_t z[static 64],
+//                                  const uint64_t x[static 32],
+//                                  const uint64_t y[static 32],
+//                                  uint64_t t[static 96]);
 //
 // This is a Karatsuba-style function multiplying half-sized results
 // internally and using temporary buffer t for intermediate results. The size
@@ -38,6 +39,7 @@ pub(crate) fn bignum_kmul_32_64(z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u6
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
         Q!("    push            " "rbx"),
         Q!("    push            " "rbp"),
         Q!("    push            " "r12"),
@@ -46,11 +48,11 @@ pub(crate) fn bignum_kmul_32_64(z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u6
         Q!("    push            " "r15"),
         Q!("    push            " "rcx"),
         Q!("    mov             " "rcx, rdx"),
-        Q!("    call            " Label!("local_bignum_kmul_16_32", 2, After)),
+        Q!("    call            " Label!("bignum_kmul_32_64_local_bignum_kmul_16_32", 2, After)),
         Q!("    lea             " "rdi, [rdi + 0xc0]"),
         Q!("    lea             " "rsi, [rsi + 0x40]"),
         Q!("    lea             " "rcx, [rcx + 0x80]"),
-        Q!("    call            " Label!("local_bignum_kmul_16_32", 2, After)),
+        Q!("    call            " Label!("bignum_kmul_32_64_local_bignum_kmul_16_32", 2, After)),
         Q!("    mov             " "r8, QWORD PTR [rsp]"),
         Q!("    sub             " "rdi, 0x140"),
         Q!("    mov             " "QWORD PTR [rsp], rdi"),
@@ -351,7 +353,7 @@ pub(crate) fn bignum_kmul_32_64(z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u6
         Q!("    mov             " "rcx, r8"),
         Q!("    lea             " "rsi, [r8 + 0x80]"),
         Q!("    lea             " "rdi, [r8 + 0x100]"),
-        Q!("    call            " Label!("local_bignum_kmul_16_32", 2, After)),
+        Q!("    call            " Label!("bignum_kmul_32_64_local_bignum_kmul_16_32", 2, After)),
         Q!("    mov             " "rdi, QWORD PTR [rsp]"),
         Q!("    xor             " "ebx, ebx"),
         Q!("    mov             " "rax, QWORD PTR [rdi + 0x80]"),
@@ -704,10 +706,10 @@ pub(crate) fn bignum_kmul_32_64(z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u6
         Q!("    pop             " "r12"),
         Q!("    pop             " "rbp"),
         Q!("    pop             " "rbx"),
-        // proc hoisting in -> ret after local_bignum_kmul_16_32
+        // proc hoisting in -> ret after bignum_kmul_32_64_local_bignum_kmul_16_32
         Q!("    jmp             " Label!("hoist_finish", 3, After)),
 
-        Q!(Label!("local_bignum_kmul_16_32", 2) ":"),
+        Q!(Label!("bignum_kmul_32_64_local_bignum_kmul_16_32", 2) ":"),
         Q!("    mov             " "rdx, QWORD PTR [rcx]"),
         Q!("    xor             " "ebp, ebp"),
         Q!("    mulx            " "r9, rax, QWORD PTR [rsi]"),

@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Shift bignum right by c < 64 bits z := floor(x / 2^c)
 // Inputs x[n], c; outputs function return (bits shifted out) and z[k]
 //
-//    extern uint64_t bignum_shr_small
-//     (uint64_t k, uint64_t *z, uint64_t n, uint64_t *x, uint64_t c);
+//    extern uint64_t bignum_shr_small(uint64_t k, uint64_t *z, uint64_t n,
+//                                     const uint64_t *x, uint64_t c);
 //
 // Does the "z := x >> c" operation where x is n digits, result z is p.
 // The shift count c is masked to 6 bits so it actually uses c' = c mod 64.
@@ -91,19 +91,19 @@ pub(crate) fn bignum_shr_small(z: &mut [u64], x: &[u64], c: u8) {
         // First, if p > n then pad output on the left with p-n zeros
 
         Q!("    cmp             " n!() ", " p!()),
-        Q!("    bcs             " Label!("nopad", 2, After)),
-        Q!(Label!("padloop", 3) ":"),
+        Q!("    bcs             " Label!("bignum_shr_small_nopad", 2, After)),
+        Q!(Label!("bignum_shr_small_padloop", 3) ":"),
         Q!("    sub             " p!() ", " p!() ", #1"),
         Q!("    str             " "xzr, [" z!() ", " p!() ", lsl #3]"),
         Q!("    cmp             " n!() ", " p!()),
-        Q!("    bcc             " Label!("padloop", 3, Before)),
+        Q!("    bcc             " Label!("bignum_shr_small_padloop", 3, Before)),
 
         // We now know that p <= n. If in fact p < n let carry word = x[p] instead of 0
 
-        Q!(Label!("nopad", 2) ":"),
-        Q!("    beq             " Label!("shiftstart", 4, After)),
+        Q!(Label!("bignum_shr_small_nopad", 2) ":"),
+        Q!("    beq             " Label!("bignum_shr_small_shiftstart", 4, After)),
         Q!("    ldr             " b!() ", [" x!() ", " p!() ", lsl #3]"),
-        Q!(Label!("shiftstart", 4) ":"),
+        Q!(Label!("bignum_shr_small_shiftstart", 4) ":"),
 
         // Set up negated version of the shift and shift b in preparation.
         // Use a mask for nonzero shift to fake 64-bit left shift in zero case
@@ -116,8 +116,8 @@ pub(crate) fn bignum_shr_small(z: &mut [u64], x: &[u64], c: u8) {
 
         // Now the main loop
 
-        Q!("    cbz             " p!() ", " Label!("end", 5, After)),
-        Q!(Label!("loop", 6) ":"),
+        Q!("    cbz             " p!() ", " Label!("bignum_shr_small_end", 5, After)),
+        Q!(Label!("bignum_shr_small_loop", 6) ":"),
         Q!("    sub             " p!() ", " p!() ", #1"),
         Q!("    ldr             " t!() ", [" x!() ", " p!() ", lsl #3]"),
         Q!("    lsr             " a!() ", " t!() ", " c!()),
@@ -125,11 +125,11 @@ pub(crate) fn bignum_shr_small(z: &mut [u64], x: &[u64], c: u8) {
         Q!("    lsl             " b!() ", " t!() ", " d!()),
         Q!("    and             " b!() ", " b!() ", " m!()),
         Q!("    str             " a!() ", [" z!() ", " p!() ", lsl #3]"),
-        Q!("    cbnz            " p!() ", " Label!("loop", 6, Before)),
+        Q!("    cbnz            " p!() ", " Label!("bignum_shr_small_loop", 6, Before)),
 
         // Return top word, shifted back to be a modulus
 
-        Q!(Label!("end", 5) ":"),
+        Q!(Label!("bignum_shr_small_end", 5) ":"),
         Q!("    lsr             " "x0, " b!() ", " d!()),
         inout("x0") z.len() => _,
         inout("x1") z.as_ptr() => _,

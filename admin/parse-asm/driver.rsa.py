@@ -72,7 +72,7 @@ if __name__ == "__main__":
             ],
             return_map=("out", "ret"),
             return_value=("u64", "ret", "ret"),
-            hoist=["linear", "ytoploop", "ret"],
+            hoist=["linear", "bignum_lt_ytoploop", "ret"],
             rust_decl="fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64",
         )
         parse_file(input, d)
@@ -112,9 +112,9 @@ if __name__ == "__main__":
                 ("inout", "y.len() => _"),
                 ("inout", "y.as_ptr() => _"),
             ],
+            hoist=["linear", "bignum_add_tail", "ret"],
             return_map=("out", "ret"),
             return_value=("u64", "ret", "ret"),
-            hoist=["linear", "tail", "ret"],
             rust_decl="fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) -> u64",
         )
         parse_file(input, d)
@@ -179,8 +179,8 @@ if __name__ == "__main__":
         parse_file(input, d)
 
     extras = {
-        "bignum_ksqr_32_64": dict(hoist=["proc", "local_bignum_sqr_16_32", "ret"]),
-        "bignum_kmul_32_64": dict(hoist=["proc", "local_bignum_kmul_16_32", "ret"]),
+        "bignum_ksqr_32_64": dict(hoist=["proc", "bignum_ksqr_32_64_local_bignum_sqr_16_32", "ret"]),
+        "bignum_kmul_32_64": dict(hoist=["proc", "bignum_kmul_32_64_local_bignum_kmul_16_32", "ret"]),
     }
 
     for op, inwidth, tmpwidth in (
@@ -393,7 +393,7 @@ if __name__ == "__main__":
                 ("inout", "y.as_ptr() => _"),
             ],
             return_value=("u64", "ret", "ret"),
-            hoist=["linear", "ytoploop", "ret"],
+            hoist=["linear", "bignum_lt_ytoploop", "ret"],
             rust_decl="fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64",
         )
         parse_file(input, d)
@@ -434,7 +434,7 @@ if __name__ == "__main__":
                 ("inout", "y.as_ptr() => _"),
             ],
             return_value=("u64", "ret", "ret"),
-            hoist=["linear", "tail", "ret"],
+            hoist=["linear", "bignum_add_tail", "ret"],
             rust_decl="fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) -> u64",
         )
         parse_file(input, d)

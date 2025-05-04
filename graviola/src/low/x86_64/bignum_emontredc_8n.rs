@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Extended Montgomery reduce in 8-digit blocks, results in input-output buffer
 // Inputs z[2*k], m[k], w; outputs function return (extra result bit) and z[2*k]
 //
-//    extern uint64_t bignum_emontredc_8n
-//     (uint64_t k, uint64_t *z, uint64_t *m, uint64_t w);
+//    extern uint64_t bignum_emontredc_8n(uint64_t k, uint64_t *z, const uint64_t *m,
+//                                        uint64_t w);
 //
 // Functionally equivalent to bignum_emontredc (see that file for more detail).
 // But in general assumes that the input k is a multiple of 8.
@@ -33,6 +33,7 @@ pub(crate) fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64 {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
         Q!("    push            " "rbp"),
         Q!("    push            " "rbx"),
         Q!("    push            " "r12"),
@@ -41,7 +42,7 @@ pub(crate) fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64 {
         Q!("    push            " "r15"),
         Q!("    xor             " "eax, eax"),
         Q!("    shr             " "rdi, 0x3"),
-        Q!("    je              " Label!("end", 2, After)),
+        Q!("    je              " Label!("bignum_emontredc_8n_end", 2, After)),
         Q!("    lea             " "rbx, [rdi -0x1]"),
         Q!("    shl             " "rbx, 0x6"),
         Q!("    push            " "rbx"),
@@ -50,7 +51,7 @@ pub(crate) fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64 {
         Q!("    mov             " "QWORD PTR [rsp], 0x0"),
         Q!("    mov             " "rdi, rdx"),
 
-        Q!(Label!("outerloop", 3) ":"),
+        Q!(Label!("bignum_emontredc_8n_outerloop", 3) ":"),
         Q!("    mov             " "rdx, rcx"),
         Q!("    xor             " "eax, eax"),
         Q!("    mov             " "r8, QWORD PTR [rsi]"),
@@ -294,10 +295,10 @@ pub(crate) fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64 {
         Q!("    mov             " "rbp, rsi"),
         Q!("    mov             " "rax, QWORD PTR [rsp + 0x18]"),
         Q!("    test            " "rax, rax"),
-        Q!("    je              " Label!("innerend", 4, After)),
+        Q!("    je              " Label!("bignum_emontredc_8n_innerend", 4, After)),
         Q!("    mov             " "QWORD PTR [rsp + 0x8], rax"),
 
-        Q!(Label!("innerloop", 5) ":"),
+        Q!(Label!("bignum_emontredc_8n_innerloop", 5) ":"),
         Q!("    add             " "rbp, 0x40"),
         Q!("    add             " "rdi, 0x40"),
         Q!("    mov             " "rdx, QWORD PTR [rdi]"),
@@ -541,10 +542,10 @@ pub(crate) fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64 {
         Q!("    adox            " "r15, rbx"),
         Q!("    adc             " "r15, 0x0"),
         Q!("    sub             " "QWORD PTR [rsp + 0x8], 0x40"),
-        Q!("    jne             " Label!("innerloop", 5, Before)),
+        Q!("    jne             " Label!("bignum_emontredc_8n_innerloop", 5, Before)),
         Q!("    mov             " "rax, QWORD PTR [rsp + 0x18]"),
 
-        Q!(Label!("innerend", 4) ":"),
+        Q!(Label!("bignum_emontredc_8n_innerend", 4) ":"),
         Q!("    sub             " "rdi, rax"),
         Q!("    mov             " "rbx, QWORD PTR [rsp]"),
         Q!("    neg             " "rbx"),
@@ -561,11 +562,11 @@ pub(crate) fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64 {
         Q!("    mov             " "QWORD PTR [rsp], rax"),
         Q!("    add             " "rsi, 0x40"),
         Q!("    sub             " "QWORD PTR [rsp + 0x10], 0x1"),
-        Q!("    jne             " Label!("outerloop", 3, Before)),
+        Q!("    jne             " Label!("bignum_emontredc_8n_outerloop", 3, Before)),
         Q!("    pop             " "rax"),
         Q!("    add             " "rsp, 0x18"),
 
-        Q!(Label!("end", 2) ":"),
+        Q!(Label!("bignum_emontredc_8n_end", 2) ":"),
         Q!("    pop             " "r15"),
         Q!("    pop             " "r14"),
         Q!("    pop             " "r13"),

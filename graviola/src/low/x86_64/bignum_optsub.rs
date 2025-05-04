@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Optionally subtract, z := x - y (if p nonzero) or z := x (if p zero)
 // Inputs x[k], p, y[k]; outputs function return (carry-out) and z[k]
 //
-//    extern uint64_t bignum_optsub
-//     (uint64_t k, uint64_t *z, uint64_t *x, uint64_t p, uint64_t *y);
+//    extern uint64_t bignum_optsub(uint64_t k, uint64_t *z, const uint64_t *x,
+//                                  uint64_t p, const uint64_t *y);
 //
 // It is assumed that all numbers x, y and z have the same size k digits.
 // Returns carry-out as per usual subtraction, always 0 if p was zero.
@@ -77,6 +77,7 @@ pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // Initialize top carry to zero in all cases (also return value)
@@ -86,7 +87,7 @@ pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
         // If k = 0 do nothing
 
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("end", 2, After)),
+        Q!("    jz              " Label!("bignum_optsub_end", 2, After)),
 
         // Convert the nonzero/zero status of p into an all-1s or all-0s mask
 
@@ -96,7 +97,7 @@ pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
         // Now go round the loop for i=0...k-1, saving the carry in c each iteration
 
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("loop", 3) ":"),
+        Q!(Label!("bignum_optsub_loop", 3) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
         Q!("    mov             " b!() ", [" y!() "+ 8 * " i!() "]"),
         Q!("    and             " b!() ", " p!()),
@@ -106,13 +107,13 @@ pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
         Q!("    mov             " "[" z!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("loop", 3, Before)),
+        Q!("    jc              " Label!("bignum_optsub_loop", 3, Before)),
 
         // Return top carry
 
         Q!("    neg             " "rax"),
 
-        Q!(Label!("end", 2) ":"),
+        Q!(Label!("bignum_optsub_end", 2) ":"),
         inout("rdi") z.len() => _,
         inout("rsi") z.as_mut_ptr() => _,
         inout("rdx") x.as_ptr() => _,

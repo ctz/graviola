@@ -9,7 +9,7 @@ use crate::low::macros::*;
 // Return size of bignum in digits (64-bit word)
 // Input x[k]; output function return
 //
-//    extern uint64_t bignum_digitsize (uint64_t k, uint64_t *x);
+//    extern uint64_t bignum_digitsize(uint64_t k, const uint64_t *x);
 //
 // In the case of a zero bignum as input the result is 0
 //
@@ -54,6 +54,7 @@ pub(crate) fn bignum_digitsize(z: &[u64]) -> usize {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // Initialize the index i and also prepare default return value of 0 (i = rax)
@@ -63,20 +64,20 @@ pub(crate) fn bignum_digitsize(z: &[u64]) -> usize {
         // If the bignum is zero-length, just return 0
 
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("end", 2, After)),
+        Q!("    jz              " Label!("bignum_digitsize_end", 2, After)),
 
         // Run over the words j = 0..i-1, and set i := j + 1 when hitting nonzero a[j]
 
         Q!("    xor             " j!() ", " j!()),
-        Q!(Label!("loop", 3) ":"),
+        Q!(Label!("bignum_digitsize_loop", 3) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " j!() "]"),
         Q!("    inc             " j!()),
         Q!("    test            " a!() ", " a!()),
         Q!("    cmovnz          " i!() ", " j!()),
         Q!("    cmp             " j!() ", " k!()),
-        Q!("    jnz             " Label!("loop", 3, Before)),
+        Q!("    jnz             " Label!("bignum_digitsize_loop", 3, Before)),
 
-        Q!(Label!("end", 2) ":"),
+        Q!(Label!("bignum_digitsize_end", 2) ":"),
         inout("rdi") z.len() => _,
         inout("rsi") z.as_ptr() => _,
         out("rax") ret,
