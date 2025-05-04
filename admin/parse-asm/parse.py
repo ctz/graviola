@@ -121,6 +121,14 @@ def parse_file(f, visit):
             continue
         elif l.startswith(".text"):
             continue
+        elif l.startswith('_CET_ENDBR'):
+            m = ASM.match('endbr64')
+            visit(
+                Type.ASM,
+                contexts,
+                m.group("opcode").strip(),
+                m.group("operands").strip(),
+            )
         elif l.startswith("S2N_BN_SYM_VISIBILITY_DIRECTIVE("):
             continue
         elif l.startswith("S2N_BN_SYM_PRIVACY_DIRECTIVE("):
