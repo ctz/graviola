@@ -57,6 +57,7 @@ def parse_file(f, visit):
 
     for l in lines:
         l = l.lstrip()
+        l = l.replace('__LF', ';')
 
         if continuation:
             lr = l.rstrip().rstrip("\\").rstrip()
