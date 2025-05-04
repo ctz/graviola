@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Convert from Montgomery form z := (x / 2^256) mod p_256, assuming x reduced
 // Input x[4]; output z[4]
 //
-//    extern void bignum_demont_p256
-//     (uint64_t z[static 4], uint64_t x[static 4]);
+//    extern void bignum_demont_p256(uint64_t z[static 4],
+//                                   const uint64_t x[static 4]);
 //
 // This assumes the input is < p_256 for correctness. If this is not the case,
 // use the variant "bignum_deamont_p256" instead.
@@ -53,6 +53,7 @@ pub(crate) fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // Save one more register to play with

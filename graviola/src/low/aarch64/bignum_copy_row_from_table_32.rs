@@ -12,8 +12,8 @@ use crate::low::macros::*;
 // achieved by reading the whole table and using the bit-masking to get the
 // `idx`-th row.
 //
-//    extern void bignum_copy_from_table_32_neon
-//     (uint64_t *z, uint64_t *table, uint64_t height, uint64_t idx);
+//    extern void bignum_copy_row_from_table_32
+//     (uint64_t *z, const uint64_t *table, uint64_t height, uint64_t idx);
 //
 // Initial version written by Hanno Becker
 // Standard ARM ABI: X0 = z, X1 = table, X2 = height, X3 = idx
@@ -239,12 +239,7 @@ macro_rules! vmask {
 /// This function is constant-time with respect to the value of `idx`. This is
 /// achieved by reading the whole table and using the bit-masking to get the
 /// `idx`-th row.
-pub(crate) fn bignum_copy_row_from_table_32_neon(
-    z: &mut [u64],
-    table: &[u64],
-    height: u64,
-    index: u64,
-) {
+pub(crate) fn bignum_copy_row_from_table_32(z: &mut [u64], table: &[u64], height: u64, index: u64) {
     debug_assert!(z.len() == 32);
     debug_assert!(index < height);
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
@@ -272,7 +267,7 @@ pub(crate) fn bignum_copy_row_from_table_32_neon(
         Q!("    mov             " ventry15!() ".16b, " ventry0!() ".16b"),
 
         Q!("    mov             " cnt!() ", #0"),
-        Q!(Label!("bignum_copy_row_from_table_32_neon_loop", 2) ":"),
+        Q!(Label!("bignum_copy_row_from_table_32_loop", 2) ":"),
 
         // Compute mask: Check if current index matches target index
         Q!("    subs            " "xzr, " cnt!() ", " idx!()),
@@ -331,9 +326,9 @@ pub(crate) fn bignum_copy_row_from_table_32_neon(
 
         Q!("    add             " cnt!() ", " cnt!() ", #1"),
         Q!("    subs            " "xzr, " height!() ", " cnt!()),
-        Q!("    b.ne            " Label!("bignum_copy_row_from_table_32_neon_loop", 2, Before)),
+        Q!("    b.ne            " Label!("bignum_copy_row_from_table_32_loop", 2, Before)),
 
-        Q!(Label!("bignum_copy_row_from_table_32_neon_end", 3) ":"),
+        Q!(Label!("bignum_copy_row_from_table_32_end", 3) ":"),
 
         Q!("    str             " qentry0!() ", [" z!() ", #16 * 0]"),
         Q!("    str             " qentry1!() ", [" z!() ", #16 * 1]"),

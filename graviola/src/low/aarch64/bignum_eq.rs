@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Test bignums for equality, x = y
 // Inputs x[m], y[n]; output function return
 //
-//    extern uint64_t bignum_eq
-//     (uint64_t m, uint64_t *x, uint64_t n, uint64_t *y);
+//    extern uint64_t bignum_eq(uint64_t m, const uint64_t *x, uint64_t n,
+//                              const uint64_t *y);
 //
 // Standard ARM ABI: X0 = m, X1 = x, X2 = n, X3 = y, returns X0
 // ----------------------------------------------------------------------------
@@ -70,42 +70,42 @@ pub(crate) fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
         // This will drop through for m = n
 
         Q!("    cmp             " m!() ", " n!()),
-        Q!("    bcs             " Label!("mtest", 2, After)),
+        Q!("    bcs             " Label!("bignum_eq_mtest", 2, After)),
 
         // Toploop for the case n > m
 
-        Q!(Label!("nloop", 3) ":"),
+        Q!(Label!("bignum_eq_nloop", 3) ":"),
         Q!("    sub             " n!() ", " n!() ", #1"),
         Q!("    ldr             " a!() ", [" y!() ", " n!() ", lsl #3]"),
         Q!("    orr             " c!() ", " c!() ", " a!()),
         Q!("    cmp             " m!() ", " n!()),
-        Q!("    bne             " Label!("nloop", 3, Before)),
-        Q!("    b               " Label!("mmain", 4, After)),
+        Q!("    bne             " Label!("bignum_eq_nloop", 3, Before)),
+        Q!("    b               " Label!("bignum_eq_mmain", 4, After)),
 
         // Toploop for the case m > n (or n = m which enters at "mtest")
 
-        Q!(Label!("mloop", 5) ":"),
+        Q!(Label!("bignum_eq_mloop", 5) ":"),
         Q!("    sub             " m!() ", " m!() ", #1"),
         Q!("    ldr             " a!() ", [" x!() ", " m!() ", lsl #3]"),
         Q!("    orr             " c!() ", " c!() ", " a!()),
         Q!("    cmp             " m!() ", " n!()),
-        Q!(Label!("mtest", 2) ":"),
-        Q!("    bne             " Label!("mloop", 5, Before)),
+        Q!(Label!("bignum_eq_mtest", 2) ":"),
+        Q!("    bne             " Label!("bignum_eq_mloop", 5, Before)),
 
         // Combined main loop for the min(m,n) lower words
 
-        Q!(Label!("mmain", 4) ":"),
-        Q!("    cbz             " m!() ", " Label!("end", 6, After)),
+        Q!(Label!("bignum_eq_mmain", 4) ":"),
+        Q!("    cbz             " m!() ", " Label!("bignum_eq_end", 6, After)),
 
-        Q!(Label!("loop", 7) ":"),
+        Q!(Label!("bignum_eq_loop", 7) ":"),
         Q!("    sub             " m!() ", " m!() ", #1"),
         Q!("    ldr             " a!() ", [" x!() ", " m!() ", lsl #3]"),
         Q!("    ldr             " d!() ", [" y!() ", " m!() ", lsl #3]"),
         Q!("    eor             " a!() ", " a!() ", " d!()),
         Q!("    orr             " c!() ", " c!() ", " a!()),
-        Q!("    cbnz            " m!() ", " Label!("loop", 7, Before)),
+        Q!("    cbnz            " m!() ", " Label!("bignum_eq_loop", 7, Before)),
 
-        Q!(Label!("end", 6) ":"),
+        Q!(Label!("bignum_eq_end", 6) ":"),
         Q!("    cmp             " c!() ", xzr"),
         Q!("    cset            " "x0, eq"),
         inout("x0") x.len() => ret,

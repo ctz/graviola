@@ -8,8 +8,8 @@ use crate::low::macros::*;
 // ----------------------------------------------------------------------------
 // Point addition on NIST curve P-256 in Montgomery-Jacobian coordinates
 //
-//    extern void p256_montjadd
-//      (uint64_t p3[static 12],uint64_t p1[static 12],uint64_t p2[static 12]);
+//    extern void p256_montjadd(uint64_t p3[static 12], const uint64_t p1[static 12],
+//                              const uint64_t p2[static 12]);
 //
 // Does p3 := p1 + p2 where all points are regarded as Jacobian triples with
 // each coordinate in the Montgomery domain, i.e. x' = (2^256 * x) mod p_256.
@@ -507,6 +507,7 @@ pub(crate) fn p256_montjadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 12]) 
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // Save registers and make room on stack for temporary variables
