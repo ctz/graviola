@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Compute "montification" constant z := 2^{128k} mod m
 // Input m[k]; output z[k]; temporary buffer t[>=k]
 //
-//    extern void bignum_montifier
-//      (uint64_t k, uint64_t *z, uint64_t *m, uint64_t *t);
+//    extern void bignum_montifier(uint64_t k, uint64_t *z, const uint64_t *m,
+//                                 uint64_t *t);
 //
 // The last argument points to a temporary buffer t that should have size >= k.
 // This is called "montifier" because given any other k-digit number x,
@@ -121,19 +121,19 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
 
         // If k = 0 the whole operation is trivial
 
-        Q!("    cbz             " k!() ", " Label!("end", 2, After)),
+        Q!("    cbz             " k!() ", " Label!("bignum_montifier_end", 2, After)),
 
         // Copy the input m into the temporary buffer t. The temporary register
         // c matters since we want it to hold the highest digit, ready for the
         // normalization phase.
 
         Q!("    mov             " i!() ", xzr"),
-        Q!(Label!("copyinloop", 3) ":"),
+        Q!(Label!("bignum_montifier_copyinloop", 3) ":"),
         Q!("    ldr             " c!() ", [" m!() ", " i!() ", lsl #3]"),
         Q!("    str             " c!() ", [" t!() ", " i!() ", lsl #3]"),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    bcc             " Label!("copyinloop", 3, Before)),
+        Q!("    bcc             " Label!("bignum_montifier_copyinloop", 3, Before)),
 
         // Do a rather stupid but constant-time digit normalization, conditionally
         // shifting left (k-1) times based on whether the top word is zero.
@@ -142,27 +142,27 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         // The "cmp c, xzr" sets the zeroness predicate (ZF) for the entire inner loop
 
         Q!("    subs            " i!() ", " k!() ", #1"),
-        Q!("    beq             " Label!("normalized", 4, After)),
-        Q!(Label!("normloop", 5) ":"),
+        Q!("    beq             " Label!("bignum_montifier_normalized", 4, After)),
+        Q!(Label!("bignum_montifier_normloop", 5) ":"),
         Q!("    mov             " j!() ", xzr"),
         Q!("    cmp             " c!() ", xzr"),
         Q!("    mov             " a!() ", xzr"),
-        Q!(Label!("shufloop", 6) ":"),
+        Q!(Label!("bignum_montifier_shufloop", 6) ":"),
         Q!("    mov             " c!() ", " a!()),
         Q!("    ldr             " a!() ", [" t!() ", " j!() ", lsl #3]"),
         Q!("    csel            " c!() ", " c!() ", " a!() ", eq"),
         Q!("    str             " c!() ", [" t!() ", " j!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " d!() ", " j!() ", " k!()),
-        Q!("    cbnz            " d!() ", " Label!("shufloop", 6, Before)),
+        Q!("    cbnz            " d!() ", " Label!("bignum_montifier_shufloop", 6, Before)),
         Q!("    subs            " i!() ", " i!() ", #1"),
-        Q!("    bne             " Label!("normloop", 5, Before)),
+        Q!("    bne             " Label!("bignum_montifier_normloop", 5, Before)),
 
         // We now have the top digit nonzero, assuming the input was nonzero,
         // and as per the invariant of the loop above, c holds that digit. So
         // now just count c's leading zeros and shift t bitwise that many bits.
 
-        Q!(Label!("normalized", 4) ":"),
+        Q!(Label!("bignum_montifier_normalized", 4) ":"),
         Q!("    clz             " c!() ", " c!()),
 
         Q!("    mov             " b!() ", xzr"),
@@ -170,7 +170,7 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    ands            " "xzr, " c!() ", #63"),
         Q!("    csetm           " l!() ", ne"),
         Q!("    neg             " d!() ", " c!()),
-        Q!(Label!("bitloop", 7) ":"),
+        Q!(Label!("bignum_montifier_bitloop", 7) ":"),
         Q!("    ldr             " j!() ", [" t!() ", " i!() ", lsl #3]"),
         Q!("    lsl             " a!() ", " j!() ", " c!()),
         Q!("    orr             " a!() ", " a!() ", " b!()),
@@ -179,7 +179,7 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    str             " a!() ", [" t!() ", " i!() ", lsl #3]"),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    bcc             " Label!("bitloop", 7, Before)),
+        Q!("    bcc             " Label!("bignum_montifier_bitloop", 7, Before)),
 
         // Let h be the high word of n, which in all the in-scope cases is >= 2^63.
         // Now successively form q = 2^i div h and r = 2^i mod h as i goes from
@@ -193,7 +193,7 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    mov             " q!() ", #1"),
         Q!("    neg             " r!() ", " h!()),
         Q!("    mov             " i!() ", #62"),
-        Q!(Label!("estloop", 8) ":"),
+        Q!(Label!("bignum_montifier_estloop", 8) ":"),
         Q!("    add             " q!() ", " q!() ", " q!()),
         Q!("    mov             " a!() ", " h!()),
         Q!("    sub             " a!() ", " a!() ", " r!()),
@@ -204,7 +204,7 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    and             " a!() ", " a!() ", " h!()),
         Q!("    sub             " r!() ", " r!() ", " a!()),
         Q!("    subs            " i!() ", " i!() ", #1"),
-        Q!("    bne             " Label!("estloop", 8, Before)),
+        Q!("    bne             " Label!("bignum_montifier_estloop", 8, Before)),
 
         // Strictly speaking the above loop doesn't quite give the true remainder
         // and quotient in the special case r = h = 2^63, so fix it up. We get
@@ -251,7 +251,7 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
 
         Q!("    mov             " c!() ", xzr"),
         Q!("    adds            " i!() ", xzr, xzr"),
-        Q!(Label!("mulloop", 9) ":"),
+        Q!(Label!("bignum_montifier_mulloop", 9) ":"),
         Q!("    ldr             " a!() ", [" t!() ", " i!() ", lsl #3]"),
         Q!("    mul             " l!() ", " q!() ", " a!()),
         Q!("    adcs            " l!() ", " l!() ", " c!()),
@@ -259,7 +259,7 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    str             " l!() ", [" z!() ", " i!() ", lsl #3]"),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    sub             " a!() ", " i!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("mulloop", 9, Before)),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_mulloop", 9, Before)),
 
         Q!("    adc             " c!() ", " c!() ", xzr"),
         Q!("    mov             " a!() ", #0x4000000000000000"),
@@ -269,7 +269,7 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         // Now do [c] * n - d for our final answer
 
         Q!("    subs            " i!() ", xzr, xzr"),
-        Q!(Label!("remloop", 12) ":"),
+        Q!(Label!("bignum_montifier_remloop", 12) ":"),
         Q!("    ldr             " a!() ", [" t!() ", " i!() ", lsl #3]"),
         Q!("    ldr             " b!() ", [" z!() ", " i!() ", lsl #3]"),
         Q!("    and             " a!() ", " a!() ", " q!()),
@@ -277,14 +277,14 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    str             " a!() ", [" z!() ", " i!() ", lsl #3]"),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    sub             " a!() ", " i!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("remloop", 12, Before)),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_remloop", 12, Before)),
 
         // Now still need to do a couple of modular doublings to get us all the
         // way up to 2^{p+64} == r from the initial 2^{p+62} == r (mod n).
 
         Q!("    mov             " c!() ", xzr"),
         Q!("    subs            " j!() ", xzr, xzr"),
-        Q!(Label!("dubloop1", 13) ":"),
+        Q!(Label!("bignum_montifier_dubloop1", 13) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    extr            " c!() ", " a!() ", " c!() ", #63"),
         Q!("    ldr             " b!() ", [" t!() ", " j!() ", lsl #3]"),
@@ -293,11 +293,11 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    mov             " c!() ", " a!()),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("dubloop1", 13, Before)),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_dubloop1", 13, Before)),
         Q!("    lsr             " c!() ", " c!() ", #63"),
         Q!("    sbc             " c!() ", " c!() ", xzr"),
         Q!("    adds            " j!() ", xzr, xzr"),
-        Q!(Label!("corrloop1", 14) ":"),
+        Q!(Label!("bignum_montifier_corrloop1", 14) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " b!() ", [" t!() ", " j!() ", lsl #3]"),
         Q!("    and             " b!() ", " b!() ", " c!()),
@@ -305,14 +305,14 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    str             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("corrloop1", 14, Before)),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_corrloop1", 14, Before)),
 
         // This is not exactly the same: we also copy output to t giving the
         // initialization t_1 = r == 2^{p+64} mod n for the main loop next.
 
         Q!("    mov             " c!() ", xzr"),
         Q!("    subs            " j!() ", xzr, xzr"),
-        Q!(Label!("dubloop2", 15) ":"),
+        Q!(Label!("bignum_montifier_dubloop2", 15) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    extr            " c!() ", " a!() ", " c!() ", #63"),
         Q!("    ldr             " b!() ", [" t!() ", " j!() ", lsl #3]"),
@@ -321,11 +321,11 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    mov             " c!() ", " a!()),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("dubloop2", 15, Before)),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_dubloop2", 15, Before)),
         Q!("    lsr             " c!() ", " c!() ", #63"),
         Q!("    sbc             " c!() ", " c!() ", xzr"),
         Q!("    adds            " j!() ", xzr, xzr"),
-        Q!(Label!("corrloop2", 16) ":"),
+        Q!(Label!("bignum_montifier_corrloop2", 16) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " b!() ", [" t!() ", " j!() ", lsl #3]"),
         Q!("    and             " b!() ", " b!() ", " c!()),
@@ -334,7 +334,7 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    str             " a!() ", [" t!() ", " j!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("corrloop2", 16, Before)),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_corrloop2", 16, Before)),
 
         // We then successively generate (k+1)-digit values satisfying
         // t_i == 2^{p+64*i} mod n, each of which is stored in h::t. Finish
@@ -358,11 +358,11 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         // "previous" digit (initially 0) to offset things by 1.
 
         Q!("    add             " i!() ", " k!() ", " k!()),
-        Q!(Label!("modloop", 17) ":"),
+        Q!(Label!("bignum_montifier_modloop", 17) ":"),
         Q!("    mov             " j!() ", xzr"),
         Q!("    mov             " b!() ", xzr"),
         Q!("    adds            " c!() ", xzr, xzr"),
-        Q!(Label!("cmaloop", 18) ":"),
+        Q!(Label!("bignum_montifier_cmaloop", 18) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    mul             " l!() ", " h!() ", " a!()),
         Q!("    adcs            " b!() ", " b!() ", " c!()),
@@ -373,14 +373,14 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    str             " l!() ", [" t!() ", " j!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("cmaloop", 18, Before)),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_cmaloop", 18, Before)),
 
         Q!("    adcs            " h!() ", " b!() ", " c!()),
 
         Q!("    csetm           " l!() ", cs"),
 
         Q!("    adds            " j!() ", xzr, xzr"),
-        Q!(Label!("oaloop", 19) ":"),
+        Q!(Label!("bignum_montifier_oaloop", 19) ":"),
         Q!("    ldr             " a!() ", [" t!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " b!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    and             " b!() ", " b!() ", " l!()),
@@ -388,11 +388,11 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    str             " a!() ", [" t!() ", " j!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("oaloop", 19, Before)),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_oaloop", 19, Before)),
         Q!("    adc             " h!() ", " h!() ", xzr"),
 
         Q!("    subs            " i!() ", " i!() ", #1"),
-        Q!("    bne             " Label!("modloop", 17, Before)),
+        Q!("    bne             " Label!("bignum_montifier_modloop", 17, Before)),
 
         // Compute the negated modular inverse w (same register as i, not used again).
 
@@ -423,9 +423,9 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    mov             " j!() ", #1"),
         Q!("    sub             " a!() ", " k!() ", #1"),
         Q!("    adds            " "xzr, " b!() ", " l!()),
-        Q!("    cbz             " a!() ", " Label!("amontend", 20, After)),
+        Q!("    cbz             " a!() ", " Label!("bignum_montifier_amontend", 20, After)),
 
-        Q!(Label!("amontloop", 21) ":"),
+        Q!(Label!("bignum_montifier_amontloop", 21) ":"),
         Q!("    ldr             " a!() ", [" m!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " b!() ", [" t!() ", " j!() ", lsl #3]"),
         Q!("    mul             " l!() ", " d!() ", " a!()),
@@ -437,15 +437,15 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    str             " b!() ", [" t!() ", " a!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("amontloop", 21, Before)),
-        Q!(Label!("amontend", 20) ":"),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_amontloop", 21, Before)),
+        Q!(Label!("bignum_montifier_amontend", 20) ":"),
         Q!("    adcs            " h!() ", " h!() ", " c!()),
         Q!("    csetm           " l!() ", cs"),
         Q!("    sub             " a!() ", " k!() ", #1"),
         Q!("    str             " h!() ", [" t!() ", " a!() ", lsl #3]"),
 
         Q!("    subs            " j!() ", xzr, xzr"),
-        Q!(Label!("osloop", 22) ":"),
+        Q!(Label!("bignum_montifier_osloop", 22) ":"),
         Q!("    ldr             " a!() ", [" t!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " b!() ", [" m!() ", " j!() ", lsl #3]"),
         Q!("    and             " b!() ", " b!() ", " l!()),
@@ -453,7 +453,7 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    str             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("osloop", 22, Before)),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_osloop", 22, Before)),
 
         // So far, the code(basically a variant of bignum_amontifier) has produced
         // a k-digit value z == 2^{192k} (mod m), not necessarily fully reduced mod m.
@@ -463,7 +463,7 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
 
         Q!("    mov             " h!() ", " k!()),
 
-        Q!(Label!("montouterloop", 23) ":"),
+        Q!(Label!("bignum_montifier_montouterloop", 23) ":"),
         Q!("    ldr             " b!() ", [" z!() "]"),
         Q!("    mul             " d!() ", " b!() ", " w!()),
         Q!("    ldr             " a!() ", [" m!() "]"),
@@ -472,8 +472,8 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    mov             " j!() ", #1"),
         Q!("    sub             " a!() ", " k!() ", #1"),
         Q!("    adds            " "xzr, " b!() ", " l!()),
-        Q!("    cbz             " a!() ", " Label!("montend", 24, After)),
-        Q!(Label!("montloop", 25) ":"),
+        Q!("    cbz             " a!() ", " Label!("bignum_montifier_montend", 24, After)),
+        Q!(Label!("bignum_montifier_montloop", 25) ":"),
         Q!("    ldr             " a!() ", [" m!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " b!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    mul             " l!() ", " d!() ", " a!()),
@@ -485,32 +485,32 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    str             " b!() ", [" z!() ", " a!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("montloop", 25, Before)),
-        Q!(Label!("montend", 24) ":"),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_montloop", 25, Before)),
+        Q!(Label!("bignum_montifier_montend", 24) ":"),
         Q!("    adc             " c!() ", " c!() ", xzr"),
         Q!("    sub             " a!() ", " k!() ", #1"),
         Q!("    str             " c!() ", [" z!() ", " a!() ", lsl #3]"),
 
         Q!("    subs            " h!() ", " h!() ", #1"),
-        Q!("    bne             " Label!("montouterloop", 23, Before)),
+        Q!("    bne             " Label!("bignum_montifier_montouterloop", 23, Before)),
 
         // Now do a comparison of z with m to set a final correction mask
         // indicating that z >= m and so we need to subtract m.
 
         Q!("    subs            " j!() ", xzr, xzr"),
-        Q!(Label!("cmploop", 26) ":"),
+        Q!(Label!("bignum_montifier_cmploop", 26) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " b!() ", [" m!() ", " j!() ", lsl #3]"),
         Q!("    sbcs            " "xzr, " a!() ", " b!()),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("cmploop", 26, Before)),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_cmploop", 26, Before)),
         Q!("    csetm           " h!() ", cs"),
 
         // Now do a masked subtraction of m for the final reduced result.
 
         Q!("    subs            " j!() ", xzr, xzr"),
-        Q!(Label!("corrloop", 27) ":"),
+        Q!(Label!("bignum_montifier_corrloop", 27) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " b!() ", [" m!() ", " j!() ", lsl #3]"),
         Q!("    and             " b!() ", " b!() ", " h!()),
@@ -518,9 +518,9 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
         Q!("    str             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("corrloop", 27, Before)),
+        Q!("    cbnz            " a!() ", " Label!("bignum_montifier_corrloop", 27, Before)),
 
-        Q!(Label!("end", 2) ":"),
+        Q!(Label!("bignum_montifier_end", 2) ":"),
         inout("x0") m.len() => _,
         inout("x1") z.as_mut_ptr() => _,
         inout("x2") m.as_ptr() => _,

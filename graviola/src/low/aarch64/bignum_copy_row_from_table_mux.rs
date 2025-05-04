@@ -11,14 +11,14 @@ pub(crate) fn bignum_copy_row_from_table(
     index: u64,
 ) {
     match width {
-        32 => super::bignum_copy_row_from_table_32_neon::bignum_copy_row_from_table_32_neon(
+        32 => super::bignum_copy_row_from_table_32::bignum_copy_row_from_table_32(
             z, table, height, index,
         ),
-        16 => super::bignum_copy_row_from_table_16_neon::bignum_copy_row_from_table_16_neon(
+        16 => super::bignum_copy_row_from_table_16::bignum_copy_row_from_table_16(
             z, table, height, index,
         ),
         width if width % 8 == 0 => {
-            super::bignum_copy_row_from_table_8n_neon::bignum_copy_row_from_table_8n_neon(
+            super::bignum_copy_row_from_table_8n::bignum_copy_row_from_table_8n(
                 z, table, height, width, index,
             )
         }

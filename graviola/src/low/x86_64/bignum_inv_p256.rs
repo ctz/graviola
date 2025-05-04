@@ -9,7 +9,7 @@ use crate::low::macros::*;
 // Modular inverse modulo p_256 = 2^256 - 2^224 + 2^192 + 2^96 - 1
 // Input x[4]; output z[4]
 //
-// extern void bignum_inv_p256(uint64_t z[static 4],uint64_t x[static 4]);
+// extern void bignum_inv_p256(uint64_t z[static 4],const uint64_t x[static 4]);
 //
 // If the 4-digit input x is coprime to p_256, i.e. is not divisible
 // by it, returns z < p_256 such that x * z == 1 (mod p_256). Note that
@@ -1045,6 +1045,7 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // Save registers and make room for temporaries
@@ -1132,9 +1133,9 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         Q!("    mov             " i!() ", 10"),
         Q!("    mov             " d!() ", 1"),
-        Q!("    jmp             " Label!("midloop", 2, After)),
+        Q!("    jmp             " Label!("bignum_inv_p256_midloop", 2, After)),
 
-        Q!(Label!("loop", 3) ":"),
+        Q!(Label!("bignum_inv_p256_loop", 3) ":"),
 
         // Separate out the matrix into sign-magnitude pairs
 
@@ -1463,7 +1464,7 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         amontred!(v!()),
 
-        Q!(Label!("midloop", 2) ":"),
+        Q!(Label!("bignum_inv_p256_midloop", 2) ":"),
 
         divstep59!(d!(), ff!(), gg!()),
         Q!("    mov             " d!() ", rsi"),
@@ -1471,7 +1472,7 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Next iteration
 
         Q!("    dec             " i!()),
-        Q!("    jnz             " Label!("loop", 3, Before)),
+        Q!("    jnz             " Label!("bignum_inv_p256_loop", 3, Before)),
 
         // The 10th and last iteration does not need anything except the
         // u value and the sign of f; the latter can be obtained from the

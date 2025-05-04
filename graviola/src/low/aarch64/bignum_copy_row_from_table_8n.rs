@@ -12,8 +12,8 @@ use crate::low::macros::*;
 // achieved by reading the whole table and using the bit-masking to get the
 // `idx`-th row.
 //
-//    extern void bignum_copy_from_table_8_neon
-//     (uint64_t *z, uint64_t *table, uint64_t height, uint64_t width, uint64_t idx);
+//    extern void bignum_copy_row_from_table_8n
+//     (uint64_t *z, const uint64_t *table, uint64_t height, uint64_t width, uint64_t idx);
 //
 // Standard ARM ABI: X0 = z, X1 = table, X2 = height, X3 = width, X4 = idx
 // ----------------------------------------------------------------------------
@@ -72,7 +72,7 @@ macro_rules! vmask {
 /// This function is constant-time with respect to the value of `idx`. This is
 /// achieved by reading the whole table and using the bit-masking to get the
 /// `idx`-th row.
-pub(crate) fn bignum_copy_row_from_table_8n_neon(
+pub(crate) fn bignum_copy_row_from_table_8n(
     z: &mut [u64],
     table: &[u64],
     height: u64,
@@ -86,25 +86,25 @@ pub(crate) fn bignum_copy_row_from_table_8n_neon(
         core::arch::asm!(
 
 
-        Q!("    cbz             " height!() ", " Label!("bignum_copy_row_from_table_8n_neon_end", 2, After)),
-        Q!("    cbz             " width!() ", " Label!("bignum_copy_row_from_table_8n_neon_end", 2, After)),
+        Q!("    cbz             " height!() ", " Label!("bignum_copy_row_from_table_8n_end", 2, After)),
+        Q!("    cbz             " width!() ", " Label!("bignum_copy_row_from_table_8n_end", 2, After)),
         Q!("    mov             " i!() ", " width!()),
         Q!("    mov             " "x6, " z!()),
         Q!("    dup             " "v16.2d, xzr"),
 
-        Q!(Label!("bignum_copy_row_from_table_8n_neon_initzero", 3) ":"),
+        Q!(Label!("bignum_copy_row_from_table_8n_initzero", 3) ":"),
         Q!("    str             " "q16, [x6]"),
         Q!("    str             " "q16, [x6, #16]"),
         Q!("    str             " "q16, [x6, #32]"),
         Q!("    str             " "q16, [x6, #48]"),
         Q!("    add             " "x6, x6, #64"),
         Q!("    subs            " i!() ", " i!() ", #8"),
-        Q!("    bne             " Label!("bignum_copy_row_from_table_8n_neon_initzero", 3, Before)),
+        Q!("    bne             " Label!("bignum_copy_row_from_table_8n_initzero", 3, Before)),
 
         Q!("    mov             " i!() ", xzr"),
         Q!("    mov             " "x8, " table!()),
 
-        Q!(Label!("bignum_copy_row_from_table_8n_neon_outerloop", 4) ":"),
+        Q!(Label!("bignum_copy_row_from_table_8n_outerloop", 4) ":"),
 
         Q!("    cmp             " i!() ", " idx!()),
         Q!("    csetm           " mask!() ", eq"),
@@ -113,7 +113,7 @@ pub(crate) fn bignum_copy_row_from_table_8n_neon(
         Q!("    mov             " j!() ", " width!()),
         Q!("    mov             " "x9, " z!()),
 
-        Q!(Label!("bignum_copy_row_from_table_8n_neon_innerloop", 5) ":"),
+        Q!(Label!("bignum_copy_row_from_table_8n_innerloop", 5) ":"),
 
         Q!("    ldr             " "q17, [x8]"),
         Q!("    ldr             " "q18, [x9]"),
@@ -138,14 +138,14 @@ pub(crate) fn bignum_copy_row_from_table_8n_neon(
         Q!("    add             " "x8, x8, #64"),
         Q!("    add             " "x9, x9, #64"),
         Q!("    subs            " j!() ", " j!() ", #8"),
-        Q!("    bne             " Label!("bignum_copy_row_from_table_8n_neon_innerloop", 5, Before)),
+        Q!("    bne             " Label!("bignum_copy_row_from_table_8n_innerloop", 5, Before)),
 
-        Q!(Label!("bignum_copy_row_from_table_8n_neon_innerloop_done", 6) ":"),
+        Q!(Label!("bignum_copy_row_from_table_8n_innerloop_done", 6) ":"),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    cmp             " i!() ", " height!()),
-        Q!("    bne             " Label!("bignum_copy_row_from_table_8n_neon_outerloop", 4, Before)),
+        Q!("    bne             " Label!("bignum_copy_row_from_table_8n_outerloop", 4, Before)),
 
-        Q!(Label!("bignum_copy_row_from_table_8n_neon_end", 2) ":"),
+        Q!(Label!("bignum_copy_row_from_table_8n_end", 2) ":"),
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") table.as_ptr() => _,
         inout("x2") height => _,

@@ -9,8 +9,9 @@ use crate::low::macros::*;
 // Montgomery multiply, z := (x * y / 2^256) mod p_256
 // Inputs x[4], y[4]; output z[4]
 //
-//    extern void bignum_montmul_p256
-//     (uint64_t z[static 4], uint64_t x[static 4], uint64_t y[static 4]);
+//    extern void bignum_montmul_p256(uint64_t z[static 4],
+//                                    const uint64_t x[static 4],
+//                                    const uint64_t y[static 4]);
 //
 // Does z := (2^{-256} * x * y) mod p_256, assuming that the inputs x and y
 // satisfy x * y <= 2^256 * p_256 (in particular this is true if we are in
@@ -63,6 +64,7 @@ pub(crate) fn bignum_montmul_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) 
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // Save more registers to play with

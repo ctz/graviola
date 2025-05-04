@@ -9,7 +9,7 @@ use crate::low::macros::*;
 // Negate modulo p_256, z := (-x) mod p_256, assuming x reduced
 // Input x[4]; output z[4]
 //
-//    extern void bignum_neg_p256 (uint64_t z[static 4], uint64_t x[static 4]);
+//    extern void bignum_neg_p256(uint64_t z[static 4], const uint64_t x[static 4]);
 //
 // Standard x86-64 ABI: RDI = z, RSI = x
 // Microsoft x64 ABI:   RCX = z, RDX = x
@@ -83,6 +83,7 @@ pub(crate) fn bignum_neg_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // Load the input digits as [d3;d2;d1;d0] and also set a bitmask q

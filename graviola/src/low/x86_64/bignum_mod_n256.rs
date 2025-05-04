@@ -9,8 +9,7 @@ use crate::low::macros::*;
 // Reduce modulo group order, z := x mod n_256
 // Input x[4]; output z[4]
 //
-//    extern void bignum_mod_n256_4
-//     (uint64_t z[static 4], uint64_t x[static 4]);
+//    extern void bignum_mod_n256_4(uint64_t z[static 4], const uint64_t x[static 4]);
 //
 // Reduction is modulo the group order of the NIST curve P-256.
 //
@@ -90,6 +89,7 @@ pub(crate) fn bignum_mod_n256(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // Load a set of registers [n3; 0; n1; n0] = 2^256 - n_256

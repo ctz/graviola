@@ -343,13 +343,13 @@ if __name__ == "__main__":
 
     # aarch64
     with open(
-        "../../thirdparty/s2n-bignum/arm/p256/bignum_montsqr_p256_neon.S"
+        "../../thirdparty/s2n-bignum/arm/p256/bignum_montsqr_p256.S"
     ) as input, open(
         "../../graviola/src/low/aarch64/bignum_montsqr_p256.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
-            "bignum_montsqr_p256_neon",
+            "bignum_montsqr_p256",
             parameter_map=[
                 ("inout", "z.as_mut_ptr() => _"),
                 ("inout", "x.as_ptr() => _"),
@@ -359,13 +359,13 @@ if __name__ == "__main__":
         parse_file(input, d)
 
     with open(
-        "../../thirdparty/s2n-bignum/arm/p256/bignum_montmul_p256_neon.S"
+        "../../thirdparty/s2n-bignum/arm/p256/bignum_montmul_p256.S"
     ) as input, open(
         "../../graviola/src/low/aarch64/bignum_montmul_p256.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
-            "bignum_montmul_p256_neon",
+            "bignum_montmul_p256",
             parameter_map=[
                 ("inout", "z.as_mut_ptr() => _"),
                 ("inout", "x.as_ptr() => _"),
@@ -510,13 +510,13 @@ if __name__ == "__main__":
         parse_file(input, d)
 
     with open(
-        "../../thirdparty/s2n-bignum/arm/generic/bignum_copy_row_from_table_8n_neon.S"
+        "../../thirdparty/s2n-bignum/arm/generic/bignum_copy_row_from_table_8n.S"
     ) as input, open(
-        "../../graviola/src/low/aarch64/bignum_copy_row_from_table_8n_neon.rs", "w"
+        "../../graviola/src/low/aarch64/bignum_copy_row_from_table_8n.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
-            "bignum_copy_row_from_table_8n_neon",
+            "bignum_copy_row_from_table_8n",
             parameter_map=[
                 ("inout", "z.as_mut_ptr() => _"),
                 ("inout", "table.as_ptr() => _"),
@@ -524,7 +524,7 @@ if __name__ == "__main__":
                 ("inout", "width => _"),
                 ("inout", "index => _"),
             ],
-            rust_decl="fn bignum_copy_row_from_table_8n_neon(z: &mut [u64], table: &[u64], height: u64, width: u64, index: u64)",
+            rust_decl="fn bignum_copy_row_from_table_8n(z: &mut [u64], table: &[u64], height: u64, width: u64, index: u64)",
             assertions=[
                 "z.len() as u64 == width",
                 "width % 8 == 0",
@@ -533,20 +533,20 @@ if __name__ == "__main__":
         parse_file(input, d)
 
     with open(
-        "../../thirdparty/s2n-bignum/arm/generic/bignum_copy_row_from_table_16_neon.S"
+        "../../thirdparty/s2n-bignum/arm/generic/bignum_copy_row_from_table_16.S"
     ) as input, open(
-        "../../graviola/src/low/aarch64/bignum_copy_row_from_table_16_neon.rs", "w"
+        "../../graviola/src/low/aarch64/bignum_copy_row_from_table_16.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
-            "bignum_copy_row_from_table_16_neon",
+            "bignum_copy_row_from_table_16",
             parameter_map=[
                 ("inout", "z.as_mut_ptr() => _"),
                 ("inout", "table.as_ptr() => _"),
                 ("inout", "height => _"),
                 ("inout", "index => _"),
             ],
-            rust_decl="fn bignum_copy_row_from_table_16_neon(z: &mut [u64], table: &[u64], height: u64, index: u64)",
+            rust_decl="fn bignum_copy_row_from_table_16(z: &mut [u64], table: &[u64], height: u64, index: u64)",
             assertions=[
                 "z.len() == 16",
             ],
@@ -554,20 +554,20 @@ if __name__ == "__main__":
         parse_file(input, d)
 
     with open(
-        "../../thirdparty/s2n-bignum/arm/generic/bignum_copy_row_from_table_32_neon.S"
+        "../../thirdparty/s2n-bignum/arm/generic/bignum_copy_row_from_table_32.S"
     ) as input, open(
-        "../../graviola/src/low/aarch64/bignum_copy_row_from_table_32_neon.rs", "w"
+        "../../graviola/src/low/aarch64/bignum_copy_row_from_table_32.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
-            "bignum_copy_row_from_table_32_neon",
+            "bignum_copy_row_from_table_32",
             parameter_map=[
                 ("inout", "z.as_mut_ptr() => _"),
                 ("inout", "table.as_ptr() => _"),
                 ("inout", "height => _"),
                 ("inout", "index => _"),
             ],
-            rust_decl="fn bignum_copy_row_from_table_32_neon(z: &mut [u64], table: &[u64], height: u64, index: u64)",
+            rust_decl="fn bignum_copy_row_from_table_32(z: &mut [u64], table: &[u64], height: u64, index: u64)",
             assertions=[
                 "z.len() == 32",
                 "index < height",

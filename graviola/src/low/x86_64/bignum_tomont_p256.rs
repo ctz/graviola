@@ -9,8 +9,8 @@ use crate::low::macros::*;
 // Convert to Montgomery form z := (2^256 * x) mod p_256
 // Input x[4]; output z[4]
 //
-//    extern void bignum_tomont_p256
-//     (uint64_t z[static 4], uint64_t x[static 4]);
+//    extern void bignum_tomont_p256(uint64_t z[static 4],
+//                                   const uint64_t x[static 4]);
 //
 // Standard x86-64 ABI: RDI = z, RSI = x
 // Microsoft x64 ABI:   RCX = z, RDX = x
@@ -76,6 +76,7 @@ pub(crate) fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
+        Q!("    endbr64         " ),
 
 
         // We are essentially just doing a Montgomery multiplication of x and the
