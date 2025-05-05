@@ -327,6 +327,8 @@ mod tests {
     use std::time::Instant;
 
     use super::*;
+    use crate::high::hash::Sha256;
+    use crate::high::hmac_drbg::HmacDrbg;
     use crate::mid::rng::{ChainRandomSource, SliceRandomSource, SystemRandom};
 
     fn read_hex_from_file(data: &str) -> Vec<u8> {
@@ -466,10 +468,12 @@ mod tests {
     fn test_valid_primes() {
         for line in read_hex_lines_from_file(include_str!("../../testdata/valid-primes.txt")) {
             let candidate = PosInt::from_bytes(&line).unwrap();
-            candidate.debug("candidate");
-            println!("|candidate| = {}", candidate.len_bits());
             assert_eq!(
-                is_prime(&candidate, KeySize::Rsa2048, &mut SystemRandom),
+                is_prime(
+                    &candidate,
+                    KeySize::Rsa2048,
+                    &mut HmacDrbg::<Sha256>::new(b"", b"", b"")
+                ),
                 Ok(true)
             );
         }
@@ -479,10 +483,12 @@ mod tests {
     fn test_invalid_primes() {
         for line in read_hex_lines_from_file(include_str!("../../testdata/invalid-primes.txt")) {
             let candidate = PosInt::from_bytes(&line).unwrap();
-            candidate.debug("candidate");
-            println!("|candidate| = {}", candidate.len_bits());
             assert_eq!(
-                is_prime(&candidate, KeySize::Rsa2048, &mut SystemRandom),
+                is_prime(
+                    &candidate,
+                    KeySize::Rsa2048,
+                    &mut HmacDrbg::<Sha256>::new(b"", b"", b"")
+                ),
                 Ok(false)
             );
         }
