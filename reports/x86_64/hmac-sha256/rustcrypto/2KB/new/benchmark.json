@@ -1,0 +1,1 @@
+{"group_id":"hmac-sha256","function_id":"rustcrypto","value_str":"2KB","throughput":{"Elements":1},"full_id":"hmac-sha256/rustcrypto/2KB","directory_name":"hmac-sha256/rustcrypto/2KB","title":"hmac-sha256/rustcrypto/2KB"}

@@ -1,14 +1,14 @@
 $ go version
-go version go1.22.4 linux/amd64
+go version go1.24.2 linux/amd64
 
 $ go test crypto/rsa -bench BenchmarkSignPKCS1v15/2048 -benchtime 5s
 goos: linux
 goarch: amd64
 pkg: crypto/rsa
 cpu: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics     
-BenchmarkSignPKCS1v15/2048-16         	    8161	    736183 ns/op
+BenchmarkSignPKCS1v15/2048-16         	    8394	    719056 ns/op
 PASS
-ok  	crypto/rsa	7.022s
+ok  	crypto/rsa	8.430s
 
 
 $ go test crypto/rsa -bench BenchmarkVerifyPKCS1v15/2048 -benchtime 5s
@@ -16,9 +16,9 @@ goos: linux
 goarch: amd64
 pkg: crypto/rsa
 cpu: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics     
-BenchmarkVerifyPKCS1v15/2048-16         	  278317	     21512 ns/op
+BenchmarkVerifyPKCS1v15/2048-16         	  278052	     21374 ns/op
 PASS
-ok  	crypto/rsa	6.827s
+ok  	crypto/rsa	9.560s
 
 
 $ go test crypto/cipher -bench BenchmarkAESGCM/Seal-256-8192 -benchtime 5s
@@ -26,9 +26,9 @@ goos: linux
 goarch: amd64
 pkg: crypto/cipher
 cpu: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics     
-BenchmarkAESGCM/Seal-256-8192-16         	 4919061	      1226 ns/op	6679.91 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAESGCM/Seal-256-8192-16         	 5037165	      1174 ns/op	6978.40 MB/s	       0 B/op	       0 allocs/op
 PASS
-ok  	crypto/cipher	7.325s
+ok  	crypto/cipher	8.342s
 
 
 $ go test crypto/ecdh -bench BenchmarkECDH/X25519 -benchtime 5s
@@ -36,9 +36,9 @@ goos: linux
 goarch: amd64
 pkg: crypto/ecdh
 cpu: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics     
-BenchmarkECDH/X25519-16         	   84484	     70093 ns/op	     368 B/op	       9 allocs/op
+BenchmarkECDH/X25519-16         	   87022	     67740 ns/op	     384 B/op	       9 allocs/op
 PASS
-ok  	crypto/ecdh	6.769s
+ok  	crypto/ecdh	6.753s
 
 
 $ go test crypto/ecdh -bench BenchmarkECDH/P256 -benchtime 5s
@@ -46,9 +46,9 @@ goos: linux
 goarch: amd64
 pkg: crypto/ecdh
 cpu: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics     
-BenchmarkECDH/P256-16         	  123558	     48314 ns/op	     752 B/op	      12 allocs/op
+BenchmarkECDH/P256-16         	  125833	     47175 ns/op	     960 B/op	      15 allocs/op
 PASS
-ok  	crypto/ecdh	6.595s
+ok  	crypto/ecdh	6.554s
 
 
 $ go test crypto/ecdh -bench BenchmarkECDH/P384 -benchtime 5s
@@ -56,9 +56,9 @@ goos: linux
 goarch: amd64
 pkg: crypto/ecdh
 cpu: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics     
-BenchmarkECDH/P384-16         	   14646	    410171 ns/op	    1080 B/op	      21 allocs/op
+BenchmarkECDH/P384-16         	   15070	    396900 ns/op	    1320 B/op	      24 allocs/op
 PASS
-ok  	crypto/ecdh	10.274s
+ok  	crypto/ecdh	10.145s
 
 
 $ go test crypto/ecdsa -bench BenchmarkSign/P256 -benchtime 5s
@@ -66,9 +66,9 @@ goos: linux
 goarch: amd64
 pkg: crypto/ecdsa
 cpu: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics     
-BenchmarkSign/P256-16         	  361436	     16445 ns/op	    2440 B/op	      33 allocs/op
+BenchmarkSign/P256-16         	  268479	     22434 ns/op	    6338 B/op	      68 allocs/op
 PASS
-ok  	crypto/ecdsa	6.376s
+ok  	crypto/ecdsa	6.517s
 
 
 $ go test crypto/ecdsa -bench BenchmarkSign/P384 -benchtime 5s
@@ -76,9 +76,9 @@ goos: linux
 goarch: amd64
 pkg: crypto/ecdsa
 cpu: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics     
-BenchmarkSign/P384-16         	   40728	    147103 ns/op	    2608 B/op	      34 allocs/op
+BenchmarkSign/P384-16         	   40395	    147960 ns/op	    6576 B/op	      71 allocs/op
 PASS
-ok  	crypto/ecdsa	7.744s
+ok  	crypto/ecdsa	7.731s
 
 
 $ go test crypto/ecdsa -bench BenchmarkVerify/P256 -benchtime 5s
@@ -86,9 +86,9 @@ goos: linux
 goarch: amd64
 pkg: crypto/ecdsa
 cpu: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics     
-BenchmarkVerify/P256-16         	  114501	     51723 ns/op	     432 B/op	       8 allocs/op
+BenchmarkVerify/P256-16         	  118993	     49958 ns/op	     576 B/op	      10 allocs/op
 PASS
-ok  	crypto/ecdsa	6.716s
+ok  	crypto/ecdsa	6.707s
 
 
 $ go test crypto/ecdsa -bench BenchmarkVerify/P384 -benchtime 5s
@@ -96,8 +96,8 @@ goos: linux
 goarch: amd64
 pkg: crypto/ecdsa
 cpu: AMD Ryzen 9 7940HS w/ Radeon 780M Graphics     
-BenchmarkVerify/P384-16         	   13471	    442227 ns/op	     592 B/op	      12 allocs/op
+BenchmarkVerify/P384-16         	   13826	    431782 ns/op	     808 B/op	      17 allocs/op
 PASS
-ok  	crypto/ecdsa	10.716s
+ok  	crypto/ecdsa	10.606s
 
 
