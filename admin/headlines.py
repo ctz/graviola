@@ -70,7 +70,10 @@ notes = {
         "aws-lc-rs": {
             "aes256-gcm": "Uses AVX512",
             "rsa2048-pkcs1-sha256-sign": "Uses AVX512",
-        }
+        },
+        "ring": {
+            "aes256-gcm": "Uses AVX512",
+        },
     }
 }
 
