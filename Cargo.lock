@@ -896,7 +896,7 @@ checksum = "a8d1add55171497b4705a648c6b583acafb01d58050a51727785f0b2c8e0a2b2"
 
 [[package]]
 name = "graviola"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "aws-lc-rs",
  "cfg-if",
@@ -1878,7 +1878,7 @@ dependencies = [
 
 [[package]]
 name = "rustls-graviola"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "env_logger",
  "graviola",
