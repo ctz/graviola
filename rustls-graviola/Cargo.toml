@@ -1,6 +1,6 @@
 [package]
 name = "rustls-graviola"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 repository = "https://github.com/ctz/graviola/"
 license = "Apache-2.0 OR ISC OR MIT-0"
@@ -10,7 +10,7 @@ rust-version = "1.72"
 readme = "README.md"
 
 [dependencies]
-graviola = { version = "0.2.0", path = "../graviola" }
+graviola = { version = "0.2.1", path = "../graviola" }
 rustls = { version = "0.23.18", default-features = false, features = ["std", "tls12"] }
 
 [dev-dependencies]
