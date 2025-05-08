@@ -105,6 +105,11 @@ The private operation is always followed by the public operation to verify the r
 Only RSA signing and verification are provided.  Our policy on RSA encryption is:
 "These are not made. They should never be made. We will not make them. We will not help make them."
 
+RSA key generation is supported for five fixed key sizes between 2048-8192-bits.
+All generated keys have e = 0x10001.  Unlike other private key operations in Graviola,
+RSA key generation is currently not side-channel safe.  Avoid doing it in untrusted multi-tenant or
+physical environments.
+
 ### ECC
 All ECC field and scalar arithmetic are provided by s2n-bignum.
 
