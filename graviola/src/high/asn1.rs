@@ -75,7 +75,7 @@ pub(crate) use asn1_struct;
 macro_rules! asn1_enum {
     ($name:ident ::= INTEGER { $( $vname:ident($num:expr) ),+ }) => {
         #[allow(non_camel_case_types)]
-        #[derive(Copy, Clone, Debug)]
+        #[derive(Copy, Clone, Debug, PartialEq)]
         pub(crate) enum $name {
             $( $vname = $num, )+
         }
@@ -95,14 +95,9 @@ macro_rules! asn1_enum {
             }
 
             fn encoded_len(&self) -> usize {
-                let byte_len = match (*self as usize) {
-                    0..=0x7f => 1,
-                    0x80..=0x7fff => 2,
-                    0x8000..=0x7fffff => 3,
-                    0x800000..=0x7fffffff => 4,
-                    _ => unimplemented!("extremely long asn1 object"),
-                };
-                $crate::high::asn1::encoded_length_for(byte_len)
+                let value = *self as usize;
+                let bytes = value.to_be_bytes();
+                $crate::high::asn1::Integer::new(&bytes).encoded_len()
             }
         }
     }
@@ -429,6 +424,9 @@ impl<'a> Integer<'a> {
             buffer[0] = 0x00;
             buffer[1..value.len() + 1].copy_from_slice(value);
             value.len() + 1
+        } else if value.is_empty() {
+            buffer[0] = 0;
+            1
         } else {
             buffer[..value.len()].copy_from_slice(value);
             value.len()
@@ -452,9 +450,7 @@ impl<'a> Integer<'a> {
         }
 
         let mut bytes = [0u8; 8];
-        for (i, b) in self.twos_complement.iter().enumerate() {
-            bytes[bytes.len() - 1 - i] = *b;
-        }
+        bytes[8 - self.twos_complement.len()..].copy_from_slice(self.twos_complement);
         Ok(usize::from_be_bytes(bytes))
     }
 
@@ -836,7 +832,9 @@ mod tests {
     #[test]
     fn test_integer_encoding() {
         check_integer_from_magnitude(&[0u8; 16], &[0x02, 0x01, 0x00]);
+        check_integer_from_positive_magnitude(&[0u8; 16], &[0x02, 0x01, 0x00]);
         check_integer_from_magnitude(&[], &[0x02, 0x01, 0x00]);
+        check_integer_from_positive_magnitude(&[], &[0x02, 0x01, 0x00]);
         check_integer_from_isize(0, &[0x02, 0x01, 0x00]);
 
         // negative sign contraction
@@ -848,13 +846,47 @@ mod tests {
         // positive zero constraction
         check_integer_from_magnitude(&[0x00, 0x00, 0x80], &[0x02, 0x02, 0x00, 0x80]);
         check_integer_from_magnitude(&[0x00, 0x00, 0x7f], &[0x02, 0x01, 0x7f]);
+        check_integer_from_positive_magnitude(&[0x00, 0x00, 0x80], &[0x02, 0x02, 0x00, 0x80]);
+        check_integer_from_positive_magnitude(&[0x00, 0x00, 0x7f], &[0x02, 0x01, 0x7f]);
         check_integer_from_isize(128, &[0x02, 0x02, 0x00, 0x80]);
         check_integer_from_isize(127, &[0x02, 0x01, 0x7f]);
+
+        let mut buf = [0u8; 4];
+        let i = Integer::new(&[0x01, 0x23]);
+        assert_eq!(
+            i.encode(&mut Encoder::new(&mut buf[..0])).unwrap_err(),
+            Error::UnexpectedEof
+        );
+        assert_eq!(
+            i.encode(&mut Encoder::new(&mut buf[..2])).unwrap_err(),
+            Error::UnexpectedEof
+        );
+        assert_eq!(
+            i.encode(&mut Encoder::new(&mut buf[..3])).unwrap_err(),
+            Error::UnexpectedEof
+        );
+        assert_eq!(i.encode(&mut Encoder::new(&mut buf[..4])).unwrap(), 4);
+
+        let mut ibuf = [0u8; 5];
+        let i = Integer::new_positive(&mut ibuf, &[0xff]);
+        assert_eq!(i.encode(&mut Encoder::new(&mut buf)).unwrap(), 4);
+        let i = Integer::new_positive(&mut ibuf, &[0x00, 0x01]);
+        assert_eq!(i.encode(&mut Encoder::new(&mut buf)).unwrap(), 3);
     }
 
     fn check_integer_from_magnitude(bytes: &[u8], encoding: &[u8]) {
         let mut buf = vec![0u8; encoding.len()];
         let len = Integer::new(bytes)
+            .encode(&mut Encoder::new(&mut buf))
+            .unwrap();
+        buf.truncate(len);
+        assert_eq!(&buf, encoding);
+    }
+
+    fn check_integer_from_positive_magnitude(bytes: &[u8], encoding: &[u8]) {
+        let mut buf = vec![0u8; encoding.len()];
+        let mut ibuf = vec![0u8; bytes.len() + 1];
+        let len = Integer::new_positive(&mut ibuf, bytes)
             .encode(&mut Encoder::new(&mut buf))
             .unwrap();
         buf.truncate(len);
@@ -868,6 +900,26 @@ mod tests {
             .unwrap();
         buf.truncate(len);
         assert_eq!(&buf, encoding);
+    }
+
+    #[test]
+    fn test_integer_as_usize() {
+        assert_eq!(
+            Integer::new(&usize::MIN.to_be_bytes()).as_usize().unwrap(),
+            usize::MIN,
+        );
+        assert_eq!(
+            Integer::new_positive(&mut [0x00; 8], &[0xff; 7])
+                .as_usize()
+                .unwrap(),
+            0x00ffffff_ffffffff
+        );
+        assert_eq!(
+            Integer::new_positive(&mut [0x00; 9], &[0xff; 8])
+                .as_usize()
+                .unwrap_err(),
+            Error::IntegerOutOfRange
+        );
     }
 
     #[test]
@@ -992,6 +1044,33 @@ mod tests {
         test_round_trip(&[], None::<ObjectId>);
     }
 
+    #[allow(clippy::enum_clike_unportable_variant)]
+    #[test]
+    fn test_enum() {
+        asn1_enum! {
+            Enum ::= INTEGER {
+                zero(0),
+                one(1),
+                u8(255),
+                u16(65535),
+                u24(16777215),
+                u32(4294967295),
+                u48(281474976710655)
+            }
+        }
+
+        test_round_trip(&[0x02, 0x01, 0x00], Enum::zero);
+        test_round_trip(&[0x02, 0x01, 0x01], Enum::one);
+        test_round_trip(&[0x02, 0x02, 0x00, 0xff], Enum::u8);
+        test_round_trip(&[0x02, 0x03, 0x00, 0xff, 0xff], Enum::u16);
+        test_round_trip(&[0x02, 0x04, 0x00, 0xff, 0xff, 0xff], Enum::u24);
+        test_round_trip(&[0x02, 0x05, 0x00, 0xff, 0xff, 0xff, 0xff], Enum::u32);
+        test_round_trip(
+            &[0x02, 0x07, 0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff],
+            Enum::u48,
+        );
+    }
+
     /// Verify that `value.encode` yields `encoding`, and that decoding
     /// `encoding` yields a value equal to `value`.
     fn test_round_trip<'a, T: Type<'a> + PartialEq>(encoding: &'a [u8], value: T) {
@@ -1026,6 +1105,33 @@ mod tests {
         let mut buffer = vec![0u8; expected_len];
         let mut enc = Encoder::new(&mut buffer);
         assert_eq!(value.encode(&mut enc).unwrap(), expected_len);
+    }
+
+    #[test]
+    fn test_encode_errors() {
+        // these branches are generally unreachable, as begin/split do this
+        // work for normal type encoding
+        let mut buf = [0];
+        assert_eq!(
+            Encoder::new(&mut buf).append_slice(&[0, 0]).unwrap_err(),
+            Error::UnexpectedEof
+        );
+    }
+
+    #[test]
+    fn test_encode_len() {
+        assert_eq!(encoded_length_for(0), 2);
+        assert_eq!(encoded_length_for(1), 2 + 1);
+        assert_eq!(encoded_length_for(2), 2 + 2);
+        assert_eq!(encoded_length_for(3), 2 + 3);
+        assert_eq!(encoded_length_for(127), 2 + 127);
+        assert_eq!(encoded_length_for(128), 3 + 128);
+        assert_eq!(encoded_length_for(255), 3 + 255);
+        assert_eq!(encoded_length_for(256), 4 + 256);
+        assert_eq!(encoded_length_for(65535), 4 + 65535);
+        assert_eq!(encoded_length_for(65536), 5 + 65536);
+        assert_eq!(encoded_length_for(16777215), 5 + 16777215);
+        assert_eq!(encoded_length_for(16777216), 6 + 16777216);
     }
 
     #[test]
