@@ -8,7 +8,7 @@ fn rsa_2048_key_generation() {
 
 #[test]
 fn rsa_2048_key_generation_soak() {
-    if option_env!("SLOW_TESTS").is_some() {
+    if std::env::var_os("SLOW_TESTS").is_some() {
         for _ in 0..512 {
             check_key_generation(KeySize::Rsa2048);
         }
@@ -27,14 +27,14 @@ fn rsa_4096_key_generation() {
 
 #[test]
 fn rsa_6144_key_generation() {
-    if option_env!("SLOW_TESTS").is_some() {
+    if std::env::var_os("SLOW_TESTS").is_some() {
         check_key_generation(KeySize::Rsa6144);
     }
 }
 
 #[test]
 fn rsa_8192_key_generation() {
-    if option_env!("SLOW_TESTS").is_some() {
+    if std::env::var_os("SLOW_TESTS").is_some() {
         check_key_generation(KeySize::Rsa8192);
     }
 }
