@@ -425,7 +425,7 @@ mod tests {
             window[2].clone()
         }
 
-        if option_env!("SLOW_TESTS").is_some() {
+        if std::env::var_os("SLOW_TESTS").is_some() {
             process_cavp(
                 "../thirdparty/cavp/sha2/SHA256Monte.rsp",
                 &mut Cavp::default(),

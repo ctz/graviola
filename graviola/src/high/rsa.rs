@@ -631,7 +631,7 @@ mod tests {
     fn key_generation_smoke_test() {
         let mut sizes = vec![2048, 3072];
 
-        if option_env!("SLOW_TESTS").is_some() {
+        if std::env::var_os("SLOW_TESTS").is_some() {
             sizes.extend_from_slice(&[4096, 6144, 8192]);
         }
 
