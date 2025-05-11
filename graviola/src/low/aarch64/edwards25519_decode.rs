@@ -91,7 +91,7 @@ macro_rules! mulp {
         "add x0, " $dest ";\n"
         "add x1, " $src1 ";\n"
         "add x2, " $src2 ";\n"
-        "bl " Label!("edwards25519_decode_alt_mul_p25519", 0, Before)
+        "bl " Label!("edwards25519_decode_alt_mul_p25519", 3, After)
     )}
 }
 
@@ -100,7 +100,7 @@ macro_rules! nsqr {
         "add x0, " $dest ";\n"
         "mov x1, " $n ";\n"
         "add x2, " $src ";\n"
-        "bl " Label!("edwards25519_decode_alt_nsqr_p25519", 0, Before)
+        "bl " Label!("edwards25519_decode_alt_nsqr_p25519", 4, After)
     )}
 }
 
