@@ -12,14 +12,9 @@ class Architecture:
     # that should be ignored when calculating clobbers
     ignore_clobber = set()
 
-    # constant references must be page aligned, because on aarch64
-    # single-insn address loads have limited span at byte resolution
-    # (but much wider at page resolution). this prevents relocation
-    # errors in larger programs (where the emitted function is
-    # >1MB away from the rodata section)
-    #
-    # this also converts `adr` insns of such references into `adrp`
-    constant_references_must_be_page_aligned = False
+    # on some archs (aarch64), constant references must be specially
+    # aligned to support single instruction loads
+    constant_reference_alignment = None
 
     # instruction mnemonic for unconditional jump; used for hoisting
     unconditional_jump = "str"
@@ -109,7 +104,17 @@ class Architecture_aarch64(Architecture):
 
     unconditional_jump = "b"
 
-    constant_references_must_be_page_aligned = True
+    # on aarch64 single-insn address loads have limited span at byte
+    # resolution (but much wider at page resolution). this prevents
+    # relocation errors in larger programs (where the emitted function
+    # is >1MB away from the rodata section).
+    #
+    # also converts `adr` insns of such references into `adrp`
+    #
+    # note that while aarch64 docs call these references "page-aligned",
+    # the alignment value is constant across all aarch64 machines and is
+    # not related to the physical page size.
+    constant_reference_alignment = 4096
 
     fn_arg_regs = "x0 x1 x2 x3 x4 x5".split()
 
@@ -598,7 +603,7 @@ use crate::low::macros::*;
                     t = self.constant_sym_rename[t]
                     if self.function_state:
                         self.function_state.referenced_constant_syms.add(t)
-                    if self.arch.constant_references_must_be_page_aligned:
+                    if self.arch.constant_reference_alignment is not None:
                         yield unquote('PageRef!("' + t + '")')
                     else:
                         yield "{" + t + "}"
@@ -810,7 +815,7 @@ use crate::low::macros::*;
         if operands:
             if (
                 contains_constant_ref
-                and self.arch.constant_references_must_be_page_aligned
+                and self.arch.constant_reference_alignment is not None
                 and opcode == "adr"
             ):
                 opcode = "adrp"
@@ -885,14 +890,14 @@ use crate::low::macros::*;
 
             array_type = "[%s; %d]" % (rust_type, len(ca.items))
             if (
-                self.arch.constant_references_must_be_page_aligned
+                self.arch.constant_reference_alignment is not None
                 or self.constant_sym_alignment[ca.name]
             ):
                 if self.constant_sym_alignment[ca.name]:
                     alignment = self.constant_sym_alignment[ca.name]
                     how = "B" + str(alignment)
                 else:
-                    alignment = 16384
+                    alignment = self.arch.constant_reference_alignment
                     how = "Page"
 
                 rust_type = "%sAligned%sArray%d" % (how, rust_type, len(ca.items))
