@@ -1903,7 +1903,7 @@ pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
 // but with Z = 1 assumed and hence left out, so they are (X,Y,T) only.
 
 #[allow(dead_code)]
-#[repr(align(16384))]
+#[repr(align(4096))]
 struct PageAlignedu64Array12([u64; 12]);
 
 static curve25519_x25519base_alt_edwards25519_0g: PageAlignedu64Array12 = PageAlignedu64Array12([
@@ -1939,7 +1939,7 @@ static curve25519_x25519base_alt_edwards25519_8g: PageAlignedu64Array12 = PageAl
 ]);
 
 #[allow(dead_code)]
-#[repr(align(16384))]
+#[repr(align(4096))]
 struct PageAlignedu64Array6048([u64; 6048]);
 
 static curve25519_x25519base_alt_edwards25519_gtable: PageAlignedu64Array6048 =
