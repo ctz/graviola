@@ -41,8 +41,8 @@ but there is also a public API for general-purpose use.
 
 - `aarch64` requires `aes`, `sha2`, `pmull`, and `neon` CPU features.
   (This notably excludes Raspberry PI 4 and earlier, but covers Raspberry Pi 5.)
-- `x86_64` requires `aes`, `ssse3` `avx`, `avx2`, `bmi2`, and `pclmulqdq` CPU features.
-  (This is most x86_64 CPUs made since around 2013.)
+- `x86_64` requires `aes`, `ssse3` `avx`, `avx2`, `adx`, `bmi2`, and `pclmulqdq` CPU features.
+  (This is most x86_64 CPUs made since around ~2014.)
 
 ## Acknowledgements and Thanks
 
