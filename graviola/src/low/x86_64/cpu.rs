@@ -180,16 +180,11 @@ pub(crate) fn verify_cpu_features() {
         "graviola requires bmi1 CPU support"
     );
 
-    // we should have here:
-    //
-    // assert!(
-    //    have_cpu_feature!("adx"),
-    //    "graviola requires adx CPU support"
-    // );
-    //
-    // however, valgrind is buggy (https://bugs.kde.org/show_bug.cgi?id=494162)
-    // -- therefore rely on the expectation that `adx` support is implied by
-    // `bmi1` support.
+    // see this valgrind bug: https://bugs.kde.org/show_bug.cgi?id=494162
+    assert!(
+        have_cpu_feature!("adx") || option_env!("VALGRIND_BUG_494162").is_some(),
+        "graviola requires adx CPU support (rebuild with VALGRIND_BUG_494162 for valgrind compatibility)"
+    );
 
     // assorted intrinsic code
     assert!(

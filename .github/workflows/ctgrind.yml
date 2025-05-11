@@ -8,6 +8,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  VALGRIND_BUG_494162: 1
 
 jobs:
   build:
