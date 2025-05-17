@@ -388,7 +388,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
 
         Q!("    ldp             " "x21, x30, [sp], 16"),
         Q!("    ldp             " "x19, x20, [sp], 16"),
-        // linear hoisting in -> ret after edwards25519_decode_alt_loop
+        // proc hoisting in -> ret after edwards25519_decode_alt_loop
         Q!("    b               " Label!("hoist_finish", 2, After)),
 
         // *************************************************************
@@ -496,7 +496,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         Q!("    and             " "x15, x15, #0x7fffffffffffffff"),
         Q!("    stp             " "x12, x13, [x0]"),
         Q!("    stp             " "x14, x15, [x0, #16]"),
-        Q!("    b               " Label!("hoist_finish", 2, After)),
+        Q!("    ret             " ),
 
         // *************************************************************
         // Local z = 2^n * x
@@ -607,6 +607,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
 
         Q!("    stp             " "x2, x3, [x0]"),
         Q!("    stp             " "x4, x5, [x0, #16]"),
+        Q!("    ret             " ),
         Q!(Label!("hoist_finish", 2) ":"),
         inout("x0") z.as_mut_ptr() => ret,
         inout("x1") c.as_ptr() => _,

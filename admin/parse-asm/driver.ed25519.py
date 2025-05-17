@@ -173,12 +173,12 @@ if __name__ == "__main__":
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
             "edwards25519_decode_alt",
-            return_value=("u64", "ret", "ret == 0"),
             parameter_map=[
                 ("inout", "z.as_mut_ptr() => ret"),
                 ("inout", "c.as_ptr() => _"),
             ],
-            hoist=["linear", "edwards25519_decode_alt_loop", "ret"],
+            return_value=("u64", "ret", "ret == 0"),
+            hoist=["proc", "edwards25519_decode_alt_loop", "ret"],
             rust_decl="fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool",
         )
         parse_file(input, d)
