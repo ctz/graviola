@@ -64,31 +64,25 @@ unsafe fn bsig1(x: u64) -> u64 {
 #[inline]
 #[target_feature(enable = "avx,avx2")]
 unsafe fn sigma_0(w: __m256i) -> __m256i {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
+    _mm256_xor_si256(
         _mm256_xor_si256(
-            _mm256_xor_si256(
-                _mm256_xor_si256(_mm256_srli_epi64(w, 7), _mm256_srli_epi64(w, 8)),
-                _mm256_xor_si256(_mm256_srli_epi64(w, 1), _mm256_slli_epi64(w, 56)),
-            ),
-            _mm256_slli_epi64(w, 63),
-        )
-    }
+            _mm256_xor_si256(_mm256_srli_epi64(w, 7), _mm256_srli_epi64(w, 8)),
+            _mm256_xor_si256(_mm256_srli_epi64(w, 1), _mm256_slli_epi64(w, 56)),
+        ),
+        _mm256_slli_epi64(w, 63),
+    )
 }
 
 #[inline]
 #[target_feature(enable = "avx,avx2")]
 unsafe fn sigma_1(w: __m256i) -> __m256i {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
+    _mm256_xor_si256(
         _mm256_xor_si256(
-            _mm256_xor_si256(
-                _mm256_xor_si256(_mm256_srli_epi64(w, 6), _mm256_srli_epi64(w, 61)),
-                _mm256_xor_si256(_mm256_srli_epi64(w, 19), _mm256_slli_epi64(w, 3)),
-            ),
-            _mm256_slli_epi64(w, 45),
-        )
-    }
+            _mm256_xor_si256(_mm256_srli_epi64(w, 6), _mm256_srli_epi64(w, 61)),
+            _mm256_xor_si256(_mm256_srli_epi64(w, 19), _mm256_slli_epi64(w, 3)),
+        ),
+        _mm256_slli_epi64(w, 45),
+    )
 }
 
 macro_rules! k {
@@ -475,6 +469,7 @@ pub(in crate::low) fn sha512_compress_blocks(state: &mut [u64; 8], blocks: &[u8]
     }
 }
 
+// SAFETY: transmute from [u8; 32] to __m256i has same meaning of all bytes
 const BSWAP_SHUFFLE: __m256i = unsafe {
     core::mem::transmute([
         7u8, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 15, 14, 13,
