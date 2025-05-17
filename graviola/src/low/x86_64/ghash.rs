@@ -208,42 +208,33 @@ pub(crate) unsafe fn _mul8(
     x7: __m128i,
     x8: __m128i,
 ) -> __m128i {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
-        mul!(lo, mi, hi, x1, table.powers[7], table.powers_xor[7]);
-        mul!(lo, mi, hi, x2, table.powers[6], table.powers_xor[6]);
-        mul!(lo, mi, hi, x3, table.powers[5], table.powers_xor[5]);
-        mul!(lo, mi, hi, x4, table.powers[4], table.powers_xor[4]);
-        mul!(lo, mi, hi, x5, table.powers[3], table.powers_xor[3]);
-        mul!(lo, mi, hi, x6, table.powers[2], table.powers_xor[2]);
-        mul!(lo, mi, hi, x7, table.powers[1], table.powers_xor[1]);
-        mul!(lo, mi, hi, x8, table.powers[0], table.powers_xor[0]);
-        reduce!(lo, mi, hi)
-    }
+    let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
+    mul!(lo, mi, hi, x1, table.powers[7], table.powers_xor[7]);
+    mul!(lo, mi, hi, x2, table.powers[6], table.powers_xor[6]);
+    mul!(lo, mi, hi, x3, table.powers[5], table.powers_xor[5]);
+    mul!(lo, mi, hi, x4, table.powers[4], table.powers_xor[4]);
+    mul!(lo, mi, hi, x5, table.powers[3], table.powers_xor[3]);
+    mul!(lo, mi, hi, x6, table.powers[2], table.powers_xor[2]);
+    mul!(lo, mi, hi, x7, table.powers[1], table.powers_xor[1]);
+    mul!(lo, mi, hi, x8, table.powers[0], table.powers_xor[0]);
+    reduce!(lo, mi, hi)
 }
 
 #[target_feature(enable = "avx")]
 unsafe fn gf128_big_endian(h: __m128i) -> __m128i {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        // takes a raw hash subkey, and arranges that it can
-        // be used in big endian ordering.
-        let t = _mm_shuffle_epi32(h, 0b11_01_00_11);
-        let t = _mm_srai_epi32(t, 31);
-        let h = _mm_add_epi64(h, h);
-        let t = _mm_and_si128(GF128_POLY_CARRY_MASK, t);
-        _mm_xor_si128(h, t)
-    }
+    // takes a raw hash subkey, and arranges that it can
+    // be used in big endian ordering.
+    let t = _mm_shuffle_epi32(h, 0b11_01_00_11);
+    let t = _mm_srai_epi32(t, 31);
+    let h = _mm_add_epi64(h, h);
+    let t = _mm_and_si128(GF128_POLY_CARRY_MASK, t);
+    _mm_xor_si128(h, t)
 }
 
 #[target_feature(enable = "avx")]
 unsafe fn xor_halves(h: __m128i) -> __m128i {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let hx = _mm_shuffle_epi32(h, 0b01_00_11_10);
-        _mm_xor_si128(hx, h)
-    }
+    let hx = _mm_shuffle_epi32(h, 0b01_00_11_10);
+    _mm_xor_si128(hx, h)
 }
 
 #[inline]
@@ -258,6 +249,7 @@ fn u128_to_m128i(v: u128) -> __m128i {
     unsafe { mem::transmute(v) }
 }
 
+// SAFETY: sizeof(u128) == sizeof(__m128i), all bits have same meaning
 const BYTESWAP: __m128i = unsafe { mem::transmute(0x00010203_04050607_08090a0b_0c0d0e0fu128) };
 
 /// The high half of the ghash polynomial R, rotated left by one
@@ -265,9 +257,11 @@ const BYTESWAP: __m128i = unsafe { mem::transmute(0x00010203_04050607_08090a0b_0
 /// R is 0xe100..00u128
 ///
 /// We need this in a __m128i, but only the bottom 64-bits are used.
+// SAFETY: sizeof(u128) == sizeof(__m128i), all bits have same meaning
 const GF128_POLY_HI: __m128i = unsafe { mem::transmute(0xc2000000_00000000u128) };
 
 /// This is, again, R rotated left by one, but with a 2^64 term
+// SAFETY: sizeof(u128) == sizeof(__m128i), all bits have same meaning
 const GF128_POLY_CARRY_MASK: __m128i =
     unsafe { mem::transmute(0xc2000000_00000001_00000000_00000001u128) };
 

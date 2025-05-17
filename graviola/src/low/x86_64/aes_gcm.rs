@@ -225,6 +225,8 @@ impl Counter {
 
 // SAFETY: both u128 and __m128i have the same size and all bits mean the same thing
 const COUNTER_1: __m128i = unsafe { mem::transmute(1u128 << 64) };
+// SAFETY: both u128 and __m128i have the same size and all bits mean the same thing
 const BYTESWAP: __m128i = unsafe { mem::transmute(0x00010203_04050607_08090a0b_0c0d0e0fu128) };
+// SAFETY: both u128 and __m128i have the same size and all bits mean the same thing
 const BYTESWAP_EPI64: __m128i =
     unsafe { mem::transmute(0x08090a0b_0c0d0e0f_00010203_04050607u128) };
