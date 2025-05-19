@@ -1,6 +1,8 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+#![allow(dead_code)] // TODO(phlip9): remove
+
 // Once const generics is completed this should be able to be
 // done better that way.
 
@@ -34,6 +36,12 @@ little_endian!(
     little_endian_to_u64x4,
     little_endian_slice_to_u64x4,
     u64x4_to_little_endian
+);
+little_endian!(
+    [u64; 8],
+    little_endian_to_u64x8,
+    little_endian_slice_to_u64x8,
+    u64x8_to_little_endian
 );
 
 macro_rules! big_endian {
