@@ -7,11 +7,6 @@ use crate::low;
 use crate::mid::sha2::Sha512Context;
 use crate::mid::util;
 
-/// Partially evaluated `dom2(phflag=1, _)`
-const DOM_PREFIX_PH: &[u8] = b"SigEd25519 no Ed25519 collisions\x01";
-/// Partially evaluted `dom2(phflag=0, _)`
-const DOM_PREFIX_CTX: &[u8] = b"SigEd25519 no Ed25519 collisions\x00";
-
 /// The little-endian encoded order of the base-point `B`,
 /// `L := 2^252 + 27742317777372353535851937790883648493`.
 const ORDER: [u64; 4] = [
@@ -21,7 +16,7 @@ const ORDER: [u64; 4] = [
     0x1000000000000000,
 ];
 
-struct SigningKey {
+pub(crate) struct SigningKey {
     seed: [u8; 32],
     s: UnreducedScalar,
     vk_bytes: [u8; 32],
@@ -35,81 +30,44 @@ impl SigningKey {
 
         // Step: rfc8032 5.1.5.1, 5.1.5.2
         // `h := SHA512(seed)`
-        // `az := ed25519-clamp(h[0..32])`
+        // `s := ed25519-clamp(h[0..32])`
         // `prefix := h[32..64]`
         let mut h = {
             let mut ctx = Sha512Context::new();
             ctx.update(seed);
             ctx.finish()
         };
-        let prefix: [u8; 32] = *h.split_last_chunk::<32>().unwrap().1;
-        let az = h.split_first_chunk_mut::<32>().unwrap().0;
-        az[0] &= 248; // 0b1111_1000
-        az[31] &= 127; // 0b0111_1111
-        az[31] |= 64; // 0b0100_0000
+        let (s, prefix) = util::u8x64_split_u8x32x2_mut(&mut h);
+        // Mangle the scalar:
+        // <https://mailarchive.ietf.org/arch/msg/cfrg/pt2bt3fGQbNF8qdEcorp-rJSJrc/>
+        // <https://neilmadden.blog/2020/05/28/whats-the-curve25519-clamping-all-about/>
+        s[0] &= 248; // 0b1111_1000
+        s[31] &= 127; // 0b0111_1111
+        s[31] |= 64; // 0b0100_0000
 
         // Step: rfc8032 5.1.5.3, 5.1.5.4
-        // Compute `[hashed_seed]B` and compress to get the public key bytes
-        let s = UnreducedScalar(util::little_endian_to_u64x4(&az));
+        // Compute `[s]B` and compress to get the public key bytes
+        let s = UnreducedScalar(util::little_endian_to_u64x4(&s));
         let vk_bytes = VerifyingKey::from_unreduced_scalar(&s).into_bytes();
 
         Self {
             seed: *seed,
             s,
             vk_bytes,
-            prefix,
+            prefix: *prefix,
         }
     }
 
     /// `PureEd25519` signing
+    #[allow(non_snake_case)]
     pub(crate) fn sign(&self, msg: &[u8]) -> [u8; 64] {
         let _entry = low::Entry::new_secret();
-        // TODO(phlip9): do we need to re-mark these as secrets?
-        low::ct::secret_slice(&self.seed);
-        low::ct::secret_slice(&self.s.0);
-        low::ct::secret_slice(&self.prefix);
 
-        low::ct::into_public(self.sign_with_dom(b"", 0, b"", msg))
-    }
-
-    /// `Ed25519ph` signing
-    pub(crate) fn sign_ph(&self, ph_msg: &[u8; 64], ctx: &[u8]) -> Result<[u8; 64], Error> {
-        let _entry = low::Entry::new_secret();
-        // TODO(phlip9): do we need to re-mark these as secrets?
-        low::ct::secret_slice(&self.seed);
-        low::ct::secret_slice(&self.s.0);
-        low::ct::secret_slice(&self.prefix);
-
-        let ctx_len = u8::try_from(ctx.len()).map_err(|_| Error::OutOfRange)?;
-        let sig = self.sign_with_dom(DOM_PREFIX_PH, ctx_len, ctx, ph_msg);
-        Ok(low::ct::into_public(sig))
-    }
-
-    /// `Ed25519ctx` signing
-    /// NOTE: not FIPS 186-5 compliant
-    pub(crate) fn sign_ctx(&self, msg: &[u8], ctx: &[u8]) -> Result<[u8; 64], Error> {
-        let _entry = low::Entry::new_secret();
-        // TODO(phlip9): do we need to re-mark these as secrets?
-        low::ct::secret_slice(&self.seed);
-        low::ct::secret_slice(&self.s.0);
-        low::ct::secret_slice(&self.prefix);
-
-        // rfc8032 5.1, for Ed25519ctx, the context SHOULD NOT be empty.
-        let ctx_len = match ctx.len() {
-            1..=255 => ctx.len() as u8,
-            _ => return Err(Error::OutOfRange),
-        };
-        let sig = self.sign_with_dom(DOM_PREFIX_CTX, ctx_len, ctx, msg);
-        Ok(low::ct::into_public(sig))
-    }
-
-    #[allow(non_snake_case)]
-    fn sign_with_dom(&self, dom_prefix: &[u8], ctx_len: u8, ctx: &[u8], msg: &[u8]) -> [u8; 64] {
         // Step: rfc8032 5.1.6.2
         // Compute the deterministic nonce
         // `r := SHA-512(dom2(F, C) || prefix || PH(msg)) mod L`
         let r: Scalar = {
-            let r = ed25519_sha512(dom_prefix, ctx_len, ctx, &self.prefix, msg, &[]);
+            let r = ed25519_digest(&self.prefix, msg, &[]);
             Scalar::reduce_from_u8x64_le_bytes(&r)
         };
 
@@ -120,24 +78,28 @@ impl SigningKey {
         // `sig := (R || S)`
         // Start by writing `R` into the first 32 bytes of `sig`.
         let mut sig = [0u8; 64];
-        let sig_R = sig.split_first_chunk_mut::<32>().unwrap().0;
+        let (sig_R, sig_S) = util::u8x64_split_u8x32x2_mut(&mut sig);
         R.compress_into(sig_R);
 
         // Step: rfc8032 5.1.6.4
         // Compute the challenge `k := SHA512(dom2(F, C) || R || A || PH(msg)) mod L`
         let k: Scalar = {
-            let k = ed25519_sha512(dom_prefix, ctx_len, ctx, sig_R, &self.vk_bytes, msg);
+            let k = ed25519_digest(sig_R, &self.vk_bytes, msg);
             Scalar::reduce_from_u8x64_le_bytes(&k)
         };
 
         // Step: rfc8032 5.1.6.5
-        // Compute the proof `S := (r * s + k) mod L`
-        let S: Scalar = Scalar::madd_n25519(&r.0, &self.s.0, &k.0);
+        // Compute the proof `S := (k * s + r) mod L`
+        let S: Scalar = Scalar::madd_n25519(&k.0, &self.s.0, &r.0);
         let S_bytes = S.to_le_bytes();
-        let sig_S = sig.split_last_chunk_mut::<32>().unwrap().1;
         *sig_S = S_bytes;
 
-        sig
+        low::ct::into_public(sig)
+    }
+
+    // TODO(phlip9): unhack
+    fn verifying_key(&self) -> VerifyingKey {
+        VerifyingKey(self.vk_bytes)
     }
 }
 
@@ -149,24 +111,18 @@ impl Drop for SigningKey {
     }
 }
 
-struct VerifyingKey(CompressedEdwardsY);
+// TODO(phlip9): distinguish between unparsed and expanded verifying key
+pub(crate) struct VerifyingKey([u8; 32]);
 
 impl VerifyingKey {
+    /// `PureEd25519` signature verification
     #[allow(non_snake_case)]
-    fn verify_with_dom(
-        &self,
-        dom_prefix: &[u8],
-        ctx_len: u8,
-        ctx: &[u8],
-        sig: &[u8; 64],
-        msg: &[u8],
-    ) -> Result<(), Error> {
-        // TODO(phlip9): complete impl
+    pub(crate) fn verify(&self, sig: &[u8; 64], msg: &[u8]) -> Result<(), Error> {
+        let _entry = low::Entry::new_public();
 
         // Step: rfc8032 5.1.7.1
-        let A = EdwardsPoint::decompress_from(&self.0.0)?;
-        let (R_sig, _) = sig.split_first_chunk::<32>().unwrap();
-        let (_, S) = sig.split_last_chunk::<32>().unwrap();
+        let A = EdwardsPoint::decompress_from(&self.0)?;
+        let (R_sig, S) = util::u8x64_split_u8x32x2_ref(sig);
 
         // S must be in the range [0, order) to prevent signature malleability.
         let S = Scalar::try_from_le_bytes(S).ok_or(Error::BadSignature)?;
@@ -174,7 +130,7 @@ impl VerifyingKey {
         // Step: rfc8032 5.1.7.2
         // Compute the challenge `k := SHA512(dom2(F, C) || R || A || PH(msg))`
         let k = {
-            let k = ed25519_sha512(dom_prefix, ctx_len, ctx, R_sig, &self.0.0, msg);
+            let k = ed25519_digest(R_sig, &self.0, msg);
             Scalar::reduce_from_u8x64_le_bytes(&k)
         };
 
@@ -191,12 +147,12 @@ impl VerifyingKey {
     }
 
     fn into_bytes(self) -> [u8; 32] {
-        self.0.0
+        self.0
     }
 
     fn from_unreduced_scalar(scalar: &UnreducedScalar) -> Self {
         let point = scalar.mulbase().compress();
-        Self(CompressedEdwardsY(low::ct::into_public(point.0)))
+        Self(low::ct::into_public(point.0))
     }
 }
 
@@ -212,6 +168,36 @@ struct CompressedEdwardsY([u8; 32]);
 struct EdwardsPoint([u64; 8]);
 
 impl EdwardsPoint {
+    /// The base-point `B` of the edwards25519 curve.
+    #[cfg(test)]
+    const BASE_POINT: Self = EdwardsPoint([
+        // X(B)
+        0xc9562d608f25d51a,
+        0x692cc7609525a7b2,
+        0xc0a4e231fdd6dc5c,
+        0x216936d3cd6e53fe,
+        // Y(B)
+        0x6666666666666658,
+        0x6666666666666666,
+        0x6666666666666666,
+        0x6666666666666666,
+    ]);
+
+    /// The identity point `O` of the edwards25519 curve.
+    #[cfg(test)]
+    const IDENTITY: Self = EdwardsPoint([
+        // X(O)
+        0x0000000000000000,
+        0x0000000000000000,
+        0x0000000000000000,
+        0x0000000000000000,
+        // Y(O)
+        0x0000000000000001,
+        0x0000000000000000,
+        0x0000000000000000,
+        0x0000000000000000,
+    ]);
+
     /// Compute `A := [scalar]Point + [bscalar]B`.
     fn scalarmuldouble(scalar: &Scalar, point: &Self, bscalar: &Scalar) -> Self {
         let mut out = Self([0u64; 8]);
@@ -225,11 +211,12 @@ impl EdwardsPoint {
     /// in the extended coordinate system is simply:
     ///   -(X,Y,Z,T) = (-X,Y,Z,-T).
     /// See "Twisted Edwards curves revisited": <https://ia.cr/2008/522>.
+    #[allow(non_snake_case)]
     fn negate(mut self) -> Self {
-        let (x, _) = self.0.split_first_chunk_mut::<4>().unwrap();
-        let mut neg_x = [0u64; 4];
-        low::bignum_neg_p25519(&mut neg_x, x);
-        *x = neg_x;
+        let (X, _) = util::u64x8_split_u64x4x2_mut(&mut self.0);
+        let mut X_neg = [0u64; 4];
+        low::bignum_neg_p25519(&mut X_neg, X);
+        *X = X_neg;
         self
     }
 
@@ -379,26 +366,16 @@ impl Scalar {
     }
 }
 
-/// This is `H(..) := SHA-512(dom2(phflag, ctx) || ..)` from rfc8032 5.1.
-fn ed25519_sha512(
-    dom_prefix: &[u8],
-    ctx_len: u8,
-    ctx: &[u8],
-    x1: &[u8],
-    x2: &[u8],
-    x3: &[u8],
-) -> [u8; 64] {
-    debug_assert_eq!(ctx_len as usize, ctx.len());
-    let mut mh = Sha512Context::new();
-    if !dom_prefix.is_empty() {
-        mh.update(dom_prefix);
-        mh.update(&[ctx_len]);
-        mh.update(ctx);
+/// This is `H(..) := SHA-512(dom2(phflag, ctx) || ..)` from rfc8032 5.1, with
+/// phflag=0 and ctx="".
+fn ed25519_digest(x1: &[u8], x2: &[u8], x3: &[u8]) -> [u8; 64] {
+    let mut h = Sha512Context::new();
+    h.update(x1);
+    h.update(x2);
+    if x3.len() > 0 {
+        h.update(x3);
     }
-    mh.update(x1);
-    mh.update(x2);
-    mh.update(x3);
-    mh.finish()
+    h.finish()
 }
 
 #[cfg(test)]
@@ -407,21 +384,37 @@ mod test {
 
     use super::*;
 
-    const BASE_POINT: EdwardsPoint = EdwardsPoint([
-        // X(B)
-        0xc9562d608f25d51a,
-        0x692cc7609525a7b2,
-        0xc0a4e231fdd6dc5c,
-        0x216936d3cd6e53fe,
-        // Y(B)
-        0x6666666666666658,
-        0x6666666666666666,
-        0x6666666666666666,
-        0x6666666666666666,
-    ]);
+    /// `p := 2^255 - 19`
+    const P_25519: [u64; 4] = [
+        0xffffffffffffffed,
+        0xffffffffffffffff,
+        0xffffffffffffffff,
+        0x7fffffffffffffff,
+    ];
 
     #[test]
-    fn test_scalar_try_from() {
+    fn test_rfc8032_test_vectors() {
+        // rfc8032 7.1.1
+        let seed = b"\x9d\x61\xb1\x9d\xef\xfd\x5a\x60\xba\x84\x4a\xf4\x92\xec\x2c\xc4\x44\x49\xc5\x69\x7b\x32\x69\x19\x70\x3b\xac\x03\x1c\xae\x7f\x60";
+        let sk = SigningKey::from_seed(&seed);
+        let msg = b"";
+        let sig = sk.sign(msg);
+        assert_eq!(&sk.vk_bytes, b"\xd7\x5a\x98\x01\x82\xb1\x0a\xb7\xd5\x4b\xfe\xd3\xc9\x64\x07\x3a\x0e\xe1\x72\xf3\xda\xa6\x23\x25\xaf\x02\x1a\x68\xf7\x07\x51\x1a");
+        assert_eq!(&sig, b"\xe5\x56\x43\x00\xc3\x60\xac\x72\x90\x86\xe2\xcc\x80\x6e\x82\x8a\x84\x87\x7f\x1e\xb8\xe5\xd9\x74\xd8\x73\xe0\x65\x22\x49\x01\x55\x5f\xb8\x82\x15\x90\xa3\x3b\xac\xc6\x1e\x39\x70\x1c\xf9\xb4\x6b\xd2\x5b\xf5\xf0\x59\x5b\xbe\x24\x65\x51\x41\x43\x8e\x7a\x10\x0b");
+        sk.verifying_key().verify(&sig, msg).unwrap();
+
+        // rfc8032 7.1.2
+        let seed = b"\x4c\xcd\x08\x9b\x28\xff\x96\xda\x9d\xb6\xc3\x46\xec\x11\x4e\x0f\x5b\x8a\x31\x9f\x35\xab\xa6\x24\xda\x8c\xf6\xed\x4f\xb8\xa6\xfb";
+        let sk = SigningKey::from_seed(&seed);
+        let msg = b"\x72";
+        let sig = sk.sign(msg);
+        assert_eq!(&sk.vk_bytes, b"\x3d\x40\x17\xc3\xe8\x43\x89\x5a\x92\xb7\x0a\xa7\x4d\x1b\x7e\xbc\x9c\x98\x2c\xcf\x2e\xc4\x96\x8c\xc0\xcd\x55\xf1\x2a\xf4\x66\x0c");
+        assert_eq!(&sig, b"\x92\xa0\x09\xa9\xf0\xd4\xca\xb8\x72\x0e\x82\x0b\x5f\x64\x25\x40\xa2\xb2\x7b\x54\x16\x50\x3f\x8f\xb3\x76\x22\x23\xeb\xdb\x69\xda\x08\x5a\xc1\xe4\x3e\x15\x99\x6e\x45\x8f\x36\x13\xd0\xf1\x1d\x8c\x38\x7b\x2e\xae\xb4\x30\x2a\xee\xb0\x0d\x29\x16\x12\xbb\x0c\x00");
+        sk.verifying_key().verify(&sig, msg).unwrap();
+    }
+
+    #[test]
+    fn test_scalar_reduction() {
         let zero = [0u64, 0, 0, 0];
         let one = [1u64, 0, 0, 0];
 
@@ -450,18 +443,17 @@ mod test {
         scalar_ok(&zero);
         scalar_ok(&one);
         scalar_ok(&order_m1);
+
         scalar_err(&ORDER);
         scalar_err(&order_p1);
         scalar_err(&[ORDER[0] - 1, ORDER[1], ORDER[2], ORDER[3] + 1]);
-    }
 
-    #[test]
-    fn fuzz_scalar_try_from() {
         let mut rng = TestRng::new(202505191702);
         for _ in 0..100 {
             let x_bytes = rng.next::<32>();
             let x = UnreducedScalar::from_le_bytes(&x_bytes);
 
+            // [u8; 32] reduction
             let x_reduced = x.reduce();
             let x_reduced_bytes = x_reduced.to_le_bytes();
             assert_eq!(
@@ -472,6 +464,193 @@ mod test {
                 let res = Scalar::try_from_le_bytes(&x_bytes).map(|x| x.0);
                 assert_eq!(res, None);
             }
+
+            // [u8; 64] reduction
+            let mut x_bytes_64 = [0u8; 64];
+            x_bytes_64[0..32].copy_from_slice(&x_bytes);
+            assert_eq!(
+                Scalar::reduce_from_u8x64_le_bytes(&x_bytes_64).0,
+                x_reduced.0,
+            );
+        }
+    }
+
+    #[test]
+    fn test_neg_p25519() {
+        fn is_reduced_mod_p25519(x: &[u64; 4]) -> bool {
+            low::bignum_cmp_lt(x, &P_25519) > 0
+        }
+        fn neg_p25519(x: &[u64; 4]) -> [u64; 4] {
+            let mut z = [0u64; 4];
+            low::bignum_neg_p25519(&mut z, x);
+            z
+        }
+        fn neg_p25519_alt(x: &[u64; 4]) -> [u64; 4] {
+            let mut z = [0u64; 4];
+            low::bignum_modsub(&mut z, &[0; 4], x, &P_25519);
+            z
+        }
+
+        let zero = [0u64; 4];
+        let one = [1u64, 0, 0, 0];
+        let p25519_m1 = [P_25519[0] - 1, P_25519[1], P_25519[2], P_25519[3]];
+
+        // -0 := 0 mod p25519
+        assert_eq!(neg_p25519(&zero), zero);
+        // (-1) := (p25519 - 1) mod p25519
+        assert_eq!(neg_p25519(&one), p25519_m1);
+        // -(p25519 - 1) := 1 mod p25519
+        assert_eq!(neg_p25519(&p25519_m1), one);
+
+        let mut rng = TestRng::new(202505192149);
+        for _ in 0..100 {
+            let x_bytes = rng.next::<32>();
+            let x = util::little_endian_to_u64x4(&x_bytes);
+            if is_reduced_mod_p25519(&x) {
+                // x := -(-x) mod p25519
+                assert_eq!(neg_p25519(&neg_p25519(&x)), x);
+                assert_eq!(neg_p25519(&x), neg_p25519_alt(&x));
+            }
+        }
+    }
+
+    #[test]
+    fn scalar_madd_n25519() {
+        const ZERO: [u64; 4] = [0u64; 4];
+        const ONE: [u64; 4] = [1u64, 0, 0, 0];
+
+        fn madd_n25519_alt(x: &[u64; 4], y: &[u64; 4], c: &[u64; 4]) -> [u64; 4] {
+            let mut xy = [0u64; 8];
+            low::bignum_mul(&mut xy, x, y);
+            let mut xy_reduced = [0u64; 4];
+            low::bignum_mod_n25519(&mut xy_reduced, &xy);
+            let mut c_reduced = [0u64; 4];
+            low::bignum_mod_n25519(&mut c_reduced, c);
+            let mut z = [0u64; 4];
+            low::bignum_modadd(&mut z, &xy_reduced, &c_reduced, &ORDER);
+            z
+        }
+
+        fn assert_basic_identities(x: &[u64; 4]) {
+            // x := (x * 1 + 0) mod p25519
+            // x := (1 * x + 0) mod p25519
+            assert_eq!(
+                Scalar::madd_n25519(x, &ONE, &ZERO).0,
+                UnreducedScalar(*x).reduce().0,
+            );
+            assert_eq!(
+                Scalar::madd_n25519(&ONE, x, &ZERO).0,
+                UnreducedScalar(*x).reduce().0,
+            );
+
+            // 0 := (x * 0 + 0) mod p25519
+            // 0 := (0 * x + 0) mod p25519
+            assert_eq!(Scalar::madd_n25519(x, &ZERO, &ZERO).0, ZERO);
+            assert_eq!(Scalar::madd_n25519(&ZERO, x, &ZERO).0, ZERO);
+
+            // x := (x * 0 + x) mod p25519
+            // x := (0 * x + x) mod p25519
+            assert_eq!(
+                Scalar::madd_n25519(x, &ZERO, x).0,
+                UnreducedScalar(*x).reduce().0,
+            );
+            assert_eq!(
+                Scalar::madd_n25519(&ZERO, x, x).0,
+                UnreducedScalar(*x).reduce().0,
+            );
+        }
+
+        assert_eq!(ZERO, Scalar::madd_n25519(&ZERO, &ZERO, &ZERO).0);
+        assert_eq!(ONE, Scalar::madd_n25519(&ZERO, &ZERO, &ONE).0);
+
+        assert_basic_identities(&ZERO);
+        assert_basic_identities(&ONE);
+
+        let mut rng = TestRng::new(202505192230);
+        for _ in 0..100 {
+            let x = UnreducedScalar::from_le_bytes(&rng.next::<32>()).0;
+            let y = UnreducedScalar::from_le_bytes(&rng.next::<32>()).0;
+            let c = UnreducedScalar::from_le_bytes(&rng.next::<32>()).0;
+
+            assert_basic_identities(&x);
+            assert_eq!(
+                Scalar::madd_n25519(&x, &y, &c).0,
+                madd_n25519_alt(&x, &y, &c)
+            );
+        }
+    }
+
+    #[test]
+    fn test_scalarmul() {
+        const ONE: [u64; 4] = [1u64, 0, 0, 0];
+
+        // O := [0]B
+        assert_eq!(EdwardsPoint::IDENTITY.0, Scalar([0; 4]).mulbase().0);
+        assert_eq!(
+            EdwardsPoint::IDENTITY.0,
+            EdwardsPoint::scalarmuldouble(
+                &Scalar([0; 4]),
+                &EdwardsPoint::BASE_POINT,
+                &Scalar([0; 4]),
+            )
+            .0
+        );
+        assert_eq!(
+            EdwardsPoint::IDENTITY.0,
+            EdwardsPoint::scalarmuldouble(
+                &Scalar([0x69; 4]),
+                &EdwardsPoint::IDENTITY,
+                &Scalar([0; 4]),
+            )
+            .0
+        );
+
+        // B := [1]B
+        assert_eq!(EdwardsPoint::BASE_POINT.0, Scalar([1, 0, 0, 0]).mulbase().0);
+
+        let mut rng = TestRng::new(202505192246);
+        for _ in 0..100 {
+            let bscalar = UnreducedScalar::from_le_bytes(&rng.next::<32>()).reduce();
+
+            // [bscalar]B := [bscalar]B + [0]B
+            assert_eq!(
+                bscalar.mulbase().0,
+                EdwardsPoint::scalarmuldouble(
+                    &bscalar,
+                    &EdwardsPoint::BASE_POINT,
+                    &Scalar([0; 4]),
+                ).0,
+            );
+
+            let scalar = UnreducedScalar::from_le_bytes(&rng.next::<32>()).reduce();
+            let sum = Scalar::madd_n25519(&scalar.0, &ONE, &bscalar.0);
+
+            // [scalar + bscalar]B := [scalar]B + [bscalar]B
+            assert_eq!(
+                sum.mulbase().0,
+                EdwardsPoint::scalarmuldouble(&scalar, &EdwardsPoint::BASE_POINT, &bscalar).0,
+            );
+        }
+    }
+
+    #[test]
+    fn test_point_compression() {
+        assert_eq!(
+            EdwardsPoint::IDENTITY.0,
+            EdwardsPoint::decompress_from(b"\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00").unwrap().0,
+        );
+        assert_eq!(
+            EdwardsPoint::BASE_POINT.0,
+            EdwardsPoint::decompress_from(b"\x58\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66\x66").unwrap().0,
+        );
+
+        let mut rng = TestRng::new(202505192346);
+        for _ in 0..100 {
+            let scalar = UnreducedScalar::from_le_bytes(&rng.next::<32>()).reduce();
+            let point = scalar.mulbase();
+            let compressed = point.compress();
+            let decompressed = EdwardsPoint::decompress_from(&compressed.0).unwrap();
+            assert_eq!(point.0, decompressed.0);
         }
     }
 
