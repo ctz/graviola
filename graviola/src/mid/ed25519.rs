@@ -12,6 +12,15 @@ const DOM_PREFIX_PH: &[u8] = b"SigEd25519 no Ed25519 collisions\x01";
 /// Partially evaluted `dom2(phflag=0, _)`
 const DOM_PREFIX_CTX: &[u8] = b"SigEd25519 no Ed25519 collisions\x00";
 
+/// The little-endian encoded order of the base-point `B`,
+/// `L := 2^252 + 27742317777372353535851937790883648493`.
+const ORDER: [u64; 4] = [
+    0x5812631a5cf5d3ed,
+    0x14def9dea2f79cd6,
+    0x0000000000000000,
+    0x1000000000000000,
+];
+
 struct SigningKey {
     seed: [u8; 32],
     s: UnreducedScalar,
@@ -97,16 +106,16 @@ impl SigningKey {
     #[allow(non_snake_case)]
     fn sign_with_dom(&self, dom_prefix: &[u8], ctx_len: u8, ctx: &[u8], msg: &[u8]) -> [u8; 64] {
         // Step: rfc8032 5.1.6.2
-        // Compute `r := SHA-512(dom2(F, C) || prefix || PH(msg))`
-        // Reduce `r` modulo the order of the base-point.
-        let r = {
-            let mh = ed25519_sha512(dom_prefix, ctx_len, ctx, &self.prefix, msg, &[]);
-            Scalar::reduce_from_u8x64_le_bytes(&mh)
+        // Compute the deterministic nonce
+        // `r := SHA-512(dom2(F, C) || prefix || PH(msg)) mod L`
+        let r: Scalar = {
+            let r = ed25519_sha512(dom_prefix, ctx_len, ctx, &self.prefix, msg, &[]);
+            Scalar::reduce_from_u8x64_le_bytes(&r)
         };
 
         // Step: rfc8032 5.1.6.3
-        // Compute `R := [r]B`.
-        let R = r.mulbase();
+        // Compute the commitment point `R := [r]B`.
+        let R: EdwardsPoint = r.mulbase();
 
         // `sig := (R || S)`
         // Start by writing `R` into the first 32 bytes of `sig`.
@@ -115,15 +124,15 @@ impl SigningKey {
         R.compress_into(sig_R);
 
         // Step: rfc8032 5.1.6.4
-        // Compute `k := SHA512(dom2(F, C) || R || A || PH(msg))`
-        let k = {
-            let kh = ed25519_sha512(dom_prefix, ctx_len, ctx, sig_R, &self.vk_bytes, msg);
-            Scalar::reduce_from_u8x64_le_bytes(&kh)
+        // Compute the challenge `k := SHA512(dom2(F, C) || R || A || PH(msg)) mod L`
+        let k: Scalar = {
+            let k = ed25519_sha512(dom_prefix, ctx_len, ctx, sig_R, &self.vk_bytes, msg);
+            Scalar::reduce_from_u8x64_le_bytes(&k)
         };
 
         // Step: rfc8032 5.1.6.5
-        // Compute `S := (r * s + k) mod L`
-        let S = Scalar::madd_n25519(&r.0, &self.s.0, &k.0);
+        // Compute the proof `S := (r * s + k) mod L`
+        let S: Scalar = Scalar::madd_n25519(&r.0, &self.s.0, &k.0);
         let S_bytes = S.to_le_bytes();
         let sig_S = sig.split_last_chunk_mut::<32>().unwrap().1;
         *sig_S = S_bytes;
@@ -159,21 +168,14 @@ impl VerifyingKey {
         let (R_sig, _) = sig.split_first_chunk::<32>().unwrap();
         let (_, S) = sig.split_last_chunk::<32>().unwrap();
 
-        // rfc8032 5.1.6.6 "the three most significant bits of the final octet
-        // are always zero"
-        if S[31] & 224 /* 0b1110_0000 */ != 0 {
-            return Err(Error::BadSignature);
-        }
-
-        // S must be in the range [0, order) in order to prevent signature
-        // malleability.
-        let S = Scalar::try_from_le_bytes(S)?;
+        // S must be in the range [0, order) to prevent signature malleability.
+        let S = Scalar::try_from_le_bytes(S).ok_or(Error::BadSignature)?;
 
         // Step: rfc8032 5.1.7.2
-        // Compute `k := SHA512(dom2(F, C) || R || A || PH(msg))`
+        // Compute the challenge `k := SHA512(dom2(F, C) || R || A || PH(msg))`
         let k = {
-            let kh = ed25519_sha512(dom_prefix, ctx_len, ctx, R_sig, &self.0.0, msg);
-            Scalar::reduce_from_u8x64_le_bytes(&kh)
+            let k = ed25519_sha512(dom_prefix, ctx_len, ctx, R_sig, &self.0.0, msg);
+            Scalar::reduce_from_u8x64_le_bytes(&k)
         };
 
         // Step: rfc8032 5.1.7.3
@@ -283,7 +285,7 @@ impl EdwardsPoint {
     }
 }
 
-/// An unreduced 256-bit scalar.
+/// An unreduced 256-bit little-endian scalar.
 // #[repr(transparent)]
 struct UnreducedScalar([u64; 4]);
 
@@ -299,11 +301,19 @@ impl UnreducedScalar {
         low::edwards25519_scalarmulbase(&mut point.0, &self.0);
         point
     }
+
+    /// Reduce this 256-bit little-endian number modulo [`ORDER`].
+    #[cfg(test)]
+    fn reduce(&self) -> Scalar {
+        let mut s = Scalar([0u64; 4]);
+        low::bignum_mod_n25519(&mut s.0, &self.0);
+        s
+    }
 }
 
-/// A 256-bit scalar reduced modulo the order of the base-point,
-/// `L = 2^252 + 27742317777372353535851937790883648493`.
+/// A little-endian 256-bit scalar reduced modulo [`ORDER`].
 // #[repr(transparent)]
+#[cfg_attr(test, derive(Debug))]
 struct Scalar([u64; 4]);
 
 impl Scalar {
@@ -319,42 +329,41 @@ impl Scalar {
     //     unsafe { &*(self as *const Self as *const UnreducedScalar) }
     // }
 
-    fn try_from_le_bytes(x: &[u8; 32]) -> Result<Self, Error> {
-        let s = util::little_endian_to_u64x4(x);
-        const ORDER: [u64; 4] = [
-            0x5812631a5cf5d3ed,
-            0x14def9dea2f79cd6,
-            0x0000000000000000,
-            0x1000000000000000,
-        ];
-        for (_s_i, _o_i) in s.iter().zip(ORDER.iter()).rev() {
-            // TODO(phlip9): impl
-        }
-        Ok(Self(s))
-        // for (size_t i = 3;; i--) {
-        //   uint64_t word = CRYPTO_load_u64_le(S + i * 8);
-        //   if (word > kOrder[i]) {
-        //     return 0;
-        //   } else if (word < kOrder[i]) {
-        //     break;
-        //   } else if (i == 0) {
-        //     return 0;
-        //   }
-        // }
-    }
+    /// Read a 256-bit little-endian number from the public input bytes,
+    /// additionally verifying that it's a valid `Scalar` reduced modulo
+    /// [`ORDER`].
+    // TODO(phlip9): bench against `low::bignum_cmp_lt(&s, &ORDER)`?
+    fn try_from_le_bytes(x: &[u8; 32]) -> Option<Self> {
+        use std::cmp::Ordering;
 
-    /// Reduce a `[u64; 8]` scalar modulo the order of the base-point
-    fn reduce_from_u8x64_le_bytes(x: &[u8; 64]) -> Self {
-        let mut s = Self([0u64; 4]);
-        low::bignum_mod_n25519(&mut s.0, &util::little_endian_to_u64x8(&x));
-        s
+        // The first 3 bits of the last byte must be zero.
+        if x[31] & 224 /* 0b1110_0000 */ != 0 {
+            return None;
+        }
+
+        let s = util::little_endian_to_u64x4(x);
+        for (s_i, o_i) in s.iter().zip(ORDER.iter()).rev() {
+            match s_i.cmp(o_i) {
+                Ordering::Less => return Some(Self(s)),
+                Ordering::Greater => return None,
+                Ordering::Equal => {}
+            }
+        }
+        None
     }
 
     fn to_le_bytes(&self) -> [u8; 32] {
         util::u64x4_to_little_endian(&self.0)
     }
 
-    /// Scalar multiply this scalar by the base-point: `[self]B`
+    /// Reduce a 512-bit little-endian scalar modulo [`ORDER`].
+    fn reduce_from_u8x64_le_bytes(x: &[u8; 64]) -> Self {
+        let mut s = Self([0u64; 4]);
+        low::bignum_mod_n25519(&mut s.0, &util::little_endian_to_u64x8(&x));
+        s
+    }
+
+    /// Scalar multiply by the base-point: `[self]B`
     fn mulbase(&self) -> EdwardsPoint {
         // self.as_unreduced().mulbase()
         let mut point = EdwardsPoint([0u64; 8]);
@@ -362,7 +371,7 @@ impl Scalar {
         point
     }
 
-    /// Compute `z := (x * y + c) mod L`, the order of the base-point
+    /// Compute `z := (x * y + c)` modulo [`ORDER`].
     fn madd_n25519(x: &[u64; 4], y: &[u64; 4], c: &[u64; 4]) -> Self {
         let mut z = Self([0u64; 4]);
         low::bignum_madd_n25519(&mut z.0, x, y, c);
@@ -390,4 +399,104 @@ fn ed25519_sha512(
     mh.update(x2);
     mh.update(x3);
     mh.finish()
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{low::chacha20::ChaCha20, mid};
+
+    use super::*;
+
+    const BASE_POINT: EdwardsPoint = EdwardsPoint([
+        // X(B)
+        0xc9562d608f25d51a,
+        0x692cc7609525a7b2,
+        0xc0a4e231fdd6dc5c,
+        0x216936d3cd6e53fe,
+        // Y(B)
+        0x6666666666666658,
+        0x6666666666666666,
+        0x6666666666666666,
+        0x6666666666666666,
+    ]);
+
+    #[test]
+    fn test_scalar_try_from() {
+        let zero = [0u64, 0, 0, 0];
+        let one = [1u64, 0, 0, 0];
+
+        assert_eq!(zero, UnreducedScalar(zero).reduce().0);
+        assert_eq!(one, UnreducedScalar(one).reduce().0);
+        assert_eq!(zero, UnreducedScalar(ORDER).reduce().0);
+
+        let order_m1 = [ORDER[0] - 1, ORDER[1], ORDER[2], ORDER[3]];
+        let order_p1 = [ORDER[0] + 1, ORDER[1], ORDER[2], ORDER[3]];
+        assert_eq!(order_m1, UnreducedScalar(order_m1).reduce().0);
+        assert_eq!(one, UnreducedScalar(order_p1).reduce().0);
+
+        #[track_caller]
+        fn scalar_ok(x1: &[u64; 4]) {
+            let x1_bytes = util::u64x4_to_little_endian(x1);
+            let x2 = Scalar::try_from_le_bytes(&x1_bytes).map(|x| x.0);
+            assert_eq!(x2, Some(*x1));
+        }
+        #[track_caller]
+        fn scalar_err(x1: &[u64; 4]) {
+            let x1_bytes = util::u64x4_to_little_endian(x1);
+            let x2 = Scalar::try_from_le_bytes(&x1_bytes).map(|x| x.0);
+            assert_eq!(x2, None);
+        }
+
+        scalar_ok(&zero);
+        scalar_ok(&one);
+        scalar_ok(&order_m1);
+        scalar_err(&ORDER);
+        scalar_err(&order_p1);
+        scalar_err(&[ORDER[0] - 1, ORDER[1], ORDER[2], ORDER[3] + 1]);
+    }
+
+    #[test]
+    fn fuzz_scalar_try_from() {
+        let mut rng = TestRng::new(202505191702);
+        for _ in 0..100 {
+            let x_bytes = rng.next::<32>();
+            let x = UnreducedScalar::from_le_bytes(&x_bytes);
+
+            let x_reduced = x.reduce();
+            let x_reduced_bytes = x_reduced.to_le_bytes();
+            assert_eq!(
+                x_reduced.0,
+                Scalar::try_from_le_bytes(&x_reduced_bytes).unwrap().0,
+            );
+            if x.0 != x_reduced.0 {
+                let res = Scalar::try_from_le_bytes(&x_bytes).map(|x| x.0);
+                assert_eq!(res, None);
+            }
+        }
+    }
+
+    struct TestRng {
+        chacha: ChaCha20,
+    }
+
+    impl TestRng {
+        fn new(seed: u64) -> Self {
+            let seed = sha256_digest(&seed.to_le_bytes());
+            let nonce = [0; 16];
+            let chacha = ChaCha20::new(&seed, &nonce);
+            Self { chacha }
+        }
+
+        fn next<const N: usize>(&mut self) -> [u8; N] {
+            let mut out = [0u8; N];
+            self.chacha.cipher(&mut out);
+            out
+        }
+    }
+
+    fn sha256_digest(x: &[u8]) -> [u8; 32] {
+        let mut ctx = mid::sha2::Sha256Context::new();
+        ctx.update(x);
+        ctx.finish()
+    }
 }
