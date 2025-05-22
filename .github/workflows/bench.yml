@@ -14,27 +14,27 @@ jobs:
   bench:
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-        persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
 
-    - name: Install stable toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: stable
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
 
-    - name: Install cargo-binstall
-      uses: cargo-bins/cargo-binstall@main
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
 
-    - name: Install cargo-codspeed
-      run: cargo binstall -y cargo-codspeed
+      - name: Install cargo-codspeed
+        run: cargo binstall -y cargo-codspeed
 
-    - name: Build benchmarks
-      run: cargo codspeed build -p graviola-bench --features __bench_codspeed
+      - name: Build benchmarks
+        run: cargo codspeed build -p graviola-bench --features __bench_codspeed
 
-    - name: Run benchmarks
-      uses: CodSpeedHQ/action@v3
-      with:
-        run: cargo codspeed run
-        token: ${{ secrets.CODSPEED_TOKEN }}
+      - name: Run benchmarks
+        uses: CodSpeedHQ/action@v3
+        with:
+          run: cargo codspeed run
+          token: ${{ secrets.CODSPEED_TOKEN }}

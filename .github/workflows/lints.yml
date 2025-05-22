@@ -4,7 +4,7 @@ on:
   push:
   pull_request:
   schedule:
-    - cron: '0 18 * * *'
+    - cron: "0 18 * * *"
 
 env:
   CARGO_TERM_COLOR: always
@@ -13,63 +13,63 @@ jobs:
   msrv:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-        persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
 
-    - name: Install MSRV toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: "1.72"
+      - name: Install MSRV toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.72"
 
-    - name: Check MSRV
-      run: cargo build --lib --all-features
+      - name: Check MSRV
+        run: cargo build --lib --all-features
 
   lints:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-        persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
 
-    - uses: actions/setup-python@v5
-      with:
-        python-version: '3.12'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-    - name: install codegen deps
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y cpp-aarch64-linux-gnu binutils-aarch64-linux-gnu
-        sudo apt-get install -y valgrind
+      - name: install codegen deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cpp-aarch64-linux-gnu binutils-aarch64-linux-gnu
+          sudo apt-get install -y valgrind
 
-    - name: Install stable toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: stable
-        components: rustfmt
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt
 
-    - name: Install nightly toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: nightly-2025-02-14
-        components: rustfmt
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly-2025-02-14
+          components: rustfmt
 
-    - name: clippy
-      run: cargo +stable clippy --all-features --all-targets -- --deny warnings
+      - name: clippy
+        run: cargo +stable clippy --all-features --all-targets -- --deny warnings
 
-    - name: rustfmt
-      run: cargo +stable fmt --check
+      - name: rustfmt
+        run: cargo +stable fmt --check
 
-    - name: rustfmt (nightly)
-      run: cargo +nightly-2025-02-14 fmt --check -- --config-path=.rustfmt.unstable.toml
+      - name: rustfmt (nightly)
+        run: cargo +nightly-2025-02-14 fmt --check -- --config-path=.rustfmt.unstable.toml
 
-    - name: check codegen
-      working-directory: admin/parse-asm
-      run: |
-        ./all.sh
-        git diff --exit-code
+      - name: check codegen
+        working-directory: admin/parse-asm
+        run: |
+          ./all.sh
+          git diff --exit-code
 
-    - name: check license headers
-      run: ./admin/scan-license
+      - name: check license headers
+        run: ./admin/scan-license

@@ -4,7 +4,7 @@ on:
   push:
   pull_request:
   schedule:
-    - cron: '0 18 * * *'
+    - cron: "0 18 * * *"
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,42 +22,42 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-        persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
 
-    - name: Install stable toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: stable
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
 
-    - name: Install NASM for aws-lc-rs on Windows
-      if: runner.os == 'Windows'
-      uses: ilammy/setup-nasm@v1
+      - name: Install NASM for aws-lc-rs on Windows
+        if: runner.os == 'Windows'
+        uses: ilammy/setup-nasm@v1
 
-    - name: Install valgrind on Linux
-      if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y valgrind
+      - name: Install valgrind on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y valgrind
 
-    - name: Install cross
-      if: matrix.cross != ''
-      uses: taiki-e/setup-cross-toolchain-action@v1
-      with:
-        target: ${{ matrix.cross }}
+      - name: Install cross
+        if: matrix.cross != ''
+        uses: taiki-e/setup-cross-toolchain-action@v1
+        with:
+          target: ${{ matrix.cross }}
 
-    - name: Build (debug)
-      run: cargo build -p graviola
-    - name: Run tests (debug)
-      run: cargo test
+      - name: Build (debug)
+        run: cargo build -p graviola
+      - name: Run tests (debug)
+        run: cargo test
 
-    - name: Build (release)
-      run: cargo build -p graviola --release
-    - name: Run tests (release)
-      run: env SLOW_TESTS=1 cargo test --release
+      - name: Build (release)
+        run: cargo build -p graviola --release
+      - name: Run tests (release)
+        run: env SLOW_TESTS=1 cargo test --release
 
-    - name: Artificial CPU feature tests (x86_64)
-      if: runner.arch == 'X64'
-      run: |
-        # test software fallbacks for sha256 and sha512
-        env GRAVIOLA_CPU_DISABLE_sha=1 GRAVIOLA_CPU_DISABLE_bmi2=1 cargo test
+      - name: Artificial CPU feature tests (x86_64)
+        if: runner.arch == 'X64'
+        run: |
+          # test software fallbacks for sha256 and sha512
+          env GRAVIOLA_CPU_DISABLE_sha=1 GRAVIOLA_CPU_DISABLE_bmi2=1 cargo test

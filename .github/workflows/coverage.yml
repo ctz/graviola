@@ -6,7 +6,7 @@ on:
       - main
   pull_request:
   schedule:
-    - cron: '0 18 * * *'
+    - cron: "0 18 * * *"
 
 env:
   CARGO_TERM_COLOR: always
@@ -21,29 +21,29 @@ jobs:
 
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-        persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
 
-    - name: Install stable toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: stable
-        components: llvm-tools
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: llvm-tools
 
-    - name: Install valgrind on Linux
-      if: runner.os == 'Linux'
-      run: sudo apt-get update && sudo apt-get install -y valgrind
+      - name: Install valgrind on Linux
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y valgrind
 
-    - name: Install cargo-llvm-cov
-      uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
 
-    - name: Measure coverage
-      run: ./admin/coverage --lcov --output-path final.info
+      - name: Measure coverage
+        run: ./admin/coverage --lcov --output-path final.info
 
-    - name: Report to codecov.io
-      uses: codecov/codecov-action@v5
-      with:
-        files: final.info
-        token: ${{ secrets.CODECOV_TOKEN }}
+      - name: Report to codecov.io
+        uses: codecov/codecov-action@v5
+        with:
+          files: final.info
+          token: ${{ secrets.CODECOV_TOKEN }}
