@@ -43,12 +43,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cpp-aarch64-linux-gnu binutils-aarch64-linux-gnu
           sudo apt-get install -y valgrind
+          sudo apt-get install -y graphviz
 
       - name: Install stable toolchain
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
           components: rustfmt
+
+      - name: Install cargo-modules
+        uses: taiki-e/cache-cargo-install-action@v2
+        with:
+          tool: cargo-modules
 
       - name: Install nightly toolchain
         uses: dtolnay/rust-toolchain@master
@@ -73,3 +79,6 @@ jobs:
 
       - name: check license headers
         run: ./admin/scan-license
+
+      - name: check module structure
+        run: ./admin/structure
