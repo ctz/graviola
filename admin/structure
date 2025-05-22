@@ -1,0 +1,36 @@
+#!/bin/sh
+#
+# This script analyses the structure of graviola to ensure there are no references
+# from graviola::low to graviola::mid, or graviola::mid to graviola::high.
+set -e
+
+cat >structure.gvpr <<END
+BEGIN {
+  int rc = 0;
+  int errors = 0;
+}
+E [match(tail.name, "graviola::low::") == 0 && match(head.name, "graviola::mid::") == 0] {
+  printf(2, "ERROR: edge %s is a dependency low->mid\n", name);
+  rc = 1;
+  errors += 1;
+}
+E [match(tail.name, "graviola::low::") == 0 && match(head.name, "graviola::high::") == 0] {
+  printf(2, "ERROR: edge %s is a dependency low->high\n", name);
+  rc = 1;
+  errors += 1;
+}
+E [match(tail.name, "graviola::mid::") == 0 && match(head.name, "graviola::high::") == 0] {
+  printf(2, "ERROR: edge %s is a dependency mid->high\n", name);
+  rc = 1;
+  errors += 1;
+}
+END {
+  printf(2, "%d errors\n", errors);
+  exit(rc);
+}
+END
+
+cargo modules dependencies \
+        --no-externs \
+        --no-sysroot \
+        -p graviola | gvpr -f structure.gvpr
