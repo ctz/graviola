@@ -4,7 +4,7 @@
 use core::ops::{Deref, DerefMut};
 
 use crate::low::ct_equal;
-use crate::mid::sha2::{Sha256Context, Sha384Context, Sha512Context};
+use crate::mid::sha2;
 
 /// Output from a hash function.
 ///
@@ -12,11 +12,11 @@ use crate::mid::sha2::{Sha256Context, Sha384Context, Sha512Context};
 #[derive(Clone, Debug)]
 pub enum HashOutput {
     /// Output from SHA256
-    Sha256([u8; Sha256Context::OUTPUT_SZ]),
+    Sha256([u8; sha2::Sha256Context::OUTPUT_SZ]),
     /// Output from SHA384
-    Sha384([u8; Sha384Context::OUTPUT_SZ]),
+    Sha384([u8; sha2::Sha384Context::OUTPUT_SZ]),
     /// Output from SHA512
-    Sha512([u8; Sha512Context::OUTPUT_SZ]),
+    Sha512([u8; sha2::Sha512Context::OUTPUT_SZ]),
 }
 
 impl HashOutput {
@@ -146,31 +146,34 @@ impl Hash for Sha256 {
     type Context = Sha256Context;
 
     fn new() -> Self::Context {
-        Sha256Context::new()
+        Sha256Context(sha2::Sha256Context::new())
     }
 
     fn hash(bytes: &[u8]) -> HashOutput {
         let mut ctx = Self::new();
         ctx.update(bytes);
-        HashOutput::Sha256(ctx.finish())
+        ctx.finish()
     }
 
     fn zeroed_block() -> HashBlock {
-        HashBlock::new(Sha256Context::BLOCK_SZ)
+        HashBlock::new(sha2::Sha256Context::BLOCK_SZ)
     }
 
     fn zeroed_output() -> HashOutput {
-        HashOutput::Sha256([0u8; Sha256Context::OUTPUT_SZ])
+        HashOutput::Sha256([0u8; sha2::Sha256Context::OUTPUT_SZ])
     }
 }
 
+#[derive(Clone)]
+pub struct Sha256Context(sha2::Sha256Context);
+
 impl HashContext for Sha256Context {
     fn update(&mut self, bytes: &[u8]) {
-        self.update(bytes)
+        self.0.update(bytes)
     }
 
     fn finish(self) -> HashOutput {
-        HashOutput::Sha256(self.finish())
+        HashOutput::Sha256(self.0.finish())
     }
 }
 
@@ -184,31 +187,34 @@ impl Hash for Sha384 {
     type Context = Sha384Context;
 
     fn new() -> Self::Context {
-        Sha384Context::new()
+        Sha384Context(sha2::Sha384Context::new())
     }
 
     fn hash(bytes: &[u8]) -> HashOutput {
         let mut ctx = Self::new();
         ctx.update(bytes);
-        HashOutput::Sha384(ctx.finish())
+        ctx.finish()
     }
 
     fn zeroed_block() -> HashBlock {
-        HashBlock::new(Sha512Context::BLOCK_SZ)
+        HashBlock::new(sha2::Sha512Context::BLOCK_SZ)
     }
 
     fn zeroed_output() -> HashOutput {
-        HashOutput::Sha384([0u8; Sha384Context::OUTPUT_SZ])
+        HashOutput::Sha384([0u8; sha2::Sha384Context::OUTPUT_SZ])
     }
 }
 
+#[derive(Clone)]
+pub struct Sha384Context(sha2::Sha384Context);
+
 impl HashContext for Sha384Context {
     fn update(&mut self, bytes: &[u8]) {
-        self.update(bytes)
+        self.0.update(bytes)
     }
 
     fn finish(self) -> HashOutput {
-        HashOutput::Sha384(self.finish())
+        HashOutput::Sha384(self.0.finish())
     }
 }
 
@@ -222,31 +228,34 @@ impl Hash for Sha512 {
     type Context = Sha512Context;
 
     fn new() -> Self::Context {
-        Sha512Context::new()
+        Sha512Context(sha2::Sha512Context::new())
     }
 
     fn hash(bytes: &[u8]) -> HashOutput {
         let mut ctx = Self::new();
         ctx.update(bytes);
-        HashOutput::Sha512(ctx.finish())
+        ctx.finish()
     }
 
     fn zeroed_block() -> HashBlock {
-        HashBlock::new(Sha512Context::BLOCK_SZ)
+        HashBlock::new(sha2::Sha512Context::BLOCK_SZ)
     }
 
     fn zeroed_output() -> HashOutput {
-        HashOutput::Sha512([0u8; Sha512Context::OUTPUT_SZ])
+        HashOutput::Sha512([0u8; sha2::Sha512Context::OUTPUT_SZ])
     }
 }
 
+#[derive(Clone)]
+pub struct Sha512Context(sha2::Sha512Context);
+
 impl HashContext for Sha512Context {
     fn update(&mut self, bytes: &[u8]) {
-        self.update(bytes)
+        self.0.update(bytes)
     }
 
     fn finish(self) -> HashOutput {
-        HashOutput::Sha512(self.finish())
+        HashOutput::Sha512(self.0.finish())
     }
 }
 
