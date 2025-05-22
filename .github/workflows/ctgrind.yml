@@ -4,7 +4,7 @@ on:
   push:
   pull_request:
   schedule:
-    - cron: '0 18 * * *'
+    - cron: "0 18 * * *"
 
 env:
   CARGO_TERM_COLOR: always
@@ -16,24 +16,24 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            build:
+            build: ""
           - os: ubuntu-latest
             build: --release
 
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: true
-        persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
 
-    - name: Install stable toolchain
-      uses: dtolnay/rust-toolchain@master
-      with:
-        toolchain: stable
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
 
-    - name: Install valgrind
-      run: sudo apt-get update && sudo apt-get install -y valgrind
+      - name: Install valgrind
+        run: sudo apt-get update && sudo apt-get install -y valgrind
 
-    - name: ctgrind tests
-      run: admin/ctgrind ${{ matrix.build }}
+      - name: ctgrind tests
+        run: admin/ctgrind ${{ matrix.build }}
