@@ -50,6 +50,63 @@ impl AesKey {
             ),
         }
     }
+
+    #[cfg(graviola_nightly)]
+    #[target_feature(enable = "avx512f")]
+    pub(crate) unsafe fn round_keys_512(&self) -> RoundKeys512 {
+        match self {
+            Self::Aes128(AesKey128 {
+                round_keys: [a, b, c, d, e, f, g, h, i, j, k],
+            }) => RoundKeys512::Aes128([
+                _mm512_broadcast_i32x4(*a),
+                _mm512_broadcast_i32x4(*b),
+                _mm512_broadcast_i32x4(*c),
+                _mm512_broadcast_i32x4(*d),
+                _mm512_broadcast_i32x4(*e),
+                _mm512_broadcast_i32x4(*f),
+                _mm512_broadcast_i32x4(*g),
+                _mm512_broadcast_i32x4(*h),
+                _mm512_broadcast_i32x4(*i),
+                _mm512_broadcast_i32x4(*j),
+                _mm512_broadcast_i32x4(*k),
+            ]),
+            Self::Aes256(AesKey256 {
+                round_keys: [a, b, c, d, e, f, g, h, i, j, k, l, m, n, o],
+            }) => RoundKeys512::Aes256([
+                _mm512_broadcast_i32x4(*a),
+                _mm512_broadcast_i32x4(*b),
+                _mm512_broadcast_i32x4(*c),
+                _mm512_broadcast_i32x4(*d),
+                _mm512_broadcast_i32x4(*e),
+                _mm512_broadcast_i32x4(*f),
+                _mm512_broadcast_i32x4(*g),
+                _mm512_broadcast_i32x4(*h),
+                _mm512_broadcast_i32x4(*i),
+                _mm512_broadcast_i32x4(*j),
+                _mm512_broadcast_i32x4(*k),
+                _mm512_broadcast_i32x4(*l),
+                _mm512_broadcast_i32x4(*m),
+                _mm512_broadcast_i32x4(*n),
+                _mm512_broadcast_i32x4(*o),
+            ]),
+        }
+    }
+}
+
+#[cfg(graviola_nightly)]
+pub(crate) enum RoundKeys512 {
+    Aes128([__m512i; 11]),
+    Aes256([__m512i; 15]),
+}
+
+#[cfg(graviola_nightly)]
+impl RoundKeys512 {
+    pub(crate) fn split(&self) -> (__m512i, &[__m512i], __m512i) {
+        match self {
+            Self::Aes128(rks) => (rks[0], &rks[1..10], rks[10]),
+            Self::Aes256(rks) => (rks[0], &rks[1..14], rks[14]),
+        }
+    }
 }
 
 pub(crate) struct AesKey128 {

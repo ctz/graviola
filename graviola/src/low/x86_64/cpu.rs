@@ -119,6 +119,9 @@ macro_rules! have_cpu_feature {
     ("aes") => {
         crate::low::x86_64::cpu::test_toggle("aes", is_x86_feature_detected!("aes"))
     };
+    ("vaes") => {
+        crate::low::x86_64::cpu::test_toggle("vaes", is_x86_feature_detected!("vaes"))
+    };
     ("pclmulqdq") => {
         crate::low::x86_64::cpu::test_toggle("pclmulqdq", is_x86_feature_detected!("pclmulqdq"))
     };
@@ -136,6 +139,12 @@ macro_rules! have_cpu_feature {
     };
     ("avx2") => {
         crate::low::x86_64::cpu::test_toggle("avx2", is_x86_feature_detected!("avx2"))
+    };
+    ("avx512f") => {
+        crate::low::x86_64::cpu::test_toggle("avx512f", is_x86_feature_detected!("avx512f"))
+    };
+    ("avx512bw") => {
+        crate::low::x86_64::cpu::test_toggle("avx512bw", is_x86_feature_detected!("avx512bw"))
     };
     ("sha") => {
         crate::low::x86_64::cpu::test_toggle("sha", is_x86_feature_detected!("sha"))
