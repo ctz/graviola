@@ -112,12 +112,15 @@ impl<'a> Ghash<'a> {
     }
 
     pub(crate) fn into_bytes(self) -> [u8; 16] {
+        // SAFETY: this crate requires the `sse2` and `ssse3` cpu features
+        unsafe { self._into_bytes() }
+    }
+
+    #[target_feature(enable = "sse2,ssse3")]
+    unsafe fn _into_bytes(self) -> [u8; 16] {
         let mut out: i128 = 0;
-        // SAFETY: this crate requires the `avx` cpu feature
-        unsafe {
-            let reverse = _mm_shuffle_epi8(self.current, BYTESWAP);
-            _mm_store_si128(&mut out as *mut i128 as *mut __m128i, reverse)
-        };
+        let reverse = _mm_shuffle_epi8(self.current, BYTESWAP);
+        _mm_store_si128(&mut out as *mut i128 as *mut __m128i, reverse);
         out.to_le_bytes()
     }
 
