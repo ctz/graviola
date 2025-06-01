@@ -204,22 +204,20 @@ unsafe fn _cipher<const ENC: bool>(
 struct Counter(__m128i);
 
 impl Counter {
-    fn new(bytes: &[u8; 16]) -> Self {
-        // SAFETY: `bytes` is a 128-bits and can be loaded from
-        Self(unsafe {
-            let c = _mm_lddqu_si128(bytes.as_ptr() as *const _);
-            _mm_shuffle_epi8(c, BYTESWAP_EPI64)
-        })
+    #[target_feature(enable = "sse3,ssse3")]
+    #[inline]
+    unsafe fn new(bytes: &[u8; 16]) -> Self {
+        // SAFETY: `bytes` is 128-bits and can be loaded from
+        let c = _mm_lddqu_si128(bytes.as_ptr() as *const _);
+        Self(_mm_shuffle_epi8(c, BYTESWAP_EPI64))
     }
 
+    #[target_feature(enable = "sse3,ssse3")]
     #[must_use]
     #[inline]
-    fn next(&mut self) -> __m128i {
-        // SAFETY: this crate requires the `avx` feature
-        unsafe {
-            self.0 = _mm_add_epi32(self.0, COUNTER_1);
-            _mm_shuffle_epi8(self.0, BYTESWAP_EPI64)
-        }
+    unsafe fn next(&mut self) -> __m128i {
+        self.0 = _mm_add_epi32(self.0, COUNTER_1);
+        _mm_shuffle_epi8(self.0, BYTESWAP_EPI64)
     }
 }
 
