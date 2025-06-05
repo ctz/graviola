@@ -1,10 +1,14 @@
 use crypto::SupportedKxGroup;
 use graviola::key_agreement::{p256, p384, x25519};
-use rustls::crypto;
 use rustls::ffdhe_groups::FfdheGroup;
+use rustls::{NamedGroup, crypto};
+
+mod hybrid;
+mod mlkem;
 
 /// All key exchange algorithms, in order of preference.
-pub const ALL_KX_GROUPS: &[&dyn SupportedKxGroup] = &[
+pub static ALL_KX_GROUPS: &[&dyn SupportedKxGroup] = &[
+    X25519MLKEM768,
     &X25519 as &dyn SupportedKxGroup,
     &P256 as &dyn SupportedKxGroup,
     &P384 as &dyn SupportedKxGroup,
@@ -172,3 +176,15 @@ impl crypto::ActiveKeyExchange for ActiveP384 {
         P384.name()
     }
 }
+
+pub static X25519MLKEM768: &dyn SupportedKxGroup = &hybrid::Hybrid {
+    classical: &X25519,
+    post_quantum: &mlkem::MlKem768,
+    layout: hybrid::Layout {
+        classical_share_len: 32,
+        post_quantum_first: true,
+        post_quantum_client_share_len: mlkem::MlKem768::ENCAPS_LEN,
+        post_quantum_server_share_len: mlkem::MlKem768::CIPHERTEXT_LEN,
+    },
+    name: NamedGroup::X25519MLKEM768,
+};
