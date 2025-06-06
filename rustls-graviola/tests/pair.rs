@@ -57,19 +57,36 @@ fn all_suites() {
 
 #[test]
 fn all_key_exchanges() {
-    test_key_exchange(&rustls_graviola::kx::X25519, KeyType::Rsa2048);
-    test_key_exchange(&rustls_graviola::kx::P256, KeyType::Rsa2048);
-    test_key_exchange(&rustls_graviola::kx::P384, KeyType::Rsa2048);
+    test_key_exchange(
+        rustls_graviola::kx::X25519MLKEM768,
+        OtherProvider::SelfTest, // not supported by *ring*
+        KeyType::Rsa2048,
+    );
+    test_key_exchange(
+        &rustls_graviola::kx::X25519,
+        OtherProvider::Baseline,
+        KeyType::Rsa2048,
+    );
+    test_key_exchange(
+        &rustls_graviola::kx::P256,
+        OtherProvider::Baseline,
+        KeyType::Rsa2048,
+    );
+    test_key_exchange(
+        &rustls_graviola::kx::P384,
+        OtherProvider::Baseline,
+        KeyType::Rsa2048,
+    );
 }
 
-fn test_key_exchange(kx: &'static dyn SupportedKxGroup, key_type: KeyType) {
+fn test_key_exchange(kx: &'static dyn SupportedKxGroup, other: OtherProvider, key_type: KeyType) {
     let provider: Arc<_> = CryptoProvider {
         kx_groups: vec![kx],
         ..rustls_graviola::default_provider()
     }
     .into();
-    test_client(provider.clone(), key_type);
-    test_server(provider, key_type);
+    test_client(provider.clone(), other, key_type);
+    test_server(provider, other, key_type);
 }
 
 fn test_suite(suite: rustls::SupportedCipherSuite, key_type: KeyType) {
@@ -78,12 +95,12 @@ fn test_suite(suite: rustls::SupportedCipherSuite, key_type: KeyType) {
         ..rustls_graviola::default_provider()
     }
     .into();
-    test_client(provider.clone(), key_type);
-    test_server(provider, key_type);
+    test_client(provider.clone(), OtherProvider::Baseline, key_type);
+    test_server(provider, OtherProvider::Baseline, key_type);
 }
 
-fn test_client(provider: Arc<CryptoProvider>, key_type: KeyType) {
-    let server_config = server_config(baseline().into(), key_type);
+fn test_client(provider: Arc<CryptoProvider>, other: OtherProvider, key_type: KeyType) {
+    let server_config = server_config(other.into_provider(), key_type);
     let client_config = client_config(provider.clone(), key_type);
 
     assert!(matches!(
@@ -99,9 +116,9 @@ fn test_client(provider: Arc<CryptoProvider>, key_type: KeyType) {
     println!("RESUMED: client with {:?} {:?} OK", provider, key_type);
 }
 
-fn test_server(provider: Arc<CryptoProvider>, key_type: KeyType) {
+fn test_server(provider: Arc<CryptoProvider>, other: OtherProvider, key_type: KeyType) {
     let server_config = server_config(provider.clone(), key_type);
-    let client_config = client_config(baseline().into(), key_type);
+    let client_config = client_config(other.into_provider(), key_type);
 
     assert!(matches!(
         exercise(client_config.clone(), server_config.clone()),
@@ -226,5 +243,20 @@ impl KeyType {
             )
             .unwrap();
         roots.into()
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+enum OtherProvider {
+    Baseline,
+    SelfTest,
+}
+
+impl OtherProvider {
+    fn into_provider(self) -> Arc<CryptoProvider> {
+        match self {
+            Self::Baseline => baseline().into(),
+            Self::SelfTest => rustls_graviola::default_provider().into(),
+        }
     }
 }
