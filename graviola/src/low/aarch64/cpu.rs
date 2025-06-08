@@ -252,3 +252,113 @@ pub(in crate::low) fn prefetch_rw<T>(ptr: *const T) {
         );
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn leave_cpu_state_clears_vector_regs() {
+        #[target_feature(enable = "neon")]
+        #[inline]
+        unsafe fn fill_regs() {
+            // SAFETY: test code
+            core::arch::asm!(
+                "   cmeq v0.4s, v0.4s, v0.4s",
+                "   cmeq v1.4s, v1.4s, v1.4s",
+                "   cmeq v2.4s, v2.4s, v2.4s",
+                "   cmeq v3.4s, v3.4s, v3.4s",
+                "   cmeq v4.4s, v4.4s, v4.4s",
+                "   cmeq v5.4s, v5.4s, v5.4s",
+                "   cmeq v6.4s, v6.4s, v6.4s",
+                "   cmeq v7.4s, v7.4s, v7.4s",
+                "   cmeq v8.4s, v8.4s, v8.4s",
+                "   cmeq v9.4s, v9.4s, v9.4s",
+                "   cmeq v10.4s, v10.4s, v10.4s",
+                "   cmeq v11.4s, v11.4s, v11.4s",
+                "   cmeq v12.4s, v12.4s, v12.4s",
+                "   cmeq v13.4s, v13.4s, v13.4s",
+                "   cmeq v14.4s, v14.4s, v14.4s",
+                "   cmeq v15.4s, v15.4s, v15.4s",
+                "   cmeq v16.4s, v16.4s, v16.4s",
+                "   cmeq v17.4s, v17.4s, v17.4s",
+                "   cmeq v18.4s, v18.4s, v18.4s",
+                "   cmeq v19.4s, v19.4s, v19.4s",
+                "   cmeq v20.4s, v20.4s, v20.4s",
+                "   cmeq v21.4s, v21.4s, v21.4s",
+                "   cmeq v22.4s, v22.4s, v22.4s",
+                "   cmeq v23.4s, v23.4s, v23.4s",
+                "   cmeq v24.4s, v24.4s, v24.4s",
+                "   cmeq v25.4s, v25.4s, v25.4s",
+                "   cmeq v26.4s, v26.4s, v26.4s",
+                "   cmeq v27.4s, v27.4s, v27.4s",
+                "   cmeq v28.4s, v28.4s, v28.4s",
+                "   cmeq v29.4s, v29.4s, v29.4s",
+                "   cmeq v30.4s, v30.4s, v30.4s",
+                "   cmeq v31.4s, v31.4s, v31.4s",
+            )
+        }
+
+        #[target_feature(enable = "neon")]
+        #[inline]
+        fn read_neon_regs() -> [u128; 32] {
+            let mut out = [0u128; 32];
+
+            macro_rules! check_reg {
+                ($reg:literal) => { Q!(
+                    "   st1 {{" $reg ".16b}}, [{ptr}];\n"
+                    "   add {ptr}, {ptr}, #16;\n"
+                )}
+            }
+
+            // SAFETY: test code
+            unsafe {
+                core::arch::asm!(
+                    check_reg!("v0"),
+                    check_reg!("v1"),
+                    check_reg!("v2"),
+                    check_reg!("v3"),
+                    check_reg!("v4"),
+                    check_reg!("v5"),
+                    check_reg!("v6"),
+                    check_reg!("v7"),
+                    check_reg!("v8"),
+                    check_reg!("v9"),
+                    check_reg!("v10"),
+                    check_reg!("v11"),
+                    check_reg!("v12"),
+                    check_reg!("v13"),
+                    check_reg!("v14"),
+                    check_reg!("v15"),
+                    check_reg!("v16"),
+                    check_reg!("v17"),
+                    check_reg!("v18"),
+                    check_reg!("v19"),
+                    check_reg!("v20"),
+                    check_reg!("v21"),
+                    check_reg!("v22"),
+                    check_reg!("v23"),
+                    check_reg!("v24"),
+                    check_reg!("v25"),
+                    check_reg!("v26"),
+                    check_reg!("v27"),
+                    check_reg!("v28"),
+                    check_reg!("v29"),
+                    check_reg!("v30"),
+                    check_reg!("v31"),
+
+                    ptr = in(reg) out.as_mut_ptr(),
+                )
+            }
+            out
+        }
+
+        // SAFETY: test code
+        unsafe {
+            fill_regs();
+            assert_eq!(read_neon_regs(), [u128::MAX; 32]);
+            leave_cpu_state(0);
+            assert_eq!(read_neon_regs(), [0; 32]);
+        }
+    }
+}
