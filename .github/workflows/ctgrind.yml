@@ -6,6 +6,10 @@ on:
   schedule:
     - cron: "0 18 * * *"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   VALGRIND_BUG_494162: 1
