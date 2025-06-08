@@ -199,3 +199,97 @@ pub(crate) fn verify_cpu_features() {
     // there are more features required, but (eg)
     // ssse3 is implied by avx.
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn leave_cpu_state_clears_vector_regs() {
+        #[target_feature(enable = "avx2")]
+        #[inline]
+        fn fill_regs() {
+            // SAFETY: test code
+            unsafe {
+                core::arch::asm!(
+                    "   vpcmpeqd ymm0, ymm0, ymm0",
+                    "   vpcmpeqd ymm1, ymm1, ymm1",
+                    "   vpcmpeqd ymm2, ymm2, ymm2",
+                    "   vpcmpeqd ymm3, ymm3, ymm3",
+                    "   vpcmpeqd ymm4, ymm4, ymm4",
+                    "   vpcmpeqd ymm5, ymm5, ymm5",
+                    "   vpcmpeqd ymm6, ymm6, ymm6",
+                    "   vpcmpeqd ymm7, ymm7, ymm7",
+                    "   vpcmpeqd ymm8, ymm8, ymm8",
+                    "   vpcmpeqd ymm9, ymm9, ymm9",
+                    "   vpcmpeqd ymm10, ymm10, ymm10",
+                    "   vpcmpeqd ymm11, ymm11, ymm11",
+                    "   vpcmpeqd ymm12, ymm12, ymm12",
+                    "   vpcmpeqd ymm13, ymm13, ymm13",
+                    "   vpcmpeqd ymm14, ymm14, ymm14",
+                    "   vpcmpeqd ymm15, ymm15, ymm15",
+                )
+            }
+        }
+
+        #[target_feature(enable = "avx2")]
+        #[inline]
+        fn which_regs_are_zero() -> u64 {
+            let mut out: u64;
+
+            macro_rules! check_reg {
+                ($reg:literal) => { Q!(
+                    "   shl {out}, 1;\n"
+                    "   mov {tmp}, {out};\n"
+                    "   inc {tmp};\n"
+                    "   vptest " $reg "," $reg ";\n"
+                    "   cmovz {out}, {tmp};\n"
+                )}
+            }
+
+            // SAFETY: test code
+            unsafe {
+                core::arch::asm!(
+                    "   mov {out}, 0",
+                    check_reg!("ymm15"),
+                    check_reg!("ymm14"),
+                    check_reg!("ymm13"),
+                    check_reg!("ymm12"),
+                    check_reg!("ymm11"),
+                    check_reg!("ymm10"),
+                    check_reg!("ymm9"),
+                    check_reg!("ymm8"),
+                    check_reg!("ymm7"),
+                    check_reg!("ymm6"),
+                    check_reg!("ymm5"),
+                    check_reg!("ymm4"),
+                    check_reg!("ymm3"),
+                    check_reg!("ymm2"),
+                    check_reg!("ymm1"),
+                    check_reg!("ymm0"),
+
+                    out = out(reg) out,
+                    tmp = out(reg) _,
+                )
+            }
+            out
+        }
+
+        // SAFETY: test code
+        unsafe {
+            fill_regs();
+            assert_eq!(which_regs_are_zero(), 0);
+            leave_cpu_state(0);
+            assert!(matches!(
+                which_regs_are_zero(),
+                ALL_CALLER_SAVE_YMM_REGISTERS | ALL_CALLER_SAVE_YMM_REGISTERS_WINDOWS
+            ));
+        }
+    }
+
+    // see https://learn.microsoft.com/en-us/cpp/build/x64-software-conventions?view=msvc-170
+    // XMM0-XMM5 inclusive are caller-save.  both of these are possible, depending on whether
+    // `leave_cpu_state` is inlined.
+    const ALL_CALLER_SAVE_YMM_REGISTERS_WINDOWS: u64 = 0b0000_0000_0011_1111;
+    const ALL_CALLER_SAVE_YMM_REGISTERS: u64 = 0b1111_1111_1111_1111;
+}
