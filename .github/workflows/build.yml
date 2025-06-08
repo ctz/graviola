@@ -15,10 +15,16 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
+            rustc: stable
+          - os: ubuntu-latest
+            rustc: nightly
           - os: macos-latest
+            rustc: stable
           - os: windows-latest
+            rustc: stable
           - os: ubuntu-latest
             cross: aarch64-unknown-linux-gnu
+            rustc: stable
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -27,10 +33,10 @@ jobs:
           submodules: true
           persist-credentials: false
 
-      - name: Install stable toolchain
+      - name: Install ${{ matrix.rustc }} toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.rustc }}
 
       - name: Install NASM for aws-lc-rs on Windows
         if: runner.os == 'Windows'
@@ -45,6 +51,10 @@ jobs:
         uses: taiki-e/setup-cross-toolchain-action@v1
         with:
           target: ${{ matrix.cross }}
+
+      - name: Set RUSTFLAGS for nightly
+        if: matrix.rustc == 'nightly'
+        run: echo "RUSTFLAGS=--cfg=graviola_nightly" >> $GITHUB_ENV
 
       - name: Build (debug)
         run: cargo build -p graviola
@@ -61,3 +71,4 @@ jobs:
         run: |
           # test software fallbacks for sha256 and sha512
           env GRAVIOLA_CPU_DISABLE_sha=1 GRAVIOLA_CPU_DISABLE_bmi2=1 cargo test
+          env GRAVIOLA_CPU_DISABLE_avx512f=1 GRAVIOLA_CPU_DISABLE_vaes=1 cargo test
