@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+
+import subprocess, json, os, sys, glob
+
+# excludes 32-bit only parts
+KNOWN_CPUS = [
+    ("-p4p", "Pentium4 Prescott"),
+    ("-mrm", "Merom"),
+    ("-pnr", "Penryn"),
+    ("-nhm", "Nehalem"),
+    ("-wsm", "Westmere"),
+    ("-snb", "Sandy Bridge"),
+    ("-ivb", "Ivy Bridge"),
+    ("-hsw", "Haswell"),
+    ("-bdw", "Broadwell"),
+    ("-slt", "Saltwell"),
+    ("-slm", "Silvermont"),
+    ("-glm", "Goldmont"),
+    ("-glp", "Goldmont Plus"),
+    ("-tnt", "Tremont"),
+    ("-snr", "Snow Ridge"),
+    ("-skl", "Skylake"),
+    ("-cnl", "Cannon Lake"),
+    ("-icl", "Ice Lake"),
+    ("-skx", "Skylake server"),
+    ("-clx", "Cascade Lake"),
+    ("-cpx", "Cooper Lake"),
+    ("-icx", "Ice Lake server"),
+    ("-tgl", "Tiger Lake"),
+    ("-adl", "Alder Lake"),
+    ("-mtl", "Meteor Lake"),
+    ("-rpl", "Raptor Lake"),
+    ("-spr", "Sapphire Rapids"),
+    ("-emr", "Emerald Rapids"),
+    ("-gnr", "Granite Rapids"),
+    ("-gnr256", "Granite Rapids (AVX10.1 / 256VL)"),
+    ("-dmr", "Diamond Rapids"),
+    ("-srf", "Sierra Forest"),
+    ("-arl", "Arrow Lake"),
+    ("-lnl", "Lunar Lake"),
+    ("-ptl", "Panther Lake"),
+    ("-cwf", "Clearwater Forest"),
+]
+
+_, mode = sys.argv
+
+if mode == "sde-scan":
+    output = []
+    env = os.environ.copy()
+
+    for i, (flag, name) in enumerate(KNOWN_CPUS):
+        env["CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER"] = "sde {} --".format(flag)
+        out = subprocess.check_output(
+            ["cargo", "run", "--bin", "x86-cpuid"], env=env, encoding="utf-8"
+        )
+        js = json.loads(out)
+        json.dump(
+            dict(name="Intel " + name, source="Intel SDE " + flag, result=js),
+            open("admin/x86-cpus/intel-{:02d}{}.json".format(i + 1, flag), "w"),
+        )
+elif mode == "markdown-table":
+    data = []
+    for f in sorted(glob.glob("admin/x86-cpus/*.json")):
+        js = json.load(open(f))
+        data.append(js)
+
+    print("| Name | Supported? | AVX512-AES-GCM? | Details |")
+    print("| --- | --- | --- | --- |")
+
+    def tick(b):
+        return ":large_blue_circle:" if b else ":white_circle:"
+
+    def detail(x):
+        r = []
+        for n, v in sorted(x.items()):
+            if v:
+                r.append(n)
+            else:
+                r.append(f"~~{n}~~")
+        return ", ".join(r)
+
+    for d in data:
+        print(
+            "| {} | {} | {} | {} |".format(
+                d["name"],
+                tick(d["result"]["compatible"]),
+                tick(d["result"]["supports_avx512_aes_gcm"]),
+                detail(d["result"]["cpuid"]),
+            )
+        )
+
+
+# GRAVIOLA_MINIMUM = "Skylake"
+# past_minimum = False
+#
+# for flag, name in KNOWN_CPUS:
+#     if not past_minimum and name == GRAVIOLA_MINIMUM:
+#         past_minimum = True
+#     if past_minimum:
+#         print(f"""      - name: Check {name}
+#         run: cargo test --release
+#         env:
+#           CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde {flag} --"
+# """)
+# """

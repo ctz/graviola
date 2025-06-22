@@ -1,0 +1,1 @@
+{"name": "Intel Sierra Forest", "source": "Intel SDE -srf", "result": {"cpuid": {"aes": 1, "pclmulqdq": 1, "bmi1": 1, "bmi2": 1, "adx": 1, "avx": 1, "avx2": 1, "ssse3": 1, "sha": 1, "avx512f": 0, "avx512bw": 0, "vaes": 1}, "compatible": 1, "supports_avx512_aes_gcm": 0}}
