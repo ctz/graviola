@@ -1,0 +1,155 @@
+name: x86-cpu
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 18 * * *"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    strategy:
+      matrix:
+        include:
+          - rustc: stable
+          - rustc: nightly
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ctz/intel-sde
+          path: thirdparty/intel-sde
+          persist-credentials: false
+
+      - name: Set up Intel SDE
+        run: |
+          echo "PATH=$(pwd)/thirdparty/intel-sde:$PATH" >> $GITHUB_ENV
+
+      - name: Install ${{ matrix.rustc }} toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rustc }}
+
+      - name: Set RUSTFLAGS for nightly
+        if: matrix.rustc == 'nightly'
+        run: echo "RUSTFLAGS=--cfg=graviola_nightly" >> $GITHUB_ENV
+
+      - name: Install valgrind
+        run: sudo apt-get update && sudo apt-get install -y valgrind
+
+      - name: Build (release)
+        run: cargo build --release --tests
+
+      - name: Check Skylake
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -skl --"
+
+      - name: Check Cannon Lake
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -cnl --"
+
+      - name: Check Ice Lake
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -icl --"
+
+      - name: Check Skylake server
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -skx --"
+
+      - name: Check Cascade Lake
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -clx --"
+
+      - name: Check Cooper Lake
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -cpx --"
+
+      - name: Check Ice Lake server
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -icx --"
+
+      - name: Check Tiger Lake
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -tgl --"
+
+      - name: Check Alder Lake
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -adl --"
+
+      - name: Check Meteor Lake
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -mtl --"
+
+      - name: Check Raptor Lake
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -rpl --"
+
+      - name: Check Sapphire Rapids
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -spr --"
+
+      - name: Check Emerald Rapids
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -emr --"
+
+      - name: Check Granite Rapids
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -gnr --"
+
+      - name: Check Granite Rapids (AVX10.1 / 256VL)
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -gnr256 --"
+
+      - name: Check Diamond Rapids
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -dmr --"
+
+      - name: Check Sierra Forest
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -srf --"
+
+      - name: Check Arrow Lake
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -arl --"
+
+      - name: Check Lunar Lake
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -lnl --"
+
+      - name: Check Panther Lake
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -ptl --"
+
+      - name: Check Clearwater Forest
+        run: cargo test --release
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -cwf --"
