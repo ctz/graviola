@@ -1,0 +1,22 @@
+{
+  "name": "AMD Zen 4",
+  "source": "AMD Ryzen 9 7940HS w/ Radeon 780M Graphics",
+  "result": {
+    "cpuid": {
+      "aes": 1,
+      "pclmulqdq": 1,
+      "bmi1": 1,
+      "bmi2": 1,
+      "adx": 1,
+      "avx": 1,
+      "avx2": 1,
+      "ssse3": 1,
+      "sha": 1,
+      "avx512f": 1,
+      "avx512bw": 1,
+      "vaes": 1
+    },
+    "compatible": 1,
+    "supports_avx512_aes_gcm": 1
+  }
+}

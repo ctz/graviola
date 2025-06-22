@@ -5,6 +5,7 @@ members = [
   "graviola-bench",
   "rustls-graviola",
   "fuzz",
+  "x86-cpuid"
 ]
 
 [profile.bench]
