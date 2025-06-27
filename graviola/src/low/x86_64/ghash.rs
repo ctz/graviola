@@ -312,10 +312,7 @@ mod tests {
         let fb = b.into_bytes();
 
         if fa != fb {
-            panic!(
-                "for input: {:02x?}:\n\n impl  {:02x?}\n    !=\nmodel  {:02x?}",
-                input, fa, fb
-            );
+            panic!("for input: {input:02x?}:\n\n impl  {fa:02x?}\n    !=\nmodel  {fb:02x?}");
         }
     }
 }

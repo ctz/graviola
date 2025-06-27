@@ -23,7 +23,7 @@ use tokio_rustls::TlsAcceptor;
 fn main() {
     // Serve an echo service over HTTPS, with proper error handling.
     if let Err(e) = run_server() {
-        eprintln!("FAILED: {}", e);
+        eprintln!("FAILED: {e}");
         std::process::exit(1);
     }
 }
@@ -56,7 +56,7 @@ async fn run_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Load private key.
     let key = load_private_key(&key_file)?;
 
-    println!("Starting to serve on https://{}", addr);
+    println!("Starting to serve on https://{addr}");
 
     // Create a TCP listener via tokio.
     let incoming = TcpListener::bind(&addr).await?;
@@ -117,8 +117,8 @@ async fn echo(req: Request<Incoming>) -> Result<Response<Full<Bytes>>, hyper::Er
 // Load public certificate from file.
 fn load_certs(filename: &str) -> io::Result<Vec<CertificateDer<'static>>> {
     // Open certificate file.
-    let certfile = fs::File::open(filename)
-        .map_err(|e| error(format!("failed to open {}: {}", filename, e)))?;
+    let certfile =
+        fs::File::open(filename).map_err(|e| error(format!("failed to open {filename}: {e}")))?;
     let mut reader = io::BufReader::new(certfile);
 
     // Load and return certificate.
@@ -128,8 +128,8 @@ fn load_certs(filename: &str) -> io::Result<Vec<CertificateDer<'static>>> {
 // Load private key from file.
 fn load_private_key(filename: &str) -> io::Result<PrivateKeyDer<'static>> {
     // Open keyfile.
-    let keyfile = fs::File::open(filename)
-        .map_err(|e| error(format!("failed to open {}: {}", filename, e)))?;
+    let keyfile =
+        fs::File::open(filename).map_err(|e| error(format!("failed to open {filename}: {e}")))?;
     let mut reader = io::BufReader::new(keyfile);
 
     // Load and return a single private key.

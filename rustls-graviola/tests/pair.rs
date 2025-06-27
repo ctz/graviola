@@ -107,13 +107,13 @@ fn test_client(provider: Arc<CryptoProvider>, other: OtherProvider, key_type: Ke
         exercise(client_config.clone(), server_config.clone()),
         HandshakeKind::Full | HandshakeKind::FullWithHelloRetryRequest
     ));
-    println!("FULL: client with {:?} {:?} OK", provider, key_type);
+    println!("FULL: client with {provider:?} {key_type:?} OK");
 
     assert_eq!(
         exercise(client_config.clone(), server_config.clone()),
         HandshakeKind::Resumed
     );
-    println!("RESUMED: client with {:?} {:?} OK", provider, key_type);
+    println!("RESUMED: client with {provider:?} {key_type:?} OK");
 }
 
 fn test_server(provider: Arc<CryptoProvider>, other: OtherProvider, key_type: KeyType) {
@@ -124,13 +124,13 @@ fn test_server(provider: Arc<CryptoProvider>, other: OtherProvider, key_type: Ke
         exercise(client_config.clone(), server_config.clone()),
         HandshakeKind::Full | HandshakeKind::FullWithHelloRetryRequest
     ));
-    println!("FULL: server with {:?} {:?} OK", provider, key_type);
+    println!("FULL: server with {provider:?} {key_type:?} OK");
 
     assert_eq!(
         exercise(client_config, server_config),
         HandshakeKind::Resumed
     );
-    println!("RESUMED: server with {:?} {:?} OK", provider, key_type);
+    println!("RESUMED: server with {provider:?} {key_type:?} OK");
 }
 
 fn server_config(provider: Arc<CryptoProvider>, key_type: KeyType) -> Arc<ServerConfig> {

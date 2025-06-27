@@ -343,7 +343,7 @@ mod tests {
 
     fn read_hex_lines_from_file(data: &str) -> impl Iterator<Item = Vec<u8>> + '_ {
         data.lines()
-            .inspect(|line| println!("Processing line: {}", line))
+            .inspect(|line| println!("Processing line: {line}"))
             .filter(|line| !line.starts_with("#"))
             .map(|line| {
                 (0..line.len())

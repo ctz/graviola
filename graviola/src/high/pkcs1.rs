@@ -272,7 +272,7 @@ mod tests {
             v
         };
 
-        println!("correct: {:#04x?}", correct);
+        println!("correct: {correct:#04x?}");
         assert_eq!(actual, correct);
     }
 
@@ -298,7 +298,7 @@ mod tests {
             v
         };
 
-        println!("correct: {:#04x?}", correct);
+        println!("correct: {correct:#04x?}");
         assert_eq!(actual, correct);
     }
 
@@ -324,7 +324,7 @@ mod tests {
             v
         };
 
-        println!("correct: {:#04x?}", correct);
+        println!("correct: {correct:#04x?}");
         assert_eq!(actual, correct);
     }
 

@@ -1133,16 +1133,16 @@ mod tests {
     fn generate_key_1() {
         let scalar = Scalar::small_u64(1);
         let r = CURVE_GENERATOR.slow_multiply(&scalar);
-        println!("raw {:x?}", r);
+        println!("raw {r:x?}");
         println!("fmt {:x?}", r.as_bytes_uncompressed());
     }
 
     #[test]
     fn point_double() {
         let mut p = JacobianMontPoint::from_affine(&CURVE_GENERATOR);
-        println!("p = {:x?}", p);
+        println!("p = {p:x?}");
         p = p.double();
-        println!("p2 = {:x?}", p);
+        println!("p2 = {p:x?}");
         println!("p2 aff = {:x?}", p.as_affine());
         println!("enc = {:x?}", p.as_affine().as_bytes_uncompressed());
     }
@@ -1151,7 +1151,7 @@ mod tests {
     fn generate_key_2() {
         let scalar = Scalar::small_u64(2);
         let r = CURVE_GENERATOR.slow_multiply(&scalar);
-        println!("raw {:x?}", r);
+        println!("raw {r:x?}");
         println!("fmt {:x?}", r.as_bytes_uncompressed());
     }
 
@@ -1159,11 +1159,11 @@ mod tests {
     fn generate_key_3() {
         let scalar = Scalar::small_u64(3);
         let r = JacobianMontPoint::base_multiply(&scalar).as_affine();
-        println!("raw {:x?}", r);
+        println!("raw {r:x?}");
         println!("fmt {:x?}", r.as_bytes_uncompressed());
 
         let u = CURVE_GENERATOR.slow_multiply(&scalar);
-        println!("raw {:x?}", u);
+        println!("raw {u:x?}");
         println!("fmt {:x?}", u.as_bytes_uncompressed());
     }
 
@@ -1171,11 +1171,11 @@ mod tests {
     fn generate_key_99999999() {
         let scalar = Scalar::small_u64(99999999);
         let r = JacobianMontPoint::base_multiply(&scalar).as_affine();
-        println!("raw {:x?}", r);
+        println!("raw {r:x?}");
         println!("fmt {:x?}", r.as_bytes_uncompressed());
 
         let u = CURVE_GENERATOR.slow_multiply(&scalar);
-        println!("raw {:x?}", u);
+        println!("raw {u:x?}");
         println!("fmt {:x?}", u.as_bytes_uncompressed());
     }
 
@@ -1183,9 +1183,9 @@ mod tests {
     fn generate_key_known_answer() {
         let bytes = b"\x1F\x55\x45\x23\x08\x50\x8C\x6B\x24\x37\x0F\x22\x1E\xF1\xB3\xF9\x54\x46\xBE\x4F\x8A\x4B\x42\x8A\x5B\x51\xB7\x10\xC2\x68\x4C\x03";
         let private = PrivateKey::from_bytes(bytes).unwrap();
-        println!("priv = {:x?}", private);
+        println!("priv = {private:x?}");
         let public = private.public_key_uncompressed();
-        println!("pub = {:x?}", public);
+        println!("pub = {public:x?}");
         assert_eq!(&public,
                b"\x04\xcb\x8a\x14\x1c\xd7\xe4\x07\xaf\x69\xa5\x01\x88\xe9\x1c\xe5\x5d\xcc\xfd\x33\x48\xda\xba\x4a\x9c\x46\x64\x33\x2e\x95\x59\xb6\x81\x44\xfc\x1a\x61\xd8\x41\xe4\xdb\x80\x1b\x33\x51\x20\x12\x1d\x0b\xa4\x84\xb3\xc9\x53\xb3\x1d\x35\x1d\x7f\xa2\x13\x97\xd1\x25\x47");
     }
@@ -1264,7 +1264,7 @@ mod tests {
             println!("    [");
             for column in row {
                 for w in column.xy {
-                    println!("            0x{:016x}, ", w);
+                    println!("            0x{w:016x}, ");
                 }
             }
             println!("    ],");

@@ -102,10 +102,10 @@ mod tests {
 
         let k = RsaPublicKey::new(n, 0x10001).unwrap();
         let m = k.public_op(c).unwrap();
-        println!("m = {:016x?}", m);
+        println!("m = {m:016x?}");
 
         let mut mb = [0; 256];
         let mb = m.to_bytes(&mut mb).unwrap();
-        println!("m = {:02x?}", mb);
+        println!("m = {mb:02x?}");
     }
 }
