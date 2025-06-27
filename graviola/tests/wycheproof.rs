@@ -583,7 +583,7 @@ fn test_rsa_pkcs1_verify() {
             summary.group(&group);
 
             let key = rsa::VerifyingKey::from_pkcs1_der(&group.public_key_asn).unwrap();
-            println!("key is {:?}", key);
+            println!("key is {key:?}");
 
             for test in group.tests {
                 summary.start(&test);
@@ -630,7 +630,7 @@ fn test_rsa_pss_verify() {
             summary.group(&group);
 
             let key = rsa::VerifyingKey::from_pkcs1_der(&group.public_key_asn).unwrap();
-            println!("key is {:?}", key);
+            println!("key is {key:?}");
 
             match (group.sha.as_ref(), group.mgf_sha.as_ref(), group.salt_len) {
                 ("SHA-256", "SHA-256", 32) => {}

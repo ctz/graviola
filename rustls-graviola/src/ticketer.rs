@@ -158,7 +158,7 @@ mod tests {
         let g = make_ticket_generator().unwrap();
         assert!(g.enabled());
         assert_eq!(g.lifetime(), ONE_TICKET_LIFETIME_SECS);
-        println!("{:?}", g);
+        println!("{g:?}");
     }
 
     #[test]
