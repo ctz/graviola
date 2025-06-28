@@ -6,6 +6,8 @@
 use core::arch::x86_64::*;
 use core::mem;
 
+use crate::low::ghash::GhashTable;
+
 use super::aes::AesKey;
 use super::ghash::{self, Ghash};
 
@@ -65,6 +67,7 @@ unsafe fn _cipher<const ENC: bool>(
 
     let mut counter = Counter::new(initial_counter);
     let mut by8_iter = cipher_inout.chunks_exact_mut(128);
+    let GhashTable::Avx(avx_ghash_table) = ghash.table;
 
     for blocks in by8_iter.by_ref() {
         // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
@@ -154,7 +157,7 @@ unsafe fn _cipher<const ENC: bool>(
             let a8 = _mm_shuffle_epi8(a8, BYTESWAP);
 
             let a1 = _mm_xor_si128(ghash.current, a1);
-            ghash.current = ghash::_mul8(ghash.table, a1, a2, a3, a4, a5, a6, a7, a8);
+            ghash.current = ghash::_mul8(avx_ghash_table, a1, a2, a3, a4, a5, a6, a7, a8);
         }
     }
 
@@ -234,6 +237,7 @@ unsafe fn _cipher_avx512<const ENC: bool>(
 
     let mut counter = Counter512::new(initial_counter);
     let mut by16_iter = cipher_inout.chunks_exact_mut(256);
+    let GhashTable::Avx(ghash_avx) = ghash.table;
 
     for blocks in by16_iter.by_ref() {
         // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
@@ -299,7 +303,7 @@ unsafe fn _cipher_avx512<const ENC: bool>(
                 let a8 = _mm512_extracti32x4_epi32::<3>(k);
 
                 let a1 = _mm_xor_si128(ghash.current, a1);
-                ghash.current = ghash::_mul8(ghash.table, a1, a2, a3, a4, a5, a6, a7, a8);
+                ghash.current = ghash::_mul8(ghash_avx, a1, a2, a3, a4, a5, a6, a7, a8);
             }
         }
     }
