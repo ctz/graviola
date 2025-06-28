@@ -125,6 +125,9 @@ macro_rules! have_cpu_feature {
     ("pclmulqdq") => {
         crate::low::x86_64::cpu::test_toggle("pclmulqdq", is_x86_feature_detected!("pclmulqdq"))
     };
+    ("vpclmulqdq") => {
+        crate::low::x86_64::cpu::test_toggle("vpclmulqdq", is_x86_feature_detected!("vpclmulqdq"))
+    };
     ("bmi1") => {
         crate::low::x86_64::cpu::test_toggle("bmi1", is_x86_feature_detected!("bmi1"))
     };
