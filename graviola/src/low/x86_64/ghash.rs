@@ -12,7 +12,17 @@ use core::mem;
 
 use crate::low;
 
-pub(crate) struct GhashTable {
+pub(crate) enum GhashTable {
+    Avx(GhashTableAvx),
+}
+
+impl GhashTable {
+    pub(crate) fn new(h: u128) -> Self {
+        Self::Avx(GhashTableAvx::new(h))
+    }
+}
+
+pub(crate) struct GhashTableAvx {
     /// H, H^2, H^3, H^4, ... H^8
     powers: [__m128i; 8],
 
@@ -22,7 +32,7 @@ pub(crate) struct GhashTable {
     powers_xor: [__m128i; 8],
 }
 
-impl GhashTable {
+impl GhashTableAvx {
     pub(crate) fn new(h: u128) -> Self {
         let mut powers = [zero(); 8];
         let mut powers_xor = powers;
@@ -44,9 +54,41 @@ impl GhashTable {
 
         Self { powers, powers_xor }
     }
+
+    fn add_wide<'a>(&self, bytes: &'a [u8], mut current: __m128i) -> (__m128i, &'a [u8]) {
+        let mut eight_blocks = bytes.chunks_exact(128);
+
+        for chunk8 in eight_blocks.by_ref() {
+            let u1 = u128::from_be_bytes(chunk8[0..16].try_into().unwrap());
+            let u2 = u128::from_be_bytes(chunk8[16..32].try_into().unwrap());
+            let u3 = u128::from_be_bytes(chunk8[32..48].try_into().unwrap());
+            let u4 = u128::from_be_bytes(chunk8[48..64].try_into().unwrap());
+            let u5 = u128::from_be_bytes(chunk8[64..80].try_into().unwrap());
+            let u6 = u128::from_be_bytes(chunk8[80..96].try_into().unwrap());
+            let u7 = u128::from_be_bytes(chunk8[96..112].try_into().unwrap());
+            let u8 = u128::from_be_bytes(chunk8[112..128].try_into().unwrap());
+
+            let b1 = u128_to_m128i(u1);
+            let b2 = u128_to_m128i(u2);
+            let b3 = u128_to_m128i(u3);
+            let b4 = u128_to_m128i(u4);
+            let b5 = u128_to_m128i(u5);
+            let b6 = u128_to_m128i(u6);
+            let b7 = u128_to_m128i(u7);
+            let b8 = u128_to_m128i(u8);
+
+            // SAFETY: this crate requires the `avx` and `pclmulqdq` cpu features
+            unsafe {
+                let b1 = _mm_xor_si128(current, b1);
+                current = _mul8(self, b1, b2, b3, b4, b5, b6, b7, b8);
+            }
+        }
+
+        (current, eight_blocks.remainder())
+    }
 }
 
-impl Drop for GhashTable {
+impl Drop for GhashTableAvx {
     fn drop(&mut self) {
         low::zeroise(&mut self.powers);
         low::zeroise(&mut self.powers_xor);
@@ -69,31 +111,11 @@ impl<'a> Ghash<'a> {
     /// Input `bytes` to the computation.
     ///
     /// `bytes` is zero-padded, if required.
-    pub(crate) fn add(&mut self, bytes: &[u8]) {
-        let mut eight_blocks = bytes.chunks_exact(128);
+    pub(crate) fn add(&mut self, mut bytes: &[u8]) {
+        (self.current, bytes) = match self.table {
+            GhashTable::Avx(avx) => avx.add_wide(bytes, self.current),
+        };
 
-        for chunk8 in eight_blocks.by_ref() {
-            let u1 = u128::from_be_bytes(chunk8[0..16].try_into().unwrap());
-            let u2 = u128::from_be_bytes(chunk8[16..32].try_into().unwrap());
-            let u3 = u128::from_be_bytes(chunk8[32..48].try_into().unwrap());
-            let u4 = u128::from_be_bytes(chunk8[48..64].try_into().unwrap());
-            let u5 = u128::from_be_bytes(chunk8[64..80].try_into().unwrap());
-            let u6 = u128::from_be_bytes(chunk8[80..96].try_into().unwrap());
-            let u7 = u128::from_be_bytes(chunk8[96..112].try_into().unwrap());
-            let u8 = u128::from_be_bytes(chunk8[112..128].try_into().unwrap());
-            self.eight_blocks(
-                u128_to_m128i(u1),
-                u128_to_m128i(u2),
-                u128_to_m128i(u3),
-                u128_to_m128i(u4),
-                u128_to_m128i(u5),
-                u128_to_m128i(u6),
-                u128_to_m128i(u7),
-                u128_to_m128i(u8),
-            );
-        }
-
-        let bytes = eight_blocks.remainder();
         let mut whole_blocks = bytes.chunks_exact(16);
 
         for chunk in whole_blocks.by_ref() {
@@ -128,26 +150,13 @@ impl<'a> Ghash<'a> {
         // SAFETY: this crate requires the `avx` and `pclmulqdq` cpu features
         unsafe {
             self.current = _mm_xor_si128(self.current, block);
-            self.current = _mul(self.current, self.table.powers[0]);
+            self.current = _mul(self.current, self.h());
         }
     }
 
-    #[inline]
-    pub(crate) fn eight_blocks(
-        &mut self,
-        b1: __m128i,
-        b2: __m128i,
-        b3: __m128i,
-        b4: __m128i,
-        b5: __m128i,
-        b6: __m128i,
-        b7: __m128i,
-        b8: __m128i,
-    ) {
-        // SAFETY: this crate requires the `avx` and `pclmulqdq` cpu features
-        unsafe {
-            let b1 = _mm_xor_si128(self.current, b1);
-            self.current = _mul8(self.table, b1, b2, b3, b4, b5, b6, b7, b8);
+    fn h(&self) -> __m128i {
+        match self.table {
+            GhashTable::Avx(avx) => avx.powers[0],
         }
     }
 }
@@ -201,7 +210,7 @@ unsafe fn _mul(a: __m128i, b: __m128i) -> __m128i {
 #[inline]
 #[target_feature(enable = "pclmulqdq,avx")]
 pub(crate) unsafe fn _mul8(
-    table: &GhashTable,
+    table: &GhashTableAvx,
     x1: __m128i,
     x2: __m128i,
     x3: __m128i,
