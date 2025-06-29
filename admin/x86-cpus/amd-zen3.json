@@ -1,0 +1,6 @@
+{
+  "name": "AMD Zen 3",
+  "source": "AMD Ryzen 9 5900X 12-Core Processor",
+  "result": { "cpuid": { "aes": 1, "pclmulqdq": 1, "bmi1": 1,"bmi2": 1, "adx": 1, "avx": 1, "avx2": 1,"ssse3": 1, "sha": 1, "avx512f": 0, "avx512bw": 0,"vaes": 0 },"compatible": 1, "supports_avx512_aes_gcm": 0 }
+
+}
