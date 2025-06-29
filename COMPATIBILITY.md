@@ -5,6 +5,7 @@ There are also a selection AMD CPUs that are characterised manually.
 
 | Name | Supported? | AVX512-AES-GCM? | Details |
 | --- | --- | --- | --- |
+| AMD Zen 3 | :large_blue_circle: | :white_circle: | adx, aes, avx, avx2, ~~avx512bw~~, ~~avx512f~~, bmi1, bmi2, pclmulqdq, sha, ssse3, ~~vaes~~ |
 | AMD Zen 4 | :large_blue_circle: | :large_blue_circle: | adx, aes, avx, avx2, avx512bw, avx512f, bmi1, bmi2, pclmulqdq, sha, ssse3, vaes |
 | Intel Pentium4 Prescott | :white_circle: | :white_circle: | ~~adx~~, ~~aes~~, ~~avx~~, ~~avx2~~, ~~avx512bw~~, ~~avx512f~~, ~~bmi1~~, ~~bmi2~~, ~~pclmulqdq~~, ~~sha~~, ~~ssse3~~, ~~vaes~~ |
 | Intel Merom | :white_circle: | :white_circle: | ~~adx~~, ~~aes~~, ~~avx~~, ~~avx2~~, ~~avx512bw~~, ~~avx512f~~, ~~bmi1~~, ~~bmi2~~, ~~pclmulqdq~~, ~~sha~~, ssse3, ~~vaes~~ |
