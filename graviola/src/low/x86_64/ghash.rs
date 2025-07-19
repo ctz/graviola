@@ -20,11 +20,20 @@ pub(crate) enum GhashTable {
 
 impl GhashTable {
     pub(crate) fn new(h: u128) -> Self {
+        #[cfg(graviola_nightly)]
         if super::cpu::have_cpu_feature!("vpclmulqdq") {
             return Self::Avx512(GhashTableAvx512::new(h));
         }
 
         Self::Avx(GhashTableAvx::new(h))
+    }
+
+    pub(crate) fn avx(&self) -> &GhashTableAvx {
+        match self {
+            Self::Avx(table) => table,
+            #[cfg(graviola_nightly)]
+            Self::Avx512(table) => &table.avx,
+        }
     }
 }
 
@@ -123,8 +132,6 @@ impl GhashTableAvx512 {
             powers[i] = unsafe { _mul(powers[i - 1], powers[0]) };
         }
 
-        println!("powers: {powers:x?}");
-
         let powers = [
             join512(powers[0], powers[1], powers[2], powers[3]),
             join512(powers[4], powers[5], powers[6], powers[7]),
@@ -163,6 +170,7 @@ impl GhashTableAvx512 {
     }
 }
 
+#[cfg(graviola_nightly)]
 impl Drop for GhashTableAvx512 {
     fn drop(&mut self) {
         low::zeroise(&mut self.powers);
@@ -235,11 +243,22 @@ impl<'a> Ghash<'a> {
     unsafe fn h(&self) -> __m128i {
         match self.table {
             GhashTable::Avx(avx) => avx.powers[0],
-            GhashTable::Avx512(avx512) => unsafe {
-                _mm512_extracti32x4_epi32::<0>(avx512.powers[0])
-            },
+            #[cfg(graviola_nightly)]
+            GhashTable::Avx512(avx512) => avx512.avx.powers[0],
         }
     }
+}
+
+#[cfg(graviola_nightly)]
+macro_rules! horizontal_xor {
+    ($x:expr) => {{
+        let a = _mm512_extracti32x4_epi32::<0>($x);
+        let b = _mm512_extracti32x4_epi32::<1>($x);
+        let c = _mm512_extracti32x4_epi32::<2>($x);
+        let d = _mm512_extracti32x4_epi32::<3>($x);
+        let ab = _mm_xor_si128(a, b);
+        _mm_ternarylogic_epi32(ab, c, d, 0x96)
+    }};
 }
 
 macro_rules! mul {
@@ -313,6 +332,7 @@ pub(crate) unsafe fn _mul8(
     reduce!(lo, mi, hi)
 }
 
+#[cfg(graviola_nightly)]
 #[inline]
 #[target_feature(enable = "vpclmulqdq,vpclmulqdq,avx512f,avx512vl,avx")]
 pub(crate) unsafe fn _mul16(
@@ -390,6 +410,7 @@ fn zero() -> __m128i {
     unsafe { _mm_setzero_si128() }
 }
 
+#[cfg(graviola_nightly)]
 #[inline]
 fn join512(a: __m128i, b: __m128i, c: __m128i, d: __m128i) -> __m512i {
     unsafe {
@@ -416,6 +437,10 @@ const BYTESWAP: __m128i = unsafe { mem::transmute(0x00010203_04050607_08090a0b_0
 /// We need this in a __m128i, but only the bottom 64-bits are used.
 // SAFETY: sizeof(u128) == sizeof(__m128i), all bits have same meaning
 const GF128_POLY_HI: __m128i = unsafe { mem::transmute(0xc2000000_00000000u128) };
+
+#[cfg(graviola_nightly)]
+const GF128_POLY_LO: __m128i =
+    unsafe { mem::transmute([0xc2000000_00000000_00000000_00000000u128]) };
 
 /// This is, again, R rotated left by one, but with a 2^64 term
 // SAFETY: sizeof(u128) == sizeof(__m128i), all bits have same meaning
