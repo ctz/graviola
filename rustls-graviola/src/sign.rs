@@ -74,7 +74,7 @@ impl sign::SigningKey for Rsa {
     fn choose_scheme(
         &self,
         schemes: &[SignatureScheme],
-    ) -> Option<Box<(dyn sign::Signer + 'static)>> {
+    ) -> Option<Box<dyn sign::Signer + 'static>> {
         if schemes.contains(&SignatureScheme::RSA_PSS_SHA512) {
             Some(Box::new(RsaSigner {
                 key: Arc::clone(&self.0),
@@ -171,7 +171,7 @@ impl sign::SigningKey for EcdsaP256 {
     fn choose_scheme(
         &self,
         schemes: &[SignatureScheme],
-    ) -> Option<Box<(dyn sign::Signer + 'static)>> {
+    ) -> Option<Box<dyn sign::Signer + 'static>> {
         if schemes.contains(&SignatureScheme::ECDSA_NISTP256_SHA256) {
             Some(Box::new(Self(self.0.clone())))
         } else {
@@ -221,7 +221,7 @@ impl sign::SigningKey for EcdsaP384 {
     fn choose_scheme(
         &self,
         schemes: &[SignatureScheme],
-    ) -> Option<Box<(dyn sign::Signer + 'static)>> {
+    ) -> Option<Box<dyn sign::Signer + 'static>> {
         if schemes.contains(&SignatureScheme::ECDSA_NISTP384_SHA384) {
             Some(Box::new(Self(self.0.clone())))
         } else {
