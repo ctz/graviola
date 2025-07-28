@@ -14,7 +14,9 @@
       "sha": 1,
       "avx512f": 1,
       "avx512bw": 1,
-      "vaes": 1
+      "avx512vl": 1,
+      "vaes": 1,
+      "vpclmulqdq": 1
     },
     "compatible": 1,
     "supports_avx512_aes_gcm": 1

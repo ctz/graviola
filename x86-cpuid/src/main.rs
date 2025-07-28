@@ -17,16 +17,18 @@ fn main() {
 
     let avx512f = is_x86_feature_detected!("avx512f");
     let avx512bw = is_x86_feature_detected!("avx512bw");
+    let avx512vl = is_x86_feature_detected!("avx512vl");
     let vaes = is_x86_feature_detected!("vaes");
+    let vpclmulqdq = is_x86_feature_detected!("vpclmulqdq");
 
     let compatible = aes && pclmulqdq && bmi1 && bmi2 && adx && avx && avx2 && ssse3;
-    let avx512_aes_gcm = avx512f && avx512bw && vaes;
+    let avx512_aes_gcm = avx512f && avx512bw && avx512vl && vaes && vpclmulqdq;
 
     println!(
         "{{ \"cpuid\": {{ \"aes\": {}, \"pclmulqdq\": {}, \"bmi1\": {},\
          \"bmi2\": {}, \"adx\": {}, \"avx\": {}, \"avx2\": {},\
-         \"ssse3\": {}, \"sha\": {}, \"avx512f\": {}, \"avx512bw\": {},\
-         \"vaes\": {} }},\
+         \"ssse3\": {}, \"sha\": {}, \"avx512f\": {}, \"avx512bw\": {}, \"avx512vl\": {},\
+         \"vaes\": {}, \"vpclmulqdq\": {} }},\
          \"compatible\": {}, \"supports_avx512_aes_gcm\": {} }}",
         aes as u8,
         pclmulqdq as u8,
@@ -39,7 +41,9 @@ fn main() {
         sha as u8,
         avx512f as u8,
         avx512bw as u8,
+        avx512vl as u8,
         vaes as u8,
+        vpclmulqdq as u8,
         compatible as u8,
         avx512_aes_gcm as u8,
     );

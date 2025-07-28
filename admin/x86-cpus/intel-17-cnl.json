@@ -1,1 +1,1 @@
-{"name": "Intel Cannon Lake", "source": "Intel SDE -cnl", "result": {"cpuid": {"aes": 1, "pclmulqdq": 1, "bmi1": 1, "bmi2": 1, "adx": 1, "avx": 1, "avx2": 1, "ssse3": 1, "sha": 1, "avx512f": 1, "avx512bw": 1, "vaes": 0}, "compatible": 1, "supports_avx512_aes_gcm": 0}}
+{"name": "Intel Cannon Lake", "source": "Intel SDE -cnl", "result": {"cpuid": {"aes": 1, "pclmulqdq": 1, "bmi1": 1, "bmi2": 1, "adx": 1, "avx": 1, "avx2": 1, "ssse3": 1, "sha": 1, "avx512f": 1, "avx512bw": 1, "avx512vl": 1, "vaes": 0, "vpclmulqdq": 0}, "compatible": 1, "supports_avx512_aes_gcm": 0}}
