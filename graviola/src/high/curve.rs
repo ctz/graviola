@@ -65,11 +65,6 @@ pub trait PrivateKey<C: Curve + ?Sized> {
 /// A generic elliptic curve public key point, on curve `C`.
 #[allow(unreachable_pub)]
 pub trait PublicKey<C: Curve + ?Sized> {
-    /// Length of an uncompressed x9.62 encoding of this point.
-    ///
-    /// This must include the uncompressed indicator byte `0x04`.
-    const LEN_BYTES: usize;
-
     /// Decode a point from its uncompressed encoding.
     ///
     /// `bytes` must be precisely `LEN_BYTES` in length.
@@ -181,8 +176,6 @@ impl PrivateKey<P256> for p256::StaticPrivateKey {
 }
 
 impl PublicKey<P256> for p256::PublicKey {
-    const LEN_BYTES: usize = Self::BYTES;
-
     fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         Self::from_x962_uncompressed(bytes)
     }
@@ -273,8 +266,6 @@ impl PrivateKey<P384> for p384::StaticPrivateKey {
 }
 
 impl PublicKey<P384> for p384::PublicKey {
-    const LEN_BYTES: usize = Self::BYTES;
-
     fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         Self::from_x962_uncompressed(bytes)
     }
