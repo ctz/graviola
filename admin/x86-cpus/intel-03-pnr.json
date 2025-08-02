@@ -1,1 +1,1 @@
-{"name": "Intel Penryn", "source": "Intel SDE -pnr", "result": {"cpuid": {"aes": 0, "pclmulqdq": 0, "bmi1": 0, "bmi2": 0, "adx": 0, "avx": 0, "avx2": 0, "ssse3": 1, "sha": 0, "avx512f": 0, "avx512bw": 0, "vaes": 0}, "compatible": 0, "supports_avx512_aes_gcm": 0}}
+{"name": "Intel Penryn", "source": "Intel SDE -pnr", "result": {"cpuid": {"aes": 0, "pclmulqdq": 0, "bmi1": 0, "bmi2": 0, "adx": 0, "avx": 0, "avx2": 0, "ssse3": 1, "sha": 0, "avx512f": 0, "avx512bw": 0, "avx512vl": 0, "vaes": 0, "vpclmulqdq": 0}, "compatible": 0, "supports_avx512_aes_gcm": 0}}

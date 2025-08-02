@@ -1,1 +1,1 @@
-{"name": "Intel Panther Lake", "source": "Intel SDE -ptl", "result": {"cpuid": {"aes": 1, "pclmulqdq": 1, "bmi1": 1, "bmi2": 1, "adx": 1, "avx": 1, "avx2": 1, "ssse3": 1, "sha": 1, "avx512f": 0, "avx512bw": 0, "vaes": 1}, "compatible": 1, "supports_avx512_aes_gcm": 0}}
+{"name": "Intel Panther Lake", "source": "Intel SDE -ptl", "result": {"cpuid": {"aes": 1, "pclmulqdq": 1, "bmi1": 1, "bmi2": 1, "adx": 1, "avx": 1, "avx2": 1, "ssse3": 1, "sha": 1, "avx512f": 0, "avx512bw": 0, "avx512vl": 0, "vaes": 1, "vpclmulqdq": 1}, "compatible": 1, "supports_avx512_aes_gcm": 0}}
