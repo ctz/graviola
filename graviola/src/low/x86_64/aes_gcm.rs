@@ -6,10 +6,9 @@
 use core::arch::x86_64::*;
 use core::mem;
 
-use crate::low::ghash::GhashTable;
-
 use super::aes::AesKey;
 use super::ghash::{self, Ghash};
+use crate::low::ghash::GhashTable;
 
 pub(crate) fn encrypt(
     key: &AesKey,
@@ -21,6 +20,7 @@ pub(crate) fn encrypt(
     if super::cpu::have_cpu_feature!("avx512f")
         && super::cpu::have_cpu_feature!("avx512bw")
         && super::cpu::have_cpu_feature!("vaes")
+        && matches!(ghash.table, GhashTable::Avx512(_))
     {
         // SAFETY: this crate requires the `aes`, `sse3`, `ssse3`, `pclmulqdq`, `avx` and `avx2` cpu features;
         // avx512bw, avx512f and vaes were just checked dynamically.
@@ -42,9 +42,10 @@ pub(crate) fn decrypt(
     if super::cpu::have_cpu_feature!("avx512f")
         && super::cpu::have_cpu_feature!("avx512bw")
         && super::cpu::have_cpu_feature!("vaes")
+        && matches!(ghash.table, GhashTable::Avx512(_))
     {
         // SAFETY: this crate requires the `aes`, `sse3`, `ssse3`, `pclmulqdq`, `avx` and `avx2` cpu features;
-        // avx512bw, avx512f and vaes were just checked dynamically.
+        // avx512bw, avx512f,  and vaes were just checked dynamically.
         unsafe { _cipher_avx512::<false>(key, ghash, initial_counter, aad, cipher_inout) };
         return;
     }
@@ -67,7 +68,7 @@ unsafe fn _cipher<const ENC: bool>(
 
     let mut counter = Counter::new(initial_counter);
     let mut by8_iter = cipher_inout.chunks_exact_mut(128);
-    let GhashTable::Avx(avx_ghash_table) = ghash.table;
+    let avx_ghash_table = ghash.table.avx();
 
     for blocks in by8_iter.by_ref() {
         // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
@@ -222,7 +223,9 @@ unsafe fn _cipher<const ENC: bool>(
     }
 }
 
-#[target_feature(enable = "aes,sse3,ssse3,pclmulqdq,avx,avx2,avx512bw,avx512f,vaes")]
+#[target_feature(
+    enable = "aes,avx,avx2,avx512bw,avx512f,avx512vl,sse3,ssse3,pclmulqdq,vaes,vpclmulqdq"
+)]
 unsafe fn _cipher_avx512<const ENC: bool>(
     key: &AesKey,
     ghash: &mut Ghash<'_>,
@@ -237,7 +240,11 @@ unsafe fn _cipher_avx512<const ENC: bool>(
 
     let mut counter = Counter512::new(initial_counter);
     let mut by16_iter = cipher_inout.chunks_exact_mut(256);
-    let GhashTable::Avx(ghash_avx) = ghash.table;
+
+    let ghash_avx512 = match ghash.table {
+        GhashTable::Avx512(ghash_avx512) => ghash_avx512,
+        _ => panic!("unexpected ghash table variant"),
+    };
 
     for blocks in by16_iter.by_ref() {
         // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
@@ -289,22 +296,15 @@ unsafe fn _cipher_avx512<const ENC: bool>(
                 (p0123, p4567, p89ab, pcdef)
             };
 
-            for (j, k) in [(a0123, a4567), (a89ab, acdef)] {
-                let j = _mm512_shuffle_epi8(j, BYTESWAP_512);
-                let k = _mm512_shuffle_epi8(k, BYTESWAP_512);
+            let a0123 = _mm512_shuffle_epi8(a0123, BYTESWAP_512);
+            let a4567 = _mm512_shuffle_epi8(a4567, BYTESWAP_512);
+            let a89ab = _mm512_shuffle_epi8(a89ab, BYTESWAP_512);
+            let acdef = _mm512_shuffle_epi8(acdef, BYTESWAP_512);
 
-                let a1 = _mm512_extracti32x4_epi32::<0>(j);
-                let a2 = _mm512_extracti32x4_epi32::<1>(j);
-                let a3 = _mm512_extracti32x4_epi32::<2>(j);
-                let a4 = _mm512_extracti32x4_epi32::<3>(j);
-                let a5 = _mm512_extracti32x4_epi32::<0>(k);
-                let a6 = _mm512_extracti32x4_epi32::<1>(k);
-                let a7 = _mm512_extracti32x4_epi32::<2>(k);
-                let a8 = _mm512_extracti32x4_epi32::<3>(k);
+            let c0___ = _mm512_inserti32x4::<0>(_mm512_setzero_si512(), ghash.current);
+            let a0123 = _mm512_xor_epi64(a0123, c0___);
 
-                let a1 = _mm_xor_si128(ghash.current, a1);
-                ghash.current = ghash::_mul8(ghash_avx, a1, a2, a3, a4, a5, a6, a7, a8);
-            }
+            ghash.current = ghash::_mul16(ghash_avx512, a0123, a4567, a89ab, acdef);
         }
     }
 
@@ -402,7 +402,7 @@ impl Counter512 {
         Counter(_mm512_extracti32x4_epi32::<0>(self.0))
     }
 
-    #[target_feature(enable = "sse3,ssse3,avx,avx2,avx512f")]
+    #[target_feature(enable = "sse3,ssse3,avx,avx2,avx512f,avx512bw")]
     #[must_use]
     #[inline]
     unsafe fn next4(&mut self) -> __m512i {
@@ -480,6 +480,8 @@ const BYTESWAP_512_EPI64: __m512i = unsafe {
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::undocumented_unsafe_blocks)]
+
     #[test]
     fn check_counter512() {
         use super::*;
