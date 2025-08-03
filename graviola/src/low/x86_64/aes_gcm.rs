@@ -199,25 +199,29 @@ unsafe fn _cipher<const ENC: bool>(
     }
 }
 
-/// This stores the next counter value, in big endian.
+/// This stores the current counter value, in big endian.
 #[derive(Clone, Copy, Debug)]
 struct Counter(__m128i);
 
 impl Counter {
-    #[target_feature(enable = "sse3,ssse3")]
     #[inline]
+    #[target_feature(enable = "sse2,sse3,ssse3")]
     unsafe fn new(bytes: &[u8; 16]) -> Self {
-        // SAFETY: `bytes` is 128-bits and can be loaded from
-        let c = _mm_lddqu_si128(bytes.as_ptr() as *const _);
-        Self(_mm_shuffle_epi8(c, BYTESWAP_EPI64))
+        // SAFETY: `bytes` is a 128-bit value and can be loaded from
+        let c = unsafe { _mm_lddqu_si128(bytes.as_ptr().cast()) };
+        let c = _mm_shuffle_epi8(c, BYTESWAP_EPI64);
+        let c = _mm_add_epi32(c, COUNTER_1); // skip first counter (it was already used as y0)
+
+        Self(c)
     }
 
-    #[target_feature(enable = "sse3,ssse3")]
+    #[target_feature(enable = "sse2,ssse3")]
     #[must_use]
     #[inline]
     unsafe fn next(&mut self) -> __m128i {
+        let r = _mm_shuffle_epi8(self.0, BYTESWAP_EPI64);
         self.0 = _mm_add_epi32(self.0, COUNTER_1);
-        _mm_shuffle_epi8(self.0, BYTESWAP_EPI64)
+        r
     }
 }
 
