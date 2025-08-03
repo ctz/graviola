@@ -67,4 +67,5 @@ jobs:
         run: |
           # test software fallbacks for sha256 and sha512
           env GRAVIOLA_CPU_DISABLE_sha=1 GRAVIOLA_CPU_DISABLE_bmi2=1 cargo test
-          env GRAVIOLA_CPU_DISABLE_avx512f=1 GRAVIOLA_CPU_DISABLE_vaes=1 cargo test
+          # test avx2/aesni aes-gcm
+          env GRAVIOLA_CPU_DISABLE_avx512bw=1 GRAVIOLA_CPU_DISABLE_avx512f=1 GRAVIOLA_CPU_DISABLE_vaes=1 cargo test

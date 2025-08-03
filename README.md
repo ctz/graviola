@@ -145,8 +145,10 @@ single block implementation.
 AES and GHASH always use intrinsics (there are no fallbacks).
 
 On x86_64, we have a stitched by-8 AES-CTR and a by-8 GHASH (they are not currently
-interleaved; this is future work.)  On aarch64 we have a by-8 AES-CTR
-and by-8 GHASH (this is neither interleaved nor stitched).
+interleaved; this is future work.)  There is also an optional AVX-512 by-16 AES-CTR
+and GHASH.  It uses dynamic CPU feature detection, so AVX-512 is not required at runtime.
+
+On aarch64 we have a by-8 AES-CTR and by-8 GHASH (this is neither interleaved nor stitched).
 
 ## Architecture
 
