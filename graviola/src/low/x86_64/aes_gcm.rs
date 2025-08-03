@@ -16,6 +16,16 @@ pub(crate) fn encrypt(
     aad: &[u8],
     cipher_inout: &mut [u8],
 ) {
+    if super::cpu::have_cpu_feature!("avx512f")
+        && super::cpu::have_cpu_feature!("avx512bw")
+        && super::cpu::have_cpu_feature!("vaes")
+    {
+        // SAFETY: this crate requires the `aes`, `sse3`, `ssse3`, `pclmulqdq`, `avx` and `avx2` cpu features;
+        // avx512bw, avx512f and vaes were just checked dynamically.
+        unsafe { _cipher_avx512::<true>(key, ghash, initial_counter, aad, cipher_inout) };
+        return;
+    }
+
     // SAFETY: this crate requires the `aes`, `ssse3`, `pclmulqdq` and `avx` cpu features
     unsafe { _cipher::<true>(key, ghash, initial_counter, aad, cipher_inout) }
 }
@@ -27,6 +37,16 @@ pub(crate) fn decrypt(
     aad: &[u8],
     cipher_inout: &mut [u8],
 ) {
+    if super::cpu::have_cpu_feature!("avx512f")
+        && super::cpu::have_cpu_feature!("avx512bw")
+        && super::cpu::have_cpu_feature!("vaes")
+    {
+        // SAFETY: this crate requires the `aes`, `sse3`, `ssse3`, `pclmulqdq`, `avx` and `avx2` cpu features;
+        // avx512bw, avx512f and vaes were just checked dynamically.
+        unsafe { _cipher_avx512::<false>(key, ghash, initial_counter, aad, cipher_inout) };
+        return;
+    }
+
     // SAFETY: this crate requires the `aes`, `ssse3`, `pclmulqdq` and `avx` cpu features
     unsafe { _cipher::<false>(key, ghash, initial_counter, aad, cipher_inout) }
 }
@@ -199,6 +219,195 @@ unsafe fn _cipher<const ENC: bool>(
     }
 }
 
+#[target_feature(enable = "aes,sse3,ssse3,pclmulqdq,avx,avx2,avx512bw,avx512f,vaes")]
+unsafe fn _cipher_avx512<const ENC: bool>(
+    key: &AesKey,
+    ghash: &mut Ghash<'_>,
+    initial_counter: &[u8; 16],
+    aad: &[u8],
+    cipher_inout: &mut [u8],
+) {
+    ghash.add(aad);
+
+    let round_keys = key.round_keys_512();
+    let (rk_first, rks, rk_last) = round_keys.split();
+
+    let mut counter = Counter512::new(initial_counter);
+    let mut by16_iter = cipher_inout.chunks_exact_mut(256);
+
+    for blocks in by16_iter.by_ref() {
+        // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
+        unsafe {
+            // prefetch to avoid any stall later
+            _mm_prefetch(blocks.as_ptr().add(0) as *const _, _MM_HINT_T0);
+            _mm_prefetch(blocks.as_ptr().add(256) as *const _, _MM_HINT_T0);
+
+            let c0123 = counter.next4();
+            let c4567 = counter.next4();
+            let c89ab = counter.next4();
+            let ccdef = counter.next4();
+
+            let mut c0123 = _mm512_xor_epi32(c0123, rk_first);
+            let mut c4567 = _mm512_xor_epi32(c4567, rk_first);
+            let mut c89ab = _mm512_xor_epi32(c89ab, rk_first);
+            let mut ccdef = _mm512_xor_epi32(ccdef, rk_first);
+
+            for rk in rks {
+                c0123 = _mm512_aesenc_epi128(c0123, *rk);
+                c4567 = _mm512_aesenc_epi128(c4567, *rk);
+                c89ab = _mm512_aesenc_epi128(c89ab, *rk);
+                ccdef = _mm512_aesenc_epi128(ccdef, *rk);
+            }
+
+            let c0123 = _mm512_aesenclast_epi128(c0123, rk_last);
+            let c4567 = _mm512_aesenclast_epi128(c4567, rk_last);
+            let c89ab = _mm512_aesenclast_epi128(c89ab, rk_last);
+            let ccdef = _mm512_aesenclast_epi128(ccdef, rk_last);
+
+            let p0123 = _mm512_loadu_si512(blocks.as_ptr().add(0) as *const _);
+            let p4567 = _mm512_loadu_si512(blocks.as_ptr().add(64) as *const _);
+            let p89ab = _mm512_loadu_si512(blocks.as_ptr().add(128) as *const _);
+            let pcdef = _mm512_loadu_si512(blocks.as_ptr().add(192) as *const _);
+
+            let c0123 = _mm512_xor_epi32(c0123, p0123);
+            let c4567 = _mm512_xor_epi32(c4567, p4567);
+            let c89ab = _mm512_xor_epi32(c89ab, p89ab);
+            let ccdef = _mm512_xor_epi32(ccdef, pcdef);
+
+            _mm512_storeu_si512(blocks.as_mut_ptr().add(0) as *mut _, c0123);
+            _mm512_storeu_si512(blocks.as_mut_ptr().add(64) as *mut _, c4567);
+            _mm512_storeu_si512(blocks.as_mut_ptr().add(128) as *mut _, c89ab);
+            _mm512_storeu_si512(blocks.as_mut_ptr().add(192) as *mut _, ccdef);
+
+            let (a0123, a4567, a89ab, acdef) = if ENC {
+                (c0123, c4567, c89ab, ccdef)
+            } else {
+                (p0123, p4567, p89ab, pcdef)
+            };
+
+            for (j, k) in [(a0123, a4567), (a89ab, acdef)] {
+                let j = _mm512_shuffle_epi8(j, BYTESWAP_512);
+                let k = _mm512_shuffle_epi8(k, BYTESWAP_512);
+
+                let a1 = _mm512_extracti32x4_epi32::<0>(j);
+                let a2 = _mm512_extracti32x4_epi32::<1>(j);
+                let a3 = _mm512_extracti32x4_epi32::<2>(j);
+                let a4 = _mm512_extracti32x4_epi32::<3>(j);
+                let a5 = _mm512_extracti32x4_epi32::<0>(k);
+                let a6 = _mm512_extracti32x4_epi32::<1>(k);
+                let a7 = _mm512_extracti32x4_epi32::<2>(k);
+                let a8 = _mm512_extracti32x4_epi32::<3>(k);
+
+                let a1 = _mm_xor_si128(ghash.current, a1);
+                ghash.current = ghash::_mul8(ghash.table, a1, a2, a3, a4, a5, a6, a7, a8);
+            }
+        }
+    }
+
+    let cipher_inout = by16_iter.into_remainder();
+    let mut counter = counter.into_128();
+
+    if !ENC {
+        ghash.add(cipher_inout);
+    }
+
+    {
+        let mut blocks_iter = cipher_inout.chunks_exact_mut(16);
+        let (rk_first, rks, rk_last) = key.round_keys();
+        for block in blocks_iter.by_ref() {
+            let c1 = counter.next();
+
+            // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
+            unsafe {
+                let mut c1 = _mm_xor_si128(c1, rk_first);
+
+                for rk in rks {
+                    c1 = _mm_aesenc_si128(c1, *rk);
+                }
+
+                let c1 = _mm_aesenclast_si128(c1, rk_last);
+
+                let c1 = _mm_xor_si128(c1, _mm_loadu_si128(block.as_ptr() as *const _));
+
+                _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
+            }
+        }
+
+        let cipher_inout = blocks_iter.into_remainder();
+        if !cipher_inout.is_empty() {
+            let mut block = [0u8; 16];
+            let len = cipher_inout.len();
+            debug_assert!(len < 16);
+            block[..len].copy_from_slice(cipher_inout);
+
+            let c1 = counter.next();
+
+            // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
+            unsafe {
+                let mut c1 = _mm_xor_si128(c1, rk_first);
+
+                for rk in rks {
+                    c1 = _mm_aesenc_si128(c1, *rk);
+                }
+
+                let c1 = _mm_aesenclast_si128(c1, rk_last);
+
+                let p1 = _mm_loadu_si128(block.as_ptr() as *const _);
+                let c1 = _mm_xor_si128(c1, p1);
+
+                _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
+            }
+
+            cipher_inout.copy_from_slice(&block[..len]);
+        }
+    }
+
+    if ENC {
+        ghash.add(cipher_inout);
+    }
+}
+
+/// This stores the current four counter values, in big endian.
+#[derive(Debug)]
+struct Counter512(__m512i);
+
+impl Counter512 {
+    #[inline]
+    #[target_feature(enable = "sse3,ssse3,avx,avx2,avx512f")]
+    unsafe fn new(bytes: &[u8; 16]) -> Self {
+        // SAFETY: `bytes` is a 128-bits and can be loaded from
+        Self(unsafe {
+            let mut cnt = Counter::new(bytes);
+            let a = cnt.next();
+            let b = cnt.next();
+            let c = cnt.next();
+            let d = cnt.next();
+
+            let r: __m512i = mem::transmute(_mm512_undefined());
+            let r = _mm512_inserti32x4::<0>(r, _mm_shuffle_epi8(a, BYTESWAP_EPI64));
+            let r = _mm512_inserti32x4::<1>(r, _mm_shuffle_epi8(b, BYTESWAP_EPI64));
+            let r = _mm512_inserti32x4::<2>(r, _mm_shuffle_epi8(c, BYTESWAP_EPI64));
+            _mm512_inserti32x4::<3>(r, _mm_shuffle_epi8(d, BYTESWAP_EPI64))
+        })
+    }
+
+    #[target_feature(enable = "avx512f")]
+    #[must_use]
+    #[inline]
+    unsafe fn into_128(self) -> Counter {
+        Counter(_mm512_extracti32x4_epi32::<0>(self.0))
+    }
+
+    #[target_feature(enable = "sse3,ssse3,avx,avx2,avx512f")]
+    #[must_use]
+    #[inline]
+    unsafe fn next4(&mut self) -> __m512i {
+        let r = _mm512_shuffle_epi8(self.0, BYTESWAP_512_EPI64);
+        self.0 = _mm512_add_epi64(self.0, COUNTER_512_4);
+        r
+    }
+}
+
 /// This stores the current counter value, in big endian.
 #[derive(Clone, Copy, Debug)]
 struct Counter(__m128i);
@@ -227,8 +436,75 @@ impl Counter {
 
 // SAFETY: both u128 and __m128i have the same size and all bits mean the same thing
 const COUNTER_1: __m128i = unsafe { mem::transmute(1u128 << 64) };
+
+// SAFETY: [u8; 64] and __m512i have the same size
+const COUNTER_512_4: __m512i = unsafe {
+    mem::transmute([
+        0u8, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, //
+        0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, //
+        0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, //
+        0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, //
+    ])
+};
+
 // SAFETY: both u128 and __m128i have the same size and all bits mean the same thing
 const BYTESWAP: __m128i = unsafe { mem::transmute(0x00010203_04050607_08090a0b_0c0d0e0fu128) };
+
 // SAFETY: both u128 and __m128i have the same size and all bits mean the same thing
 const BYTESWAP_EPI64: __m128i =
     unsafe { mem::transmute(0x08090a0b_0c0d0e0f_00010203_04050607u128) };
+
+// SAFETY: [u8; 64] and __m512i have the same size
+const BYTESWAP_512: __m512i = unsafe {
+    mem::transmute([
+        15u8, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, //
+        31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, //
+        47, 46, 45, 44, 43, 42, 41, 40, 39, 38, 37, 36, 35, 34, 33, 32, //
+        63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 51, 50, 49, 48, //
+    ])
+};
+
+// SAFETY: [u8; 64] and __m512i have the same size
+const BYTESWAP_512_EPI64: __m512i = unsafe {
+    mem::transmute([
+        7, 6, 5, 4, 3, 2, 1, 0, 15u8, 14, 13, 12, 11, 10, 9, 8, //
+        23, 22, 21, 20, 19, 18, 17, 16, 31, 30, 29, 28, 27, 26, 25, 24, //
+        39, 38, 37, 36, 35, 34, 33, 32, 47, 46, 45, 44, 43, 42, 41, 40, //
+        55, 54, 53, 52, 51, 50, 49, 48, 63, 62, 61, 60, 59, 58, 57, 56,
+    ])
+};
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn check_counter512() {
+        use super::*;
+
+        if !is_x86_feature_detected!("avx512f") {
+            println!("no AVX512 support");
+            return;
+        }
+
+        let mut c = unsafe { Counter::new(&[0u8; 16]) };
+        println!("??? {c:x?}");
+        println!("1-- {:x?}", unsafe { c.next() });
+        println!("2-- {:x?}", unsafe { c.next() });
+        println!("3-- {:x?}", unsafe { c.next() });
+        println!("4-- {:x?}", unsafe { c.next() });
+        println!("??? {c:x?}");
+
+        let mut c4 = unsafe { Counter512::new(&[0u8; 16]) };
+        println!("{c4:x?}");
+        println!("1-4 {:x?}", unsafe { c4.next4() });
+        println!("{c4:x?}");
+        let c4c = unsafe { c4.into_128() };
+        println!("{c4c:x?}");
+
+        unsafe {
+            assert_eq!(
+                mem::transmute::<__m128i, u128>(c4c.0),
+                mem::transmute::<__m128i, u128>(c.0)
+            );
+        }
+    }
+}
