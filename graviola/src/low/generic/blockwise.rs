@@ -90,11 +90,7 @@ impl<const N: usize> AsRef<[u8]> for FinalBlocks<N> {
     fn as_ref(&self) -> &[u8] {
         match self {
             Self::One(one) => &one[..],
-            Self::Two(two) => {
-                // SAFETY: `[T]` is layout-identical to `[T; N]`
-                // TODO(msrv): replace with as_flattened()
-                unsafe { core::slice::from_raw_parts(two.as_ptr().cast(), N * 2) }
-            }
+            Self::Two(two) => two.as_flattened(),
         }
     }
 }
