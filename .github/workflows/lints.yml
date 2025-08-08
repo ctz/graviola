@@ -21,7 +21,7 @@ jobs:
       - name: Install MSRV toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: "1.72"
+          toolchain: "1.89"
 
       - name: Check MSRV
         run: cargo build --lib --all-features
