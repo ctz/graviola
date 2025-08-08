@@ -306,7 +306,7 @@ impl ObjectId {
                         r.buf[r.used] = item as u8;
                         r.used += 1;
                     } else {
-                        let mut chunks = (item.ilog2() + 1 + 6) / 7;
+                        let mut chunks = (item.ilog2() + 1).div_ceil(7);
 
                         while chunks > 1 {
                             chunks -= 1;
@@ -708,7 +708,7 @@ impl<'a, 's> Encoder<'a> {
         match body_len {
             0..=0x7f => self.push(body_len as u8)?,
             _ => {
-                let bytes = ((body_len.ilog2() + 1 + 7) / 8) as usize;
+                let bytes = (body_len.ilog2() + 1).div_ceil(8) as usize;
                 self.push(0x80 + bytes as u8)?;
                 let len_encoded = body_len.to_be_bytes();
                 for i in 0..bytes {
@@ -768,7 +768,7 @@ impl core::fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+impl core::error::Error for Error {}
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Tag(u8);

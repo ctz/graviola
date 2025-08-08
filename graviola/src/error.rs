@@ -83,8 +83,8 @@ impl core::fmt::Display for Error {
     }
 }
 
-impl std::error::Error for KeyFormatError {}
-impl std::error::Error for Error {}
+impl core::error::Error for KeyFormatError {}
+impl core::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {

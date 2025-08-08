@@ -190,7 +190,7 @@ fn miller_rabin(w: &MaxPosInt, size: KeySize, rng: &mut dyn RandomSource) -> Res
         //
         // We obtain bytes, and then discard the excess high bits.
         let mut buffer = [0u8; super::MAX_PRIVATE_MODULUS_BYTES];
-        let w_bytes = (w_len + 7) / 8;
+        let w_bytes = w_len.div_ceil(8);
         rng.fill(&mut buffer[..w_bytes])?;
         if w_len & 7 != 0 {
             buffer[0] &= (1u8 << (w_len & 7)).saturating_sub(1);

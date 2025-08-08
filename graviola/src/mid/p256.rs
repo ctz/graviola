@@ -365,7 +365,7 @@ impl AffineMontPoint {
     fn public_precomp_w7_slow(&self) -> [[Self; 64]; 37] {
         let mut r = [[Self::default(); 64]; 37];
 
-        for window in 0..((256 + 6) / 7) {
+        for window in 0..(256usize.div_ceil(7)) {
             let row = &mut r[window];
 
             // indices into rows are reduced by 1 since 0G does not require
