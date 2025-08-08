@@ -23,7 +23,6 @@
     unused_extern_crates,
     unused_qualifications
 )]
-#![cfg_attr(graviola_nightly, feature(stdarch_x86_avx512))]
 
 /// Low level operations.
 ///

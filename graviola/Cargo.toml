@@ -25,7 +25,3 @@ serde_json = "1"
 
 [target.'cfg(all(target_os = "linux", target_arch = "x86_64"))'.dev-dependencies]
 crabgrind = "=0.1.9" # compatible with valgrind package on GHA ubuntu-latest
-
-[lints.rust.unexpected_cfgs]
-level = "warn"
-check-cfg = ["cfg(graviola_nightly)"]

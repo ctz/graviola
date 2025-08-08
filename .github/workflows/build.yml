@@ -52,10 +52,6 @@ jobs:
         with:
           target: ${{ matrix.cross }}
 
-      - name: Set RUSTFLAGS for nightly
-        if: matrix.rustc == 'nightly'
-        run: echo "RUSTFLAGS=--cfg=graviola_nightly" >> $GITHUB_ENV
-
       - name: Build (debug)
         run: cargo build -p graviola
       - name: Run tests (debug)
