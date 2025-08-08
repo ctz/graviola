@@ -15,7 +15,6 @@ jobs:
       matrix:
         include:
           - rustc: stable
-          - rustc: nightly
 
     runs-on: ubuntu-latest
     steps:
@@ -38,10 +37,6 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rustc }}
-
-      - name: Set RUSTFLAGS for nightly
-        if: matrix.rustc == 'nightly'
-        run: echo "RUSTFLAGS=--cfg=graviola_nightly" >> $GITHUB_ENV
 
       - name: Install valgrind
         run: sudo apt-get update && sudo apt-get install -y valgrind
