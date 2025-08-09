@@ -74,6 +74,9 @@ notes = {
         "ring": {
             "aes256-gcm": "Uses AVX512",
         },
+        "graviola": {
+            "aes256-gcm": "Uses AVX512",
+        },
     }
 }
 
