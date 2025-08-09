@@ -99,9 +99,14 @@ def from_golang_log(arch):
     return "<tt>{}</tt>".format(lines[1])
 
 
+def from_graviola_version(arch):
+    version = open(path.join("reports", arch, "graviola-version.txt")).read().strip()
+    return "<tt>{}</tt>".format(version)
+
+
 impl_versions = {
     "aws-lc-rs": from_cargo_lock("aws-lc-rs", "aws-lc-sys"),
-    "graviola": from_cargo_lock("graviola"),
+    "graviola": from_graviola_version,
     "dalek": from_cargo_lock("x25519-dalek", "curve25519-dalek"),
     "ring": from_cargo_lock("ring"),
     "golang": from_golang_log,
