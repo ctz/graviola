@@ -17,7 +17,8 @@ pub(crate) fn encrypt(
     aad: &[u8],
     cipher_inout: &mut [u8],
 ) {
-    if super::cpu::have_cpu_feature!("avx512f")
+    if cipher_inout.len() >= AVX512_MINIMUM_CIPHER_LEN
+        && super::cpu::have_cpu_feature!("avx512f")
         && super::cpu::have_cpu_feature!("avx512bw")
         && super::cpu::have_cpu_feature!("vaes")
         && matches!(ghash.table, GhashTable::Avx512(_))
@@ -39,7 +40,8 @@ pub(crate) fn decrypt(
     aad: &[u8],
     cipher_inout: &mut [u8],
 ) {
-    if super::cpu::have_cpu_feature!("avx512f")
+    if cipher_inout.len() >= AVX512_MINIMUM_CIPHER_LEN
+        && super::cpu::have_cpu_feature!("avx512f")
         && super::cpu::have_cpu_feature!("avx512bw")
         && super::cpu::have_cpu_feature!("vaes")
         && matches!(ghash.table, GhashTable::Avx512(_))
@@ -49,7 +51,6 @@ pub(crate) fn decrypt(
         unsafe { _cipher_avx512::<false>(key, ghash, initial_counter, aad, cipher_inout) };
         return;
     }
-
     // SAFETY: this crate requires the `aes`, `ssse3`, `pclmulqdq` and `avx` cpu features
     unsafe { _cipher::<false>(key, ghash, initial_counter, aad, cipher_inout) }
 }
@@ -239,7 +240,7 @@ unsafe fn _cipher_avx512<const ENC: bool>(
     let (rk_first, rks, rk_last) = round_keys.split();
 
     let mut counter = Counter512::new(initial_counter);
-    let mut by16_iter = cipher_inout.chunks_exact_mut(256);
+    let mut by16_iter = cipher_inout.chunks_exact_mut(AVX512_MINIMUM_CIPHER_LEN);
 
     let ghash_avx512 = match ghash.table {
         GhashTable::Avx512(ghash_avx512) => ghash_avx512,
@@ -370,6 +371,11 @@ unsafe fn _cipher_avx512<const ENC: bool>(
         ghash.add(cipher_inout);
     }
 }
+
+/// How many message bytes needed to benefit from the AVX512 by-16 impl
+///
+/// `cipher_avx512` _works_ for shorter lengths, but is not worth it.
+const AVX512_MINIMUM_CIPHER_LEN: usize = 16 * 16;
 
 /// This stores the current four counter values, in big endian.
 #[derive(Debug)]
