@@ -12,6 +12,7 @@
 use core::arch::x86_64::*;
 use core::mem;
 
+use super::cpu::HaveAvx512ForAesGcm;
 use crate::low;
 
 #[expect(clippy::large_enum_variant)]
@@ -22,12 +23,8 @@ pub(crate) enum GhashTable {
 
 impl GhashTable {
     pub(crate) fn new(h: u128) -> Self {
-        if super::cpu::have_cpu_feature!("avx512f")
-            && super::cpu::have_cpu_feature!("avx512bw")
-            && super::cpu::have_cpu_feature!("avx512vl")
-            && super::cpu::have_cpu_feature!("vpclmulqdq")
-        {
-            return Self::Avx512(GhashTableAvx512::new(h));
+        if let Some(token) = HaveAvx512ForAesGcm::check() {
+            return Self::Avx512(GhashTableAvx512::new(h, token));
         }
 
         Self::Avx(GhashTableAvx::new(h))
@@ -120,10 +117,11 @@ pub(crate) struct GhashTableAvx512 {
     /// H, H^2, H^3, H^4, ... H^16
     powers: [__m512i; 4],
     avx: GhashTableAvx,
+    pub(crate) token: HaveAvx512ForAesGcm,
 }
 
 impl GhashTableAvx512 {
-    pub(crate) fn new(h: u128) -> Self {
+    pub(crate) fn new(h: u128, token: HaveAvx512ForAesGcm) -> Self {
         // This builds on the AVX version, which is perhaps not the most
         // efficient option.
         let avx = GhashTableAvx::new(h);
@@ -147,7 +145,7 @@ impl GhashTableAvx512 {
             ]
         };
 
-        Self { powers, avx }
+        Self { powers, avx, token }
     }
 
     #[target_feature(enable = "avx512f,avx512bw")]
@@ -198,8 +196,7 @@ impl<'a> Ghash<'a> {
     pub(crate) fn add(&mut self, mut bytes: &[u8]) {
         (self.current, bytes) = match self.table {
             GhashTable::Avx(avx) => avx.add_wide(bytes, self.current),
-            // SAFETY: the feature invariants for `GhashTableAvx512::add_wide` were
-            // checked by the original caller of `GhashTableAvx512::new`
+            // SAFETY: avx512.token proves features were dynamically checked
             GhashTable::Avx512(avx512) => unsafe { avx512.add_wide(bytes, self.current) },
         };
 
