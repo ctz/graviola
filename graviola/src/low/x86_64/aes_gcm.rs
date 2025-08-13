@@ -7,8 +7,9 @@ use core::arch::x86_64::*;
 use core::mem;
 
 use super::aes::AesKey;
+use super::cpu::HaveAvx512ForAesGcm;
 use super::ghash::{self, Ghash};
-use crate::low::ghash::GhashTable;
+use crate::low::ghash::{GhashTable, GhashTableAvx512};
 
 pub(crate) fn encrypt(
     key: &AesKey,
@@ -17,15 +18,12 @@ pub(crate) fn encrypt(
     aad: &[u8],
     cipher_inout: &mut [u8],
 ) {
-    if cipher_inout.len() >= AVX512_MINIMUM_CIPHER_LEN
-        && super::cpu::have_cpu_feature!("avx512f")
-        && super::cpu::have_cpu_feature!("avx512bw")
-        && super::cpu::have_cpu_feature!("vaes")
-        && matches!(ghash.table, GhashTable::Avx512(_))
+    if let (true, GhashTable::Avx512(GhashTableAvx512 { token, .. })) =
+        (cipher_inout.len() >= AVX512_MINIMUM_CIPHER_LEN, ghash.table)
     {
         // SAFETY: this crate requires the `aes`, `sse3`, `ssse3`, `pclmulqdq`, `avx` and `avx2` cpu features;
-        // avx512bw, avx512f and vaes were just checked dynamically.
-        unsafe { _cipher_avx512::<true>(key, ghash, initial_counter, aad, cipher_inout) };
+        // `token` proves the remaining features were dynamically checked
+        unsafe { _cipher_avx512::<true>(key, ghash, initial_counter, aad, cipher_inout, *token) };
         return;
     }
 
@@ -40,15 +38,12 @@ pub(crate) fn decrypt(
     aad: &[u8],
     cipher_inout: &mut [u8],
 ) {
-    if cipher_inout.len() >= AVX512_MINIMUM_CIPHER_LEN
-        && super::cpu::have_cpu_feature!("avx512f")
-        && super::cpu::have_cpu_feature!("avx512bw")
-        && super::cpu::have_cpu_feature!("vaes")
-        && matches!(ghash.table, GhashTable::Avx512(_))
+    if let (true, GhashTable::Avx512(GhashTableAvx512 { token, .. })) =
+        (cipher_inout.len() >= AVX512_MINIMUM_CIPHER_LEN, ghash.table)
     {
         // SAFETY: this crate requires the `aes`, `sse3`, `ssse3`, `pclmulqdq`, `avx` and `avx2` cpu features;
-        // avx512bw, avx512f,  and vaes were just checked dynamically.
-        unsafe { _cipher_avx512::<false>(key, ghash, initial_counter, aad, cipher_inout) };
+        // `token` proves the remaining features were dynamically checked
+        unsafe { _cipher_avx512::<false>(key, ghash, initial_counter, aad, cipher_inout, *token) };
         return;
     }
     // SAFETY: this crate requires the `aes`, `ssse3`, `pclmulqdq` and `avx` cpu features
@@ -233,6 +228,7 @@ unsafe fn _cipher_avx512<const ENC: bool>(
     initial_counter: &[u8; 16],
     aad: &[u8],
     cipher_inout: &mut [u8],
+    _feature_token: HaveAvx512ForAesGcm,
 ) {
     ghash.add(aad);
 

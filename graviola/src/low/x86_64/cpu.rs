@@ -159,6 +159,26 @@ macro_rules! have_cpu_feature {
 
 pub(crate) use have_cpu_feature;
 
+/// Token type reflecting the check for CPU features needed for AVX512-AES-GCM
+///
+/// A value of this type is proof that the CPU dynamic feature check has happened.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct HaveAvx512ForAesGcm(());
+
+impl HaveAvx512ForAesGcm {
+    pub(crate) fn check() -> Option<Self> {
+        match have_cpu_feature!("avx512f")
+            && have_cpu_feature!("avx512bw")
+            && have_cpu_feature!("avx512vl")
+            && have_cpu_feature!("vpclmulqdq")
+            && have_cpu_feature!("vaes")
+        {
+            true => Some(Self(())),
+            false => None,
+        }
+    }
+}
+
 #[cfg(not(debug_assertions))]
 pub(crate) fn test_toggle(_id: &str, detected: bool) -> bool {
     detected
