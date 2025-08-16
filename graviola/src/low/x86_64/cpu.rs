@@ -157,8 +157,6 @@ macro_rules! have_cpu_feature {
     };
 }
 
-pub(crate) use have_cpu_feature;
-
 /// Token type reflecting the check for CPU features needed for AVX512-AES-GCM
 ///
 /// A value of this type is proof that the CPU dynamic feature check has happened.
@@ -194,6 +192,20 @@ impl HaveSha256 {
     }
 }
 
+/// Token type reflecting the check for the BMI2 CPU feature
+///
+/// A value of this type is proof that the CPU dynamic feature check has happened.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct HaveBmi2(());
+
+impl HaveBmi2 {
+    pub(crate) fn check() -> Option<Self> {
+        match have_cpu_feature!("bmi2") {
+            true => Some(Self(())),
+            false => None,
+        }
+    }
+}
 #[cfg(not(debug_assertions))]
 pub(crate) fn test_toggle(_id: &str, detected: bool) -> bool {
     detected
