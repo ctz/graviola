@@ -455,10 +455,15 @@ unsafe fn sha512_compress_block(state: &mut [u64; 8], block: &[u8]) {
     }
 }
 
-pub(in crate::low) fn sha512_compress_blocks(state: &mut [u64; 8], blocks: &[u8]) {
+pub(in crate::low) fn sha512_compress_blocks(
+    state: &mut [u64; 8],
+    blocks: &[u8],
+    _token: super::cpu::HaveBmi2,
+) {
     let mut iter4 = blocks.chunks_exact(512);
     for block4 in iter4.by_ref() {
-        // SAFETY: caller checks cpu features for `bmi2`; `avx` and `avx2` required by crate.
+        // SAFETY: `_token` proves caller checked cpu features for `bmi2`;
+        // `avx` and `avx2` required by crate.
         unsafe { sha512_compress_4_blocks(state, block4.as_ptr().cast()) };
     }
     let blocks = iter4.remainder();
