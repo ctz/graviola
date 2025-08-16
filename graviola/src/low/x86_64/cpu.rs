@@ -179,6 +179,21 @@ impl HaveAvx512ForAesGcm {
     }
 }
 
+/// Token type reflecting the check for CPU features needed for SHA256 using SHA-NI
+///
+/// A value of this type is proof that the CPU dynamic feature check has happened.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct HaveSha256(());
+
+impl HaveSha256 {
+    pub(crate) fn check() -> Option<Self> {
+        match have_cpu_feature!("sha") {
+            true => Some(Self(())),
+            false => None,
+        }
+    }
+}
+
 #[cfg(not(debug_assertions))]
 pub(crate) fn test_toggle(_id: &str, detected: bool) -> bool {
     detected
