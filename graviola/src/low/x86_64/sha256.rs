@@ -3,10 +3,14 @@
 
 use core::arch::x86_64::*;
 
-pub(in crate::low) fn sha256_compress_blocks_shaext(state: &mut [u32; 8], blocks: &[u8]) {
+pub(in crate::low) fn sha256_compress_blocks_shaext(
+    state: &mut [u32; 8],
+    blocks: &[u8],
+    _token: super::cpu::HaveSha256,
+) {
     debug_assert!(blocks.len() % 64 == 0);
-    // SAFETY: the parent caller checks for the `sha` cpu feature; this
-    // crate requires the `sse4.1` and `ssse3` features
+    // SAFETY: `_token` proves the caller checked the `sha` feature;
+    // this crate requires the `sse4.1` and `ssse3` features
     unsafe { sha256(state, blocks) }
 }
 
