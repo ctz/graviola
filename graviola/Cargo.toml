@@ -1,7 +1,7 @@
 [package]
 name = "graviola"
 version = "0.2.1"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/ctz/graviola/"
 license = "Apache-2.0 OR ISC OR MIT-0"
 readme = "README.md"
