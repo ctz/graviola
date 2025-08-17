@@ -234,36 +234,31 @@ unsafe fn _mul8(
 }
 
 #[target_feature(enable = "neon")]
-unsafe fn xor_halves(h: uint64x2_t) -> uint64x2_t {
+fn xor_halves(h: uint64x2_t) -> uint64x2_t {
     // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let hx = vextq_u64(h, h, 1);
-        veorq_u64(hx, h)
-    }
+    let hx = vextq_u64(h, h, 1);
+    veorq_u64(hx, h)
 }
 
 #[target_feature(enable = "neon")]
-unsafe fn gf128_big_endian(h: uint64x2_t) -> uint64x2_t {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        // takes a raw hash subkey, and arranges that it can
-        // be used in big endian ordering.
-        let t = vreinterpretq_s32_u64(h);
-        let (a, c, d) = (
-            vgetq_lane_s32::<3>(t),
-            vgetq_lane_s32::<1>(t),
-            vgetq_lane_s32::<0>(t),
-        );
-        let t = vsetq_lane_s32(a, t, 3);
-        let t = vsetq_lane_s32(c, t, 2);
-        let t = vsetq_lane_s32(d, t, 1);
-        let t = vsetq_lane_s32(a, t, 0);
+fn gf128_big_endian(h: uint64x2_t) -> uint64x2_t {
+    // takes a raw hash subkey, and arranges that it can
+    // be used in big endian ordering.
+    let t = vreinterpretq_s32_u64(h);
+    let (a, c, d) = (
+        vgetq_lane_s32::<3>(t),
+        vgetq_lane_s32::<1>(t),
+        vgetq_lane_s32::<0>(t),
+    );
+    let t = vsetq_lane_s32(a, t, 3);
+    let t = vsetq_lane_s32(c, t, 2);
+    let t = vsetq_lane_s32(d, t, 1);
+    let t = vsetq_lane_s32(a, t, 0);
 
-        let t = vreinterpretq_u64_s32(vshrq_n_s32(t, 31));
-        let h = vaddq_u64(h, h);
-        let t = vandq_u64(GF128_POLY_CARRY_MASK, t);
-        veorq_u64(h, t)
-    }
+    let t = vreinterpretq_u64_s32(vshrq_n_s32(t, 31));
+    let h = vaddq_u64(h, h);
+    let t = vandq_u64(GF128_POLY_CARRY_MASK, t);
+    veorq_u64(h, t)
 }
 
 // the intrinsics exist, but have the wrong types :(
