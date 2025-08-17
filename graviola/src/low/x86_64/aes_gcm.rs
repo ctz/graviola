@@ -380,7 +380,7 @@ struct Counter512(__m512i);
 impl Counter512 {
     #[inline]
     #[target_feature(enable = "sse3,ssse3,avx,avx2,avx512f")]
-    unsafe fn new(bytes: &[u8; 16]) -> Self {
+    fn new(bytes: &[u8; 16]) -> Self {
         // SAFETY: `bytes` is a 128-bits and can be loaded from
         Self(unsafe {
             let mut cnt = Counter::new(bytes);
@@ -400,7 +400,7 @@ impl Counter512 {
     #[target_feature(enable = "avx512f")]
     #[must_use]
     #[inline]
-    unsafe fn into_128(self) -> Counter {
+    fn into_128(self) -> Counter {
         Counter(_mm512_extracti32x4_epi32::<0>(self.0))
     }
 
@@ -421,7 +421,7 @@ struct Counter(__m128i);
 impl Counter {
     #[inline]
     #[target_feature(enable = "sse2,sse3,ssse3")]
-    unsafe fn new(bytes: &[u8; 16]) -> Self {
+    fn new(bytes: &[u8; 16]) -> Self {
         // SAFETY: `bytes` is a 128-bit value and can be loaded from
         let c = unsafe { _mm_lddqu_si128(bytes.as_ptr().cast()) };
         let c = _mm_shuffle_epi8(c, BYTESWAP_EPI64);
@@ -433,7 +433,7 @@ impl Counter {
     #[target_feature(enable = "sse2,ssse3")]
     #[must_use]
     #[inline]
-    unsafe fn next(&mut self) -> __m128i {
+    fn next(&mut self) -> __m128i {
         let r = _mm_shuffle_epi8(self.0, BYTESWAP_EPI64);
         self.0 = _mm_add_epi32(self.0, COUNTER_1);
         r

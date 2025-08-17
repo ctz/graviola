@@ -223,10 +223,11 @@ impl<'a> Ghash<'a> {
     }
 
     #[target_feature(enable = "sse2,ssse3")]
-    unsafe fn _into_bytes(self) -> [u8; 16] {
+    fn _into_bytes(self) -> [u8; 16] {
         let mut out: i128 = 0;
         let reverse = _mm_shuffle_epi8(self.current, BYTESWAP);
-        _mm_store_si128(&mut out as *mut i128 as *mut __m128i, reverse);
+        // SAFETY: `out` is 128 bits, and a suitable target for a 128-bit aligned store
+        unsafe { _mm_store_si128(&mut out as *mut i128 as *mut __m128i, reverse) };
         out.to_le_bytes()
     }
 

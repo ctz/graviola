@@ -52,7 +52,7 @@ impl AesKey {
     }
 
     #[target_feature(enable = "avx512f")]
-    pub(crate) unsafe fn round_keys_512(&self) -> RoundKeys512 {
+    pub(crate) fn round_keys_512(&self) -> RoundKeys512 {
         match self {
             Self::Aes128(AesKey128 {
                 round_keys: [a, b, c, d, e, f, g, h, i, j, k],
