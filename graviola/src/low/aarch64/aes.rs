@@ -31,9 +31,7 @@ impl AesKey {
         }
     }
 
-    pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
-        debug_assert_eq!(inout.len(), 16);
-
+    pub(crate) fn encrypt_block(&self, inout: &mut [u8; 16]) {
         match self {
             Self::Aes128(a128) => a128.encrypt_block(inout),
             Self::Aes256(a256) => a256.encrypt_block(inout),
@@ -46,46 +44,47 @@ impl AesKey {
     }
 
     #[target_feature(enable = "aes,neon")]
-    unsafe fn _ctr(&self, initial_counter: &[u8; 16], cipher_inout: &mut [u8]) {
-        // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-        unsafe {
-            // counter and inc are big endian, so must be vrev32q_u8'd before use
-            let counter = vld1q_u8(initial_counter.as_ptr().cast());
-            let mut counter = vreinterpretq_u32_u8(vrev32q_u8(counter));
+    fn _ctr(&self, initial_counter: &[u8; 16], cipher_inout: &mut [u8]) {
+        // counter and inc are big endian, so must be vrev32q_u8'd before use
+        // SAFETY `initial_counter` is 16 bytes and readable
+        let counter = unsafe { vld1q_u8(initial_counter.as_ptr().cast()) };
+        let mut counter = vreinterpretq_u32_u8(vrev32q_u8(counter));
 
-            let inc = vsetq_lane_u8(1, vdupq_n_u8(0), 15);
-            let inc = vreinterpretq_u32_u8(vrev32q_u8(inc));
+        let inc = vsetq_lane_u8(1, vdupq_n_u8(0), 15);
+        let inc = vreinterpretq_u32_u8(vrev32q_u8(inc));
 
-            let mut by8 = cipher_inout.chunks_exact_mut(128);
+        let mut by8 = cipher_inout.chunks_exact_mut(128);
 
-            for cipher8 in by8.by_ref() {
-                cpu::prefetch_rw(cipher8.as_ptr());
-                counter = vaddq_u32(counter, inc);
-                let b0 = vrev32q_u8(vreinterpretq_u8_u32(counter));
-                counter = vaddq_u32(counter, inc);
-                let b1 = vrev32q_u8(vreinterpretq_u8_u32(counter));
-                counter = vaddq_u32(counter, inc);
-                let b2 = vrev32q_u8(vreinterpretq_u8_u32(counter));
-                counter = vaddq_u32(counter, inc);
-                let b3 = vrev32q_u8(vreinterpretq_u8_u32(counter));
-                counter = vaddq_u32(counter, inc);
-                let b4 = vrev32q_u8(vreinterpretq_u8_u32(counter));
-                counter = vaddq_u32(counter, inc);
-                let b5 = vrev32q_u8(vreinterpretq_u8_u32(counter));
-                counter = vaddq_u32(counter, inc);
-                let b6 = vrev32q_u8(vreinterpretq_u8_u32(counter));
-                counter = vaddq_u32(counter, inc);
-                let b7 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+        for cipher8 in by8.by_ref() {
+            cpu::prefetch_rw(cipher8.as_ptr());
+            counter = vaddq_u32(counter, inc);
+            let b0 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b1 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b2 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b3 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b4 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b5 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b6 = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let b7 = vrev32q_u8(vreinterpretq_u8_u32(counter));
 
-                let (b0, b1, b2, b3, b4, b5, b6, b7) = match self {
-                    Self::Aes128(a128) => {
-                        _aes128_8_blocks(&a128.round_keys, b0, b1, b2, b3, b4, b5, b6, b7)
-                    }
-                    Self::Aes256(a256) => {
-                        _aes256_8_blocks(&a256.round_keys, b0, b1, b2, b3, b4, b5, b6, b7)
-                    }
-                };
+            let (b0, b1, b2, b3, b4, b5, b6, b7) = match self {
+                Self::Aes128(a128) => {
+                    _aes128_8_blocks(&a128.round_keys, b0, b1, b2, b3, b4, b5, b6, b7)
+                }
+                Self::Aes256(a256) => {
+                    _aes256_8_blocks(&a256.round_keys, b0, b1, b2, b3, b4, b5, b6, b7)
+                }
+            };
 
+            // SAFETY: cipher8 is 128 bytes long, via `chunks_exact_mut`
+            unsafe {
                 let b0 = veorq_u8(vld1q_u8(cipher8.as_ptr().add(0).cast()), b0);
                 let b1 = veorq_u8(vld1q_u8(cipher8.as_ptr().add(16).cast()), b1);
                 let b2 = veorq_u8(vld1q_u8(cipher8.as_ptr().add(32).cast()), b2);
@@ -104,41 +103,48 @@ impl AesKey {
                 vst1q_u8(cipher8.as_mut_ptr().add(96).cast(), b6);
                 vst1q_u8(cipher8.as_mut_ptr().add(112).cast(), b7);
             }
+        }
 
-            let mut singles = by8.into_remainder().chunks_exact_mut(16);
+        let mut singles = by8.into_remainder().chunks_exact_mut(16);
 
-            for cipher in singles.by_ref() {
-                counter = vaddq_u32(counter, inc);
-                let block = vrev32q_u8(vreinterpretq_u8_u32(counter));
+        for cipher in singles.by_ref() {
+            counter = vaddq_u32(counter, inc);
+            let block = vrev32q_u8(vreinterpretq_u8_u32(counter));
 
-                let block = match self {
-                    Self::Aes128(a128) => _aes128_block(&a128.round_keys, block),
-                    Self::Aes256(a256) => _aes256_block(&a256.round_keys, block),
-                };
+            let block = match self {
+                Self::Aes128(a128) => _aes128_block(&a128.round_keys, block),
+                Self::Aes256(a256) => _aes256_block(&a256.round_keys, block),
+            };
+
+            // SAFETY: `cipher` is 16 bytes and writable, via `chunks_exact_mut`
+            unsafe {
                 let block = veorq_u8(vld1q_u8(cipher.as_ptr().cast()), block);
                 vst1q_u8(cipher.as_mut_ptr().cast(), block);
             }
+        }
 
-            let cipher_inout = singles.into_remainder();
-            if !cipher_inout.is_empty() {
-                let mut cipher = [0u8; 16];
-                let len = cipher_inout.len();
-                debug_assert!(len < 16);
-                cipher[..len].copy_from_slice(cipher_inout);
+        let cipher_inout = singles.into_remainder();
+        if !cipher_inout.is_empty() {
+            let mut cipher = [0u8; 16];
+            let len = cipher_inout.len();
+            debug_assert!(len < 16);
+            cipher[..len].copy_from_slice(cipher_inout);
 
-                counter = vaddq_u32(counter, inc);
-                let block = vrev32q_u8(vreinterpretq_u8_u32(counter));
+            counter = vaddq_u32(counter, inc);
+            let block = vrev32q_u8(vreinterpretq_u8_u32(counter));
 
-                let block = match self {
-                    Self::Aes128(a128) => _aes128_block(&a128.round_keys, block),
-                    Self::Aes256(a256) => _aes256_block(&a256.round_keys, block),
-                };
+            let block = match self {
+                Self::Aes128(a128) => _aes128_block(&a128.round_keys, block),
+                Self::Aes256(a256) => _aes256_block(&a256.round_keys, block),
+            };
 
+            // SAFETY: `cipher` is 16 bytes and writable
+            unsafe {
                 let block = veorq_u8(vld1q_u8(cipher.as_ptr().cast()), block);
-                vst1q_u8(cipher.as_mut_ptr().cast(), block);
+                vst1q_u8(cipher.as_mut_ptr().cast(), block)
+            };
 
-                cipher_inout.copy_from_slice(&cipher[..len]);
-            }
+            cipher_inout.copy_from_slice(&cipher[..len]);
         }
     }
 }
@@ -174,7 +180,7 @@ impl AesKey128 {
         Self { round_keys }
     }
 
-    pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
+    pub(crate) fn encrypt_block(&self, inout: &mut [u8; 16]) {
         // SAFETY: this crate requires the `aes` cpu feature
         unsafe { aes128_block(&self.round_keys, inout) }
     }
@@ -225,7 +231,7 @@ impl AesKey256 {
         Self { round_keys }
     }
 
-    pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
+    pub(crate) fn encrypt_block(&self, inout: &mut [u8; 16]) {
         // SAFETY: this crate requires the `aes` cpu feature
         unsafe { aes256_block(&self.round_keys, inout) }
     }
@@ -248,40 +254,36 @@ fn sub_word(w: u32) -> u32 {
 }
 
 #[target_feature(enable = "aes")]
-unsafe fn _sub_word(w: u32) -> u32 {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        // we have the `aese` instruction, which is
-        // `sub_word(shift_rows(w), S)`. however, fortunately
-        // `shift_rows` is the identity for the first 32-bit word
+fn _sub_word(w: u32) -> u32 {
+    // we have the `aese` instruction, which is
+    // `sub_word(shift_rows(w), S)`. however, fortunately
+    // `shift_rows` is the identity for the first 32-bit word
 
-        let t2 = vdupq_n_u32(w);
-        let t2 = vreinterpretq_u8_u32(t2);
-        let z = vdupq_n_u8(0);
-        let t2 = vaeseq_u8(t2, z);
-        let mut out: u32 = 0;
-        let t2 = vreinterpretq_u32_u8(t2);
-        vst1q_lane_u32(&mut out as *mut u32, t2, 0);
-        out
-    }
+    let t2 = vdupq_n_u32(w);
+    let t2 = vreinterpretq_u8_u32(t2);
+    let z = vdupq_n_u8(0);
+    let t2 = vaeseq_u8(t2, z);
+    let mut out: u32 = 0;
+    let t2 = vreinterpretq_u32_u8(t2);
+    // SAFETY: out is a writable u32
+    unsafe { vst1q_lane_u32(&mut out, t2, 0) };
+    out
 }
 
 const RCON: [u32; 10] = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36];
 
 #[target_feature(enable = "aes")]
-unsafe fn aes128_block(round_keys: &[uint8x16_t; 11], block_inout: &mut [u8]) {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let block = vld1q_u8(block_inout.as_ptr() as *const _);
-        let block = _aes128_block(round_keys, block);
-        vst1q_u8(block_inout.as_mut_ptr() as *mut _, block);
-    }
+fn aes128_block(round_keys: &[uint8x16_t; 11], block_inout: &mut [u8]) {
+    // SAFETY: `block_inout` is 16 bytes and readable
+    let block = unsafe { vld1q_u8(block_inout.as_ptr() as *const _) };
+    let block = _aes128_block(round_keys, block);
+    // SAFETY: `block_inout` is 16 bytes and writable
+    unsafe { vst1q_u8(block_inout.as_mut_ptr() as *mut _, block) };
 }
 
 #[target_feature(enable = "aes")]
 #[inline]
 fn _aes128_block(round_keys: &[uint8x16_t; 11], block: uint8x16_t) -> uint8x16_t {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     let block = vaeseq_u8(block, round_keys[0]);
     let block = vaesmcq_u8(block);
     let block = vaeseq_u8(block, round_keys[1]);
@@ -348,7 +350,6 @@ fn _aes128_8_blocks(
     uint8x16_t,
     uint8x16_t,
 ) {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[0]);
     round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[1]);
     round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[2]);
@@ -380,11 +381,11 @@ fn _aes128_8_blocks(
 }
 
 #[target_feature(enable = "aes")]
-fn aes256_block(round_keys: &[uint8x16_t; 15], block_inout: &mut [u8]) {
-    // SAFETY: caller handwaves that `block_inout` is at least 16 bytes(!)
+fn aes256_block(round_keys: &[uint8x16_t; 15], block_inout: &mut [u8; 16]) {
+    // SAFETY: `block_inout` is 16 bytes and readable
     let block = unsafe { vld1q_u8(block_inout.as_ptr() as *const _) };
     let block = _aes256_block(round_keys, block);
-    // SAFETY: caller handwaves that `block_inout` is at least 16 bytes(!)
+    // SAFETY: `block_inout` is 16 bytes and writable
     unsafe { vst1q_u8(block_inout.as_mut_ptr() as *mut _, block) };
 }
 
@@ -443,7 +444,6 @@ fn _aes256_8_blocks(
     uint8x16_t,
     uint8x16_t,
 ) {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[0]);
     round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[1]);
     round_8!(b0, b1, b2, b3, b4, b5, b6, b7, round_keys[2]);

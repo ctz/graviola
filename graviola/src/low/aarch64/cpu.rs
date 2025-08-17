@@ -203,7 +203,7 @@ mod dit {
     }
 
     #[target_feature(enable = "dit")]
-    unsafe fn read() -> u32 {
+    fn read() -> u32 {
         let mut out: u64;
         // SAFETY: `mrs _, DIT` is defined only if `dit` cpu feature is supported
         unsafe {
@@ -218,7 +218,7 @@ mod dit {
     }
 
     #[target_feature(enable = "dit")]
-    unsafe fn write(on: u32) {
+    fn write(on: u32) {
         if on > 0 {
             // SAFETY: `msr DIT, _` is defined only if `dit` cpu feature is supported
             unsafe { core::arch::asm!("msr DIT, #1") }
