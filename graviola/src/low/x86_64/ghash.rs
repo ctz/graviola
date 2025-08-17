@@ -284,14 +284,12 @@ macro_rules! reduce {
 
 #[inline]
 #[target_feature(enable = "pclmulqdq,avx")]
-unsafe fn _mul(a: __m128i, b: __m128i) -> __m128i {
+fn _mul(a: __m128i, b: __m128i) -> __m128i {
     // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
-        let bx = xor_halves(b);
-        mul!(lo, mi, hi, a, b, bx);
-        reduce!(lo, mi, hi)
-    }
+    let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
+    let bx = xor_halves(b);
+    mul!(lo, mi, hi, a, b, bx);
+    reduce!(lo, mi, hi)
 }
 
 #[inline]

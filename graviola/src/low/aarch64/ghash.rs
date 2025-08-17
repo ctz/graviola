@@ -196,18 +196,15 @@ macro_rules! reduce {
 }
 
 #[target_feature(enable = "neon,aes")]
-unsafe fn _mul(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
-        let bx = xor_halves(b);
-        mul!(lo, mi, hi, a, b, bx);
-        reduce!(lo, mi, hi)
-    }
+fn _mul(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
+    let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
+    let bx = xor_halves(b);
+    mul!(lo, mi, hi, a, b, bx);
+    reduce!(lo, mi, hi)
 }
 
 #[target_feature(enable = "neon,aes")]
-unsafe fn _mul8(
+fn _mul8(
     table: &GhashTable,
     a: uint64x2_t,
     b: uint64x2_t,
@@ -218,24 +215,20 @@ unsafe fn _mul8(
     g: uint64x2_t,
     h: uint64x2_t,
 ) -> uint64x2_t {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
-        mul!(lo, mi, hi, a, table.powers[7], table.powers_xor[7]);
-        mul!(lo, mi, hi, b, table.powers[6], table.powers_xor[6]);
-        mul!(lo, mi, hi, c, table.powers[5], table.powers_xor[5]);
-        mul!(lo, mi, hi, d, table.powers[4], table.powers_xor[4]);
-        mul!(lo, mi, hi, e, table.powers[3], table.powers_xor[3]);
-        mul!(lo, mi, hi, f, table.powers[2], table.powers_xor[2]);
-        mul!(lo, mi, hi, g, table.powers[1], table.powers_xor[1]);
-        mul!(lo, mi, hi, h, table.powers[0], table.powers_xor[0]);
-        reduce!(lo, mi, hi)
-    }
+    let (mut lo, mut mi, mut hi) = (zero(), zero(), zero());
+    mul!(lo, mi, hi, a, table.powers[7], table.powers_xor[7]);
+    mul!(lo, mi, hi, b, table.powers[6], table.powers_xor[6]);
+    mul!(lo, mi, hi, c, table.powers[5], table.powers_xor[5]);
+    mul!(lo, mi, hi, d, table.powers[4], table.powers_xor[4]);
+    mul!(lo, mi, hi, e, table.powers[3], table.powers_xor[3]);
+    mul!(lo, mi, hi, f, table.powers[2], table.powers_xor[2]);
+    mul!(lo, mi, hi, g, table.powers[1], table.powers_xor[1]);
+    mul!(lo, mi, hi, h, table.powers[0], table.powers_xor[0]);
+    reduce!(lo, mi, hi)
 }
 
 #[target_feature(enable = "neon")]
 fn xor_halves(h: uint64x2_t) -> uint64x2_t {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
     let hx = vextq_u64(h, h, 1);
     veorq_u64(hx, h)
 }
@@ -265,24 +258,22 @@ fn gf128_big_endian(h: uint64x2_t) -> uint64x2_t {
 
 #[inline]
 #[target_feature(enable = "neon,aes")]
-unsafe fn vmull_p64_fix(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let a = vgetq_lane_u64::<0>(a);
-        let b = vgetq_lane_u64::<0>(b);
-        mem::transmute(vmull_p64(a, b))
-    }
+fn vmull_p64_fix(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
+    let a = vgetq_lane_u64::<0>(a);
+    let b = vgetq_lane_u64::<0>(b);
+    let p = vmull_p64(a, b);
+    // SAFETY: uint64x2_t and u128 have the same representation
+    unsafe { mem::transmute(p) }
 }
 
 #[inline]
 #[target_feature(enable = "neon,aes")]
-unsafe fn vmull_high_p64_fix(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let a = vgetq_lane_u64::<1>(a);
-        let b = vgetq_lane_u64::<1>(b);
-        mem::transmute(vmull_p64(a, b))
-    }
+fn vmull_high_p64_fix(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
+    let a = vgetq_lane_u64::<1>(a);
+    let b = vgetq_lane_u64::<1>(b);
+    let p = vmull_p64(a, b);
+    // SAFETY: uint64x2_t and u128 have the same representation
+    unsafe { mem::transmute(p) }
 }
 
 #[inline]
