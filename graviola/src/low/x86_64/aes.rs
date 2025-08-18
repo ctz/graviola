@@ -27,9 +27,7 @@ impl AesKey {
         }
     }
 
-    pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
-        debug_assert_eq!(inout.len(), 16);
-
+    pub(crate) fn encrypt_block(&self, inout: &mut [u8; 16]) {
         match self {
             Self::Aes128(a128) => a128.encrypt_block(inout),
             Self::Aes256(a256) => a256.encrypt_block(inout),
@@ -123,7 +121,7 @@ impl AesKey128 {
         Self { round_keys }
     }
 
-    pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
+    pub(crate) fn encrypt_block(&self, inout: &mut [u8; 16]) {
         // SAFETY: this crate requires the `aes` & `avx` cpu features
         unsafe { aes128_block(&self.round_keys, inout) }
     }
@@ -156,7 +154,7 @@ impl AesKey256 {
         Self { round_keys }
     }
 
-    pub(crate) fn encrypt_block(&self, inout: &mut [u8]) {
+    pub(crate) fn encrypt_block(&self, inout: &mut [u8; 16]) {
         // SAFETY: this crate requires the `aes` & `avx` cpu features
         unsafe { aes256_block(&self.round_keys, inout) }
     }
@@ -194,23 +192,21 @@ macro_rules! expand_128 {
 }
 
 #[target_feature(enable = "aes,avx")]
-unsafe fn aes128_expand(key: &[u8; 16], out: &mut [__m128i; 11]) {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let mut t1 = _mm_lddqu_si128(key.as_ptr() as *const _);
-        out[0] = t1;
+fn aes128_expand(key: &[u8; 16], out: &mut [__m128i; 11]) {
+    // SAFETY: `key` is 16 bytes and can be loaded from
+    let mut t1 = unsafe { _mm_lddqu_si128(key.as_ptr() as *const _) };
+    out[0] = t1;
 
-        expand_128!(0x01, t1, out[1]);
-        expand_128!(0x02, t1, out[2]);
-        expand_128!(0x04, t1, out[3]);
-        expand_128!(0x08, t1, out[4]);
-        expand_128!(0x10, t1, out[5]);
-        expand_128!(0x20, t1, out[6]);
-        expand_128!(0x40, t1, out[7]);
-        expand_128!(0x80, t1, out[8]);
-        expand_128!(0x1b, t1, out[9]);
-        expand_128!(0x36, t1, out[10]);
-    }
+    expand_128!(0x01, t1, out[1]);
+    expand_128!(0x02, t1, out[2]);
+    expand_128!(0x04, t1, out[3]);
+    expand_128!(0x08, t1, out[4]);
+    expand_128!(0x10, t1, out[5]);
+    expand_128!(0x20, t1, out[6]);
+    expand_128!(0x40, t1, out[7]);
+    expand_128!(0x80, t1, out[8]);
+    expand_128!(0x1b, t1, out[9]);
+    expand_128!(0x36, t1, out[10]);
 }
 
 macro_rules! expand_256 {
@@ -250,74 +246,74 @@ macro_rules! expand_256 {
 }
 
 #[target_feature(enable = "aes,avx")]
-unsafe fn aes256_expand(key: &[u8; 32], out: &mut [__m128i; 15]) {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let mut t1 = _mm_lddqu_si128(key.as_ptr() as *const _);
-        let mut t3 = _mm_lddqu_si128(key[16..].as_ptr() as *const _);
-        out[0] = t1;
-        out[1] = t3;
+fn aes256_expand(key: &[u8; 32], out: &mut [__m128i; 15]) {
+    // SAFETY: `key` is 32 bytes and readable
+    let (mut t1, mut t3) = unsafe {
+        (
+            _mm_lddqu_si128(key.as_ptr() as *const _),
+            _mm_lddqu_si128(key[16..].as_ptr() as *const _),
+        )
+    };
+    out[0] = t1;
+    out[1] = t3;
 
-        // nb. 'odd' rounds in units of Nk have an rcon term (equivalent
-        // to all rounds of 128-bit key expansion), 'even' rounds do not
-        expand_256!(Odd, 0x01, t1, t3, out[2]);
-        expand_256!(Even, t1, t3, out[3]);
-        expand_256!(Odd, 0x02, t1, t3, out[4]);
-        expand_256!(Even, t1, t3, out[5]);
-        expand_256!(Odd, 0x04, t1, t3, out[6]);
-        expand_256!(Even, t1, t3, out[7]);
-        expand_256!(Odd, 0x08, t1, t3, out[8]);
-        expand_256!(Even, t1, t3, out[9]);
-        expand_256!(Odd, 0x10, t1, t3, out[10]);
-        expand_256!(Even, t1, t3, out[11]);
-        expand_256!(Odd, 0x20, t1, t3, out[12]);
-        expand_256!(Even, t1, t3, out[13]);
-        expand_256!(Odd, 0x40, t1, t3, out[14]);
-    }
+    // nb. 'odd' rounds in units of Nk have an rcon term (equivalent
+    // to all rounds of 128-bit key expansion), 'even' rounds do not
+    expand_256!(Odd, 0x01, t1, t3, out[2]);
+    expand_256!(Even, t1, t3, out[3]);
+    expand_256!(Odd, 0x02, t1, t3, out[4]);
+    expand_256!(Even, t1, t3, out[5]);
+    expand_256!(Odd, 0x04, t1, t3, out[6]);
+    expand_256!(Even, t1, t3, out[7]);
+    expand_256!(Odd, 0x08, t1, t3, out[8]);
+    expand_256!(Even, t1, t3, out[9]);
+    expand_256!(Odd, 0x10, t1, t3, out[10]);
+    expand_256!(Even, t1, t3, out[11]);
+    expand_256!(Odd, 0x20, t1, t3, out[12]);
+    expand_256!(Even, t1, t3, out[13]);
+    expand_256!(Odd, 0x40, t1, t3, out[14]);
 }
 
 #[target_feature(enable = "aes,avx")]
-unsafe fn aes128_block(round_keys: &[__m128i; 11], block_inout: &mut [u8]) {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let block = _mm_lddqu_si128(block_inout.as_ptr() as *const _);
-        let block = _mm_xor_si128(block, round_keys[0]);
-        let block = _mm_aesenc_si128(block, round_keys[1]);
-        let block = _mm_aesenc_si128(block, round_keys[2]);
-        let block = _mm_aesenc_si128(block, round_keys[3]);
-        let block = _mm_aesenc_si128(block, round_keys[4]);
-        let block = _mm_aesenc_si128(block, round_keys[5]);
-        let block = _mm_aesenc_si128(block, round_keys[6]);
-        let block = _mm_aesenc_si128(block, round_keys[7]);
-        let block = _mm_aesenc_si128(block, round_keys[8]);
-        let block = _mm_aesenc_si128(block, round_keys[9]);
-        let block = _mm_aesenclast_si128(block, round_keys[10]);
-        _mm_storeu_si128(block_inout.as_mut_ptr() as *mut _, block);
-    }
+fn aes128_block(round_keys: &[__m128i; 11], block_inout: &mut [u8; 16]) {
+    // SAFETY: `block_inout` is 16 bytes and readable
+    let block = unsafe { _mm_lddqu_si128(block_inout.as_ptr() as *const _) };
+    let block = _mm_xor_si128(block, round_keys[0]);
+    let block = _mm_aesenc_si128(block, round_keys[1]);
+    let block = _mm_aesenc_si128(block, round_keys[2]);
+    let block = _mm_aesenc_si128(block, round_keys[3]);
+    let block = _mm_aesenc_si128(block, round_keys[4]);
+    let block = _mm_aesenc_si128(block, round_keys[5]);
+    let block = _mm_aesenc_si128(block, round_keys[6]);
+    let block = _mm_aesenc_si128(block, round_keys[7]);
+    let block = _mm_aesenc_si128(block, round_keys[8]);
+    let block = _mm_aesenc_si128(block, round_keys[9]);
+    let block = _mm_aesenclast_si128(block, round_keys[10]);
+    // SAFETY: `block_inout` is 16 bytes and writeable
+    unsafe { _mm_storeu_si128(block_inout.as_mut_ptr() as *mut _, block) };
 }
 
 #[target_feature(enable = "aes,avx")]
-unsafe fn aes256_block(round_keys: &[__m128i; 15], block_inout: &mut [u8]) {
-    // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-    unsafe {
-        let block = _mm_lddqu_si128(block_inout.as_ptr() as *const _);
-        let block = _mm_xor_si128(block, round_keys[0]);
-        let block = _mm_aesenc_si128(block, round_keys[1]);
-        let block = _mm_aesenc_si128(block, round_keys[2]);
-        let block = _mm_aesenc_si128(block, round_keys[3]);
-        let block = _mm_aesenc_si128(block, round_keys[4]);
-        let block = _mm_aesenc_si128(block, round_keys[5]);
-        let block = _mm_aesenc_si128(block, round_keys[6]);
-        let block = _mm_aesenc_si128(block, round_keys[7]);
-        let block = _mm_aesenc_si128(block, round_keys[8]);
-        let block = _mm_aesenc_si128(block, round_keys[9]);
-        let block = _mm_aesenc_si128(block, round_keys[10]);
-        let block = _mm_aesenc_si128(block, round_keys[11]);
-        let block = _mm_aesenc_si128(block, round_keys[12]);
-        let block = _mm_aesenc_si128(block, round_keys[13]);
-        let block = _mm_aesenclast_si128(block, round_keys[14]);
-        _mm_storeu_si128(block_inout.as_mut_ptr() as *mut _, block);
-    }
+fn aes256_block(round_keys: &[__m128i; 15], block_inout: &mut [u8; 16]) {
+    // SAFETY: `block_inout` is 16 bytes and readable
+    let block = unsafe { _mm_lddqu_si128(block_inout.as_ptr() as *const _) };
+    let block = _mm_xor_si128(block, round_keys[0]);
+    let block = _mm_aesenc_si128(block, round_keys[1]);
+    let block = _mm_aesenc_si128(block, round_keys[2]);
+    let block = _mm_aesenc_si128(block, round_keys[3]);
+    let block = _mm_aesenc_si128(block, round_keys[4]);
+    let block = _mm_aesenc_si128(block, round_keys[5]);
+    let block = _mm_aesenc_si128(block, round_keys[6]);
+    let block = _mm_aesenc_si128(block, round_keys[7]);
+    let block = _mm_aesenc_si128(block, round_keys[8]);
+    let block = _mm_aesenc_si128(block, round_keys[9]);
+    let block = _mm_aesenc_si128(block, round_keys[10]);
+    let block = _mm_aesenc_si128(block, round_keys[11]);
+    let block = _mm_aesenc_si128(block, round_keys[12]);
+    let block = _mm_aesenc_si128(block, round_keys[13]);
+    let block = _mm_aesenclast_si128(block, round_keys[14]);
+    // SAFETY: `block_inout` is 16 bytes and writeable
+    unsafe { _mm_storeu_si128(block_inout.as_mut_ptr() as *mut _, block) };
 }
 
 #[cfg(test)]

@@ -51,7 +51,7 @@ pub(crate) fn decrypt(
 }
 
 #[target_feature(enable = "aes,ssse3,pclmulqdq,avx")]
-unsafe fn _cipher<const ENC: bool>(
+fn _cipher<const ENC: bool>(
     key: &AesKey,
     ghash: &mut Ghash<'_>,
     initial_counter: &[u8; 16],
@@ -67,68 +67,76 @@ unsafe fn _cipher<const ENC: bool>(
     let avx_ghash_table = ghash.table.avx();
 
     for blocks in by8_iter.by_ref() {
-        // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
+        // prefetch to avoid any stall later
+        // SAFETY: prefetching does not fault and is not architecturally visible
         unsafe {
-            // prefetch to avoid any stall later
             _mm_prefetch(blocks.as_ptr().add(0) as *const _, _MM_HINT_T0);
             _mm_prefetch(blocks.as_ptr().add(64) as *const _, _MM_HINT_T0);
+        }
 
-            let c1 = counter.next();
-            let c2 = counter.next();
-            let c3 = counter.next();
-            let c4 = counter.next();
-            let c5 = counter.next();
-            let c6 = counter.next();
-            let c7 = counter.next();
-            let c8 = counter.next();
+        let c1 = counter.next();
+        let c2 = counter.next();
+        let c3 = counter.next();
+        let c4 = counter.next();
+        let c5 = counter.next();
+        let c6 = counter.next();
+        let c7 = counter.next();
+        let c8 = counter.next();
 
-            let mut c1 = _mm_xor_si128(c1, rk_first);
-            let mut c2 = _mm_xor_si128(c2, rk_first);
-            let mut c3 = _mm_xor_si128(c3, rk_first);
-            let mut c4 = _mm_xor_si128(c4, rk_first);
-            let mut c5 = _mm_xor_si128(c5, rk_first);
-            let mut c6 = _mm_xor_si128(c6, rk_first);
-            let mut c7 = _mm_xor_si128(c7, rk_first);
-            let mut c8 = _mm_xor_si128(c8, rk_first);
+        let mut c1 = _mm_xor_si128(c1, rk_first);
+        let mut c2 = _mm_xor_si128(c2, rk_first);
+        let mut c3 = _mm_xor_si128(c3, rk_first);
+        let mut c4 = _mm_xor_si128(c4, rk_first);
+        let mut c5 = _mm_xor_si128(c5, rk_first);
+        let mut c6 = _mm_xor_si128(c6, rk_first);
+        let mut c7 = _mm_xor_si128(c7, rk_first);
+        let mut c8 = _mm_xor_si128(c8, rk_first);
 
-            for rk in rks {
-                c1 = _mm_aesenc_si128(c1, *rk);
-                c2 = _mm_aesenc_si128(c2, *rk);
-                c3 = _mm_aesenc_si128(c3, *rk);
-                c4 = _mm_aesenc_si128(c4, *rk);
-                c5 = _mm_aesenc_si128(c5, *rk);
-                c6 = _mm_aesenc_si128(c6, *rk);
-                c7 = _mm_aesenc_si128(c7, *rk);
-                c8 = _mm_aesenc_si128(c8, *rk);
-            }
+        for rk in rks {
+            c1 = _mm_aesenc_si128(c1, *rk);
+            c2 = _mm_aesenc_si128(c2, *rk);
+            c3 = _mm_aesenc_si128(c3, *rk);
+            c4 = _mm_aesenc_si128(c4, *rk);
+            c5 = _mm_aesenc_si128(c5, *rk);
+            c6 = _mm_aesenc_si128(c6, *rk);
+            c7 = _mm_aesenc_si128(c7, *rk);
+            c8 = _mm_aesenc_si128(c8, *rk);
+        }
 
-            let c1 = _mm_aesenclast_si128(c1, rk_last);
-            let c2 = _mm_aesenclast_si128(c2, rk_last);
-            let c3 = _mm_aesenclast_si128(c3, rk_last);
-            let c4 = _mm_aesenclast_si128(c4, rk_last);
-            let c5 = _mm_aesenclast_si128(c5, rk_last);
-            let c6 = _mm_aesenclast_si128(c6, rk_last);
-            let c7 = _mm_aesenclast_si128(c7, rk_last);
-            let c8 = _mm_aesenclast_si128(c8, rk_last);
+        let c1 = _mm_aesenclast_si128(c1, rk_last);
+        let c2 = _mm_aesenclast_si128(c2, rk_last);
+        let c3 = _mm_aesenclast_si128(c3, rk_last);
+        let c4 = _mm_aesenclast_si128(c4, rk_last);
+        let c5 = _mm_aesenclast_si128(c5, rk_last);
+        let c6 = _mm_aesenclast_si128(c6, rk_last);
+        let c7 = _mm_aesenclast_si128(c7, rk_last);
+        let c8 = _mm_aesenclast_si128(c8, rk_last);
 
-            let p1 = _mm_loadu_si128(blocks.as_ptr().add(0) as *const _);
-            let p2 = _mm_loadu_si128(blocks.as_ptr().add(16) as *const _);
-            let p3 = _mm_loadu_si128(blocks.as_ptr().add(32) as *const _);
-            let p4 = _mm_loadu_si128(blocks.as_ptr().add(48) as *const _);
-            let p5 = _mm_loadu_si128(blocks.as_ptr().add(64) as *const _);
-            let p6 = _mm_loadu_si128(blocks.as_ptr().add(80) as *const _);
-            let p7 = _mm_loadu_si128(blocks.as_ptr().add(96) as *const _);
-            let p8 = _mm_loadu_si128(blocks.as_ptr().add(112) as *const _);
+        // SAFETY: `blocks` is 128 bytes and readable
+        let (p1, p2, p3, p4, p5, p6, p7, p8) = unsafe {
+            (
+                _mm_loadu_si128(blocks.as_ptr().add(0) as *const _),
+                _mm_loadu_si128(blocks.as_ptr().add(16) as *const _),
+                _mm_loadu_si128(blocks.as_ptr().add(32) as *const _),
+                _mm_loadu_si128(blocks.as_ptr().add(48) as *const _),
+                _mm_loadu_si128(blocks.as_ptr().add(64) as *const _),
+                _mm_loadu_si128(blocks.as_ptr().add(80) as *const _),
+                _mm_loadu_si128(blocks.as_ptr().add(96) as *const _),
+                _mm_loadu_si128(blocks.as_ptr().add(112) as *const _),
+            )
+        };
 
-            let c1 = _mm_xor_si128(c1, p1);
-            let c2 = _mm_xor_si128(c2, p2);
-            let c3 = _mm_xor_si128(c3, p3);
-            let c4 = _mm_xor_si128(c4, p4);
-            let c5 = _mm_xor_si128(c5, p5);
-            let c6 = _mm_xor_si128(c6, p6);
-            let c7 = _mm_xor_si128(c7, p7);
-            let c8 = _mm_xor_si128(c8, p8);
+        let c1 = _mm_xor_si128(c1, p1);
+        let c2 = _mm_xor_si128(c2, p2);
+        let c3 = _mm_xor_si128(c3, p3);
+        let c4 = _mm_xor_si128(c4, p4);
+        let c5 = _mm_xor_si128(c5, p5);
+        let c6 = _mm_xor_si128(c6, p6);
+        let c7 = _mm_xor_si128(c7, p7);
+        let c8 = _mm_xor_si128(c8, p8);
 
+        // SAFETY: `blocks` is 128 bytes and writable, due to `chunks_exact_mut`
+        unsafe {
             _mm_storeu_si128(blocks.as_mut_ptr().add(0) as *mut _, c1);
             _mm_storeu_si128(blocks.as_mut_ptr().add(16) as *mut _, c2);
             _mm_storeu_si128(blocks.as_mut_ptr().add(32) as *mut _, c3);
@@ -137,25 +145,25 @@ unsafe fn _cipher<const ENC: bool>(
             _mm_storeu_si128(blocks.as_mut_ptr().add(80) as *mut _, c6);
             _mm_storeu_si128(blocks.as_mut_ptr().add(96) as *mut _, c7);
             _mm_storeu_si128(blocks.as_mut_ptr().add(112) as *mut _, c8);
-
-            let (a1, a2, a3, a4, a5, a6, a7, a8) = if ENC {
-                (c1, c2, c3, c4, c5, c6, c7, c8)
-            } else {
-                (p1, p2, p3, p4, p5, p6, p7, p8)
-            };
-
-            let a1 = _mm_shuffle_epi8(a1, BYTESWAP);
-            let a2 = _mm_shuffle_epi8(a2, BYTESWAP);
-            let a3 = _mm_shuffle_epi8(a3, BYTESWAP);
-            let a4 = _mm_shuffle_epi8(a4, BYTESWAP);
-            let a5 = _mm_shuffle_epi8(a5, BYTESWAP);
-            let a6 = _mm_shuffle_epi8(a6, BYTESWAP);
-            let a7 = _mm_shuffle_epi8(a7, BYTESWAP);
-            let a8 = _mm_shuffle_epi8(a8, BYTESWAP);
-
-            let a1 = _mm_xor_si128(ghash.current, a1);
-            ghash.current = ghash::_mul8(avx_ghash_table, a1, a2, a3, a4, a5, a6, a7, a8);
         }
+
+        let (a1, a2, a3, a4, a5, a6, a7, a8) = if ENC {
+            (c1, c2, c3, c4, c5, c6, c7, c8)
+        } else {
+            (p1, p2, p3, p4, p5, p6, p7, p8)
+        };
+
+        let a1 = _mm_shuffle_epi8(a1, BYTESWAP);
+        let a2 = _mm_shuffle_epi8(a2, BYTESWAP);
+        let a3 = _mm_shuffle_epi8(a3, BYTESWAP);
+        let a4 = _mm_shuffle_epi8(a4, BYTESWAP);
+        let a5 = _mm_shuffle_epi8(a5, BYTESWAP);
+        let a6 = _mm_shuffle_epi8(a6, BYTESWAP);
+        let a7 = _mm_shuffle_epi8(a7, BYTESWAP);
+        let a8 = _mm_shuffle_epi8(a8, BYTESWAP);
+
+        let a1 = _mm_xor_si128(ghash.current, a1);
+        ghash.current = ghash::_mul8(avx_ghash_table, a1, a2, a3, a4, a5, a6, a7, a8);
     }
 
     let cipher_inout = by8_iter.into_remainder();
@@ -169,20 +177,20 @@ unsafe fn _cipher<const ENC: bool>(
         for block in blocks_iter.by_ref() {
             let c1 = counter.next();
 
-            // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-            unsafe {
-                let mut c1 = _mm_xor_si128(c1, rk_first);
+            let mut c1 = _mm_xor_si128(c1, rk_first);
 
-                for rk in rks {
-                    c1 = _mm_aesenc_si128(c1, *rk);
-                }
-
-                let c1 = _mm_aesenclast_si128(c1, rk_last);
-
-                let c1 = _mm_xor_si128(c1, _mm_loadu_si128(block.as_ptr() as *const _));
-
-                _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
+            for rk in rks {
+                c1 = _mm_aesenc_si128(c1, *rk);
             }
+
+            let c1 = _mm_aesenclast_si128(c1, rk_last);
+
+            // SAFETY: `block` is 16 bytes due to `chunks_exact_mut`
+            let p1 = unsafe { _mm_loadu_si128(block.as_ptr() as *const _) };
+            let c1 = _mm_xor_si128(c1, p1);
+
+            // SAFETY: `block` is 16 bytes and writable, due to `chunks_exact_mut`
+            unsafe { _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1) };
         }
 
         let cipher_inout = blocks_iter.into_remainder();
@@ -193,20 +201,20 @@ unsafe fn _cipher<const ENC: bool>(
             block[..len].copy_from_slice(cipher_inout);
 
             let c1 = counter.next();
+            let mut c1 = _mm_xor_si128(c1, rk_first);
 
-            // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
+            for rk in rks {
+                c1 = _mm_aesenc_si128(c1, *rk);
+            }
+
+            let c1 = _mm_aesenclast_si128(c1, rk_last);
+
+            // SAFETY: `block` is 16 bytes and writable.
+            let p1 = unsafe { _mm_loadu_si128(block.as_ptr() as *const _) };
+            let c1 = _mm_xor_si128(c1, p1);
+
+            // SAFETY: `block` is 16 bytes and writable.
             unsafe {
-                let mut c1 = _mm_xor_si128(c1, rk_first);
-
-                for rk in rks {
-                    c1 = _mm_aesenc_si128(c1, *rk);
-                }
-
-                let c1 = _mm_aesenclast_si128(c1, rk_last);
-
-                let p1 = _mm_loadu_si128(block.as_ptr() as *const _);
-                let c1 = _mm_xor_si128(c1, p1);
-
                 _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
             }
 
@@ -222,7 +230,7 @@ unsafe fn _cipher<const ENC: bool>(
 #[target_feature(
     enable = "aes,avx,avx2,avx512bw,avx512f,avx512vl,sse3,ssse3,pclmulqdq,vaes,vpclmulqdq"
 )]
-unsafe fn _cipher_avx512<const ENC: bool>(
+fn _cipher_avx512<const ENC: bool>(
     key: &AesKey,
     ghash: &mut Ghash<'_>,
     initial_counter: &[u8; 16],
@@ -249,60 +257,68 @@ unsafe fn _cipher_avx512<const ENC: bool>(
             // prefetch to avoid any stall later
             _mm_prefetch(blocks.as_ptr().add(0) as *const _, _MM_HINT_T0);
             _mm_prefetch(blocks.as_ptr().add(256) as *const _, _MM_HINT_T0);
+        }
 
-            let c0123 = counter.next4();
-            let c4567 = counter.next4();
-            let c89ab = counter.next4();
-            let ccdef = counter.next4();
+        let c0123 = counter.next4();
+        let c4567 = counter.next4();
+        let c89ab = counter.next4();
+        let ccdef = counter.next4();
 
-            let mut c0123 = _mm512_xor_epi32(c0123, rk_first);
-            let mut c4567 = _mm512_xor_epi32(c4567, rk_first);
-            let mut c89ab = _mm512_xor_epi32(c89ab, rk_first);
-            let mut ccdef = _mm512_xor_epi32(ccdef, rk_first);
+        let mut c0123 = _mm512_xor_epi32(c0123, rk_first);
+        let mut c4567 = _mm512_xor_epi32(c4567, rk_first);
+        let mut c89ab = _mm512_xor_epi32(c89ab, rk_first);
+        let mut ccdef = _mm512_xor_epi32(ccdef, rk_first);
 
-            for rk in rks {
-                c0123 = _mm512_aesenc_epi128(c0123, *rk);
-                c4567 = _mm512_aesenc_epi128(c4567, *rk);
-                c89ab = _mm512_aesenc_epi128(c89ab, *rk);
-                ccdef = _mm512_aesenc_epi128(ccdef, *rk);
-            }
+        for rk in rks {
+            c0123 = _mm512_aesenc_epi128(c0123, *rk);
+            c4567 = _mm512_aesenc_epi128(c4567, *rk);
+            c89ab = _mm512_aesenc_epi128(c89ab, *rk);
+            ccdef = _mm512_aesenc_epi128(ccdef, *rk);
+        }
 
-            let c0123 = _mm512_aesenclast_epi128(c0123, rk_last);
-            let c4567 = _mm512_aesenclast_epi128(c4567, rk_last);
-            let c89ab = _mm512_aesenclast_epi128(c89ab, rk_last);
-            let ccdef = _mm512_aesenclast_epi128(ccdef, rk_last);
+        let c0123 = _mm512_aesenclast_epi128(c0123, rk_last);
+        let c4567 = _mm512_aesenclast_epi128(c4567, rk_last);
+        let c89ab = _mm512_aesenclast_epi128(c89ab, rk_last);
+        let ccdef = _mm512_aesenclast_epi128(ccdef, rk_last);
 
-            let p0123 = _mm512_loadu_si512(blocks.as_ptr().add(0) as *const _);
-            let p4567 = _mm512_loadu_si512(blocks.as_ptr().add(64) as *const _);
-            let p89ab = _mm512_loadu_si512(blocks.as_ptr().add(128) as *const _);
-            let pcdef = _mm512_loadu_si512(blocks.as_ptr().add(192) as *const _);
+        // SAFETY: `blocks` is 256 bytes due to `chunks_exact_mut`
+        let (p0123, p4567, p89ab, pcdef) = unsafe {
+            (
+                _mm512_loadu_si512(blocks.as_ptr().add(0) as *const _),
+                _mm512_loadu_si512(blocks.as_ptr().add(64) as *const _),
+                _mm512_loadu_si512(blocks.as_ptr().add(128) as *const _),
+                _mm512_loadu_si512(blocks.as_ptr().add(192) as *const _),
+            )
+        };
 
-            let c0123 = _mm512_xor_epi32(c0123, p0123);
-            let c4567 = _mm512_xor_epi32(c4567, p4567);
-            let c89ab = _mm512_xor_epi32(c89ab, p89ab);
-            let ccdef = _mm512_xor_epi32(ccdef, pcdef);
+        let c0123 = _mm512_xor_epi32(c0123, p0123);
+        let c4567 = _mm512_xor_epi32(c4567, p4567);
+        let c89ab = _mm512_xor_epi32(c89ab, p89ab);
+        let ccdef = _mm512_xor_epi32(ccdef, pcdef);
 
+        // SAFETY: `blocks` is 256 bytes and writable due to `chunks_exact_mut`
+        unsafe {
             _mm512_storeu_si512(blocks.as_mut_ptr().add(0) as *mut _, c0123);
             _mm512_storeu_si512(blocks.as_mut_ptr().add(64) as *mut _, c4567);
             _mm512_storeu_si512(blocks.as_mut_ptr().add(128) as *mut _, c89ab);
             _mm512_storeu_si512(blocks.as_mut_ptr().add(192) as *mut _, ccdef);
-
-            let (a0123, a4567, a89ab, acdef) = if ENC {
-                (c0123, c4567, c89ab, ccdef)
-            } else {
-                (p0123, p4567, p89ab, pcdef)
-            };
-
-            let a0123 = _mm512_shuffle_epi8(a0123, BYTESWAP_512);
-            let a4567 = _mm512_shuffle_epi8(a4567, BYTESWAP_512);
-            let a89ab = _mm512_shuffle_epi8(a89ab, BYTESWAP_512);
-            let acdef = _mm512_shuffle_epi8(acdef, BYTESWAP_512);
-
-            let c0___ = _mm512_inserti32x4::<0>(_mm512_setzero_si512(), ghash.current);
-            let a0123 = _mm512_xor_epi64(a0123, c0___);
-
-            ghash.current = ghash::_mul16(ghash_avx512, a0123, a4567, a89ab, acdef);
         }
+
+        let (a0123, a4567, a89ab, acdef) = if ENC {
+            (c0123, c4567, c89ab, ccdef)
+        } else {
+            (p0123, p4567, p89ab, pcdef)
+        };
+
+        let a0123 = _mm512_shuffle_epi8(a0123, BYTESWAP_512);
+        let a4567 = _mm512_shuffle_epi8(a4567, BYTESWAP_512);
+        let a89ab = _mm512_shuffle_epi8(a89ab, BYTESWAP_512);
+        let acdef = _mm512_shuffle_epi8(acdef, BYTESWAP_512);
+
+        let c0___ = _mm512_inserti32x4::<0>(_mm512_setzero_si512(), ghash.current);
+        let a0123 = _mm512_xor_epi64(a0123, c0___);
+
+        ghash.current = ghash::_mul16(ghash_avx512, a0123, a4567, a89ab, acdef);
     }
 
     let cipher_inout = by16_iter.into_remainder();
@@ -318,18 +334,20 @@ unsafe fn _cipher_avx512<const ENC: bool>(
         for block in blocks_iter.by_ref() {
             let c1 = counter.next();
 
-            // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
+            let mut c1 = _mm_xor_si128(c1, rk_first);
+
+            for rk in rks {
+                c1 = _mm_aesenc_si128(c1, *rk);
+            }
+
+            let c1 = _mm_aesenclast_si128(c1, rk_last);
+
+            // SAFETY: `block` is 16 bytes and writable.
+            let p1 = unsafe { _mm_loadu_si128(block.as_ptr() as *const _) };
+            let c1 = _mm_xor_si128(c1, p1);
+
+            // SAFETY: `block` is 16 bytes and writable.
             unsafe {
-                let mut c1 = _mm_xor_si128(c1, rk_first);
-
-                for rk in rks {
-                    c1 = _mm_aesenc_si128(c1, *rk);
-                }
-
-                let c1 = _mm_aesenclast_si128(c1, rk_last);
-
-                let c1 = _mm_xor_si128(c1, _mm_loadu_si128(block.as_ptr() as *const _));
-
                 _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
             }
         }
@@ -342,20 +360,20 @@ unsafe fn _cipher_avx512<const ENC: bool>(
             block[..len].copy_from_slice(cipher_inout);
 
             let c1 = counter.next();
+            let mut c1 = _mm_xor_si128(c1, rk_first);
 
-            // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
+            for rk in rks {
+                c1 = _mm_aesenc_si128(c1, *rk);
+            }
+
+            let c1 = _mm_aesenclast_si128(c1, rk_last);
+
+            // SAFETY: `block` is 16 bytes and writable.
+            let p1 = unsafe { _mm_loadu_si128(block.as_ptr() as *const _) };
+            let c1 = _mm_xor_si128(c1, p1);
+
+            // SAFETY: `block` is 16 bytes and writable.
             unsafe {
-                let mut c1 = _mm_xor_si128(c1, rk_first);
-
-                for rk in rks {
-                    c1 = _mm_aesenc_si128(c1, *rk);
-                }
-
-                let c1 = _mm_aesenclast_si128(c1, rk_last);
-
-                let p1 = _mm_loadu_si128(block.as_ptr() as *const _);
-                let c1 = _mm_xor_si128(c1, p1);
-
                 _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
             }
 
@@ -407,7 +425,7 @@ impl Counter512 {
     #[target_feature(enable = "sse3,ssse3,avx,avx2,avx512f,avx512bw")]
     #[must_use]
     #[inline]
-    unsafe fn next4(&mut self) -> __m512i {
+    fn next4(&mut self) -> __m512i {
         let r = _mm512_shuffle_epi8(self.0, BYTESWAP_512_EPI64);
         self.0 = _mm512_add_epi64(self.0, COUNTER_512_4);
         r
