@@ -148,29 +148,31 @@ impl GhashTableAvx512 {
         Self { powers, avx, token }
     }
 
-    #[target_feature(enable = "avx512f,avx512bw")]
-    unsafe fn add_wide<'a>(&self, bytes: &'a [u8], mut current: __m128i) -> (__m128i, &'a [u8]) {
+    #[target_feature(enable = "vpclmulqdq,avx512bw,avx512f,avx512vl")]
+    fn add_wide<'a>(&self, bytes: &'a [u8], mut current: __m128i) -> (__m128i, &'a [u8]) {
         let bswap_mask = _mm512_broadcast_i32x4(BYTESWAP);
 
         let mut by_16_blocks = bytes.chunks_exact(256);
         for chunk16 in by_16_blocks.by_ref() {
-            // SAFETY: this impl requires the `avx512f` and `vcmuludqd` features
-            unsafe {
-                let m0123 = _mm512_loadu_epi8(chunk16.as_ptr().add(0).cast());
-                let m4567 = _mm512_loadu_epi8(chunk16.as_ptr().add(64).cast());
-                let m89ab = _mm512_loadu_epi8(chunk16.as_ptr().add(128).cast());
-                let mcdef = _mm512_loadu_epi8(chunk16.as_ptr().add(192).cast());
+            // SAFETY: `chunk16` is 256 bytes and readable, via `chunks_exact`
+            let (m0123, m4567, m89ab, mcdef) = unsafe {
+                (
+                    _mm512_loadu_epi8(chunk16.as_ptr().add(0).cast()),
+                    _mm512_loadu_epi8(chunk16.as_ptr().add(64).cast()),
+                    _mm512_loadu_epi8(chunk16.as_ptr().add(128).cast()),
+                    _mm512_loadu_epi8(chunk16.as_ptr().add(192).cast()),
+                )
+            };
 
-                let m0123 = _mm512_shuffle_epi8(m0123, bswap_mask);
-                let m4567 = _mm512_shuffle_epi8(m4567, bswap_mask);
-                let m89ab = _mm512_shuffle_epi8(m89ab, bswap_mask);
-                let mcdef = _mm512_shuffle_epi8(mcdef, bswap_mask);
+            let m0123 = _mm512_shuffle_epi8(m0123, bswap_mask);
+            let m4567 = _mm512_shuffle_epi8(m4567, bswap_mask);
+            let m89ab = _mm512_shuffle_epi8(m89ab, bswap_mask);
+            let mcdef = _mm512_shuffle_epi8(mcdef, bswap_mask);
 
-                let c0___ = _mm512_inserti32x4::<0>(_mm512_setzero_si512(), current);
-                let m0123 = _mm512_xor_epi64(m0123, c0___);
+            let c0___ = _mm512_inserti32x4::<0>(_mm512_setzero_si512(), current);
+            let m0123 = _mm512_xor_epi64(m0123, c0___);
 
-                current = _mul16(self, m0123, m4567, m89ab, mcdef);
-            }
+            current = _mul16(self, m0123, m4567, m89ab, mcdef);
         }
 
         (current, by_16_blocks.remainder())
@@ -294,7 +296,7 @@ fn _mul(a: __m128i, b: __m128i) -> __m128i {
 
 #[inline]
 #[target_feature(enable = "pclmulqdq,avx")]
-pub(crate) unsafe fn _mul8(
+pub(crate) fn _mul8(
     table: &GhashTableAvx,
     x1: __m128i,
     x2: __m128i,
@@ -319,7 +321,7 @@ pub(crate) unsafe fn _mul8(
 
 #[inline]
 #[target_feature(enable = "vpclmulqdq,avx512f,avx512vl")]
-pub(crate) unsafe fn _mul16(
+pub(crate) fn _mul16(
     table: &GhashTableAvx512,
     x0123: __m512i,
     x4567: __m512i,
@@ -376,7 +378,7 @@ pub(crate) unsafe fn _mul16(
 }
 
 #[target_feature(enable = "avx")]
-unsafe fn gf128_big_endian(h: __m128i) -> __m128i {
+fn gf128_big_endian(h: __m128i) -> __m128i {
     // takes a raw hash subkey, and arranges that it can
     // be used in big endian ordering.
     let t = _mm_shuffle_epi32(h, 0b11_01_00_11);
@@ -387,7 +389,7 @@ unsafe fn gf128_big_endian(h: __m128i) -> __m128i {
 }
 
 #[target_feature(enable = "avx")]
-unsafe fn xor_halves(h: __m128i) -> __m128i {
+fn xor_halves(h: __m128i) -> __m128i {
     let hx = _mm_shuffle_epi32(h, 0b01_00_11_10);
     _mm_xor_si128(hx, h)
 }
