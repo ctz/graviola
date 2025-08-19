@@ -39,6 +39,18 @@ jobs:
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
 
+      - uses: actions/checkout@v4
+        if: runner.os == 'Linux'
+        with:
+          repository: ctz/intel-sde
+          path: thirdparty/intel-sde
+          persist-credentials: false
+
+      - name: Set up Intel SDE
+        if: runner.os == 'Linux'
+        run: |
+          echo "PATH=$(pwd)/thirdparty/intel-sde:$PATH" >> $GITHUB_ENV
+
       - name: Measure coverage
         run: ./admin/coverage --lcov --output-path final.info
 
