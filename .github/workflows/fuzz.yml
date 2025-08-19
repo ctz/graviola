@@ -21,7 +21,7 @@ jobs:
         uses: dtolnay/rust-toolchain@nightly
 
       - name: Install cargo fuzz
-        run: cargo install cargo-fuzz
+        run: cargo install --locked cargo-fuzz
 
       - name: Smoke-test fuzz targets
         run: |
