@@ -280,6 +280,24 @@ pub(crate) fn prefetch<T>(table: &[T], stride: usize) {
     }
 }
 
+/// Load 4 64-bit words from an array.
+#[target_feature(enable = "avx")]
+#[inline]
+pub(crate) fn load_4x_u64(x: &[u64; 4]) -> __m256i {
+    // SAFETY: `x` is exactly 4 elements and readable due to it coming from a reference.
+    unsafe { _mm256_loadu_si256(x.as_ptr().cast()) }
+}
+
+/// Store 4 64-bit words into an array of 4 items.
+#[target_feature(enable = "avx")]
+#[inline]
+pub(crate) fn store_4x_u64(out: &mut [u64; 4], a: __m256i) {
+    // SAFETY: `out` is writable as it comes from a mut ref, and 4 items
+    unsafe {
+        _mm256_storeu_si256(out.as_mut_ptr().cast(), a);
+    }
+}
+
 /// Load 8 64-bit words from an array.
 #[target_feature(enable = "avx")]
 #[inline]

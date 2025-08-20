@@ -34,8 +34,7 @@ fn _select_jac_p384(z: &mut [u64; 18], table: &[u64], index: u8) {
 
         let mut tmp = [0u64; 4];
         tmp[0..2].copy_from_slice(&point[16..18]);
-        // SAFETY: `tmp` is 4 x 64 bit words and readable
-        let row4 = unsafe { _mm256_loadu_si256(tmp.as_ptr().cast()) };
+        let row4 = super::cpu::load_4x_u64(&tmp);
 
         let mask = _mm256_cmpeq_epi32(index, desired_index);
         index = _mm256_add_epi32(index, ones);
@@ -57,7 +56,6 @@ fn _select_jac_p384(z: &mut [u64; 18], table: &[u64], index: u8) {
 
     //  `z` is 18-words/1152-bits, requiring a partial write of the final 256-bit term
     let mut tmp = [0u64; 4];
-    // SAFETY: `tmp` is 256-bits and writable
-    unsafe { _mm256_storeu_si256(tmp.as_mut_ptr().cast(), acc4) };
+    super::cpu::store_4x_u64(&mut tmp, acc4);
     z[16..18].copy_from_slice(&tmp[0..2]);
 }
