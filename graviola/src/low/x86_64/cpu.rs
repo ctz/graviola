@@ -280,6 +280,58 @@ pub(crate) fn prefetch<T>(table: &[T], stride: usize) {
     }
 }
 
+/// Load 8 64-bit words from an array.
+#[target_feature(enable = "avx")]
+#[inline]
+pub(crate) fn load_8x_u64(x: &[u64; 8]) -> (__m256i, __m256i) {
+    // SAFETY: `x` is exactly 8 elements and readable due to it coming from a reference.
+    unsafe {
+        (
+            _mm256_loadu_si256(x.as_ptr().add(0).cast()),
+            _mm256_loadu_si256(x.as_ptr().add(4).cast()),
+        )
+    }
+}
+
+/// Load 8 64-bit words from a slice of exactly 8 items.
+#[target_feature(enable = "avx")]
+#[inline]
+pub(crate) fn load_8x_u64_slice(slice: &[u64]) -> (__m256i, __m256i) {
+    assert_eq!(slice.len(), 8);
+
+    // SAFETY: `slice` is exactly 8 elements and readable due to it coming from a reference.
+    unsafe {
+        (
+            _mm256_loadu_si256(slice.as_ptr().add(0).cast()),
+            _mm256_loadu_si256(slice.as_ptr().add(4).cast()),
+        )
+    }
+}
+
+/// Store 8 64-bit words into an array of 8 items.
+#[target_feature(enable = "avx")]
+#[inline]
+pub(crate) fn store_8x_u64(out: &mut [u64; 8], a: __m256i, b: __m256i) {
+    // SAFETY: `out` is writable as it comes from a mut ref, and 8 items
+    unsafe {
+        _mm256_storeu_si256(out.as_mut_ptr().add(0).cast(), a);
+        _mm256_storeu_si256(out.as_mut_ptr().add(4).cast(), b);
+    }
+}
+
+/// Store 8 64-bit words into an slice of exactly 8 items.
+#[target_feature(enable = "avx")]
+#[inline]
+pub(crate) fn store_8x_u64_slice(out: &mut [u64], a: __m256i, b: __m256i) {
+    assert_eq!(out.len(), 8);
+
+    // SAFETY: `out` is writable as it comes from a mut ref, and 8 items
+    unsafe {
+        _mm256_storeu_si256(out.as_mut_ptr().add(0).cast(), a);
+        _mm256_storeu_si256(out.as_mut_ptr().add(4).cast(), b);
+    }
+}
+
 /// Load 12 64-bit words from a slice of exactly 12 items.
 #[target_feature(enable = "avx")]
 #[inline]

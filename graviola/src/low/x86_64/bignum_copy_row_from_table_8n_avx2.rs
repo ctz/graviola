@@ -37,33 +37,16 @@ fn _bignum_copy_row_from_table_8n_avx2(z: &mut [u64], table: &[u64], width: u64,
         let mask = _mm256_cmpeq_epi64(index, desired_index);
         index = _mm256_add_epi64(index, ones);
 
-        for (i, zz) in z.chunks_exact_mut(8).enumerate() {
-            // SAFETY: `row` is a multiple of 8 words in length
-            let (row0, row1) = unsafe {
-                (
-                    _mm256_loadu_si256(row.as_ptr().add(i * 8).cast()),
-                    _mm256_loadu_si256(row.as_ptr().add(i * 8 + 4).cast()),
-                )
-            };
+        for (row, zz) in row.chunks_exact(8).zip(z.chunks_exact_mut(8)) {
+            let (row0, row1) = super::cpu::load_8x_u64_slice(row);
 
             let row0 = _mm256_and_si256(row0, mask);
             let row1 = _mm256_and_si256(row1, mask);
 
-            // SAFETY: `zz` is exactly 8 words
-            let (store0, store1) = unsafe {
-                (
-                    _mm256_loadu_si256(zz.as_ptr().add(0).cast()),
-                    _mm256_loadu_si256(zz.as_ptr().add(4).cast()),
-                )
-            };
+            let (store0, store1) = super::cpu::load_8x_u64_slice(zz);
             let store0 = _mm256_xor_si256(store0, row0);
             let store1 = _mm256_xor_si256(store1, row1);
-
-            // SAFETY: `zz` is exactly 8 words and writable
-            unsafe {
-                _mm256_storeu_si256(zz.as_mut_ptr().add(0).cast(), store0);
-                _mm256_storeu_si256(zz.as_mut_ptr().add(4).cast(), store1);
-            }
+            super::cpu::store_8x_u64_slice(zz, store0, store1);
         }
     }
 }
