@@ -1,6 +1,8 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use core::arch::x86_64::*;
+
 pub(crate) fn enter_cpu_state() -> u32 {
     // DOIT: "Data Operand Independent Timing" -- turning this on
     // is under kernel control, because MSRs are privileged.
@@ -260,4 +262,20 @@ pub(crate) fn verify_cpu_features() {
 
     // there are more features required, but (eg)
     // ssse3 is implied by avx.
+}
+
+// --- Safe abstractions over common intrinsics operations ---
+
+/// Prefetch both `table` and `table[stride]`
+///
+/// `table[stride]` is not range checked, as prefetching doesn't need a valid
+/// pointer.
+#[target_feature(enable = "sse")]
+#[inline]
+pub(crate) fn prefetch<T>(table: &[T], stride: usize) {
+    // SAFETY: prefetches do not fault and are not architecturally visible
+    unsafe {
+        _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
+        _mm_prefetch(table.as_ptr().add(stride).cast(), _MM_HINT_T0);
+    }
 }

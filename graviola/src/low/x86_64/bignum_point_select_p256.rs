@@ -24,11 +24,7 @@ pub(crate) fn bignum_jac_point_select_p256(z: &mut [u64; 12], table: &[u64], ind
 
 #[target_feature(enable = "avx,avx2")]
 fn _select_aff_p256(z: &mut [u64; 8], table: &[u64], index: u8) {
-    // SAFETY: prefetches do not fault and are not architecturally visible
-    unsafe {
-        _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
-        _mm_prefetch(table.as_ptr().add(16).cast(), _MM_HINT_T0);
-    }
+    super::cpu::prefetch(table, 16);
 
     let mut acc0 = _mm256_setzero_si256();
     let mut acc1 = _mm256_setzero_si256();
@@ -69,11 +65,7 @@ fn _select_aff_p256(z: &mut [u64; 8], table: &[u64], index: u8) {
 
 #[target_feature(enable = "avx,avx2")]
 fn _select_jac_p256(z: &mut [u64; 12], table: &[u64], index: u8) {
-    // SAFETY: prefetches do not fault and are not architecturally visible
-    unsafe {
-        _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
-        _mm_prefetch(table.as_ptr().add(16).cast(), _MM_HINT_T0);
-    }
+    super::cpu::prefetch(table, 12);
 
     let mut acc0 = _mm256_setzero_si256();
     let mut acc1 = _mm256_setzero_si256();

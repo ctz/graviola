@@ -13,11 +13,7 @@ pub(crate) fn bignum_jac_point_select_p384(z: &mut [u64; 18], table: &[u64], ind
 
 #[target_feature(enable = "avx,avx2")]
 fn _select_jac_p384(z: &mut [u64; 18], table: &[u64], index: u8) {
-    // SAFETY: prefetches do not fault and are not architecturally visible
-    unsafe {
-        _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
-        _mm_prefetch(table.as_ptr().add(16).cast(), _MM_HINT_T0);
-    }
+    super::cpu::prefetch(table, 18);
 
     let mut acc0 = _mm256_setzero_si256();
     let mut acc1 = _mm256_setzero_si256();
