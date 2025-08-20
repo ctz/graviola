@@ -108,19 +108,7 @@ fn _cipher<const ENC: bool>(
         let c7 = _mm_aesenclast_si128(c7, rk_last);
         let c8 = _mm_aesenclast_si128(c8, rk_last);
 
-        // SAFETY: `blocks` is 128 bytes and readable
-        let (p1, p2, p3, p4, p5, p6, p7, p8) = unsafe {
-            (
-                _mm_loadu_si128(blocks.as_ptr().add(0) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(16) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(32) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(48) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(64) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(80) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(96) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(112) as *const _),
-            )
-        };
+        let [p1, p2, p3, p4, p5, p6, p7, p8] = super::cpu::load_128x_u8_slice(blocks);
 
         let c1 = _mm_xor_si128(c1, p1);
         let c2 = _mm_xor_si128(c2, p2);
@@ -131,17 +119,7 @@ fn _cipher<const ENC: bool>(
         let c7 = _mm_xor_si128(c7, p7);
         let c8 = _mm_xor_si128(c8, p8);
 
-        // SAFETY: `blocks` is 128 bytes and writable, due to `chunks_exact_mut`
-        unsafe {
-            _mm_storeu_si128(blocks.as_mut_ptr().add(0) as *mut _, c1);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(16) as *mut _, c2);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(32) as *mut _, c3);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(48) as *mut _, c4);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(64) as *mut _, c5);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(80) as *mut _, c6);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(96) as *mut _, c7);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(112) as *mut _, c8);
-        }
+        super::cpu::store_128x_u8_slice(blocks, [c1, c2, c3, c4, c5, c6, c7, c8]);
 
         let (a1, a2, a3, a4, a5, a6, a7, a8) = if ENC {
             (c1, c2, c3, c4, c5, c6, c7, c8)

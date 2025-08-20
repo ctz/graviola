@@ -409,3 +409,43 @@ pub(crate) fn store_16x_u64_slice(out: &mut [u64], a: __m256i, b: __m256i, c: __
         _mm256_storeu_si256(out.as_mut_ptr().add(12).cast(), d);
     }
 }
+
+/// Load 128 bytes from a slice of exactly 128 items.
+#[target_feature(enable = "sse2")]
+#[inline]
+pub(crate) fn load_128x_u8_slice(slice: &[u8]) -> [__m128i; 8] {
+    assert_eq!(slice.len(), 128);
+
+    // SAFETY: `slice` is exactly 128 elements and readable due to it coming from a reference.
+    unsafe {
+        [
+            _mm_loadu_si128(slice.as_ptr().add(0).cast()),
+            _mm_loadu_si128(slice.as_ptr().add(16).cast()),
+            _mm_loadu_si128(slice.as_ptr().add(32).cast()),
+            _mm_loadu_si128(slice.as_ptr().add(48).cast()),
+            _mm_loadu_si128(slice.as_ptr().add(64).cast()),
+            _mm_loadu_si128(slice.as_ptr().add(80).cast()),
+            _mm_loadu_si128(slice.as_ptr().add(96).cast()),
+            _mm_loadu_si128(slice.as_ptr().add(112).cast()),
+        ]
+    }
+}
+
+/// Store 128 bytes into a slice of exactly 128 bytes.
+#[target_feature(enable = "sse2")]
+#[inline]
+pub(crate) fn store_128x_u8_slice(out: &mut [u8], x: [__m128i; 8]) {
+    assert_eq!(out.len(), 128);
+
+    // SAFETY: `blocks` is 128 bytes and writable, due to coming from a mut ref
+    unsafe {
+        _mm_storeu_si128(out.as_mut_ptr().add(0).cast(), x[0]);
+        _mm_storeu_si128(out.as_mut_ptr().add(16).cast(), x[1]);
+        _mm_storeu_si128(out.as_mut_ptr().add(32).cast(), x[2]);
+        _mm_storeu_si128(out.as_mut_ptr().add(48).cast(), x[3]);
+        _mm_storeu_si128(out.as_mut_ptr().add(64).cast(), x[4]);
+        _mm_storeu_si128(out.as_mut_ptr().add(80).cast(), x[5]);
+        _mm_storeu_si128(out.as_mut_ptr().add(96).cast(), x[6]);
+        _mm_storeu_si128(out.as_mut_ptr().add(112).cast(), x[7]);
+    }
+}
