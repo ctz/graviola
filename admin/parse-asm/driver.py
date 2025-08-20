@@ -1,8 +1,9 @@
-import string
-from functools import reduce
-import subprocess
-from io import StringIO
 import copy
+from functools import reduce
+from io import StringIO
+import re
+import string
+import subprocess
 
 from parse import Type, register_from_token, tokenise, is_comment
 
@@ -218,7 +219,7 @@ class Collector:
         for ty, args in self.events:
             other(ty, *args)
 
-
+# A pass to collect all defined labels
 class LabelCollector(QuietDispatcher):
     def __init__(self):
         self.labels = set()
@@ -231,6 +232,60 @@ class LabelCollector(QuietDispatcher):
     def get_labels(self):
         return set(self.labels)
 
+RUST_FUNCTION_DECL = re.compile(r"^fn (?P<name>[a-zA-Z0-9_]+)\(")
+
+# A pass to collect (1) all macro definitions that reference labels, and (2) the
+# blocks in which they are expanded. We use this later to fixup the generated
+# Rust macros to use the correct local label references.
+class MacroWithLabelRefCollector(QuietDispatcher):
+    def __init__(self):
+        self.macro_defs = {}
+        self.macro_exps = {}
+        self.labels = {}
+        self.expected_labels = set()
+        self.expected_functions = {}
+        self.current_block = None
+
+    def discard_rust_function(self, function):
+        self.expected_functions[function] = None
+
+    def emit_rust_function(self, name, rust_decl):
+        rust_name = RUST_FUNCTION_DECL.match(rust_decl).group("name")
+        self.expected_functions[name] = rust_name
+
+    def need_macro_fixup_pass(self):
+        # we need a fixup pass if there's any macro def that contains a label
+        return len(self.macro_defs) > 0
+
+    def on_define(self, name, *value):
+        # The macro name without parameters
+        name = tokenise(name)[0]
+
+        if name in self.macro_defs:
+            print("duplicate macro", name)
+
+        for v in value:
+            for t in tokenise(v):
+                if t in self.expected_labels:
+                    self.macro_defs.setdefault(name, set()).add(t)
+
+    def on_function(self, contexts, name):
+        rust_name = self.expected_functions.get(name, name)
+        self.current_block = rust_name
+
+    def on_label(self, contexts, label):
+        if label not in self.expected_labels:
+            print(f"label ({label}) not in expected_labels")
+        self.current_block = label
+
+    def on_macro(self, name, operands):
+        # NOTE: doesn't handle macros used inside other macros
+        if name not in self.macro_defs:
+            return
+        if self.current_block is None:
+            print(f"macro ({name}) expanded outside block")
+            return
+        self.macro_exps.setdefault(name, set()).add(self.current_block)
 
 class ConstantArray:
     def __init__(self, name):
@@ -420,9 +475,11 @@ class RustDriver:
         super(RustDriver, self).__init__()
         self.collector = Collector()
         self.label_pass = LabelCollector()
+        self.macro_pass = MacroWithLabelRefCollector()
         self.formatter = RustFormatter(output, architecture)
 
     def discard_rust_function(self, function):
+        self.macro_pass.discard_rust_function(function)
         self.formatter.discard_rust_function(function)
 
     def emit_rust_function(
@@ -436,6 +493,7 @@ class RustDriver:
         allow_inline=True,
         hoist=None,
     ):
+        self.macro_pass.emit_rust_function(name, rust_decl)
         self.formatter.emit_rust_function(
             name,
             parameter_map,
@@ -464,9 +522,35 @@ class RustDriver:
         # because otherwise it is hard to know which tokens
         # refer to a later label
         self.collector.replay(self.label_pass)
-        self.formatter.expected_labels = self.label_pass.get_labels()
-        self.collector.replay(self.formatter)
+        expected_labels = self.label_pass.get_labels()
+        self.macro_pass.expected_labels = expected_labels
+        self.formatter.expected_labels = expected_labels
 
+        # do a pass looking for macro definitions that reference labels, which
+        # we need to fixup later
+        self.collector.replay(self.macro_pass)
+
+        if not self.macro_pass.need_macro_fixup_pass():
+            self.collector.replay(self.formatter)
+            output = self.formatter.output
+        else:
+            output = self.formatter.output
+            self.formatter.output = StringIO()
+            self.collector.replay(self.formatter)
+
+            # fixup macro definitions in the generated Rust code so the local
+            # label references are valid
+            macro_fixup_pass(
+                output,
+                self.formatter.output,
+                self.macro_pass.macro_defs,
+                self.macro_pass.macro_exps,
+            )
+
+        output.close()
+        filename = output.name
+        subprocess.check_call(["rustfmt", filename])
+        print("GENERATED", filename)
 
 class RustFormatter(Dispatcher):
     def __init__(self, output, architecture):
@@ -544,7 +628,9 @@ use crate::low::macros::*;
         """
         func = self.function_state
         if func is None:
-            return 0, True
+            # use `-1` to indicate that this label target needs to be filled
+            # in later in the `macro_fixup_pass`
+            return -1, True
 
         if defn:
             func.labels_defined.add(label)
@@ -1001,12 +1087,78 @@ use crate::low::macros::*;
     def on_eof(self):
         self.finish_constant_array()
 
-        filename = self.output.name
-        self.output.close()
+# A pass to fixup macro definitions that reference labels. This pass runs on the
+# Rust code generated by prior passes to more easily account for macro
+# definitions and label blocks getting moved around by fn hoisting.
+def macro_fixup_pass(rust_output, rust_input, macro_defs, macro_exps):
+    # Rust regex matchers
+    function = re.compile(r"^pub\(crate\) fn (?P<name>[a-zA-Z0-9_]+)\(")
+    macro_def = re.compile(r"^macro_rules! (?P<name>[a-zA-Z0-9_]+) {$")
+    label_def = re.compile(r"^Q!\(Label!\(\"(?P<name>[a-zA-Z0-9_]+)\", (?P<id>\d+)\) \":\"\),$")
+    label_ref = re.compile(r"Label!\(\"(?P<name>[a-zA-Z0-9_]+)\", -1, Before\)")
 
-        subprocess.check_call(["rustfmt", filename])
-        print("GENERATED", filename)
+    lines = rust_input.getvalue().splitlines()
 
+    # find line numbers for label and fn defs
+    # ... pub(crate) fn name(
+    # ... Label!("name", id) ":"
+
+    defs = {}
+    fixups = {}
+    macro_context = None
+
+    for ln, line in enumerate(lines):
+        m = function.match(line)
+        if m:
+            defs[m.group("name")] = (ln, None)
+            macro_context = None
+            continue
+        m = label_def.match(line)
+        if m:
+            defs[m.group("name")] = (ln, m.group("id"))
+            macro_context = None
+            continue
+        m = macro_def.match(line)
+        if m:
+            macro_context = m.group("name")
+            continue
+        if macro_context is not None:
+            for m in label_ref.finditer(line):
+                key = (macro_context, m.group("name"))
+                fixups.setdefault(key, set()).add(ln)
+
+    # each expansion for a macro-with-label-ref must be uniformly before or
+    # after each label it references for our single fixup at the macro
+    # definition to work
+
+    for name in macro_exps:
+        # build span containing all expansions for this macro
+        exp_lns = [defs[label_name][0] for label_name in macro_exps[name]]
+        (min_exp_ln, max_exp_ln) = (min(exp_lns), max(exp_lns))
+
+        for label_ref in macro_defs[name]:
+            (label_ref_ln, label_ref_id) = defs[label_ref]
+
+            if min_exp_ln <= label_ref_ln <= max_exp_ln:
+                print(
+                    f"macro_fixup_pass: macro ({name}): Unable to fixup label \
+                    ref ({label_ref}) as all macro expansions are not uniformly \
+                    before or after the label definition"
+                )
+                continue
+
+            direction = "Before" if label_ref_ln <= min_exp_ln else "After"
+
+            # rewrite the macro definitions to use the correct label target
+            # ... Label!("name", -1, _)
+            #  -> Label!("name", id, Before|After)
+
+            pat = f'Label!("{label_ref}", -1, Before)'
+            rep = f'Label!("{label_ref}", {label_ref_id}, {direction})'
+            for ln in fixups[(name, label_ref)]:
+                lines[ln] = lines[ln].replace(pat, rep)
+
+    rust_output.write("\n".join(lines))
 
 if __name__ == "__main__":
     assert tokenise("1234+1235") == ["1234", "+", "1235"]
