@@ -359,3 +359,35 @@ pub(crate) fn store_12x_u64(out: &mut [u64; 12], a: __m256i, b: __m256i, c: __m2
         _mm256_storeu_si256(out.as_mut_ptr().add(8).cast(), c);
     }
 }
+
+/// Load 16 64-bit words from a slice of exactly 16 items.
+#[target_feature(enable = "avx")]
+#[inline]
+pub(crate) fn load_16x_u64_slice(slice: &[u64]) -> (__m256i, __m256i, __m256i, __m256i) {
+    assert_eq!(slice.len(), 16);
+
+    // SAFETY: `slice` is exactly 16 elements and readable due to it coming from a reference.
+    unsafe {
+        (
+            _mm256_loadu_si256(slice.as_ptr().add(0).cast()),
+            _mm256_loadu_si256(slice.as_ptr().add(4).cast()),
+            _mm256_loadu_si256(slice.as_ptr().add(8).cast()),
+            _mm256_loadu_si256(slice.as_ptr().add(12).cast()),
+        )
+    }
+}
+
+/// Store 16 64-bit words into a slice of exactly 16 items.
+#[target_feature(enable = "avx")]
+#[inline]
+pub(crate) fn store_16x_u64_slice(out: &mut [u64], a: __m256i, b: __m256i, c: __m256i, d: __m256i) {
+    assert_eq!(out.len(), 16);
+
+    // SAFETY: `out` is writable as it comes from a mut ref, and 16 items
+    unsafe {
+        _mm256_storeu_si256(out.as_mut_ptr().add(0).cast(), a);
+        _mm256_storeu_si256(out.as_mut_ptr().add(4).cast(), b);
+        _mm256_storeu_si256(out.as_mut_ptr().add(8).cast(), c);
+        _mm256_storeu_si256(out.as_mut_ptr().add(12).cast(), d);
+    }
+}
