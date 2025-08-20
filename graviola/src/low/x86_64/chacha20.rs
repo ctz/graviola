@@ -98,19 +98,16 @@ macro_rules! rotate_left_128 {
 
 #[target_feature(enable = "ssse3,avx2")]
 fn format_key(key: &[u8; 32], nonce: &[u8; 16]) -> ChaCha20 {
-    // SAFETY: `SIGMA` `key`, and `nonce` are all readable
-    unsafe {
-        let z07 = _mm256_set_m128i(
-            _mm_lddqu_si128(SIGMA.as_ptr().cast()),
-            _mm_lddqu_si128(key[0..16].as_ptr().cast()),
-        );
-        let z8f = _mm256_set_m128i(
-            _mm_lddqu_si128(key[16..32].as_ptr().cast()),
-            _mm_lddqu_si128(nonce.as_ptr().cast()),
-        );
+    let z07 = _mm256_set_m128i(
+        super::cpu::load_16x_u8_slice(&SIGMA),
+        super::cpu::load_16x_u8_slice(&key[0..16]),
+    );
+    let z8f = _mm256_set_m128i(
+        super::cpu::load_16x_u8_slice(&key[16..32]),
+        super::cpu::load_16x_u8_slice(nonce),
+    );
 
-        ChaCha20 { z07, z8f }
-    }
+    ChaCha20 { z07, z8f }
 }
 
 /// Computes 8 blocks.  Does _NOT_ handle ragged output.
@@ -468,15 +465,12 @@ fn core_2x(t07: __m256i, z8f: &mut __m256i, xor_out: &mut [u8]) {
 
 #[target_feature(enable = "ssse3,avx2")]
 fn hchacha(key: &[u8; 32], nonce: &[u8; 24]) -> ChaCha20 {
-    // SAFETY: `SIGMA`, `key` and `nonce` are all readable
-    let (mut z03, mut z47, mut z8b, mut zcf) = unsafe {
-        (
-            _mm_lddqu_si128(SIGMA.as_ptr().cast()),
-            _mm_lddqu_si128(key[0..16].as_ptr().cast()),
-            _mm_lddqu_si128(key[16..32].as_ptr().cast()),
-            _mm_lddqu_si128(nonce[0..16].as_ptr().cast()),
-        )
-    };
+    let (mut z03, mut z47, mut z8b, mut zcf) = (
+        super::cpu::load_16x_u8_slice(&SIGMA),
+        super::cpu::load_16x_u8_slice(&key[0..16]),
+        super::cpu::load_16x_u8_slice(&key[16..32]),
+        super::cpu::load_16x_u8_slice(&nonce[0..16]),
+    );
 
     for _ in 0..10 {
         z03 = _mm_add_epi32(z03, z47);
@@ -521,14 +515,11 @@ fn hchacha(key: &[u8; 32], nonce: &[u8; 24]) -> ChaCha20 {
     }
 
     // SAFETY: `SIGMA` is readable.
-    let z07 = _mm256_set_m128i(unsafe { _mm_lddqu_si128(SIGMA.as_ptr().cast()) }, z03);
+    let z07 = _mm256_set_m128i(super::cpu::load_16x_u8_slice(&SIGMA), z03);
 
     let mut chacha_nonce = [0u8; 16];
     chacha_nonce[8..16].copy_from_slice(&nonce[16..24]);
-    // SAFETY: `chacha_nonce` is certainly 16 bytes and readable.
-    let z8f = _mm256_set_m128i(zcf, unsafe {
-        _mm_lddqu_si128(chacha_nonce.as_ptr().cast())
-    });
+    let z8f = _mm256_set_m128i(zcf, super::cpu::load_16x_u8_slice(&chacha_nonce));
 
     ChaCha20 { z07, z8f }
 }

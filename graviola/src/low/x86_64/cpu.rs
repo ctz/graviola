@@ -449,3 +449,23 @@ pub(crate) fn store_128x_u8_slice(out: &mut [u8], x: [__m128i; 8]) {
         _mm_storeu_si128(out.as_mut_ptr().add(112).cast(), x[7]);
     }
 }
+
+/// Load 16 bytes from a slice of exactly 16 bytes.
+#[target_feature(enable = "sse2")]
+#[inline]
+pub(crate) fn load_16x_u8_slice(slice: &[u8]) -> __m128i {
+    assert_eq!(slice.len(), 16);
+
+    // SAFETY: `slice` is exactly 16 elements and readable due to it coming from a reference.
+    unsafe { _mm_loadu_si128(slice.as_ptr().cast()) }
+}
+
+/// Store 16 bytes into a slice of exactly 16 bytes.
+#[target_feature(enable = "sse2")]
+#[inline]
+pub(crate) fn store_16x_u8_slice(out: &mut [u8], v: __m128i) {
+    assert_eq!(out.len(), 16);
+
+    // SAFETY: `slice` is exactly 16 elements and writable due to it coming from a mut ref.
+    unsafe { _mm_storeu_si128(out.as_mut_ptr().cast(), v) }
+}
