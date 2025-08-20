@@ -68,11 +68,7 @@ fn _cipher<const ENC: bool>(
 
     for blocks in by8_iter.by_ref() {
         // prefetch to avoid any stall later
-        // SAFETY: prefetching does not fault and is not architecturally visible
-        unsafe {
-            _mm_prefetch(blocks.as_ptr().add(0) as *const _, _MM_HINT_T0);
-            _mm_prefetch(blocks.as_ptr().add(64) as *const _, _MM_HINT_T0);
-        }
+        super::cpu::prefetch(blocks, 64);
 
         let c1 = counter.next();
         let c2 = counter.next();
@@ -252,12 +248,8 @@ fn _cipher_avx512<const ENC: bool>(
     };
 
     for blocks in by16_iter.by_ref() {
-        // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-        unsafe {
-            // prefetch to avoid any stall later
-            _mm_prefetch(blocks.as_ptr().add(0) as *const _, _MM_HINT_T0);
-            _mm_prefetch(blocks.as_ptr().add(256) as *const _, _MM_HINT_T0);
-        }
+        // prefetch to avoid any stall later
+        super::cpu::prefetch(blocks, 256);
 
         let c0123 = counter.next4();
         let c4567 = counter.next4();

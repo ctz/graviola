@@ -20,11 +20,7 @@ pub(crate) fn bignum_copy_row_from_table_8n_avx2(
 
 #[target_feature(enable = "avx,avx2")]
 fn _bignum_copy_row_from_table_8n_avx2(z: &mut [u64], table: &[u64], width: u64, index: u64) {
-    // SAFETY: prefetches do not fault and are not architecturally visible
-    unsafe {
-        _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
-        _mm_prefetch(table.as_ptr().add(16).cast(), _MM_HINT_T0);
-    }
+    super::cpu::prefetch(table, 16);
 
     z.fill(0);
 
