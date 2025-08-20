@@ -18,11 +18,7 @@ pub(crate) fn bignum_copy_row_from_table_16_avx2(
 
 #[target_feature(enable = "avx,avx2")]
 fn _bignum_copy_row_from_table_16_avx2(z: &mut [u64], table: &[u64], index: u64) {
-    // SAFETY: prefetches do not fault and are not architecturally visible
-    unsafe {
-        _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
-        _mm_prefetch(table.as_ptr().add(16).cast(), _MM_HINT_T0);
-    }
+    super::cpu::prefetch(table, 16);
 
     let mut acc0 = _mm256_setzero_si256();
     let mut acc1 = _mm256_setzero_si256();
@@ -42,15 +38,7 @@ fn _bignum_copy_row_from_table_16_avx2(z: &mut [u64], table: &[u64], index: u64)
         let mask = _mm256_cmpeq_epi64(index, desired_index);
         index = _mm256_add_epi64(index, ones);
 
-        // SAFETY: `row` is exactly 16 words; `loadu` relaxes 256-bit alignment req.
-        let (row0, row1, row2, row3) = unsafe {
-            (
-                _mm256_loadu_si256(row.as_ptr().add(0).cast()),
-                _mm256_loadu_si256(row.as_ptr().add(4).cast()),
-                _mm256_loadu_si256(row.as_ptr().add(8).cast()),
-                _mm256_loadu_si256(row.as_ptr().add(12).cast()),
-            )
-        };
+        let (row0, row1, row2, row3) = super::cpu::load_16x_u64_slice(row);
 
         let row0 = _mm256_and_si256(row0, mask);
         let row1 = _mm256_and_si256(row1, mask);
@@ -63,11 +51,5 @@ fn _bignum_copy_row_from_table_16_avx2(z: &mut [u64], table: &[u64], index: u64)
         acc3 = _mm256_xor_si256(row3, acc3);
     }
 
-    // SAFETY: `z` is exactly 16 words
-    unsafe {
-        _mm256_storeu_si256(z.as_mut_ptr().add(0).cast(), acc0);
-        _mm256_storeu_si256(z.as_mut_ptr().add(4).cast(), acc1);
-        _mm256_storeu_si256(z.as_mut_ptr().add(8).cast(), acc2);
-        _mm256_storeu_si256(z.as_mut_ptr().add(12).cast(), acc3);
-    }
+    super::cpu::store_16x_u64_slice(z, acc0, acc1, acc2, acc3);
 }

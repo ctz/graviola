@@ -86,15 +86,10 @@ fn sha256(state: &mut [u32; 8], blocks: &[u8]) {
         let state0_prev = state0;
         let state1_prev = state1;
 
-        // SAFETY: `block` is 64 bytes and readable
-        let (msg0, msg1, msg2, msg3) = unsafe {
-            (
-                _mm_loadu_si128(block[0..].as_ptr() as *const _),
-                _mm_loadu_si128(block[16..].as_ptr() as *const _),
-                _mm_loadu_si128(block[32..].as_ptr() as *const _),
-                _mm_loadu_si128(block[48..].as_ptr() as *const _),
-            )
-        };
+        let msg0 = super::cpu::load_16x_u8_slice(&block[0..16]);
+        let msg1 = super::cpu::load_16x_u8_slice(&block[16..32]);
+        let msg2 = super::cpu::load_16x_u8_slice(&block[32..48]);
+        let msg3 = super::cpu::load_16x_u8_slice(&block[48..64]);
 
         let msg0 = _mm_shuffle_epi8(msg0, little_endian_shuffle);
         let msg1 = _mm_shuffle_epi8(msg1, little_endian_shuffle);

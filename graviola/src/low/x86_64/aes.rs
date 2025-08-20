@@ -193,8 +193,7 @@ macro_rules! expand_128 {
 
 #[target_feature(enable = "aes,avx")]
 fn aes128_expand(key: &[u8; 16], out: &mut [__m128i; 11]) {
-    // SAFETY: `key` is 16 bytes and can be loaded from
-    let mut t1 = unsafe { _mm_lddqu_si128(key.as_ptr() as *const _) };
+    let mut t1 = super::cpu::load_16x_u8_slice(key);
     out[0] = t1;
 
     expand_128!(0x01, t1, out[1]);
@@ -247,13 +246,8 @@ macro_rules! expand_256 {
 
 #[target_feature(enable = "aes,avx")]
 fn aes256_expand(key: &[u8; 32], out: &mut [__m128i; 15]) {
-    // SAFETY: `key` is 32 bytes and readable
-    let (mut t1, mut t3) = unsafe {
-        (
-            _mm_lddqu_si128(key.as_ptr() as *const _),
-            _mm_lddqu_si128(key[16..].as_ptr() as *const _),
-        )
-    };
+    let mut t1 = super::cpu::load_16x_u8_slice(&key[0..16]);
+    let mut t3 = super::cpu::load_16x_u8_slice(&key[16..]);
     out[0] = t1;
     out[1] = t3;
 
@@ -276,8 +270,7 @@ fn aes256_expand(key: &[u8; 32], out: &mut [__m128i; 15]) {
 
 #[target_feature(enable = "aes,avx")]
 fn aes128_block(round_keys: &[__m128i; 11], block_inout: &mut [u8; 16]) {
-    // SAFETY: `block_inout` is 16 bytes and readable
-    let block = unsafe { _mm_lddqu_si128(block_inout.as_ptr() as *const _) };
+    let block = super::cpu::load_16x_u8_slice(block_inout);
     let block = _mm_xor_si128(block, round_keys[0]);
     let block = _mm_aesenc_si128(block, round_keys[1]);
     let block = _mm_aesenc_si128(block, round_keys[2]);
@@ -289,14 +282,12 @@ fn aes128_block(round_keys: &[__m128i; 11], block_inout: &mut [u8; 16]) {
     let block = _mm_aesenc_si128(block, round_keys[8]);
     let block = _mm_aesenc_si128(block, round_keys[9]);
     let block = _mm_aesenclast_si128(block, round_keys[10]);
-    // SAFETY: `block_inout` is 16 bytes and writeable
-    unsafe { _mm_storeu_si128(block_inout.as_mut_ptr() as *mut _, block) };
+    super::cpu::store_16x_u8_slice(block_inout, block);
 }
 
 #[target_feature(enable = "aes,avx")]
 fn aes256_block(round_keys: &[__m128i; 15], block_inout: &mut [u8; 16]) {
-    // SAFETY: `block_inout` is 16 bytes and readable
-    let block = unsafe { _mm_lddqu_si128(block_inout.as_ptr() as *const _) };
+    let block = super::cpu::load_16x_u8_slice(block_inout);
     let block = _mm_xor_si128(block, round_keys[0]);
     let block = _mm_aesenc_si128(block, round_keys[1]);
     let block = _mm_aesenc_si128(block, round_keys[2]);
@@ -312,8 +303,7 @@ fn aes256_block(round_keys: &[__m128i; 15], block_inout: &mut [u8; 16]) {
     let block = _mm_aesenc_si128(block, round_keys[12]);
     let block = _mm_aesenc_si128(block, round_keys[13]);
     let block = _mm_aesenclast_si128(block, round_keys[14]);
-    // SAFETY: `block_inout` is 16 bytes and writeable
-    unsafe { _mm_storeu_si128(block_inout.as_mut_ptr() as *mut _, block) };
+    super::cpu::store_16x_u8_slice(block_inout, block);
 }
 
 #[cfg(test)]

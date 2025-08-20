@@ -68,11 +68,7 @@ fn _cipher<const ENC: bool>(
 
     for blocks in by8_iter.by_ref() {
         // prefetch to avoid any stall later
-        // SAFETY: prefetching does not fault and is not architecturally visible
-        unsafe {
-            _mm_prefetch(blocks.as_ptr().add(0) as *const _, _MM_HINT_T0);
-            _mm_prefetch(blocks.as_ptr().add(64) as *const _, _MM_HINT_T0);
-        }
+        super::cpu::prefetch(blocks, 64);
 
         let c1 = counter.next();
         let c2 = counter.next();
@@ -112,19 +108,7 @@ fn _cipher<const ENC: bool>(
         let c7 = _mm_aesenclast_si128(c7, rk_last);
         let c8 = _mm_aesenclast_si128(c8, rk_last);
 
-        // SAFETY: `blocks` is 128 bytes and readable
-        let (p1, p2, p3, p4, p5, p6, p7, p8) = unsafe {
-            (
-                _mm_loadu_si128(blocks.as_ptr().add(0) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(16) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(32) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(48) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(64) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(80) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(96) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(112) as *const _),
-            )
-        };
+        let [p1, p2, p3, p4, p5, p6, p7, p8] = super::cpu::load_128x_u8_slice(blocks);
 
         let c1 = _mm_xor_si128(c1, p1);
         let c2 = _mm_xor_si128(c2, p2);
@@ -135,17 +119,7 @@ fn _cipher<const ENC: bool>(
         let c7 = _mm_xor_si128(c7, p7);
         let c8 = _mm_xor_si128(c8, p8);
 
-        // SAFETY: `blocks` is 128 bytes and writable, due to `chunks_exact_mut`
-        unsafe {
-            _mm_storeu_si128(blocks.as_mut_ptr().add(0) as *mut _, c1);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(16) as *mut _, c2);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(32) as *mut _, c3);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(48) as *mut _, c4);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(64) as *mut _, c5);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(80) as *mut _, c6);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(96) as *mut _, c7);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(112) as *mut _, c8);
-        }
+        super::cpu::store_128x_u8_slice(blocks, [c1, c2, c3, c4, c5, c6, c7, c8]);
 
         let (a1, a2, a3, a4, a5, a6, a7, a8) = if ENC {
             (c1, c2, c3, c4, c5, c6, c7, c8)
@@ -185,12 +159,9 @@ fn _cipher<const ENC: bool>(
 
             let c1 = _mm_aesenclast_si128(c1, rk_last);
 
-            // SAFETY: `block` is 16 bytes due to `chunks_exact_mut`
-            let p1 = unsafe { _mm_loadu_si128(block.as_ptr() as *const _) };
+            let p1 = super::cpu::load_16x_u8_slice(block);
             let c1 = _mm_xor_si128(c1, p1);
-
-            // SAFETY: `block` is 16 bytes and writable, due to `chunks_exact_mut`
-            unsafe { _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1) };
+            super::cpu::store_16x_u8_slice(block, c1);
         }
 
         let cipher_inout = blocks_iter.into_remainder();
@@ -209,14 +180,9 @@ fn _cipher<const ENC: bool>(
 
             let c1 = _mm_aesenclast_si128(c1, rk_last);
 
-            // SAFETY: `block` is 16 bytes and writable.
-            let p1 = unsafe { _mm_loadu_si128(block.as_ptr() as *const _) };
+            let p1 = super::cpu::load_16x_u8_slice(&block);
             let c1 = _mm_xor_si128(c1, p1);
-
-            // SAFETY: `block` is 16 bytes and writable.
-            unsafe {
-                _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
-            }
+            super::cpu::store_16x_u8_slice(&mut block, c1);
 
             cipher_inout.copy_from_slice(&block[..len]);
         }
@@ -252,12 +218,8 @@ fn _cipher_avx512<const ENC: bool>(
     };
 
     for blocks in by16_iter.by_ref() {
-        // SAFETY: intrinsics. see [crate::low::inline_assembly_safety#safety-of-intrinsics] for safety info.
-        unsafe {
-            // prefetch to avoid any stall later
-            _mm_prefetch(blocks.as_ptr().add(0) as *const _, _MM_HINT_T0);
-            _mm_prefetch(blocks.as_ptr().add(256) as *const _, _MM_HINT_T0);
-        }
+        // prefetch to avoid any stall later
+        super::cpu::prefetch(blocks, 256);
 
         let c0123 = counter.next4();
         let c4567 = counter.next4();
@@ -281,28 +243,14 @@ fn _cipher_avx512<const ENC: bool>(
         let c89ab = _mm512_aesenclast_epi128(c89ab, rk_last);
         let ccdef = _mm512_aesenclast_epi128(ccdef, rk_last);
 
-        // SAFETY: `blocks` is 256 bytes due to `chunks_exact_mut`
-        let (p0123, p4567, p89ab, pcdef) = unsafe {
-            (
-                _mm512_loadu_si512(blocks.as_ptr().add(0) as *const _),
-                _mm512_loadu_si512(blocks.as_ptr().add(64) as *const _),
-                _mm512_loadu_si512(blocks.as_ptr().add(128) as *const _),
-                _mm512_loadu_si512(blocks.as_ptr().add(192) as *const _),
-            )
-        };
+        let (p0123, p4567, p89ab, pcdef) = super::cpu::load_256x_u8_slice(blocks);
 
         let c0123 = _mm512_xor_epi32(c0123, p0123);
         let c4567 = _mm512_xor_epi32(c4567, p4567);
         let c89ab = _mm512_xor_epi32(c89ab, p89ab);
         let ccdef = _mm512_xor_epi32(ccdef, pcdef);
 
-        // SAFETY: `blocks` is 256 bytes and writable due to `chunks_exact_mut`
-        unsafe {
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(0) as *mut _, c0123);
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(64) as *mut _, c4567);
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(128) as *mut _, c89ab);
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(192) as *mut _, ccdef);
-        }
+        super::cpu::store_256x_u8_slice(blocks, c0123, c4567, c89ab, ccdef);
 
         let (a0123, a4567, a89ab, acdef) = if ENC {
             (c0123, c4567, c89ab, ccdef)
@@ -342,14 +290,9 @@ fn _cipher_avx512<const ENC: bool>(
 
             let c1 = _mm_aesenclast_si128(c1, rk_last);
 
-            // SAFETY: `block` is 16 bytes and writable.
-            let p1 = unsafe { _mm_loadu_si128(block.as_ptr() as *const _) };
+            let p1 = super::cpu::load_16x_u8_slice(block);
             let c1 = _mm_xor_si128(c1, p1);
-
-            // SAFETY: `block` is 16 bytes and writable.
-            unsafe {
-                _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
-            }
+            super::cpu::store_16x_u8_slice(block, c1);
         }
 
         let cipher_inout = blocks_iter.into_remainder();
@@ -368,14 +311,9 @@ fn _cipher_avx512<const ENC: bool>(
 
             let c1 = _mm_aesenclast_si128(c1, rk_last);
 
-            // SAFETY: `block` is 16 bytes and writable.
-            let p1 = unsafe { _mm_loadu_si128(block.as_ptr() as *const _) };
+            let p1 = super::cpu::load_16x_u8_slice(&block);
             let c1 = _mm_xor_si128(c1, p1);
-
-            // SAFETY: `block` is 16 bytes and writable.
-            unsafe {
-                _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
-            }
+            super::cpu::store_16x_u8_slice(&mut block, c1);
 
             cipher_inout.copy_from_slice(&block[..len]);
         }
@@ -440,8 +378,7 @@ impl Counter {
     #[inline]
     #[target_feature(enable = "sse2,sse3,ssse3")]
     fn new(bytes: &[u8; 16]) -> Self {
-        // SAFETY: `bytes` is a 128-bit value and can be loaded from
-        let c = unsafe { _mm_lddqu_si128(bytes.as_ptr().cast()) };
+        let c = super::cpu::load_16x_u8_slice(bytes);
         let c = _mm_shuffle_epi8(c, BYTESWAP_EPI64);
         let c = _mm_add_epi32(c, COUNTER_1); // skip first counter (it was already used as y0)
 

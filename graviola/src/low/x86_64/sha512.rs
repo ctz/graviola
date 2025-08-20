@@ -200,12 +200,7 @@ fn sha512_compress_4_blocks(state: &mut [u64; 8], block4: *const u64) {
     // keep intermediate state in ymm registers to reduce scalar register
     // pressure
     // SAFETY: `state` is 8 x 64-bit words and readable
-    let (save_abcd, save_efgh) = unsafe {
-        (
-            _mm256_loadu_si256(state.as_ptr().add(0).cast()),
-            _mm256_loadu_si256(state.as_ptr().add(4).cast()),
-        )
-    };
+    let (save_abcd, save_efgh) = super::cpu::load_8x_u64(state);
 
     // block 1
     let mut a = _mm256_extract_epi64(save_abcd, 0) as u64;
@@ -326,11 +321,7 @@ fn sha512_compress_4_blocks(state: &mut [u64; 8], block4: *const u64) {
         _mm256_set_epi64x(h as i64, g as i64, f as i64, e as i64),
     );
 
-    // SAFETY: `state` is 8 x 64-bit words and writable
-    unsafe {
-        _mm256_storeu_si256(state.as_ptr().add(0) as *mut _, save_abcd);
-        _mm256_storeu_si256(state.as_ptr().add(4) as *mut _, save_efgh);
-    }
+    super::cpu::store_8x_u64(state, save_abcd, save_efgh);
 }
 
 /// Reads 32 bytes of input from $block & byte swaps it
