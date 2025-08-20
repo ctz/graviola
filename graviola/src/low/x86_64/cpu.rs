@@ -279,3 +279,31 @@ pub(crate) fn prefetch<T>(table: &[T], stride: usize) {
         _mm_prefetch(table.as_ptr().add(stride).cast(), _MM_HINT_T0);
     }
 }
+
+/// Load 12 64-bit words from a slice of exactly 12 items.
+#[target_feature(enable = "avx")]
+#[inline]
+pub(crate) fn load_12x_u64_slice(slice: &[u64]) -> (__m256i, __m256i, __m256i) {
+    assert_eq!(slice.len(), 12);
+
+    // SAFETY: `slice` is exactly 12 elements and readable due to it coming from a reference.
+    unsafe {
+        (
+            _mm256_loadu_si256(slice.as_ptr().add(0).cast()),
+            _mm256_loadu_si256(slice.as_ptr().add(4).cast()),
+            _mm256_loadu_si256(slice.as_ptr().add(8).cast()),
+        )
+    }
+}
+
+/// Store 12 64-bit words into an array of 12 items.
+#[target_feature(enable = "avx")]
+#[inline]
+pub(crate) fn store_12x_u64(out: &mut [u64; 12], a: __m256i, b: __m256i, c: __m256i) {
+    // SAFETY: `out` is writable as it comes from a mut ref, and 12 items
+    unsafe {
+        _mm256_storeu_si256(out.as_mut_ptr().add(0).cast(), a);
+        _mm256_storeu_si256(out.as_mut_ptr().add(4).cast(), b);
+        _mm256_storeu_si256(out.as_mut_ptr().add(8).cast(), c);
+    }
+}

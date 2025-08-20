@@ -80,14 +80,7 @@ fn _select_jac_p256(z: &mut [u64; 12], table: &[u64], index: u8) {
     let ones = index;
 
     for point in table.chunks_exact(12) {
-        // SAFETY: `point` is 12 words due to `chunks_exact` and readable
-        let (row0, row1, row2) = unsafe {
-            (
-                _mm256_loadu_si256(point.as_ptr().add(0).cast()),
-                _mm256_loadu_si256(point.as_ptr().add(4).cast()),
-                _mm256_loadu_si256(point.as_ptr().add(8).cast()),
-            )
-        };
+        let (row0, row1, row2) = super::cpu::load_12x_u64_slice(point);
 
         let mask = _mm256_cmpeq_epi32(index, desired_index);
         index = _mm256_add_epi32(index, ones);
@@ -101,10 +94,5 @@ fn _select_jac_p256(z: &mut [u64; 12], table: &[u64], index: u8) {
         acc2 = _mm256_xor_si256(acc2, row2);
     }
 
-    // SAFETY: `z` is 12 words and writable
-    unsafe {
-        _mm256_storeu_si256(z.as_mut_ptr().add(0).cast(), acc0);
-        _mm256_storeu_si256(z.as_mut_ptr().add(4).cast(), acc1);
-        _mm256_storeu_si256(z.as_mut_ptr().add(8).cast(), acc2);
-    }
+    super::cpu::store_12x_u64(z, acc0, acc1, acc2);
 }
