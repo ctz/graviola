@@ -88,3 +88,6 @@
 //! (though only if `target_feature` `sse2` was statically
 //! guaranteed at compile-time, and would require safe-transmute
 //! to be available for non-byte types).
+//!
+//! We have functions like `cpu::store_128x_u8_slice` which clarify
+//! these loads/stores from/to slices and arrays.

@@ -243,28 +243,14 @@ fn _cipher_avx512<const ENC: bool>(
         let c89ab = _mm512_aesenclast_epi128(c89ab, rk_last);
         let ccdef = _mm512_aesenclast_epi128(ccdef, rk_last);
 
-        // SAFETY: `blocks` is 256 bytes due to `chunks_exact_mut`
-        let (p0123, p4567, p89ab, pcdef) = unsafe {
-            (
-                _mm512_loadu_si512(blocks.as_ptr().add(0) as *const _),
-                _mm512_loadu_si512(blocks.as_ptr().add(64) as *const _),
-                _mm512_loadu_si512(blocks.as_ptr().add(128) as *const _),
-                _mm512_loadu_si512(blocks.as_ptr().add(192) as *const _),
-            )
-        };
+        let (p0123, p4567, p89ab, pcdef) = super::cpu::load_256x_u8_slice(blocks);
 
         let c0123 = _mm512_xor_epi32(c0123, p0123);
         let c4567 = _mm512_xor_epi32(c4567, p4567);
         let c89ab = _mm512_xor_epi32(c89ab, p89ab);
         let ccdef = _mm512_xor_epi32(ccdef, pcdef);
 
-        // SAFETY: `blocks` is 256 bytes and writable due to `chunks_exact_mut`
-        unsafe {
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(0) as *mut _, c0123);
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(64) as *mut _, c4567);
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(128) as *mut _, c89ab);
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(192) as *mut _, ccdef);
-        }
+        super::cpu::store_256x_u8_slice(blocks, c0123, c4567, c89ab, ccdef);
 
         let (a0123, a4567, a89ab, acdef) = if ENC {
             (c0123, c4567, c89ab, ccdef)

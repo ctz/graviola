@@ -154,15 +154,7 @@ impl GhashTableAvx512 {
 
         let mut by_16_blocks = bytes.chunks_exact(256);
         for chunk16 in by_16_blocks.by_ref() {
-            // SAFETY: `chunk16` is 256 bytes and readable, via `chunks_exact`
-            let (m0123, m4567, m89ab, mcdef) = unsafe {
-                (
-                    _mm512_loadu_epi8(chunk16.as_ptr().add(0).cast()),
-                    _mm512_loadu_epi8(chunk16.as_ptr().add(64).cast()),
-                    _mm512_loadu_epi8(chunk16.as_ptr().add(128).cast()),
-                    _mm512_loadu_epi8(chunk16.as_ptr().add(192).cast()),
-                )
-            };
+            let (m0123, m4567, m89ab, mcdef) = super::cpu::load_256x_u8_slice(chunk16);
 
             let m0123 = _mm512_shuffle_epi8(m0123, bswap_mask);
             let m4567 = _mm512_shuffle_epi8(m4567, bswap_mask);
