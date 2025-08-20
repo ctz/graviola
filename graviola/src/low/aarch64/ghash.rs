@@ -294,9 +294,11 @@ fn to_u128(u: uint64x2_t) -> u128 {
     unsafe { mem::transmute(u) }
 }
 
+// SAFETY: u128 and uint64x2_t have the same size and meaning of bits
 const GF128_POLY_HI: uint64x2_t =
     unsafe { mem::transmute(0xc2000000_00000000_c2000000_00000000u128) };
 
+// SAFETY: u128 and uint64x2_t have the same size and meaning of bits
 const GF128_POLY_CARRY_MASK: uint64x2_t =
     unsafe { mem::transmute(0xc2000000_00000001_00000000_00000001u128) };
 

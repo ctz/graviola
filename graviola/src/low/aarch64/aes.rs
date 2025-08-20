@@ -46,7 +46,7 @@ impl AesKey {
     #[target_feature(enable = "aes,neon")]
     fn _ctr(&self, initial_counter: &[u8; 16], cipher_inout: &mut [u8]) {
         // counter and inc are big endian, so must be vrev32q_u8'd before use
-        // SAFETY `initial_counter` is 16 bytes and readable
+        // SAFETY: `initial_counter` is 16 bytes and readable
         let counter = unsafe { vld1q_u8(initial_counter.as_ptr().cast()) };
         let mut counter = vreinterpretq_u32_u8(vrev32q_u8(counter));
 
