@@ -71,6 +71,7 @@ fn _select_aff_p256(z: &mut [u64; 8], table: &[u64], index: u8) {
 
 #[target_feature(enable = "neon")]
 fn _select_jac_p256(z: &mut [u64; 12], table: &[u64], index: u8) {
+    // SAFETY: u128 and uint32x4_t have same size and meaning of bits
     let mut acc0: uint32x4_t = unsafe { mem::transmute(0u128) };
     let mut acc1 = acc0;
     let mut acc2 = acc0;
@@ -113,6 +114,7 @@ fn _select_jac_p256(z: &mut [u64; 12], table: &[u64], index: u8) {
         acc5 = veorq_u32(acc5, row5);
     }
 
+    // SAFETY: `z` is 12 64-bit words and writable via mut ref
     unsafe {
         vst1q_u32(z.as_mut_ptr().add(0).cast(), acc0);
         vst1q_u32(z.as_mut_ptr().add(2).cast(), acc1);
