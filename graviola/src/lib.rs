@@ -11,6 +11,7 @@
     clippy::alloc_instead_of_core,
     clippy::clone_on_ref_ptr,
     clippy::let_underscore_must_use,
+    clippy::ptr_cast_constness,
     clippy::std_instead_of_core,
     clippy::undocumented_unsafe_blocks,
     clippy::upper_case_acronyms,
