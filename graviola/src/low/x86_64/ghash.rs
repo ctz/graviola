@@ -229,7 +229,7 @@ impl<'a> Ghash<'a> {
         let mut out: i128 = 0;
         let reverse = _mm_shuffle_epi8(self.current, BYTESWAP);
         // SAFETY: `out` is 128 bits, and a suitable target for a 128-bit aligned store
-        unsafe { _mm_store_si128(&mut out as *mut i128 as *mut __m128i, reverse) };
+        unsafe { _mm_store_si128((&mut out as *mut i128).cast(), reverse) };
         out.to_le_bytes()
     }
 

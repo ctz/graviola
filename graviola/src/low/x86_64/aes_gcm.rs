@@ -111,14 +111,14 @@ fn _cipher<const ENC: bool>(
         // SAFETY: `blocks` is 128 bytes and readable
         let (p1, p2, p3, p4, p5, p6, p7, p8) = unsafe {
             (
-                _mm_loadu_si128(blocks.as_ptr().add(0) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(16) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(32) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(48) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(64) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(80) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(96) as *const _),
-                _mm_loadu_si128(blocks.as_ptr().add(112) as *const _),
+                _mm_loadu_si128(blocks.as_ptr().add(0).cast()),
+                _mm_loadu_si128(blocks.as_ptr().add(16).cast()),
+                _mm_loadu_si128(blocks.as_ptr().add(32).cast()),
+                _mm_loadu_si128(blocks.as_ptr().add(48).cast()),
+                _mm_loadu_si128(blocks.as_ptr().add(64).cast()),
+                _mm_loadu_si128(blocks.as_ptr().add(80).cast()),
+                _mm_loadu_si128(blocks.as_ptr().add(96).cast()),
+                _mm_loadu_si128(blocks.as_ptr().add(112).cast()),
             )
         };
 
@@ -133,14 +133,14 @@ fn _cipher<const ENC: bool>(
 
         // SAFETY: `blocks` is 128 bytes and writable, due to `chunks_exact_mut`
         unsafe {
-            _mm_storeu_si128(blocks.as_mut_ptr().add(0) as *mut _, c1);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(16) as *mut _, c2);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(32) as *mut _, c3);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(48) as *mut _, c4);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(64) as *mut _, c5);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(80) as *mut _, c6);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(96) as *mut _, c7);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(112) as *mut _, c8);
+            _mm_storeu_si128(blocks.as_mut_ptr().add(0).cast(), c1);
+            _mm_storeu_si128(blocks.as_mut_ptr().add(16).cast(), c2);
+            _mm_storeu_si128(blocks.as_mut_ptr().add(32).cast(), c3);
+            _mm_storeu_si128(blocks.as_mut_ptr().add(48).cast(), c4);
+            _mm_storeu_si128(blocks.as_mut_ptr().add(64).cast(), c5);
+            _mm_storeu_si128(blocks.as_mut_ptr().add(80).cast(), c6);
+            _mm_storeu_si128(blocks.as_mut_ptr().add(96).cast(), c7);
+            _mm_storeu_si128(blocks.as_mut_ptr().add(112).cast(), c8);
         }
 
         let (a1, a2, a3, a4, a5, a6, a7, a8) = if ENC {
@@ -182,11 +182,11 @@ fn _cipher<const ENC: bool>(
             let c1 = _mm_aesenclast_si128(c1, rk_last);
 
             // SAFETY: `block` is 16 bytes due to `chunks_exact_mut`
-            let p1 = unsafe { _mm_loadu_si128(block.as_ptr() as *const _) };
+            let p1 = unsafe { _mm_loadu_si128(block.as_ptr().cast()) };
             let c1 = _mm_xor_si128(c1, p1);
 
             // SAFETY: `block` is 16 bytes and writable, due to `chunks_exact_mut`
-            unsafe { _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1) };
+            unsafe { _mm_storeu_si128(block.as_mut_ptr().cast(), c1) };
         }
 
         let cipher_inout = blocks_iter.into_remainder();
@@ -206,12 +206,12 @@ fn _cipher<const ENC: bool>(
             let c1 = _mm_aesenclast_si128(c1, rk_last);
 
             // SAFETY: `block` is 16 bytes and writable.
-            let p1 = unsafe { _mm_loadu_si128(block.as_ptr() as *const _) };
+            let p1 = unsafe { _mm_loadu_si128(block.as_ptr().cast()) };
             let c1 = _mm_xor_si128(c1, p1);
 
             // SAFETY: `block` is 16 bytes and writable.
             unsafe {
-                _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
+                _mm_storeu_si128(block.as_mut_ptr().cast(), c1);
             }
 
             cipher_inout.copy_from_slice(&block[..len]);
@@ -276,10 +276,10 @@ fn _cipher_avx512<const ENC: bool>(
         // SAFETY: `blocks` is 256 bytes due to `chunks_exact_mut`
         let (p0123, p4567, p89ab, pcdef) = unsafe {
             (
-                _mm512_loadu_si512(blocks.as_ptr().add(0) as *const _),
-                _mm512_loadu_si512(blocks.as_ptr().add(64) as *const _),
-                _mm512_loadu_si512(blocks.as_ptr().add(128) as *const _),
-                _mm512_loadu_si512(blocks.as_ptr().add(192) as *const _),
+                _mm512_loadu_si512(blocks.as_ptr().add(0).cast()),
+                _mm512_loadu_si512(blocks.as_ptr().add(64).cast()),
+                _mm512_loadu_si512(blocks.as_ptr().add(128).cast()),
+                _mm512_loadu_si512(blocks.as_ptr().add(192).cast()),
             )
         };
 
@@ -290,10 +290,10 @@ fn _cipher_avx512<const ENC: bool>(
 
         // SAFETY: `blocks` is 256 bytes and writable due to `chunks_exact_mut`
         unsafe {
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(0) as *mut _, c0123);
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(64) as *mut _, c4567);
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(128) as *mut _, c89ab);
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(192) as *mut _, ccdef);
+            _mm512_storeu_si512(blocks.as_mut_ptr().add(0).cast(), c0123);
+            _mm512_storeu_si512(blocks.as_mut_ptr().add(64).cast(), c4567);
+            _mm512_storeu_si512(blocks.as_mut_ptr().add(128).cast(), c89ab);
+            _mm512_storeu_si512(blocks.as_mut_ptr().add(192).cast(), ccdef);
         }
 
         let (a0123, a4567, a89ab, acdef) = if ENC {
@@ -335,12 +335,12 @@ fn _cipher_avx512<const ENC: bool>(
             let c1 = _mm_aesenclast_si128(c1, rk_last);
 
             // SAFETY: `block` is 16 bytes and writable.
-            let p1 = unsafe { _mm_loadu_si128(block.as_ptr() as *const _) };
+            let p1 = unsafe { _mm_loadu_si128(block.as_ptr().cast()) };
             let c1 = _mm_xor_si128(c1, p1);
 
             // SAFETY: `block` is 16 bytes and writable.
             unsafe {
-                _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
+                _mm_storeu_si128(block.as_mut_ptr().cast(), c1);
             }
         }
 
@@ -361,12 +361,12 @@ fn _cipher_avx512<const ENC: bool>(
             let c1 = _mm_aesenclast_si128(c1, rk_last);
 
             // SAFETY: `block` is 16 bytes and writable.
-            let p1 = unsafe { _mm_loadu_si128(block.as_ptr() as *const _) };
+            let p1 = unsafe { _mm_loadu_si128(block.as_ptr().cast()) };
             let c1 = _mm_xor_si128(c1, p1);
 
             // SAFETY: `block` is 16 bytes and writable.
             unsafe {
-                _mm_storeu_si128(block.as_mut_ptr() as *mut _, c1);
+                _mm_storeu_si128(block.as_mut_ptr().cast(), c1);
             }
 
             cipher_inout.copy_from_slice(&block[..len]);

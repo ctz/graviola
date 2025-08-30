@@ -75,10 +75,10 @@ fn sha256(state: &mut [u32; 8], blocks: &[u8]) {
         // SAFETY: `block` is 64 bytes long and readable, via `chunks_exact`
         let (msg0, msg1, msg2, msg3) = unsafe {
             (
-                vld1q_u32(block[0..].as_ptr() as *const _),
-                vld1q_u32(block[16..].as_ptr() as *const _),
-                vld1q_u32(block[32..].as_ptr() as *const _),
-                vld1q_u32(block[48..].as_ptr() as *const _),
+                vld1q_u32(block[0..].as_ptr().cast()),
+                vld1q_u32(block[16..].as_ptr().cast()),
+                vld1q_u32(block[32..].as_ptr().cast()),
+                vld1q_u32(block[48..].as_ptr().cast()),
             )
         };
 

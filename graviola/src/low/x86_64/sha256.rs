@@ -19,7 +19,7 @@ macro_rules! k {
         // SAFETY: `$k` is a compile-time constant and results in a valid index
         // into the const table `K`.  `K` has proper alignment for this aligned
         // load.
-        unsafe { _mm_load_si128(K.0.as_ptr().add($k * 4) as *const _) }
+        unsafe { _mm_load_si128(K.0.as_ptr().add($k * 4).cast()) }
     };
 }
 
@@ -55,8 +55,8 @@ fn sha256(state: &mut [u32; 8], blocks: &[u8]) {
     // SAFETY: `state` is 8 32-bit words and readable
     let (state0, state1) = unsafe {
         (
-            _mm_loadu_si128(state[0..4].as_ptr() as *const _),
-            _mm_loadu_si128(state[4..8].as_ptr() as *const _),
+            _mm_loadu_si128(state[0..4].as_ptr().cast()),
+            _mm_loadu_si128(state[4..8].as_ptr().cast()),
         )
     };
 
@@ -89,10 +89,10 @@ fn sha256(state: &mut [u32; 8], blocks: &[u8]) {
         // SAFETY: `block` is 64 bytes and readable
         let (msg0, msg1, msg2, msg3) = unsafe {
             (
-                _mm_loadu_si128(block[0..].as_ptr() as *const _),
-                _mm_loadu_si128(block[16..].as_ptr() as *const _),
-                _mm_loadu_si128(block[32..].as_ptr() as *const _),
-                _mm_loadu_si128(block[48..].as_ptr() as *const _),
+                _mm_loadu_si128(block[0..].as_ptr().cast()),
+                _mm_loadu_si128(block[16..].as_ptr().cast()),
+                _mm_loadu_si128(block[32..].as_ptr().cast()),
+                _mm_loadu_si128(block[48..].as_ptr().cast()),
             )
         };
 
@@ -131,8 +131,8 @@ fn sha256(state: &mut [u32; 8], blocks: &[u8]) {
 
     // SAFETY: `state` is 8 32-bit words and writable
     unsafe {
-        _mm_storeu_si128(state[0..4].as_mut_ptr() as *mut _, state0);
-        _mm_storeu_si128(state[4..8].as_mut_ptr() as *mut _, state1);
+        _mm_storeu_si128(state[0..4].as_mut_ptr().cast(), state0);
+        _mm_storeu_si128(state[4..8].as_mut_ptr().cast(), state1);
     }
 }
 

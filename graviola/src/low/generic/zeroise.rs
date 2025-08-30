@@ -12,7 +12,7 @@ pub(crate) fn zeroise<T: Zeroable>(v: &mut [T]) {
 
 /// Writes zeroes over the whole of the `v` value.
 pub(crate) fn zeroise_value<T: Zeroable>(v: &mut T) {
-    zero_bytes(v as *mut T as *mut _, size_of::<T>());
+    zero_bytes((v as *mut T).cast(), size_of::<T>());
 }
 
 /// Marker trait for types who have valid all-bits-zero values.
