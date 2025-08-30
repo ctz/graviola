@@ -174,7 +174,7 @@ impl AesKey128 {
         let mut round_keys = [zero(); 10 + 1];
         for (i, rk) in rk32.chunks(4).enumerate() {
             // SAFETY: `rk` is 128-bit in size; `vld1q_u8` has no alignment req.
-            round_keys[i] = unsafe { vrev32q_u8(vld1q_u8(rk.as_ptr() as *const _)) };
+            round_keys[i] = unsafe { vrev32q_u8(vld1q_u8(rk.as_ptr().cast())) };
         }
 
         Self { round_keys }
@@ -225,7 +225,7 @@ impl AesKey256 {
         let mut round_keys = [zero(); 14 + 1];
         for (i, rk) in rk32.chunks(4).enumerate() {
             // SAFETY: `rk` is 128-bit in size; `vld1q_u8` has no alignment req.
-            round_keys[i] = unsafe { vrev32q_u8(vld1q_u8(rk.as_ptr() as *const _)) };
+            round_keys[i] = unsafe { vrev32q_u8(vld1q_u8(rk.as_ptr().cast())) };
         }
 
         Self { round_keys }
@@ -275,10 +275,10 @@ const RCON: [u32; 10] = [0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0
 #[target_feature(enable = "aes")]
 fn aes128_block(round_keys: &[uint8x16_t; 11], block_inout: &mut [u8]) {
     // SAFETY: `block_inout` is 16 bytes and readable
-    let block = unsafe { vld1q_u8(block_inout.as_ptr() as *const _) };
+    let block = unsafe { vld1q_u8(block_inout.as_ptr().cast()) };
     let block = _aes128_block(round_keys, block);
     // SAFETY: `block_inout` is 16 bytes and writable
-    unsafe { vst1q_u8(block_inout.as_mut_ptr() as *mut _, block) };
+    unsafe { vst1q_u8(block_inout.as_mut_ptr().cast(), block) };
 }
 
 #[target_feature(enable = "aes")]
@@ -383,10 +383,10 @@ fn _aes128_8_blocks(
 #[target_feature(enable = "aes")]
 fn aes256_block(round_keys: &[uint8x16_t; 15], block_inout: &mut [u8; 16]) {
     // SAFETY: `block_inout` is 16 bytes and readable
-    let block = unsafe { vld1q_u8(block_inout.as_ptr() as *const _) };
+    let block = unsafe { vld1q_u8(block_inout.as_ptr().cast()) };
     let block = _aes256_block(round_keys, block);
     // SAFETY: `block_inout` is 16 bytes and writable
-    unsafe { vst1q_u8(block_inout.as_mut_ptr() as *mut _, block) };
+    unsafe { vst1q_u8(block_inout.as_mut_ptr().cast(), block) };
 }
 
 #[target_feature(enable = "aes")]

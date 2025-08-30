@@ -194,7 +194,7 @@ macro_rules! expand_128 {
 #[target_feature(enable = "aes,avx")]
 fn aes128_expand(key: &[u8; 16], out: &mut [__m128i; 11]) {
     // SAFETY: `key` is 16 bytes and can be loaded from
-    let mut t1 = unsafe { _mm_lddqu_si128(key.as_ptr() as *const _) };
+    let mut t1 = unsafe { _mm_lddqu_si128(key.as_ptr().cast()) };
     out[0] = t1;
 
     expand_128!(0x01, t1, out[1]);
@@ -250,8 +250,8 @@ fn aes256_expand(key: &[u8; 32], out: &mut [__m128i; 15]) {
     // SAFETY: `key` is 32 bytes and readable
     let (mut t1, mut t3) = unsafe {
         (
-            _mm_lddqu_si128(key.as_ptr() as *const _),
-            _mm_lddqu_si128(key[16..].as_ptr() as *const _),
+            _mm_lddqu_si128(key.as_ptr().cast()),
+            _mm_lddqu_si128(key[16..].as_ptr().cast()),
         )
     };
     out[0] = t1;
@@ -277,7 +277,7 @@ fn aes256_expand(key: &[u8; 32], out: &mut [__m128i; 15]) {
 #[target_feature(enable = "aes,avx")]
 fn aes128_block(round_keys: &[__m128i; 11], block_inout: &mut [u8; 16]) {
     // SAFETY: `block_inout` is 16 bytes and readable
-    let block = unsafe { _mm_lddqu_si128(block_inout.as_ptr() as *const _) };
+    let block = unsafe { _mm_lddqu_si128(block_inout.as_ptr().cast()) };
     let block = _mm_xor_si128(block, round_keys[0]);
     let block = _mm_aesenc_si128(block, round_keys[1]);
     let block = _mm_aesenc_si128(block, round_keys[2]);
@@ -290,13 +290,13 @@ fn aes128_block(round_keys: &[__m128i; 11], block_inout: &mut [u8; 16]) {
     let block = _mm_aesenc_si128(block, round_keys[9]);
     let block = _mm_aesenclast_si128(block, round_keys[10]);
     // SAFETY: `block_inout` is 16 bytes and writeable
-    unsafe { _mm_storeu_si128(block_inout.as_mut_ptr() as *mut _, block) };
+    unsafe { _mm_storeu_si128(block_inout.as_mut_ptr().cast(), block) };
 }
 
 #[target_feature(enable = "aes,avx")]
 fn aes256_block(round_keys: &[__m128i; 15], block_inout: &mut [u8; 16]) {
     // SAFETY: `block_inout` is 16 bytes and readable
-    let block = unsafe { _mm_lddqu_si128(block_inout.as_ptr() as *const _) };
+    let block = unsafe { _mm_lddqu_si128(block_inout.as_ptr().cast()) };
     let block = _mm_xor_si128(block, round_keys[0]);
     let block = _mm_aesenc_si128(block, round_keys[1]);
     let block = _mm_aesenc_si128(block, round_keys[2]);
@@ -313,7 +313,7 @@ fn aes256_block(round_keys: &[__m128i; 15], block_inout: &mut [u8; 16]) {
     let block = _mm_aesenc_si128(block, round_keys[13]);
     let block = _mm_aesenclast_si128(block, round_keys[14]);
     // SAFETY: `block_inout` is 16 bytes and writeable
-    unsafe { _mm_storeu_si128(block_inout.as_mut_ptr() as *mut _, block) };
+    unsafe { _mm_storeu_si128(block_inout.as_mut_ptr().cast(), block) };
 }
 
 #[cfg(test)]
@@ -324,7 +324,7 @@ mod tests {
         let mut u = 0;
         // SAFETY: __m128i has the same layout/meaning as u128
         unsafe {
-            _mm_store_si128(&mut u as *mut u128 as *mut _, v);
+            _mm_store_si128((&mut u as *mut u128).cast(), v);
         }
         u
     }
