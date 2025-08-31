@@ -1,5 +1,7 @@
 mod criterion;
-use criterion::{Criterion, Throughput, black_box, criterion_group, criterion_main};
+use std::hint::black_box;
+
+use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 
 fn rsa_key_generation(c: &mut Criterion) {
     // All these are gated under `NOISY_BENCHMARKS` for the benefit of codspeed,
