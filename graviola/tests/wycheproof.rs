@@ -1,9 +1,10 @@
 use std::fs::File;
+use std::panic;
 
 use graviola::Error;
 use graviola::aead::{AesGcm, ChaCha20Poly1305, XChaCha20Poly1305};
 use graviola::hashing::hmac::Hmac;
-use graviola::hashing::{Sha256, Sha384, Sha512};
+use graviola::hashing::{Sha256, Sha384, Sha512, hkdf};
 use graviola::key_agreement::{p256, p384, x25519};
 use graviola::signing::{ecdsa, rsa};
 use serde::Deserialize;
@@ -45,6 +46,16 @@ struct Test {
     #[allow(unused)] // for Debug
     comment: String,
     flags: Vec<String>,
+    #[serde(default, with = "hex::serde")]
+    ikm: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    salt: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    info: Vec<u8>,
+    #[serde(default)]
+    size: usize,
+    #[serde(default, with = "hex::serde")]
+    okm: Vec<u8>,
     #[serde(default, with = "hex::serde")]
     key: Vec<u8>,
     #[serde(default, with = "hex::serde")]
@@ -133,6 +144,143 @@ impl Drop for Summary {
             self.started, passed, self.skipped
         );
         assert_ne!(self.started, self.skipped, "all tests were skipped");
+    }
+}
+
+#[test]
+fn hkdf_sha256_tests() {
+    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hkdf_sha256_test.json")
+        .expect("failed to open data file");
+
+    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
+
+    for group in tests.groups {
+        summary.group(&group);
+        for test in group.tests {
+            summary.start(&test);
+
+            let f = || {
+                let salt = (!test.has_flag("EmptySalt")).then_some(test.salt.as_slice());
+                let prk = hkdf::extract::<Sha256>(salt, &test.ikm);
+                let mut okm = vec![0u8; test.size];
+                hkdf::expand::<Sha256>(&prk, &test.info, &mut okm);
+                okm
+            };
+
+            match test.result {
+                ExpectedResult::Valid => {
+                    let okm = f();
+                    assert_eq!(okm, test.okm);
+                }
+                ExpectedResult::Invalid => {
+                    let Err(cause) = panic::catch_unwind(f) else {
+                        panic!("test did not panic as expected");
+                    };
+
+                    match cause.downcast_ref::<&'static str>() {
+                        Some(
+                            &"length of output keying material must be less than or equal to 255 times the length of the hash function output",
+                        ) if test.has_flag("SizeTooLarge") => {}
+                        _ => {
+                            panic::resume_unwind(cause);
+                        }
+                    }
+                }
+                ExpectedResult::Acceptable => todo!(),
+            }
+        }
+    }
+}
+#[test]
+fn hkdf_sha384_tests() {
+    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hkdf_sha384_test.json")
+        .expect("failed to open data file");
+
+    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
+
+    for group in tests.groups {
+        summary.group(&group);
+        for test in group.tests {
+            summary.start(&test);
+
+            let f = || {
+                let salt = (!test.has_flag("EmptySalt")).then_some(test.salt.as_slice());
+                let prk = hkdf::extract::<Sha384>(salt, &test.ikm);
+                let mut okm = vec![0u8; test.size];
+                hkdf::expand::<Sha384>(&prk, &test.info, &mut okm);
+                okm
+            };
+
+            match test.result {
+                ExpectedResult::Valid => {
+                    let okm = f();
+                    assert_eq!(okm, test.okm);
+                }
+                ExpectedResult::Invalid => {
+                    let Err(cause) = panic::catch_unwind(f) else {
+                        panic!("test did not panic as expected");
+                    };
+
+                    match cause.downcast_ref::<&'static str>() {
+                        Some(
+                            &"length of output keying material must be less than or equal to 255 times the length of the hash function output",
+                        ) if test.has_flag("SizeTooLarge") => {}
+                        _ => {
+                            panic::resume_unwind(cause);
+                        }
+                    }
+                }
+                ExpectedResult::Acceptable => todo!(),
+            }
+        }
+    }
+}
+
+#[test]
+fn hkdf_sha512_tests() {
+    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hkdf_sha512_test.json")
+        .expect("failed to open data file");
+
+    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
+
+    for group in tests.groups {
+        summary.group(&group);
+        for test in group.tests {
+            summary.start(&test);
+
+            let f = || {
+                let salt = (!test.has_flag("EmptySalt")).then_some(test.salt.as_slice());
+                let prk = hkdf::extract::<Sha512>(salt, &test.ikm);
+                let mut okm = vec![0u8; test.size];
+                hkdf::expand::<Sha512>(&prk, &test.info, &mut okm);
+                okm
+            };
+
+            match test.result {
+                ExpectedResult::Valid => {
+                    let okm = f();
+                    assert_eq!(okm, test.okm);
+                }
+                ExpectedResult::Invalid => {
+                    let Err(cause) = panic::catch_unwind(f) else {
+                        panic!("test did not panic as expected");
+                    };
+
+                    match cause.downcast_ref::<&'static str>() {
+                        Some(
+                            &"length of output keying material must be less than or equal to 255 times the length of the hash function output",
+                        ) if test.has_flag("SizeTooLarge") => {}
+                        _ => {
+                            panic::resume_unwind(cause);
+                        }
+                    }
+                }
+                ExpectedResult::Acceptable => todo!(),
+            }
+        }
     }
 }
 
