@@ -9,12 +9,15 @@ codspeed-criterion-compat = { optional = true, version = "6" }
 
 [dev-dependencies]
 aes-gcm = "0.11"
-aws-lc-rs = { version = "1.16", features = ["non-fips"], default-features = false }
+aws-lc-rs = { version = "1.16", features = [
+    "non-fips",
+], default-features = false }
 chacha20poly1305 = "0.11"
 criterion = "0.8"
 ed25519-dalek = { version = "3", features = ["alloc", "pkcs8", "rand_core"] }
 getrandom = { version = "0.4", features = ["sys_rng"] }
 hex = { version = "0.4", features = ["serde"] }
+hkdf = "0.12"
 hmac = "0.13"
 libcrux-ml-kem = { version = "0.0.11", default-features = false, features = ["mlkem768", "alloc"] }
 ml-kem = { version = "0.3", features = ["getrandom"] }
@@ -81,6 +84,10 @@ harness = false
 
 [[bench]]
 name = "xchacha20poly1305"
+harness = false
+
+[[bench]]
+name = "hkdf"
 harness = false
 
 [[bench]]
