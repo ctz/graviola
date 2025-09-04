@@ -154,9 +154,8 @@ impl<'a> Prk<'a> {
 mod tests {
     use hex_literal::hex;
 
-    use crate::hashing::Sha256;
-
     use super::*;
+    use crate::hashing::Sha256;
 
     #[derive(Debug)]
     struct TestParameters {
