@@ -150,8 +150,41 @@ impl<'a> Prk<'a> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use hex_literal::hex;
+
     use crate::hashing::Sha256;
+
+    use super::*;
+
+    #[derive(Debug)]
+    struct TestParameters {
+        ikm: &'static [u8],
+        salt: &'static [u8],
+        info: &'static [u8],
+        expected_prk: HashOutput,
+        expected_okm: &'static [u8],
+    }
+
+    fn t<H: Hash, const L: usize>(params: TestParameters) {
+        let TestParameters {
+            ikm,
+            salt,
+            info,
+            expected_prk,
+            expected_okm,
+        } = params;
+
+        let prk = extract::<H>(Some(salt), ikm);
+        assert_eq!(prk, Prk::Extracted(expected_prk.clone()));
+        let mut okm = [0; L];
+        expand::<H>(&prk, info, &mut okm);
+        assert_eq!(okm.as_ref(), expected_okm);
+
+        let prk = Prk::new_less_safe(expected_prk.as_ref());
+        let mut okm = [0; L];
+        expand::<H>(&prk, info, &mut okm);
+        assert_eq!(okm.as_ref(), expected_okm);
+    }
 
     /// Test case 1 from [RFC 5869].
     ///
@@ -160,17 +193,107 @@ mod tests {
     fn basic_with_sha256() {
         type Hash = Sha256;
         const L: usize = 42;
-        let ikm: &[u8] = &[0x0b; 22];
-        let salt: &[u8] = b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c";
-        let info: &[u8] = b"\xf0\xf1\xf2\xf3\xf4\xf5\xf6\xf7\xf8\xf9";
+        let ikm = &hex!("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b");
+        let salt = &hex!("000102030405060708090a0b0c");
+        let info = &hex!("f0f1f2f3f4f5f6f7f8f9");
 
-        let expected_prk = b"\x07\x77\x09\x36\x2c\x2e\x32\xdf\x0d\xdc\x3f\x0d\xc4\x7b\xba\x63\x90\xb6\xc7\x3b\xb5\x0f\x9c\x31\x22\xec\x84\x4a\xd7\xc2\xb3\xe5";
-        let expected_okm = b"\x3c\xb2\x5f\x25\xfa\xac\xd5\x7a\x90\x43\x4f\x64\xd0\x36\x2f\x2a\x2d\x2d\x0a\x90\xcf\x1a\x5a\x4c\x5d\xb0\x2d\x56\xec\xc4\xc5\xbf\x34\x00\x72\x08\xd5\xb8\x87\x18\x58\x65";
+        let expected_prk = HashOutput::Sha256(hex!(
+            "077709362c2e32df0ddc3f0dc47bba63"
+            "90b6c73bb50f9c3122ec844ad7c2b3e5"
+        ));
+        let expected_okm = &hex!(
+            "3cb25f25faacd57a90434f64d0362f2a"
+            "2d2d0a90cf1a5a4c5db02d56ecc4c5bf"
+            "34007208d5b887185865"
+        );
 
-        let prk = extract::<Hash>(Some(salt), ikm);
-        assert_eq!(prk, Prk::Extracted(HashOutput::Sha256(*expected_prk)));
-        let mut okm = [0; L];
-        expand::<Hash>(&prk, info, &mut okm);
-        assert_eq!(okm.as_ref(), expected_okm);
+        t::<Hash, L>(TestParameters {
+            ikm,
+            salt,
+            info,
+            expected_prk,
+            expected_okm,
+        });
+    }
+
+    /// Test case 2 from [RFC 5869].
+    ///
+    /// [RFC 5869]: https://datatracker.ietf.org/doc/html/rfc5869#appendix-A.2
+    #[test]
+    fn sha256_with_long_inputs_and_outputs() {
+        type Hash = Sha256;
+        const L: usize = 82;
+        let ikm = &hex!(
+            "000102030405060708090a0b0c0d0e0f"
+            "101112131415161718191a1b1c1d1e1f"
+            "202122232425262728292a2b2c2d2e2f"
+            "303132333435363738393a3b3c3d3e3f"
+            "404142434445464748494a4b4c4d4e4f"
+        );
+        let salt = &hex!(
+            "606162636465666768696a6b6c6d6e6f"
+            "707172737475767778797a7b7c7d7e7f"
+            "808182838485868788898a8b8c8d8e8f"
+            "909192939495969798999a9b9c9d9e9f"
+            "a0a1a2a3a4a5a6a7a8a9aaabacadaeaf"
+        );
+        let info = &hex!(
+            "b0b1b2b3b4b5b6b7b8b9babbbcbdbebf"
+            "c0c1c2c3c4c5c6c7c8c9cacbcccdcecf"
+            "d0d1d2d3d4d5d6d7d8d9dadbdcdddedf"
+            "e0e1e2e3e4e5e6e7e8e9eaebecedeeef"
+            "f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff"
+        );
+
+        let expected_prk = HashOutput::Sha256(hex!(
+            "06a6b88c5853361a06104c9ceb35b45c"
+            "ef760014904671014a193f40c15fc244"
+        ));
+        let expected_okm = &hex!(
+            "b11e398dc80327a1c8e7f78c596a4934"
+            "4f012eda2d4efad8a050cc4c19afa97c"
+            "59045a99cac7827271cb41c65e590e09"
+            "da3275600c2f09b8367793a9aca3db71"
+            "cc30c58179ec3e87c14c01d5c1f3434f"
+            "1d87"
+        );
+
+        t::<Hash, L>(TestParameters {
+            ikm,
+            salt,
+            info,
+            expected_prk,
+            expected_okm,
+        });
+    }
+
+    /// Test case 3 from [RFC 5869].
+    ///
+    /// [RFC 5869]: https://datatracker.ietf.org/doc/html/rfc5869#appendix-A.3
+    #[test]
+    fn sha256_with_empty_salt_and_info() {
+        type Hash = Sha256;
+        const L: usize = 42;
+        let ikm = &hex!("0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b");
+        let salt = &[];
+        let info = &[];
+
+        let expected_prk = HashOutput::Sha256(hex!(
+            "19ef24a32c717b167f33a91d6f648bdf"
+            "96596776afdb6377ac434c1c293ccb04"
+        ));
+        let expected_okm = &hex!(
+            "8da4e775a563c18f715f802a063c5a31"
+            "b8a11f5c5ee1879ec3454e5f3c738d2d"
+            "9d201395faa4b61a96c8"
+        );
+
+        t::<Hash, L>(TestParameters {
+            ikm,
+            salt,
+            info,
+            expected_prk,
+            expected_okm,
+        });
     }
 }
