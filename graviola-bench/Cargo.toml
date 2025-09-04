@@ -13,6 +13,7 @@ aws-lc-rs = { version = "1", features = ["non-fips"], default-features = false }
 chacha20poly1305 = "0.10"
 criterion = "0.7"
 hex = { version = "0.4", features = ["serde"] }
+hkdf = "0.12"
 hmac = "0.12"
 libcrux-ml-kem = { version = "0.0.3", default-features = false, features = ["mlkem768", "alloc"] }
 ml-kem = "0.2.1"
@@ -72,6 +73,10 @@ harness = false
 
 [[bench]]
 name = "xchacha20poly1305"
+harness = false
+
+[[bench]]
+name = "hkdf"
 harness = false
 
 [[bench]]
