@@ -102,7 +102,8 @@ pub fn expand<H: Hash>(prk: &Prk<'_>, info: &[u8], mut okm: &mut [u8]) {
     )]
     let n = l.div_ceil(hash_len) as u8;
 
-    let mut hmac = Hmac::<H>::new(prk);
+    let hmac_key = Hmac::<H>::new(prk);
+    let mut hmac = hmac_key.clone();
     for i in 1..=n {
         hmac.update(info);
         hmac.update([i]);
@@ -116,7 +117,7 @@ pub fn expand<H: Hash>(prk: &Prk<'_>, info: &[u8], mut okm: &mut [u8]) {
             return;
         }
 
-        hmac = Hmac::<H>::new(prk);
+        hmac = hmac_key.clone();
         hmac.update(t);
     }
 }
