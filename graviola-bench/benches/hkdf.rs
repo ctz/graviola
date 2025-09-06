@@ -100,7 +100,7 @@ fn sha256(c: &mut Criterion) {
 fn sha384(c: &mut Criterion) {
     const HASH_LEN: usize = 48;
 
-    let mut group = c.benchmark_group("hkdf-sha256");
+    let mut group = c.benchmark_group("hkdf-sha384");
 
     for (mul, size_name) in [(1, "1 * HashLen"), (255, "255 * HashLen")] {
         group.throughput(Throughput::Elements(1));
