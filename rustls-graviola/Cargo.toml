@@ -1,6 +1,6 @@
 [package]
 name = "rustls-graviola"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 repository = "https://github.com/ctz/graviola/"
 license = "Apache-2.0 OR ISC OR MIT-0"
