@@ -527,7 +527,7 @@ if __name__ == "__main__":
             rust_decl="fn bignum_copy_row_from_table_8n(z: &mut [u64], table: &[u64], height: u64, width: u64, index: u64)",
             assertions=[
                 "z.len() as u64 == width",
-                "width % 8 == 0",
+                "width.is_multiple_of(8)",
             ],
         )
         parse_file(input, d)

@@ -15,7 +15,7 @@ pub(crate) struct Value<'a>(&'a str);
 
 impl Value<'_> {
     pub(crate) fn bytes(&self) -> Vec<u8> {
-        if self.0.len() % 2 == 0 {
+        if self.0.len().is_multiple_of(2) {
             (0..self.0.len())
                 .step_by(2)
                 .map(|i| u8::from_str_radix(&self.0[i..i + 2], 16).unwrap())

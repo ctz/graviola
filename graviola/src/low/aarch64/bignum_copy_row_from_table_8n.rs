@@ -80,7 +80,7 @@ pub(crate) fn bignum_copy_row_from_table_8n(
     index: u64,
 ) {
     debug_assert!(z.len() as u64 == width);
-    debug_assert!(width % 8 == 0);
+    debug_assert!(width.is_multiple_of(8));
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
