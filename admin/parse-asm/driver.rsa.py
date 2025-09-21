@@ -250,7 +250,7 @@ if __name__ == "__main__":
             ],
             return_map=("out", "ret"),
             return_value=["u64", "ret", "ret"],
-            assertions=["z.len() == m.len() * 2", "z.len() % 8 == 0"],
+            assertions=["z.len() == m.len() * 2", "z.len().is_multiple_of(8)"],
             rust_decl="fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64",
         )
 
@@ -580,7 +580,7 @@ if __name__ == "__main__":
                 ("inout", "w => _"),
             ],
             return_value=["u64", "ret", "ret"],
-            assertions=["z.len() == m.len() * 2", "z.len() % 8 == 0"],
+            assertions=["z.len() == m.len() * 2", "z.len().is_multiple_of(8)"],
             rust_decl="fn bignum_emontredc_8n(z: &mut [u64], m: &[u64], w: u64) -> u64",
         )
 

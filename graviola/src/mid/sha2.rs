@@ -31,7 +31,7 @@ impl Sha256Context {
 
     /// Add `bytes` to the ongoing hash computation.
     pub fn update(&mut self, bytes: &[u8]) {
-        if self.blockwise.used() == 0 && bytes.len() % Self::BLOCK_SZ == 0 {
+        if self.blockwise.used() == 0 && bytes.len().is_multiple_of(Self::BLOCK_SZ) {
             self.update_blocks(bytes);
             return;
         }
@@ -77,7 +77,7 @@ impl Sha256Context {
     }
 
     fn update_blocks(&mut self, blocks: &[u8]) {
-        debug_assert!(blocks.len() % Self::BLOCK_SZ == 0);
+        debug_assert!(blocks.len().is_multiple_of(Self::BLOCK_SZ));
         if !blocks.is_empty() {
             crate::low::sha256_compress_blocks(&mut self.h, blocks);
             self.nblocks = self.nblocks.saturating_add(blocks.len() / Self::BLOCK_SZ);
@@ -163,7 +163,7 @@ impl Sha512Context {
 
     /// Add `bytes` to the ongoing hash computation.
     pub fn update(&mut self, bytes: &[u8]) {
-        if self.blockwise.used() == 0 && bytes.len() % Self::BLOCK_SZ == 0 {
+        if self.blockwise.used() == 0 && bytes.len().is_multiple_of(Self::BLOCK_SZ) {
             self.update_blocks(bytes);
             return;
         }
@@ -207,7 +207,7 @@ impl Sha512Context {
     }
 
     fn update_blocks(&mut self, blocks: &[u8]) {
-        debug_assert!(blocks.len() % Self::BLOCK_SZ == 0);
+        debug_assert!(blocks.len().is_multiple_of(Self::BLOCK_SZ));
         if !blocks.is_empty() {
             crate::low::sha512_compress_blocks(&mut self.h, blocks);
             self.nblocks = self.nblocks.saturating_add(blocks.len() / Self::BLOCK_SZ);

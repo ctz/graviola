@@ -14,7 +14,7 @@ pub(crate) fn bignum_copy_row_from_table(
         16 => super::bignum_copy_row_from_table_16_avx2::bignum_copy_row_from_table_16_avx2(
             z, table, height, index,
         ),
-        width if width % 8 == 0 => {
+        width if width.is_multiple_of(8) => {
             super::bignum_copy_row_from_table_8n_avx2::bignum_copy_row_from_table_8n_avx2(
                 z, table, height, width, index,
             )
