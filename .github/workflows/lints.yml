@@ -49,7 +49,7 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: rustfmt
+          components: rustfmt, clippy
 
       - name: Install cargo-modules
         uses: taiki-e/cache-cargo-install-action@v2
