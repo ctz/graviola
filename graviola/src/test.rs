@@ -40,7 +40,10 @@ impl Value<'_> {
 }
 
 pub(crate) fn process_cavp(filename: impl AsRef<Path>, sink: &mut dyn CavpSink) {
-    let f = File::open(filename).expect("cannot open {filename}");
+    let filename = filename.as_ref();
+    let Ok(f) = File::open(filename) else {
+        panic!("cannot open {}", filename.display());
+    };
     for line in BufReader::new(f).lines() {
         let line = line.unwrap();
 
