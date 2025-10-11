@@ -1,10 +1,11 @@
 use std::fs::File;
 use std::panic;
+use std::path::Path;
 
 use graviola::Error;
 use graviola::aead::{AesGcm, ChaCha20Poly1305, XChaCha20Poly1305};
 use graviola::hashing::hmac::Hmac;
-use graviola::hashing::{Sha256, Sha384, Sha512, hkdf};
+use graviola::hashing::{Hash, Sha256, Sha384, Sha512, hkdf};
 use graviola::key_agreement::{p256, p384, x25519};
 use graviola::signing::{ecdsa, rsa};
 use serde::Deserialize;
@@ -147,10 +148,24 @@ impl Drop for Summary {
     }
 }
 
-#[test]
-fn hkdf_sha256_tests() {
-    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hkdf_sha256_test.json")
-        .expect("failed to open data file");
+fn hkdf_tests<H: Hash>(path: impl AsRef<Path>) {
+    fn should_panic<F, R>(f: F, expected_msg: &'static str)
+    where
+        F: FnOnce() -> R + panic::UnwindSafe,
+    {
+        let Err(cause) = panic::catch_unwind(f) else {
+            panic!("test did not panic as expected");
+        };
+        if cause.downcast_ref::<&'static str>() == Some(&expected_msg) {
+            return;
+        }
+        panic::resume_unwind(cause);
+    }
+
+    let path = Path::new("../thirdparty/wycheproof/testvectors_v1/").join(path);
+    let Ok(data_file) = File::open(&path) else {
+        panic!("failed to open data file at `{}`", path.display());
+    };
 
     let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
     let mut summary = Summary::new();
@@ -161,10 +176,14 @@ fn hkdf_sha256_tests() {
             summary.start(&test);
 
             let f = || {
-                let salt = (!test.has_flag("EmptySalt")).then_some(test.salt.as_slice());
-                let prk = hkdf::extract::<Sha256>(salt, &test.ikm);
+                let salt = if test.has_flag("EmptySalt") {
+                    None
+                } else {
+                    Some(test.salt.as_slice())
+                };
+                let prk = hkdf::extract::<H>(salt, &test.ikm);
                 let mut okm = vec![0u8; test.size];
-                hkdf::expand::<Sha256>(&prk, &test.info, &mut okm);
+                hkdf::expand::<H>(&prk, &test.info, &mut okm);
                 okm
             };
 
@@ -173,115 +192,30 @@ fn hkdf_sha256_tests() {
                     let okm = f();
                     assert_eq!(okm, test.okm);
                 }
-                ExpectedResult::Invalid => {
-                    let Err(cause) = panic::catch_unwind(f) else {
-                        panic!("test did not panic as expected");
-                    };
-
-                    match cause.downcast_ref::<&'static str>() {
-                        Some(
-                            &"length of output keying material must be less than or equal to 255 times the length of the hash function output",
-                        ) if test.has_flag("SizeTooLarge") => {}
-                        _ => {
-                            panic::resume_unwind(cause);
-                        }
-                    }
+                ExpectedResult::Invalid if test.has_flag("SizeTooLarge") => {
+                    should_panic(
+                        f,
+                        "length of output keying material must be less than or equal to 255 times the length of the hash function output",
+                    );
                 }
-                ExpectedResult::Acceptable => todo!(),
+                _ => todo!(),
             }
         }
     }
 }
+
+#[test]
+fn hkdf_sha256_tests() {
+    hkdf_tests::<Sha256>("hkdf_sha256_test.json");
+}
 #[test]
 fn hkdf_sha384_tests() {
-    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hkdf_sha384_test.json")
-        .expect("failed to open data file");
-
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
-    let mut summary = Summary::new();
-
-    for group in tests.groups {
-        summary.group(&group);
-        for test in group.tests {
-            summary.start(&test);
-
-            let f = || {
-                let salt = (!test.has_flag("EmptySalt")).then_some(test.salt.as_slice());
-                let prk = hkdf::extract::<Sha384>(salt, &test.ikm);
-                let mut okm = vec![0u8; test.size];
-                hkdf::expand::<Sha384>(&prk, &test.info, &mut okm);
-                okm
-            };
-
-            match test.result {
-                ExpectedResult::Valid => {
-                    let okm = f();
-                    assert_eq!(okm, test.okm);
-                }
-                ExpectedResult::Invalid => {
-                    let Err(cause) = panic::catch_unwind(f) else {
-                        panic!("test did not panic as expected");
-                    };
-
-                    match cause.downcast_ref::<&'static str>() {
-                        Some(
-                            &"length of output keying material must be less than or equal to 255 times the length of the hash function output",
-                        ) if test.has_flag("SizeTooLarge") => {}
-                        _ => {
-                            panic::resume_unwind(cause);
-                        }
-                    }
-                }
-                ExpectedResult::Acceptable => todo!(),
-            }
-        }
-    }
+    hkdf_tests::<Sha384>("hkdf_sha384_test.json");
 }
 
 #[test]
 fn hkdf_sha512_tests() {
-    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hkdf_sha512_test.json")
-        .expect("failed to open data file");
-
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
-    let mut summary = Summary::new();
-
-    for group in tests.groups {
-        summary.group(&group);
-        for test in group.tests {
-            summary.start(&test);
-
-            let f = || {
-                let salt = (!test.has_flag("EmptySalt")).then_some(test.salt.as_slice());
-                let prk = hkdf::extract::<Sha512>(salt, &test.ikm);
-                let mut okm = vec![0u8; test.size];
-                hkdf::expand::<Sha512>(&prk, &test.info, &mut okm);
-                okm
-            };
-
-            match test.result {
-                ExpectedResult::Valid => {
-                    let okm = f();
-                    assert_eq!(okm, test.okm);
-                }
-                ExpectedResult::Invalid => {
-                    let Err(cause) = panic::catch_unwind(f) else {
-                        panic!("test did not panic as expected");
-                    };
-
-                    match cause.downcast_ref::<&'static str>() {
-                        Some(
-                            &"length of output keying material must be less than or equal to 255 times the length of the hash function output",
-                        ) if test.has_flag("SizeTooLarge") => {}
-                        _ => {
-                            panic::resume_unwind(cause);
-                        }
-                    }
-                }
-                ExpectedResult::Acceptable => todo!(),
-            }
-        }
-    }
+    hkdf_tests::<Sha512>("hkdf_sha512_test.json");
 }
 
 #[test]
