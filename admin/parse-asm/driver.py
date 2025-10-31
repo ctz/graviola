@@ -761,7 +761,7 @@ use crate::low::macros::*;
                 # avoid extra Q! noise if not needed
                 value = value
             else:
-                value = 'Q!(%s)' % value
+                value = "Q!(%s)" % value
             print(
                 """macro_rules! %s { () => { %s } }""" % (tokens[0], value),
                 file=f,
