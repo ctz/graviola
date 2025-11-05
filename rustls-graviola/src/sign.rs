@@ -2,7 +2,7 @@ use core::fmt;
 use std::sync::Arc;
 
 use graviola::hashing;
-use graviola::signing::{ecdsa, rsa};
+use graviola::signing::{ecdsa, eddsa, rsa};
 use rustls::pki_types::SubjectPublicKeyInfoDer;
 use rustls::{SignatureScheme, pki_types, sign};
 
@@ -38,6 +38,10 @@ fn load_pkcs8(
     if let Ok(ecp384) = ecdsa::SigningKey::<ecdsa::P384>::from_pkcs8_der(key_der.secret_pkcs8_der())
     {
         return Ok(Arc::new(EcdsaP384(Arc::new(ecp384))));
+    }
+
+    if let Ok(ed25519) = eddsa::Ed25519SigningKey::from_pkcs8_der(key_der.secret_pkcs8_der()) {
+        return Ok(Arc::new(Ed25519(Arc::new(ed25519))));
     }
 
     Err(rustls::Error::General("unhandled pkcs8 format".to_string()))
@@ -265,11 +269,56 @@ impl fmt::Debug for EcdsaP384 {
     }
 }
 
+struct Ed25519(Arc<eddsa::Ed25519SigningKey>);
+
+impl sign::SigningKey for Ed25519 {
+    fn choose_scheme(
+        &self,
+        schemes: &[SignatureScheme],
+    ) -> Option<Box<dyn sign::Signer + 'static>> {
+        if schemes.contains(&SignatureScheme::ED25519) {
+            Some(Box::new(Self(self.0.clone())))
+        } else {
+            None
+        }
+    }
+
+    fn algorithm(&self) -> rustls::SignatureAlgorithm {
+        rustls::SignatureAlgorithm::ED25519
+    }
+
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+        let mut buffer = [0; 64];
+        self.0
+            .public_key()
+            .to_spki_der(&mut buffer)
+            .ok()
+            .map(|bytes| SubjectPublicKeyInfoDer::from(bytes.to_vec()))
+    }
+}
+
+impl sign::Signer for Ed25519 {
+    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
+        Ok(self.0.sign(message).to_vec())
+    }
+
+    fn scheme(&self) -> SignatureScheme {
+        SignatureScheme::ED25519
+    }
+}
+
+impl fmt::Debug for Ed25519 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.debug_struct("Ed25519").finish_non_exhaustive()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::panic;
 
     use graviola::signing::ecdsa;
+    use graviola::signing::eddsa::Ed25519SigningKey;
     use graviola::signing::rsa;
     use rustls::crypto::KeyProvider;
     use rustls::sign::{Signer, SigningKey};
@@ -527,5 +576,14 @@ mod tests {
                 .scheme(),
             SignatureScheme::ECDSA_NISTP384_SHA384
         );
+    }
+
+    #[test]
+    fn test_ed25519_signing_key() {
+        let signing_key = Arc::new(Ed25519SigningKey::generate().unwrap());
+        let ed25519 = Ed25519(signing_key.clone());
+        assert_eq!(ed25519.algorithm(), rustls::SignatureAlgorithm::ED25519);
+        assert!(ed25519.choose_scheme(&[]).is_none());
+        assert_eq!(format!("{ed25519:?}"), "Ed25519 { .. }");
     }
 }
