@@ -2,7 +2,7 @@ use core::fmt;
 use std::sync::Arc;
 
 use graviola::hashing;
-use graviola::signing::{ecdsa, rsa};
+use graviola::signing::{ecdsa, eddsa, rsa};
 use rustls::pki_types::SubjectPublicKeyInfoDer;
 use rustls::{SignatureScheme, pki_types, sign};
 
@@ -38,6 +38,10 @@ fn load_pkcs8(
     if let Ok(ecp384) = ecdsa::SigningKey::<ecdsa::P384>::from_pkcs8_der(key_der.secret_pkcs8_der())
     {
         return Ok(Arc::new(EcdsaP384(Arc::new(ecp384))));
+    }
+
+    if let Ok(ed25519) = eddsa::Ed25519SigningKey::from_pkcs8_der(key_der.secret_pkcs8_der()) {
+        return Ok(Arc::new(Ed25519(Arc::new(ed25519))));
     }
 
     Err(rustls::Error::General("unhandled pkcs8 format".to_string()))
@@ -262,5 +266,49 @@ impl sign::Signer for EcdsaP384 {
 impl fmt::Debug for EcdsaP384 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         f.debug_struct("EcdsaP384").finish_non_exhaustive()
+    }
+}
+
+struct Ed25519(Arc<eddsa::Ed25519SigningKey>);
+
+impl sign::SigningKey for Ed25519 {
+    fn choose_scheme(
+        &self,
+        schemes: &[SignatureScheme],
+    ) -> Option<Box<dyn sign::Signer + 'static>> {
+        if schemes.contains(&SignatureScheme::ED25519) {
+            Some(Box::new(Self(self.0.clone())))
+        } else {
+            None
+        }
+    }
+
+    fn algorithm(&self) -> rustls::SignatureAlgorithm {
+        rustls::SignatureAlgorithm::ED25519
+    }
+
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+        let mut buffer = [0; 64];
+        self.0
+            .public_key()
+            .to_spki_der(&mut buffer)
+            .ok()
+            .map(|bytes| SubjectPublicKeyInfoDer::from(bytes.to_vec()))
+    }
+}
+
+impl sign::Signer for Ed25519 {
+    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
+        Ok(self.0.sign(message).to_vec())
+    }
+
+    fn scheme(&self) -> SignatureScheme {
+        SignatureScheme::ED25519
+    }
+}
+
+impl fmt::Debug for Ed25519 {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.debug_struct("Ed25519").finish_non_exhaustive()
     }
 }
