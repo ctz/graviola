@@ -47,8 +47,8 @@ asn1_struct! {
     EcPrivateKey ::= SEQUENCE {
         version                   EcPrivateKeyVer,
         privateKey                OCTET STRING,
-        parameters [0]            OBJECT IDENTIFIER,
-        publicKey  [1]            BIT STRING
+        parameters [0] EXPLICIT   OBJECT IDENTIFIER,
+        publicKey  [1] EXPLICIT   BIT STRING
     }
 }
 
