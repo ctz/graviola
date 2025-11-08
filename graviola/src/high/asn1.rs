@@ -7,7 +7,8 @@ use core::mem;
 use core::mem::size_of;
 
 macro_rules! _asn1_struct_ty(
-    ([$context:literal] $($itty:ident)+) => { $crate::high::asn1::ContextConstructed<'a, $context, $crate::high::asn1::_asn1_struct_ty!($($itty)+)> };
+    ([$context:literal] EXPLICIT $($itty:ident)+) => { $crate::high::asn1::Context<'a, $context, true, $crate::high::asn1::_asn1_struct_ty!($($itty)+)> };
+    ([$context:literal] $($itty:ident)+) => { $crate::high::asn1::Context<'a, $context, false, $crate::high::asn1::_asn1_struct_ty!($($itty)+)> };
     (INTEGER) => { $crate::high::asn1::Integer<'a> };
     (OBJECT IDENTIFIER) => { $crate::high::asn1::ObjectId };
     (ANY OPTIONAL) => { Option<$crate::high::asn1::Any<'a>> };
@@ -19,7 +20,8 @@ macro_rules! _asn1_struct_ty(
 pub(crate) use _asn1_struct_ty;
 
 macro_rules! _asn1_struct_parse_ty(
-    ($p:ident, [$context:literal] $($itty:ident)+) => { $crate::high::asn1::ContextConstructed::parse(&mut $p)? };
+    ($p:ident, [$context:literal] EXPLICIT $($itty:ident)+) => { $crate::high::asn1::Context::parse(&mut $p)? };
+    ($p:ident, [$context:literal] $($itty:ident)+) => { $crate::high::asn1::Context::parse(&mut $p)? };
     ($p:ident, INTEGER) => { $crate::high::asn1::Integer::parse(&mut $p)? };
     ($p:ident, OBJECT IDENTIFIER) => { $crate::high::asn1::ObjectId::parse(&mut $p)? };
     ($p:ident, ANY OPTIONAL) => { Option::<$crate::high::asn1::Any<'_>>::parse(&mut $p)? };
@@ -49,8 +51,11 @@ macro_rules! asn1_struct {
         }
 
         impl<'a> $crate::high::asn1::Type<'a> for $name<'a> {
-            fn parse(parser: &mut $crate::high::asn1::Parser<'a>) -> Result<Self, $crate::high::asn1::Error> {
-                let (_, mut sub) = parser.descend($crate::high::asn1::Tag::sequence())?;
+            fn parse_with_tag(
+                parser: &mut $crate::high::asn1::Parser<'a>,
+                tag: $crate::high::asn1::Tag
+            ) -> Result<Self, $crate::high::asn1::Error> {
+                let (_, mut sub) = parser.descend(tag)?;
                 let r = Self {
                 $( $itname: $crate::high::asn1::_asn1_struct_parse_ty!(sub, $([$context])? $($itty)+ ), )+
                 };
@@ -62,11 +67,16 @@ macro_rules! asn1_struct {
                 $crate::high::asn1::encoded_length_for(self.body_len())
             }
 
-            fn encode(&self, encoder: &mut $crate::high::asn1::Encoder<'_>) -> Result<usize, $crate::high::asn1::Error> {
-                let mut body = encoder.begin($crate::high::asn1::Tag::sequence(), self.body_len())?;
+            fn encode_with_tag(&self,
+                encoder: &mut $crate::high::asn1::Encoder<'_>,
+                tag: $crate::high::asn1::Tag
+            ) -> Result<usize, $crate::high::asn1::Error> {
+                let mut body = encoder.begin(tag, self.body_len())?;
                 $( self.$itname.encode(&mut body)?; )+
                 Ok(body.finish())
             }
+
+            const TAG: $crate::high::asn1::Tag = $crate::high::asn1::Tag($crate::high::asn1::Tag::SEQUENCE);
         }
     }
 }
@@ -81,17 +91,20 @@ macro_rules! asn1_enum {
         }
 
         impl $crate::high::asn1::Type<'_> for $name {
-            fn parse(p: &mut $crate::high::asn1::Parser<'_>) -> Result<Self, $crate::high::asn1::Error> {
-                match $crate::high::asn1::Integer::parse(p).and_then(|i| i.as_usize())? {
+            fn parse_with_tag(p: &mut $crate::high::asn1::Parser<'_>, tag: $crate::high::asn1::Tag) -> Result<Self, $crate::high::asn1::Error> {
+                match $crate::high::asn1::Integer::parse_with_tag(p, tag).and_then(|i| i.as_usize())? {
                     $( $num => Ok(Self::$vname), )+
                     _ => Err($crate::high::asn1::Error::UnhandledEnumValue),
                 }
             }
 
-            fn encode(&self, encoder: &mut $crate::high::asn1::Encoder<'_>) -> Result<usize, $crate::high::asn1::Error> {
+            fn encode_with_tag(&self,
+                encoder: &mut $crate::high::asn1::Encoder<'_>,
+                tag: $crate::high::asn1::Tag
+            ) -> Result<usize, $crate::high::asn1::Error> {
                 let value = *self as usize;
                 let bytes = value.to_be_bytes();
-                $crate::high::asn1::Integer::new(&bytes).encode(encoder)
+                $crate::high::asn1::Integer::new(&bytes).encode_with_tag(encoder, tag)
             }
 
             fn encoded_len(&self) -> usize {
@@ -99,6 +112,8 @@ macro_rules! asn1_enum {
                 let bytes = value.to_be_bytes();
                 $crate::high::asn1::Integer::new(&bytes).encoded_len()
             }
+
+            const TAG: $crate::high::asn1::Tag = $crate::high::asn1::Tag($crate::high::asn1::Tag::INTEGER);
         }
     }
 }
@@ -118,8 +133,15 @@ macro_rules! asn1_oid {
 pub(crate) use asn1_oid;
 
 pub(crate) trait Type<'a>: Debug + Sized {
-    fn parse(p: &mut Parser<'a>) -> Result<Self, Error>;
-    fn encode(&self, encoder: &mut Encoder<'_>) -> Result<usize, Error>;
+    fn parse(p: &mut Parser<'a>) -> Result<Self, Error> {
+        Self::parse_with_tag(p, Self::TAG)
+    }
+    fn parse_with_tag(p: &mut Parser<'a>, tag: Tag) -> Result<Self, Error>;
+
+    fn encode(&self, encoder: &mut Encoder<'_>) -> Result<usize, Error> {
+        self.encode_with_tag(encoder, Self::TAG)
+    }
+    fn encode_with_tag(&self, encoder: &mut Encoder<'_>, tag: Tag) -> Result<usize, Error>;
     fn encoded_len(&self) -> usize;
 
     fn from_bytes(b: &'a [u8]) -> Result<Self, Error> {
@@ -128,6 +150,8 @@ pub(crate) trait Type<'a>: Debug + Sized {
         p.check_end()?;
         Ok(t)
     }
+
+    const TAG: Tag;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -140,7 +164,7 @@ pub(crate) enum Any<'a> {
 }
 
 impl<'a> Type<'a> for Any<'a> {
-    fn parse(p: &mut Parser<'a>) -> Result<Self, Error> {
+    fn parse_with_tag(p: &mut Parser<'a>, _: Tag) -> Result<Self, Error> {
         match p.peek_tag()?.0 {
             Tag::NULL => Ok(Self::Null(Null::parse(p)?)),
             Tag::INTEGER => Ok(Self::Integer(Integer::parse(p)?)),
@@ -151,7 +175,7 @@ impl<'a> Type<'a> for Any<'a> {
         }
     }
 
-    fn encode(&self, encoder: &mut Encoder<'_>) -> Result<usize, Error> {
+    fn encode_with_tag(&self, encoder: &mut Encoder<'_>, _: Tag) -> Result<usize, Error> {
         match self {
             Self::Null(n) => n.encode(encoder),
             Self::Integer(i) => i.encode(encoder),
@@ -170,21 +194,23 @@ impl<'a> Type<'a> for Any<'a> {
             Self::ObjectId(obj) => obj.encoded_len(),
         }
     }
+
+    const TAG: Tag = Tag(0);
 }
 
 impl<'a, T: Type<'a>> Type<'a> for Option<T> {
-    fn parse(p: &mut Parser<'a>) -> Result<Self, Error> {
+    fn parse_with_tag(p: &mut Parser<'a>, tag: Tag) -> Result<Self, Error> {
         if p.left() > 0 {
-            T::parse(p).map(Some)
+            T::parse_with_tag(p, tag).map(Some)
         } else {
             Ok(None)
         }
     }
 
-    fn encode(&self, encoder: &mut Encoder<'_>) -> Result<usize, Error> {
+    fn encode_with_tag(&self, encoder: &mut Encoder<'_>, tag: Tag) -> Result<usize, Error> {
         match self {
             None => Ok(0),
-            Some(a) => a.encode(encoder),
+            Some(a) => a.encode_with_tag(encoder, tag),
         }
     }
 
@@ -194,12 +220,17 @@ impl<'a, T: Type<'a>> Type<'a> for Option<T> {
             Some(a) => a.encoded_len(),
         }
     }
+
+    const TAG: Tag = T::TAG;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub(crate) struct ContextConstructed<'a, const ID: u8, T: Type<'a>>(Option<T>, PhantomData<&'a ()>);
+pub(crate) struct Context<'a, const ID: u8, const EXPLICIT: bool, T: Type<'a>>(
+    Option<T>,
+    PhantomData<&'a ()>,
+);
 
-impl<'a, const ID: u8, T: Type<'a>> ContextConstructed<'a, ID, T> {
+impl<'a, const ID: u8, const EXPLICIT: bool, T: Type<'a>> Context<'a, ID, EXPLICIT, T> {
     pub(crate) fn absent() -> Self {
         Self(None, PhantomData)
     }
@@ -209,42 +240,64 @@ impl<'a, const ID: u8, T: Type<'a>> ContextConstructed<'a, ID, T> {
     }
 }
 
-impl<'a, const ID: u8, T: Type<'a>> Type<'a> for ContextConstructed<'a, ID, T> {
-    fn parse(p: &mut Parser<'a>) -> Result<Self, Error> {
-        let tag = Tag::context_constructed(ID);
-
+impl<'a, const ID: u8, const EXPLICIT: bool, T: Type<'a>> Type<'a>
+    for Context<'a, ID, EXPLICIT, T>
+{
+    fn parse_with_tag(p: &mut Parser<'a>, tag: Tag) -> Result<Self, Error> {
         match p.peek_tag() {
             Ok(tt) if tag.acceptable(tt.0) => {}
             _ => return Ok(Self(None, PhantomData)),
         };
 
-        let (_, mut sub) = p.descend(tag)?;
-        let t = T::parse(&mut sub)?;
-        sub.check_end()?;
+        let t = if EXPLICIT || tag.constructed() {
+            let (_, mut sub) = p.descend(tag)?;
+            let t = T::parse(&mut sub)?;
+            sub.check_end()?;
+            t
+        } else {
+            T::parse_with_tag(p, tag)?
+        };
         Ok(Self(Some(t), PhantomData))
     }
 
-    fn encode(&self, encoder: &mut Encoder<'_>) -> Result<usize, Error> {
+    fn encode_with_tag(&self, encoder: &mut Encoder<'_>, tag: Tag) -> Result<usize, Error> {
         let item = match &self.0 {
             None => return Ok(0),
             Some(a) => a,
         };
 
-        let body_len = item.encoded_len();
-        let mut body = encoder.begin(Tag::context_constructed(ID), body_len)?;
-        item.encode(&mut body)?;
-        Ok(body.finish())
+        if EXPLICIT || tag.constructed() {
+            let body_len = item.encoded_len();
+            let mut body = encoder.begin(tag, body_len)?;
+            item.encode(&mut body)?;
+            Ok(body.finish())
+        } else {
+            item.encode_with_tag(encoder, tag)
+        }
     }
 
     fn encoded_len(&self) -> usize {
-        match &self.0 {
-            None => 0,
-            Some(a) => encoded_length_for(a.encoded_len()),
+        let item = match &self.0 {
+            None => return 0,
+            Some(a) => a,
+        };
+
+        if Self::TAG.constructed() {
+            encoded_length_for(item.encoded_len())
+        } else {
+            item.encoded_len()
         }
     }
+
+    const TAG: Tag = match EXPLICIT {
+        true => Tag::context(ID, true),
+        false => Tag::context(ID, T::TAG.constructed()),
+    };
 }
 
-impl<'a, const ID: u8, T: Type<'a>> From<T> for ContextConstructed<'a, ID, T> {
+impl<'a, const ID: u8, const CONSTRUCTED: bool, T: Type<'a>> From<T>
+    for Context<'a, ID, CONSTRUCTED, T>
+{
     fn from(t: T) -> Self {
         Self(Some(t), PhantomData)
     }
@@ -254,21 +307,23 @@ impl<'a, const ID: u8, T: Type<'a>> From<T> for ContextConstructed<'a, ID, T> {
 pub(crate) struct Null;
 
 impl Type<'_> for Null {
-    fn parse(p: &mut Parser<'_>) -> Result<Self, Error> {
-        let (_, body) = p.take(Tag::null())?;
+    fn parse_with_tag(p: &mut Parser<'_>, tag: Tag) -> Result<Self, Error> {
+        let (_, body) = p.take(tag)?;
         if !body.is_empty() {
             return Err(Error::IllegalNull);
         }
         Ok(Self)
     }
 
-    fn encode(&self, encoder: &mut Encoder<'_>) -> Result<usize, Error> {
-        Ok(encoder.begin(Tag::null(), 0)?.finish())
+    fn encode_with_tag(&self, encoder: &mut Encoder<'_>, tag: Tag) -> Result<usize, Error> {
+        Ok(encoder.begin(tag, 0)?.finish())
     }
 
     fn encoded_len(&self) -> usize {
         encoded_length_for(0)
     }
+
+    const TAG: Tag = Tag(Tag::NULL);
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -328,8 +383,8 @@ impl ObjectId {
 }
 
 impl Type<'_> for ObjectId {
-    fn parse(p: &mut Parser<'_>) -> Result<Self, Error> {
-        let (_, body) = p.take(Tag::object_id())?;
+    fn parse_with_tag(p: &mut Parser<'_>, tag: Tag) -> Result<Self, Error> {
+        let (_, body) = p.take(tag)?;
         if body.len() > Self::MAX_LEN {
             return Err(Error::UnsupportedLargeObjectId);
         }
@@ -342,8 +397,8 @@ impl Type<'_> for ObjectId {
         })
     }
 
-    fn encode(&self, encoder: &mut Encoder<'_>) -> Result<usize, Error> {
-        let mut body = encoder.begin(Tag::object_id(), self.used)?;
+    fn encode_with_tag(&self, encoder: &mut Encoder<'_>, tag: Tag) -> Result<usize, Error> {
+        let mut body = encoder.begin(tag, self.used)?;
         body.append_slice(self.as_ref())?;
         Ok(body.finish())
     }
@@ -351,6 +406,8 @@ impl Type<'_> for ObjectId {
     fn encoded_len(&self) -> usize {
         encoded_length_for(self.used)
     }
+
+    const TAG: Tag = Tag(Tag::OBJECT_ID);
 }
 
 impl AsRef<[u8]> for ObjectId {
@@ -487,13 +544,13 @@ impl<'a> AsRef<[u8]> for Integer<'a> {
 }
 
 impl<'a> Type<'a> for Integer<'a> {
-    fn parse(p: &mut Parser<'a>) -> Result<Self, Error> {
-        let (_, twos_complement) = p.take(Tag::integer())?;
+    fn parse_with_tag(p: &mut Parser<'a>, tag: Tag) -> Result<Self, Error> {
+        let (_, twos_complement) = p.take(tag)?;
         Self::minimum_magnitude_check(twos_complement)
     }
 
-    fn encode(&self, encoder: &mut Encoder<'_>) -> Result<usize, Error> {
-        let mut body = encoder.begin(Tag::integer(), self.twos_complement.len())?;
+    fn encode_with_tag(&self, encoder: &mut Encoder<'_>, tag: Tag) -> Result<usize, Error> {
+        let mut body = encoder.begin(tag, self.twos_complement.len())?;
         body.append_slice(self.twos_complement)?;
         Ok(body.finish())
     }
@@ -501,6 +558,8 @@ impl<'a> Type<'a> for Integer<'a> {
     fn encoded_len(&self) -> usize {
         encoded_length_for(self.twos_complement.len())
     }
+
+    const TAG: Tag = Tag(Tag::INTEGER);
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -519,13 +578,13 @@ impl<'a> OctetString<'a> {
 }
 
 impl<'a> Type<'a> for OctetString<'a> {
-    fn parse(p: &mut Parser<'a>) -> Result<Self, Error> {
-        let (_, octets) = p.take(Tag::octet_string())?;
+    fn parse_with_tag(p: &mut Parser<'a>, tag: Tag) -> Result<Self, Error> {
+        let (_, octets) = p.take(tag)?;
         Ok(Self { octets })
     }
 
-    fn encode(&self, encoder: &mut Encoder<'_>) -> Result<usize, Error> {
-        let mut body = encoder.begin(Tag::octet_string(), self.octets.len())?;
+    fn encode_with_tag(&self, encoder: &mut Encoder<'_>, tag: Tag) -> Result<usize, Error> {
+        let mut body = encoder.begin(tag, self.octets.len())?;
         body.append_slice(self.octets)?;
         Ok(body.finish())
     }
@@ -533,6 +592,8 @@ impl<'a> Type<'a> for OctetString<'a> {
     fn encoded_len(&self) -> usize {
         encoded_length_for(self.octets.len())
     }
+
+    const TAG: Tag = Tag(Tag::OCTET_STRING);
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -551,8 +612,8 @@ impl<'a> BitString<'a> {
 }
 
 impl<'a> Type<'a> for BitString<'a> {
-    fn parse(p: &mut Parser<'a>) -> Result<Self, Error> {
-        let (_, octets) = p.take(Tag::bit_string())?;
+    fn parse_with_tag(p: &mut Parser<'a>, tag: Tag) -> Result<Self, Error> {
+        let (_, octets) = p.take(tag)?;
         let octets = match octets.split_first() {
             None => return Err(Error::UnexpectedEof),
             Some((&0, rest)) => rest,
@@ -563,8 +624,8 @@ impl<'a> Type<'a> for BitString<'a> {
         Ok(Self { octets })
     }
 
-    fn encode(&self, encoder: &mut Encoder<'_>) -> Result<usize, Error> {
-        let mut body = encoder.begin(Tag::bit_string(), self.octets.len() + 1)?;
+    fn encode_with_tag(&self, encoder: &mut Encoder<'_>, tag: Tag) -> Result<usize, Error> {
+        let mut body = encoder.begin(tag, self.octets.len() + 1)?;
         body.push(0)?;
         body.append_slice(self.octets)?;
         Ok(body.finish())
@@ -573,6 +634,8 @@ impl<'a> Type<'a> for BitString<'a> {
     fn encoded_len(&self) -> usize {
         encoded_length_for(self.octets.len() + 1)
     }
+
+    const TAG: Tag = Tag(Tag::BIT_STRING);
 }
 
 pub(crate) struct Parser<'a> {
@@ -774,36 +837,20 @@ impl core::error::Error for Error {}
 pub(crate) struct Tag(u8);
 
 impl Tag {
-    fn acceptable(&self, offered: u8) -> bool {
+    const fn acceptable(&self, offered: u8) -> bool {
         self.0 == offered
     }
 
-    fn sequence() -> Self {
-        Self(0x30)
+    const fn constructed(&self) -> bool {
+        matches!(self.0, Self::SEQUENCE) || self.0 & Self::CONSTRUCTED == Self::CONSTRUCTED
     }
 
-    fn integer() -> Self {
-        Self(Self::INTEGER)
-    }
-
-    fn octet_string() -> Self {
-        Self(Self::OCTET_STRING)
-    }
-
-    fn bit_string() -> Self {
-        Self(Self::BIT_STRING)
-    }
-
-    fn null() -> Self {
-        Self(Self::NULL)
-    }
-
-    fn object_id() -> Self {
-        Self(Self::OBJECT_ID)
-    }
-
-    fn context_constructed(id: u8) -> Self {
-        Self(Self::CONTEXT_SPECIFIC | Self::CONSTRUCTED | id)
+    const fn context(id: u8, constructed: bool) -> Self {
+        let constructed = match constructed {
+            true => Self::CONSTRUCTED,
+            false => 0,
+        };
+        Self(Self::CONTEXT_SPECIFIC | constructed | id)
     }
 
     const INTEGER: u8 = 0x02;
@@ -811,6 +858,8 @@ impl Tag {
     const OCTET_STRING: u8 = 0x04;
     const NULL: u8 = 0x05;
     const OBJECT_ID: u8 = 0x06;
+
+    const SEQUENCE: u8 = 0x30;
 
     const CONSTRUCTED: u8 = 0x20;
     const CONTEXT_SPECIFIC: u8 = 0x80;
@@ -1116,6 +1165,12 @@ mod tests {
             Encoder::new(&mut buf).append_slice(&[0, 0]).unwrap_err(),
             Error::UnexpectedEof
         );
+    }
+
+    #[test]
+    fn test_context_tag() {
+        assert_eq!(Tag::context(1, true).0, 0xa1);
+        assert_eq!(Tag::context(1, false).0, 0x81);
     }
 
     #[test]

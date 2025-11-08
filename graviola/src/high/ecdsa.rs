@@ -110,7 +110,7 @@ impl<C: Curve> SigningKey<C> {
             privateKey: asn1::OctetString::new(encoded_private_key),
             parameters: match parameters {
                 Some(x) => x.into(),
-                None => asn1::ContextConstructed::absent(),
+                None => asn1::Context::absent(),
             },
             publicKey: asn1::BitString::new(encoded_public_key).into(),
         };
