@@ -50,3 +50,7 @@ asn1_oid! {
         csor(3) nistalgorithm(4) hashalgs(2) 3
     }
 }
+
+asn1_oid! {
+    id_ed25519 OBJECT IDENTIFIER ::= { 1 3 101 112 }
+}
