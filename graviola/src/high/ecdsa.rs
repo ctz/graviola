@@ -26,12 +26,12 @@ impl<C: Curve> SigningKey<C> {
     /// Load an ECDSA private key in PKCS#8 format.
     pub fn from_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
         let _entry = Entry::new_secret();
-        pkcs8::decode_pkcs8(
+        pkcs8::Key::decode(
             bytes,
             &asn1::oid::id_ecPublicKey,
             Some(asn1::Any::ObjectId(C::oid())),
         )
-        .and_then(Self::from_sec1_der)
+        .and_then(|k| Self::from_sec1_der(k.private_key()))
     }
 
     /// Encode this private key in PKCS#8 DER format.
@@ -45,12 +45,13 @@ impl<C: Curve> SigningKey<C> {
         let mut sec1_buf = [0u8; MAX_SCALAR_LEN + MAX_UNCOMPRESSED_PUBLIC_KEY_LEN + 128];
         let sec1 = self.to_sec1_der_detail(None, &mut sec1_buf)?;
 
-        pkcs8::encode_pkcs8(
+        pkcs8::Key::construct(
             sec1,
+            None,
             asn1::oid::id_ecPublicKey.clone(),
             Some(asn1::Any::ObjectId(C::oid())),
-            output,
         )
+        .encode(output)
     }
 
     /// Load an ECDSA private key in SEC.1 format.

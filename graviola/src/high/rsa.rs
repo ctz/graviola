@@ -330,12 +330,13 @@ impl SigningKey {
 
         let mut pkcs1_buffer = [0u8; Self::MAX_PKCS1_BUFFER_LEN];
 
-        let rc = pkcs8::encode_pkcs8(
+        let rc = pkcs8::Key::construct(
             self.to_pkcs1_der(&mut pkcs1_buffer)?,
+            None,
             asn1::oid::rsaEncryption.clone(),
             Some(asn1::Any::Null(asn1::Null)),
-            output,
-        );
+        )
+        .encode(output);
 
         zeroise(&mut pkcs1_buffer);
 
@@ -351,12 +352,12 @@ impl SigningKey {
     /// `privateKeyAlgorithm` inside this encoding must be `rsaEncryption`.
     pub fn from_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
         let _entry = Entry::new_secret();
-        pkcs8::decode_pkcs8(
+        pkcs8::Key::decode(
             bytes,
             &asn1::oid::rsaEncryption,
             Some(asn1::Any::Null(asn1::Null)),
         )
-        .and_then(Self::from_pkcs1_der)
+        .and_then(|k| Self::from_pkcs1_der(k.private_key()))
     }
 
     /// Returns the matching public key.
