@@ -28,15 +28,6 @@ asn1_enum! {
     Version ::= INTEGER { two_prime(0), multi(1) }
 }
 
-// PKCS#8 v1, RFC5208
-asn1_struct! {
-    PrivateKeyInfo ::= SEQUENCE {
-        version                   INTEGER,
-        privateKeyAlgorithm       AlgorithmIdentifier REF,
-        privateKey                OCTET STRING
-    }
-}
-
 // PKCS#8 v2, RFC5958
 asn1_struct! {
     OneAsymmetricKey ::= SEQUENCE {
@@ -96,7 +87,7 @@ asn1_struct! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::high::asn1::{Any, Encoder, Error, Integer, Null, OctetString, Parser, Type, oid};
+    use crate::high::asn1::{Any, Encoder, Error, Null, OctetString, Parser, Type, oid};
 
     #[test]
     fn parse_public_key() {
@@ -132,12 +123,12 @@ mod tests {
     #[test]
     fn parse_pkcs8_key() {
         let data = include_bytes!("testdata/nistp256-p8.bin");
-        truncation_check::<PrivateKeyInfo<'_>>(data);
-        roundtrip_check::<PrivateKeyInfo<'_>>(data);
+        truncation_check::<OneAsymmetricKey<'_>>(data);
+        roundtrip_check::<OneAsymmetricKey<'_>>(data);
 
-        let key = PrivateKeyInfo::parse(&mut Parser::new(data)).unwrap();
+        let key = OneAsymmetricKey::parse(&mut Parser::new(data)).unwrap();
         dbg!(&key);
-        assert_eq!(key.version, Integer::new(&[0]));
+        assert_eq!(key.version, Pkcs8Version::Pkcs8v1);
         assert_eq!(key.privateKeyAlgorithm.algorithm, oid::id_ecPublicKey);
         assert_eq!(
             key.privateKeyAlgorithm.parameters,
