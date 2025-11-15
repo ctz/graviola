@@ -28,12 +28,28 @@ asn1_enum! {
     Version ::= INTEGER { two_prime(0), multi(1) }
 }
 
+// PKCS#8 v1, RFC5208
 asn1_struct! {
     PrivateKeyInfo ::= SEQUENCE {
         version                   INTEGER,
         privateKeyAlgorithm       AlgorithmIdentifier REF,
         privateKey                OCTET STRING
     }
+}
+
+// PKCS#8 v2, RFC5958
+asn1_struct! {
+    OneAsymmetricKey ::= SEQUENCE {
+        version                   Pkcs8Version,
+        privateKeyAlgorithm       AlgorithmIdentifier REF,
+        privateKey                OCTET STRING,
+        // no attributes accepted
+        publicKey [1]             BIT STRING
+    }
+}
+
+asn1_enum! {
+    Pkcs8Version ::= INTEGER { Pkcs8v1(0), Pkcs8v2(1) }
 }
 
 asn1_struct! {
@@ -80,7 +96,7 @@ asn1_struct! {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::high::asn1::{Any, Encoder, Error, Integer, Null, Parser, Type, oid};
+    use crate::high::asn1::{Any, Encoder, Error, Integer, Null, OctetString, Parser, Type, oid};
 
     #[test]
     fn parse_public_key() {
@@ -133,6 +149,26 @@ mod tests {
 
         truncation_check::<EcPrivateKey<'_>>(key.privateKey.octets);
         roundtrip_check::<EcPrivateKey<'_>>(key.privateKey.octets);
+    }
+
+    #[test]
+    fn parse_pkcs8_v2_key() {
+        let data = include_bytes!("testdata/ed25519-p8v2.bin");
+        truncation_check::<OneAsymmetricKey<'_>>(data);
+        roundtrip_check::<OneAsymmetricKey<'_>>(data);
+
+        let key = OneAsymmetricKey::parse(&mut Parser::new(data)).unwrap();
+        dbg!(&key);
+        assert_eq!(key.version, Pkcs8Version::Pkcs8v2);
+        assert_eq!(key.privateKeyAlgorithm.algorithm, oid::id_ed25519);
+        assert_eq!(key.privateKeyAlgorithm.parameters, None,);
+
+        dbg!(key.privateKey.octets);
+        let inner = OctetString::parse(&mut Parser::new(key.privateKey.octets)).unwrap();
+        dbg!(&inner);
+
+        truncation_check::<OctetString<'_>>(key.privateKey.octets);
+        roundtrip_check::<OctetString<'_>>(key.privateKey.octets);
     }
 
     #[test]
