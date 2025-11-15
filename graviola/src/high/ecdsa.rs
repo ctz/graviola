@@ -67,7 +67,7 @@ impl<C: Curve> SigningKey<C> {
             _ => return Err(KeyFormatError::MismatchedSec1Curve.into()),
         }
 
-        let private_key = C::PrivateKey::from_bytes(ecpk.privateKey.into_octets())?;
+        let private_key = C::PrivateKey::from_bytes(ecpk.privateKey.as_octets())?;
 
         if let Some(expected_public_key) = ecpk.publicKey.inner() {
             let mut encoded_public_key_buf = [0u8; MAX_UNCOMPRESSED_PUBLIC_KEY_LEN];

@@ -572,7 +572,7 @@ impl<'a> OctetString<'a> {
         Self { octets }
     }
 
-    pub(crate) fn into_octets(self) -> &'a [u8] {
+    pub(crate) fn as_octets(&self) -> &'a [u8] {
         self.octets
     }
 }

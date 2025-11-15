@@ -35,7 +35,7 @@ pub(crate) fn decode_pkcs8<'a>(
         return Err(KeyFormatError::MismatchedPkcs8Parameters.into());
     }
 
-    Ok(pki.privateKey.into_octets())
+    Ok(pki.privateKey.as_octets())
 }
 
 /// Helper for producing PKCS#8 key encodings.
