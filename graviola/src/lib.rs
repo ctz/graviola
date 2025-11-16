@@ -153,6 +153,11 @@ pub mod signing {
         pub use crate::high::curve::{Curve, P256, P384};
         pub use crate::high::ecdsa::{SigningKey, VerifyingKey};
     }
+
+    /// EdDSA signatures.
+    pub mod eddsa {
+        pub use crate::high::ed25519::{Ed25519SigningKey, Ed25519VerifyingKey};
+    }
 }
 
 /// Cryptographic hash functions.
