@@ -5,7 +5,7 @@ use graviola::aead::{AesGcm, ChaCha20Poly1305, XChaCha20Poly1305};
 use graviola::hashing::hmac::Hmac;
 use graviola::hashing::{Sha256, Sha384, Sha512};
 use graviola::key_agreement::{p256, p384, x25519};
-use graviola::signing::{ecdsa, rsa};
+use graviola::signing::{ecdsa, eddsa, rsa};
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug)]
@@ -24,6 +24,9 @@ struct TestGroup {
 
     #[serde(default, rename(deserialize = "publicKeyAsn"), with = "hex::serde")]
     public_key_asn: Vec<u8>,
+
+    #[serde(default, rename(deserialize = "publicKeyDer"), with = "hex::serde")]
+    public_key_der: Vec<u8>,
 
     #[serde(default)]
     sha: String,
@@ -663,6 +666,37 @@ fn test_rsa_pss_verify() {
                     ) => {}
                     _ => panic!("expected {:?} got {:?}", test.result, result.err()),
                 }
+            }
+        }
+    }
+}
+
+#[test]
+fn test_ed25519_verify() {
+    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/ed25519_test.json")
+        .expect("failed to open data file");
+    println!("file: {data_file:?}");
+
+    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
+
+    for group in tests.groups {
+        summary.group(&group);
+
+        let key = eddsa::Ed25519VerifyingKey::from_spki_der(&group.public_key_der).unwrap();
+        println!("key is {key:?}");
+
+        for test in group.tests {
+            summary.start(&test);
+
+            let result = key.verify(&test.sig, &test.msg);
+            match (test.result, result) {
+                (ExpectedResult::Valid, Ok(())) => {}
+                (
+                    ExpectedResult::Invalid | ExpectedResult::Acceptable,
+                    Err(Error::BadSignature),
+                ) => {}
+                _ => panic!("expected {:?} got {:?}", test.result, result.err()),
             }
         }
     }
