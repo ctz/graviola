@@ -14,11 +14,13 @@ macro_rules! little_endian {
             r
         }
 
+        #[allow(dead_code)]
         pub(crate) fn $fn_slice_to(bytes: &[u8]) -> Option<[u64; $N]> {
             let as_array: [u8; $N * 8] = bytes.try_into().ok()?;
             Some($fn_array_to(&as_array))
         }
 
+        #[allow(dead_code)]
         pub(crate) fn $fn_to_bytes(v: &[u64; $N]) -> [u8; $N * 8] {
             let mut r = [0u8; $N * 8];
             for (iv, rb) in (0..$N).zip(r.chunks_exact_mut(8)) {
@@ -34,6 +36,12 @@ little_endian!(
     little_endian_to_u64x4,
     little_endian_slice_to_u64x4,
     u64x4_to_little_endian
+);
+little_endian!(
+    [u64; 8],
+    little_endian_to_u64x8,
+    little_endian_slice_to_u64x8,
+    u64x8_to_little_endian
 );
 
 macro_rules! big_endian {
