@@ -41,6 +41,7 @@ pub enum KeyFormatError {
     MismatchedPkcs8Parameters,
     MismatchedSec1Curve,
     MismatchedSec1PublicKey,
+    MismatchedSpkiAlgorithm,
 }
 
 impl From<KeyFormatError> for Error {
@@ -57,6 +58,7 @@ impl core::fmt::Display for KeyFormatError {
             Self::MismatchedPkcs8Parameters => write!(f, "mismatched PKCS#8 parameters"),
             Self::MismatchedSec1Curve => write!(f, "mismatched SEC1 curve"),
             Self::MismatchedSec1PublicKey => write!(f, "mismatched SEC1 public key"),
+            Self::MismatchedSpkiAlgorithm => write!(f, "mismatched SPKI algorithm"),
         }
     }
 }
