@@ -1,5 +1,8 @@
-use aws_lc_rs::rsa::KeyPair;
-use graviola::signing::rsa::{KeySize, SigningKey};
+use aws_lc_rs::{rsa::KeyPair, signature::Ed25519KeyPair};
+use graviola::signing::{
+    eddsa::Ed25519SigningKey,
+    rsa::{KeySize, SigningKey},
+};
 
 #[test]
 fn rsa_2048_key_generation() {
@@ -45,4 +48,22 @@ fn check_key_generation(size: KeySize) {
     let key_enc = key.to_pkcs8_der(&mut buf).unwrap();
 
     KeyPair::from_pkcs8(key_enc).expect("aws-lc-rs rejected a key we generated");
+}
+
+#[test]
+fn ed25519_key_generation() {
+    for _ in 0..100 {
+        let key = Ed25519SigningKey::generate().unwrap();
+
+        let mut buf = [0u8; 128];
+        let key_enc = key.to_pkcs8_der(&mut buf).unwrap();
+
+        let aws = Ed25519KeyPair::from_pkcs8(key_enc)
+            .expect("aws-lc-rs rejected an ed25519 key we generated");
+        assert_eq!(
+            aws.to_pkcs8().unwrap().as_ref(),
+            key_enc,
+            "aws-lc-rs varied our ed25519 key encoding"
+        );
+    }
 }
