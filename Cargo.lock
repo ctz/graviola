@@ -972,6 +972,7 @@ dependencies = [
  "criterion",
  "graviola",
  "hex",
+ "hkdf",
  "hmac",
  "libcrux-ml-kem",
  "ml-kem",

@@ -1,9 +1,11 @@
 use std::fs::File;
+use std::panic;
+use std::path::Path;
 
 use graviola::Error;
 use graviola::aead::{AesGcm, ChaCha20Poly1305, XChaCha20Poly1305};
 use graviola::hashing::hmac::Hmac;
-use graviola::hashing::{Sha256, Sha384, Sha512};
+use graviola::hashing::{Hash, Sha256, Sha384, Sha512, hkdf};
 use graviola::key_agreement::{p256, p384, x25519};
 use graviola::signing::{ecdsa, rsa};
 use serde::Deserialize;
@@ -45,6 +47,16 @@ struct Test {
     #[allow(unused)] // for Debug
     comment: String,
     flags: Vec<String>,
+    #[serde(default, with = "hex::serde")]
+    ikm: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    salt: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    info: Vec<u8>,
+    #[serde(default)]
+    size: usize,
+    #[serde(default, with = "hex::serde")]
+    okm: Vec<u8>,
     #[serde(default, with = "hex::serde")]
     key: Vec<u8>,
     #[serde(default, with = "hex::serde")]
@@ -134,6 +146,76 @@ impl Drop for Summary {
         );
         assert_ne!(self.started, self.skipped, "all tests were skipped");
     }
+}
+
+fn hkdf_tests<H: Hash>(path: impl AsRef<Path>) {
+    fn should_panic<F, R>(f: F, expected_msg: &'static str)
+    where
+        F: FnOnce() -> R + panic::UnwindSafe,
+    {
+        let Err(cause) = panic::catch_unwind(f) else {
+            panic!("test did not panic as expected");
+        };
+        if cause.downcast_ref::<&'static str>() == Some(&expected_msg) {
+            return;
+        }
+        panic::resume_unwind(cause);
+    }
+
+    let path = Path::new("../thirdparty/wycheproof/testvectors_v1/").join(path);
+    let Ok(data_file) = File::open(&path) else {
+        panic!("failed to open data file at `{}`", path.display());
+    };
+
+    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
+
+    for group in tests.groups {
+        summary.group(&group);
+        for test in group.tests {
+            summary.start(&test);
+
+            let f = || {
+                let salt = if test.has_flag("EmptySalt") {
+                    None
+                } else {
+                    Some(test.salt.as_slice())
+                };
+                let prk = hkdf::extract::<H>(salt, &test.ikm);
+                let mut okm = vec![0u8; test.size];
+                hkdf::expand::<H>(&prk, &test.info, &mut okm);
+                okm
+            };
+
+            match test.result {
+                ExpectedResult::Valid => {
+                    let okm = f();
+                    assert_eq!(okm, test.okm);
+                }
+                ExpectedResult::Invalid if test.has_flag("SizeTooLarge") => {
+                    should_panic(
+                        f,
+                        "length of output keying material must be less than or equal to 255 times the length of the hash function output",
+                    );
+                }
+                _ => todo!(),
+            }
+        }
+    }
+}
+
+#[test]
+fn hkdf_sha256_tests() {
+    hkdf_tests::<Sha256>("hkdf_sha256_test.json");
+}
+#[test]
+fn hkdf_sha384_tests() {
+    hkdf_tests::<Sha384>("hkdf_sha384_test.json");
+}
+
+#[test]
+fn hkdf_sha512_tests() {
+    hkdf_tests::<Sha512>("hkdf_sha512_test.json");
 }
 
 #[test]
