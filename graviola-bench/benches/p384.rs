@@ -50,7 +50,7 @@ fn ecdh(c: &mut Criterion) {
 
             agreement::agree_ephemeral(
                 our_private_key,
-                &peer_public_key,
+                peer_public_key,
                 error::Unspecified,
                 |key_material| {
                     black_box(key_material);
