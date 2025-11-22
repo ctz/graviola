@@ -1,6 +1,8 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+#![allow(dead_code)] // TODO(phlip9): remove
+
 // Once const generics is completed this should be able to be
 // done better that way.
 
@@ -34,6 +36,12 @@ little_endian!(
     little_endian_to_u64x4,
     little_endian_slice_to_u64x4,
     u64x4_to_little_endian
+);
+little_endian!(
+    [u64; 8],
+    little_endian_to_u64x8,
+    little_endian_slice_to_u64x8,
+    u64x8_to_little_endian
 );
 
 macro_rules! big_endian {
@@ -109,3 +117,49 @@ big_endian!(
     big_endian_slice_any_size_to_u64x6,
     u64x6_to_big_endian
 );
+
+// TODO(phlip9): MSRV 1.77 would allow us to use `split_first_chunk` and
+// `split_last_chunk` to implement these helpers.
+
+#[allow(unsafe_code)]
+pub(crate) const fn u8x64_split_u8x32x2_ref(x: &[u8; 64]) -> (&[u8; 32], &[u8; 32]) {
+    let ptr: *const u8 = x.as_ptr();
+    // SAFETY: we're splitting `x` into two non-overlapping 32B refs.
+    // 1. Alignment: `x`, `x1`, and `x2` all have alignment = 1.
+    // 2. Bounds: `x1 = self[0..32]` and `x2 = self[32..64]` are in-bounds.
+    unsafe {
+        let x1 = &*(ptr as *const [u8; 32]); // x[0..32]
+        let x2 = &*(ptr.add(32) as *const [u8; 32]); // x[32..64]
+        (x1, x2)
+    }
+}
+
+#[allow(unsafe_code)]
+pub(crate) const fn u8x64_split_u8x32x2_mut(x: &mut [u8; 64]) -> (&mut [u8; 32], &mut [u8; 32]) {
+    let ptr: *mut u8 = x.as_mut_ptr();
+    // SAFETY: we're splitting `x` into two non-overlapping 32B mut refs.
+    // 1. Alignment: `x`, `x1`, and `x2` all have alignment = 1.
+    // 2. Bounds: `x1 = self[0..32]` and `x2 = self[32..64]` are in-bounds.
+    // 3. Aliasing: `x1` and `x2` are disjoint/non-overlapping, so it's safe to
+    //    return multiple mutable references.
+    unsafe {
+        let x1 = &mut *(ptr as *mut [u8; 32]); // x[0..32]
+        let x2 = &mut *(ptr.add(32) as *mut [u8; 32]); // x[32..64]
+        (x1, x2)
+    }
+}
+
+#[allow(unsafe_code)]
+pub(crate) const fn u64x8_split_u64x4x2_mut(x: &mut [u64; 8]) -> (&mut [u64; 4], &mut [u64; 4]) {
+    let ptr: *mut u64 = x.as_mut_ptr();
+    // SAFETY: we're splitting `x` into two non-overlapping mut refs.
+    // 1. Alignment: `x`, `x1`, and `x2` all have alignment = 8.
+    // 2. Bounds: `x1 = self[0..4]` and `x2 = self[4..8]` are in-bounds.
+    // 3. Aliasing: `x1` and `x2` are disjoint/non-overlapping, so it's safe to
+    //    return multiple mutable references.
+    unsafe {
+        let x1 = &mut *(ptr as *mut [u64; 4]); // x[0..4]
+        let x2 = &mut *(ptr.add(4) as *mut [u64; 4]); // x[4..8]
+        (x1, x2)
+    }
+}
