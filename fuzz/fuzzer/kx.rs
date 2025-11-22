@@ -26,7 +26,7 @@ fuzz_target!(|op: Operation| {
                     &scalar,
                 )
                 .unwrap(),
-                &aws_lc_rs::agreement::UnparsedPublicKey::new(&aws_lc_rs::agreement::X25519, &peer),
+                aws_lc_rs::agreement::UnparsedPublicKey::new(&aws_lc_rs::agreement::X25519, &peer),
                 aws_lc_rs::error::Unspecified,
                 |key| Ok(key.to_vec()),
             )
@@ -66,7 +66,7 @@ fuzz_target!(|op: Operation| {
             .and_then(|private| {
                 aws_lc_rs::agreement::agree(
                     &private,
-                    &aws_lc_rs::agreement::UnparsedPublicKey::new(
+                    aws_lc_rs::agreement::UnparsedPublicKey::new(
                         &aws_lc_rs::agreement::ECDH_P256,
                         &peer,
                     ),
@@ -112,7 +112,7 @@ fuzz_target!(|op: Operation| {
             .and_then(|private| {
                 aws_lc_rs::agreement::agree(
                     &private,
-                    &aws_lc_rs::agreement::UnparsedPublicKey::new(
+                    aws_lc_rs::agreement::UnparsedPublicKey::new(
                         &aws_lc_rs::agreement::ECDH_P384,
                         &peer,
                     ),
