@@ -62,21 +62,11 @@ fn all_key_exchanges() {
         OtherProvider::SelfTest, // not supported by *ring*
         KeyType::Rsa2048,
     );
-    test_key_exchange(
-        &rustls_graviola::kx::X25519,
-        OtherProvider::Baseline,
-        KeyType::Rsa2048,
-    );
-    test_key_exchange(
-        &rustls_graviola::kx::P256,
-        OtherProvider::Baseline,
-        KeyType::Rsa2048,
-    );
-    test_key_exchange(
-        &rustls_graviola::kx::P384,
-        OtherProvider::Baseline,
-        KeyType::Rsa2048,
-    );
+    for other in OtherProvider::OTHERS {
+        test_key_exchange(&rustls_graviola::kx::X25519, *other, KeyType::Rsa2048);
+        test_key_exchange(&rustls_graviola::kx::P256, *other, KeyType::Rsa2048);
+        test_key_exchange(&rustls_graviola::kx::P384, *other, KeyType::Rsa2048);
+    }
 }
 
 fn test_key_exchange(kx: &'static dyn SupportedKxGroup, other: OtherProvider, key_type: KeyType) {
@@ -95,8 +85,10 @@ fn test_suite(suite: rustls::SupportedCipherSuite, key_type: KeyType) {
         ..rustls_graviola::default_provider()
     }
     .into();
-    test_client(provider.clone(), OtherProvider::Baseline, key_type);
-    test_server(provider, OtherProvider::Baseline, key_type);
+    for other in OtherProvider::OTHERS {
+        test_client(provider.clone(), *other, key_type);
+        test_server(provider.clone(), *other, key_type);
+    }
 }
 
 fn test_client(provider: Arc<CryptoProvider>, other: OtherProvider, key_type: KeyType) {
@@ -248,15 +240,17 @@ impl KeyType {
 
 #[derive(Copy, Clone, Debug)]
 enum OtherProvider {
-    Baseline,
+    BaselineRing,
     SelfTest,
 }
 
 impl OtherProvider {
     fn into_provider(self) -> Arc<CryptoProvider> {
         match self {
-            Self::Baseline => baseline().into(),
+            Self::BaselineRing => baseline().into(),
             Self::SelfTest => rustls_graviola::default_provider().into(),
         }
     }
+
+    const OTHERS: &[Self] = &[Self::BaselineRing];
 }
