@@ -1,8 +1,8 @@
 use std::io::{Read, Write};
 use std::sync::Arc;
 
-use rustls::crypto::ring::default_provider as baseline;
 use rustls::crypto::{CryptoProvider, SupportedKxGroup};
+use rustls::crypto::{aws_lc_rs, ring};
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::sign::CertifiedKey;
@@ -57,11 +57,11 @@ fn all_suites() {
 
 #[test]
 fn all_key_exchanges() {
-    test_key_exchange(
-        rustls_graviola::kx::X25519MLKEM768,
-        OtherProvider::SelfTest, // not supported by *ring*
-        KeyType::Rsa2048,
-    );
+    // X25519MLKEM768 not supported by *ring*
+    for other in [OtherProvider::BaselineAwsLcRs, OtherProvider::SelfTest] {
+        test_key_exchange(rustls_graviola::kx::X25519MLKEM768, other, KeyType::Rsa2048);
+    }
+
     for other in OtherProvider::OTHERS {
         test_key_exchange(&rustls_graviola::kx::X25519, *other, KeyType::Rsa2048);
         test_key_exchange(&rustls_graviola::kx::P256, *other, KeyType::Rsa2048);
@@ -241,16 +241,18 @@ impl KeyType {
 #[derive(Copy, Clone, Debug)]
 enum OtherProvider {
     BaselineRing,
+    BaselineAwsLcRs,
     SelfTest,
 }
 
 impl OtherProvider {
     fn into_provider(self) -> Arc<CryptoProvider> {
         match self {
-            Self::BaselineRing => baseline().into(),
+            Self::BaselineRing => ring::default_provider().into(),
+            Self::BaselineAwsLcRs => aws_lc_rs::default_provider().into(),
             Self::SelfTest => rustls_graviola::default_provider().into(),
         }
     }
 
-    const OTHERS: &[Self] = &[Self::BaselineRing];
+    const OTHERS: &[Self] = &[Self::BaselineRing, Self::BaselineAwsLcRs];
 }
