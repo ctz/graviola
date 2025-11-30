@@ -57,7 +57,7 @@ def parse_file(f, visit):
 
     for l in lines:
         l = l.lstrip()
-        l = l.replace('__LF', ';')
+        l = l.replace("__LF", ";")
 
         if continuation:
             lr = l.rstrip().rstrip("\\").rstrip()
@@ -122,8 +122,8 @@ def parse_file(f, visit):
             continue
         elif l.startswith(".text"):
             continue
-        elif l.startswith('_CET_ENDBR'):
-            m = ASM.match('endbr64')
+        elif l.startswith("_CET_ENDBR"):
+            m = ASM.match("endbr64")
             visit(
                 Type.ASM,
                 contexts,
