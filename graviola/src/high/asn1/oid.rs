@@ -3,8 +3,6 @@
 
 #![allow(non_upper_case_globals, dead_code)]
 
-use super::asn1_oid;
-
 asn1_oid! {
     id_ecPublicKey OBJECT IDENTIFIER ::= {
         iso(1) member_body(2) us(840) 10045 keyType(2) 1

@@ -80,7 +80,6 @@ macro_rules! asn1_struct {
         }
     }
 }
-pub(crate) use asn1_struct;
 
 macro_rules! asn1_enum {
     ($name:ident ::= INTEGER { $( $vname:ident($num:expr) ),+ }) => {
@@ -117,7 +116,6 @@ macro_rules! asn1_enum {
         }
     }
 }
-pub(crate) use asn1_enum;
 
 macro_rules! asn1_oid_indices {
     ([$($accum:tt)*] -> ) => { [ $($accum,)* ] };
@@ -130,7 +128,6 @@ macro_rules! asn1_oid {
         pub(crate) static $name: crate::high::asn1::ObjectId = crate::high::asn1::ObjectId::from_path(&asn1_oid_indices!( [] -> $( $item )+));
     }
 }
-pub(crate) use asn1_oid;
 
 pub(crate) trait Type<'a>: Debug + Sized {
     fn parse(p: &mut Parser<'a>) -> Result<Self, Error> {

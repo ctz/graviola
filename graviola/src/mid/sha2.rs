@@ -12,7 +12,7 @@ use crate::low::Blockwise;
 #[derive(Clone)]
 pub struct Sha256Context {
     h: [u32; 8],
-    blockwise: Blockwise<{ Sha256Context::BLOCK_SZ }>,
+    blockwise: Blockwise<{ Self::BLOCK_SZ }>,
     nblocks: usize,
 }
 
@@ -138,7 +138,7 @@ impl Sha384Context {
 #[derive(Clone)]
 pub struct Sha512Context {
     h: [u64; 8],
-    blockwise: Blockwise<{ Sha512Context::BLOCK_SZ }>,
+    blockwise: Blockwise<{ Self::BLOCK_SZ }>,
     nblocks: usize,
 }
 
