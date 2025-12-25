@@ -52,7 +52,7 @@ pub(in crate::low) fn zero_bytes(ptr: *mut u8, len: usize) {
     unsafe { _zero_bytes(ptr, len) }
 }
 
-#[target_feature(enable = "avx")]
+#[target_feature(enable = "avx,avx2")]
 unsafe fn _zero_bytes(ptr: *mut u8, len: usize) {
     // SAFETY: writes to `len` bytes at `ptr`, which the caller guarantees
     unsafe {
