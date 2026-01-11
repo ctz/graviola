@@ -245,7 +245,7 @@ fn test_verify_ecdsa_p256() {
         "ecdsa_secp256r1_sha512_test.json",
     ] {
         let data_file = File::open(format!("../thirdparty/wycheproof/testvectors_v1/{file}"))
-            .expect("failed to open data file");
+            .expect(&format!("failed to open data file {}", file));
 
         let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
         let mut summary = Summary::new();

@@ -223,10 +223,12 @@ impl VerifyingKey {
 ///
 /// ```
 /// use graviola::signing::rsa::{KeySize, SigningKey};
+/// use tempfile::TempDir;
 /// let key = SigningKey::generate(KeySize::Rsa2048)?;
 /// let mut buffer = [0u8; 2048];
 /// let buffer = key.to_pkcs8_der(&mut buffer)?;
-/// std::fs::write("key.der", buffer)?;
+/// let tmp_dir = TempDir::new()?;
+/// std::fs::write(tmp_dir.path().join("key.der"), buffer)?;
 /// # Ok::<(), Box<dyn std::error::Error>>(())
 /// ```
 ///
