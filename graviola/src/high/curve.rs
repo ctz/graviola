@@ -306,6 +306,21 @@ mod tests {
     use crate::test::*;
 
     #[test]
+    fn private_key_encode_error() {
+        let key = p256::StaticPrivateKey::new_random().unwrap();
+        let mut out = [0; 31];
+        assert!(key.encode(&mut out).is_err());
+        let mut out = [0; 64];
+        assert!(key.public_key_encode_uncompressed(&mut out).is_err());
+
+        let key = p384::StaticPrivateKey::new_random().unwrap();
+        let mut out = [0; 47];
+        assert!(key.encode(&mut out).is_err());
+        let mut out = [0; 96];
+        assert!(key.public_key_encode_uncompressed(&mut out).is_err());
+    }
+
+    #[test]
     fn cavp_pkv() {
         #[derive(Debug, Default)]
         struct State {

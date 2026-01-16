@@ -994,6 +994,25 @@ mod tests {
         assert!(two_words.is_odd());
         assert!(two_words.equals(&two_words));
         assert!(two_words.fixed_one().less_than(&two_words));
+
+        let mut two_words = PosInt::<2>::zero();
+        const LOW_ORDER_WORD: u64 = 0xfedcba9876543210;
+        const HIGH_ORDER_WORD: u64 = 0x1234;
+        assert!(two_words.push_word(LOW_ORDER_WORD).is_ok());
+        assert!(two_words.push_word(HIGH_ORDER_WORD).is_ok());
+        assert!(two_words.push_word(0).is_err());
+        let mut out = [0; 15];
+        assert!(two_words.to_bytes(&mut out).is_err());
+        let mut out = [0; 16];
+        assert!(two_words.to_bytes(&mut out).is_ok());
+        assert_eq!(
+            u64::from_be_bytes(out[0..8].try_into().unwrap()),
+            HIGH_ORDER_WORD
+        );
+        assert_eq!(
+            u64::from_be_bytes(out[8..16].try_into().unwrap()),
+            LOW_ORDER_WORD
+        );
     }
 
     #[test]
