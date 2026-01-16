@@ -1184,6 +1184,13 @@ mod tests {
         assert_eq!(encoded_length_for(65536), 5 + 65536);
         assert_eq!(encoded_length_for(16777215), 5 + 16777215);
         assert_eq!(encoded_length_for(16777216), 6 + 16777216);
+        assert_eq!(encoded_length_for(4294967295), 6 + 4294967295);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_encode_len_limit() {
+        let _ = encoded_length_for(4294967296);
     }
 
     #[test]
