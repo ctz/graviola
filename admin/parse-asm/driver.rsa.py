@@ -42,9 +42,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open(
-        "../../thirdparty/s2n-bignum/x86/generic/bignum_ctz.S"
-    ) as input, open("../../graviola/src/low/x86_64/bignum_ctz.rs", "w") as output:
+    with open("../../thirdparty/s2n-bignum/x86/generic/bignum_ctz.S") as input, open(
+        "../../graviola/src/low/x86_64/bignum_ctz.rs", "w"
+    ) as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
             "bignum_ctz",
@@ -179,8 +179,12 @@ if __name__ == "__main__":
         parse_file(input, d)
 
     extras = {
-        "bignum_ksqr_32_64": dict(hoist=["proc", "bignum_ksqr_32_64_local_bignum_sqr_16_32", "ret"]),
-        "bignum_kmul_32_64": dict(hoist=["proc", "bignum_kmul_32_64_local_bignum_kmul_16_32", "ret"]),
+        "bignum_ksqr_32_64": dict(
+            hoist=["proc", "bignum_ksqr_32_64_local_bignum_sqr_16_32", "ret"]
+        ),
+        "bignum_kmul_32_64": dict(
+            hoist=["proc", "bignum_kmul_32_64_local_bignum_kmul_16_32", "ret"]
+        ),
     }
 
     for op, inwidth, tmpwidth in (
@@ -292,9 +296,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../thirdparty/s2n-bignum/x86/generic/bignum_coprime.S") as input, open(
-        "../../graviola/src/low/x86_64/bignum_coprime.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/x86/generic/bignum_coprime.S"
+    ) as input, open("../../graviola/src/low/x86_64/bignum_coprime.rs", "w") as output:
         d = RustDriver(output, Architecture_amd64)
         d.emit_rust_function(
             "bignum_coprime",
@@ -312,7 +316,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../thirdparty/s2n-bignum/x86/generic/bignum_shr_small.S") as input, open(
+    with open(
+        "../../thirdparty/s2n-bignum/x86/generic/bignum_shr_small.S"
+    ) as input, open(
         "../../graviola/src/low/x86_64/bignum_shr_small.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_amd64)
@@ -365,9 +371,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open(
-        "../../thirdparty/s2n-bignum/arm/generic/bignum_ctz.S"
-    ) as input, open("../../graviola/src/low/aarch64/bignum_ctz.rs", "w") as output:
+    with open("../../thirdparty/s2n-bignum/arm/generic/bignum_ctz.S") as input, open(
+        "../../graviola/src/low/aarch64/bignum_ctz.rs", "w"
+    ) as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
             "bignum_ctz",
@@ -622,9 +628,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../thirdparty/s2n-bignum/arm/generic/bignum_coprime.S") as input, open(
-        "../../graviola/src/low/aarch64/bignum_coprime.rs", "w"
-    ) as output:
+    with open(
+        "../../thirdparty/s2n-bignum/arm/generic/bignum_coprime.S"
+    ) as input, open("../../graviola/src/low/aarch64/bignum_coprime.rs", "w") as output:
         d = RustDriver(output, Architecture_aarch64)
         d.emit_rust_function(
             "bignum_coprime",
@@ -641,7 +647,9 @@ if __name__ == "__main__":
         )
         parse_file(input, d)
 
-    with open("../../thirdparty/s2n-bignum/arm/generic/bignum_shr_small.S") as input, open(
+    with open(
+        "../../thirdparty/s2n-bignum/arm/generic/bignum_shr_small.S"
+    ) as input, open(
         "../../graviola/src/low/aarch64/bignum_shr_small.rs", "w"
     ) as output:
         d = RustDriver(output, Architecture_aarch64)

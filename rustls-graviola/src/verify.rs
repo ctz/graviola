@@ -1,5 +1,5 @@
 use graviola::hashing;
-use graviola::signing::{ecdsa, rsa};
+use graviola::signing::{ecdsa, eddsa, rsa};
 use rustls::SignatureScheme;
 use rustls::crypto::WebPkiSupportedAlgorithms;
 use rustls::pki_types::{
@@ -14,6 +14,7 @@ pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorit
         ECDSA_P384_SHA512,
         ECDSA_P384_SHA384,
         ECDSA_P384_SHA256,
+        ED25519,
         RSA_PSS_SHA512,
         RSA_PSS_SHA384,
         RSA_PSS_SHA256,
@@ -30,6 +31,7 @@ pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorit
             SignatureScheme::ECDSA_NISTP384_SHA384,
             &[ECDSA_P384_SHA384, ECDSA_P256_SHA384],
         ),
+        (SignatureScheme::ED25519, &[ED25519]),
         (SignatureScheme::RSA_PSS_SHA512, &[RSA_PSS_SHA512]),
         (SignatureScheme::RSA_PSS_SHA384, &[RSA_PSS_SHA384]),
         (SignatureScheme::RSA_PSS_SHA256, &[RSA_PSS_SHA256]),
@@ -68,6 +70,8 @@ static ECDSA_P384_SHA512: &dyn SignatureVerificationAlgorithm = &EcdsaP384Verify
     signature_alg_id: alg_id::ECDSA_SHA512,
     verify: |key, signature, message| key.verify_asn1::<hashing::Sha512>(&[message], signature),
 };
+
+static ED25519: &dyn SignatureVerificationAlgorithm = &Ed25519Verify;
 
 static RSA_PSS_SHA256: &dyn SignatureVerificationAlgorithm = &RsaVerify {
     signature_alg_id: alg_id::RSA_PSS_SHA256,
@@ -183,6 +187,30 @@ impl SignatureVerificationAlgorithm for EcdsaP384Verify {
             .and_then(|public_key| {
                 (self.verify)(&ecdsa::VerifyingKey { public_key }, signature, message)
             })
+            .map_err(|_| InvalidSignature)
+    }
+}
+
+#[derive(Debug)]
+struct Ed25519Verify;
+
+impl SignatureVerificationAlgorithm for Ed25519Verify {
+    fn public_key_alg_id(&self) -> AlgorithmIdentifier {
+        alg_id::ED25519
+    }
+
+    fn signature_alg_id(&self) -> AlgorithmIdentifier {
+        alg_id::ED25519
+    }
+
+    fn verify_signature(
+        &self,
+        public_key: &[u8],
+        message: &[u8],
+        signature: &[u8],
+    ) -> Result<(), InvalidSignature> {
+        eddsa::Ed25519VerifyingKey::from_bytes(public_key)
+            .and_then(|public_key| public_key.verify(signature, message))
             .map_err(|_| InvalidSignature)
     }
 }
