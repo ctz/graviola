@@ -44,6 +44,25 @@ but there is also a public API for general-purpose use.
 - `x86_64` requires `aes`, `ssse3` `avx`, `avx2`, `adx`, `bmi2`, and `pclmulqdq` CPU features.
   (This is most x86_64 CPUs made since around ~2014.)
 
+## Building and Testing
+
+Compile:
+```shell
+cargo build --release
+```
+
+Run tests:
+```shell
+git submodule update --init thirdparty/cavp
+git submodule update --init thirdparty/wycheproof
+cargo test
+```
+
+Run performance benchmarks:
+```shell
+cargo bench
+```
+
 ## Acknowledgements and Thanks
 
 Graviola incorporates significant code from other open source projects.
