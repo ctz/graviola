@@ -7,6 +7,7 @@ pub(super) mod asn1;
 pub(super) mod curve;
 pub(super) mod ecdsa;
 pub(super) mod hash;
+pub mod hkdf;
 pub mod hmac;
 pub(super) mod hmac_drbg;
 pub(super) mod pkcs1;
