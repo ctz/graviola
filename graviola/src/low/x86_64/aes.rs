@@ -318,6 +318,8 @@ fn aes256_block(round_keys: &[__m128i; 15], block_inout: &mut [u8; 16]) {
 
 #[cfg(test)]
 mod tests {
+    use std::panic;
+
     use super::*;
 
     fn to_u128(v: __m128i) -> u128 {
@@ -330,6 +332,30 @@ mod tests {
     }
 
     // these test vectors from FIPS-197 appendices A.1 - A.3.
+
+    #[test]
+    fn test_construct() {
+        // The generic AesKey::new wrapper should create the proper subtype of key when called
+        // with a 128- or 256-bit value and should fail with any other argument length.
+        let input: [u8; 33] = [
+            0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
+            0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,
+            0x1c, 0x1d, 0x1e, 0x1f, 0xff,
+        ];
+        for len in 0..=input.len() {
+            let num_bits = len * 8;
+            match panic::catch_unwind(|| AesKey::new(&input[..len])) {
+                Ok(key) => match key {
+                    AesKey::Aes128(_) => assert_eq!(num_bits, 128),
+                    AesKey::Aes256(_) => assert_eq!(num_bits, 256),
+                },
+                Err(_) => {
+                    assert_ne!(num_bits, 128);
+                    assert_ne!(num_bits, 256);
+                }
+            }
+        }
+    }
 
     #[test]
     fn test_key_expansion_128() {
