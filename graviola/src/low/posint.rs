@@ -911,6 +911,15 @@ mod tests {
                 .as_words(),
             &[0x11223344]
         );
+
+        // multi-word PosInt with leading zeros
+        let p = PosInt::<2>::from_bytes(&[0x00, 0x00, 0x00, 0x00, 0x00, 0x11, 0x22, 0x33, 0x44])
+            .unwrap();
+        let mut expected = PosInt::<2>::zero();
+        assert!(expected.push_word(0x11223344).is_ok());
+        assert!(p.pub_equals(&expected));
+        assert!(expected.push_word(0).is_ok());
+        assert!(p.pub_equals(&expected));
     }
 
     #[test]
@@ -923,10 +932,23 @@ mod tests {
             all_bits_set.to_bytes(&mut buf).unwrap_err(),
             Error::OutOfRange
         );
+        assert_eq!(
+            all_bits_set.to_bytes_asn1(&mut buf).unwrap_err(),
+            Error::OutOfRange
+        );
 
         let mut buf16 = [0; 16];
         all_bits_set.to_bytes(&mut buf16).unwrap();
         assert_eq!(buf16, [0xff; 16]);
+        let mut buf_asn1 = [0; 17];
+        all_bits_set.to_bytes_asn1(&mut buf_asn1).unwrap();
+        assert_eq!(
+            buf_asn1,
+            [
+                0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff, 0xff
+            ]
+        );
     }
 
     #[test]
@@ -938,15 +960,15 @@ mod tests {
         let one_2 = PosInt::<2>::one();
 
         let r = PosInt::mul(&one_1, &one_1);
-        println!("r = {r:?}");
+        r.debug("1 x 1");
         assert!(r.pub_equals(&one_2));
 
         let r = PosInt::mul(&zero_1, &one_1);
-        println!("r = {r:?}");
+        r.debug("1 x 0");
         assert!(r.pub_equals(&zero_2));
 
         let r = PosInt::mul(&zero_1, &zero_1);
-        println!("r = {r:?}");
+        r.debug("0 x 0");
         assert!(r.pub_equals(&zero_2));
 
         let x_4 = PosInt::<4>::from_bytes(b"\xed\x1f\xde\xb5\xc6\x39\x43\x8f\xea\x1d\x05\x9c\xba\xa8\xd3\x7c\x13\x96\xf4\x96\x1c\x8e\x5f\x52\x8f\x3c\x4c\x3c\x45\xe5\x75\xa2").unwrap();
@@ -956,6 +978,46 @@ mod tests {
 
         let expect_8 = PosInt::<8>::from_bytes(b"\x34\x64\x15\xf5\x75\xf1\xb7\x01\x8b\x1d\xc4\x68\xde\x4b\xf7\x6e\x6f\x62\x87\xa1\x44\x08\x6f\xb1\x85\x9c\xf3\x84\x41\x64\x48\x9d\x16\xe7\xb0\xd0\xd3\x56\x13\xba\xa2\xb9\xa6\x12\x1a\x6c\x2f\x93\xcd\xe4\x20\xfa\x41\xa4\xef\xa2\xab\xcd\x8b\x48\x19\x62\x4a\xcc").unwrap();
         assert!(xy_8.pub_equals(&expect_8));
+    }
+
+    #[test]
+    fn test_invert_vartime() {
+        // Error cases: number to be inverted is zero, or modulus is zero.
+        let zero = PosInt::<2>::zero();
+        let one = PosInt::<2>::one();
+        assert!(zero.invert_vartime(&one).is_none());
+        assert!(one.invert_vartime(&zero).is_none());
+
+        // Unsupported case: number to be inverted and modulus are both even.
+        let two = PosInt::<2>::from_bytes(b"\x02").unwrap();
+        let four = PosInt::<2>::from_bytes(b"\x04").unwrap();
+        assert!(two.invert_vartime(&four).is_none());
+
+        // A simple case: the multiplicative inverse of 3 mod 7 should be 5.
+        let three = PosInt::<2>::from_bytes(b"\x03").unwrap();
+        let seven = PosInt::<2>::from_bytes(b"\x07").unwrap();
+        let inv = three.invert_vartime(&seven).unwrap();
+        let mut out_bytes = [0u8; 8];
+        assert!(inv.to_bytes(&mut out_bytes).is_ok());
+        assert_eq!(out_bytes, [0, 0, 0, 0, 0, 0, 0, 5]);
+
+        // A case that doesn't fit in 64 bits: (2^70 - 1) mod 2^96.
+        let x = PosInt::<2>::from_bytes(&[0x3f, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff])
+            .unwrap();
+        let m = PosInt::<2>::from_bytes(&[
+            0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ])
+        .unwrap();
+        let inv = x.invert_vartime(&m).unwrap();
+        let mut out_bytes = [0u8; 16];
+        assert!(inv.to_bytes(&mut out_bytes).is_ok());
+        assert_eq!(
+            out_bytes,
+            [
+                0x00, 0x00, 0x00, 0x00, 0xff, 0xff, 0xff, 0xbf, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                0xff, 0xff
+            ]
+        );
     }
 
     #[test]
