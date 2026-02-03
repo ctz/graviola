@@ -44,6 +44,16 @@ fn ecdsa_p384() {
 }
 
 #[test]
+fn ed25519() {
+    use graviola::signing::eddsa::*;
+    let ed25519 = Ed25519SigningKey::from_pkcs8_der(include_bytes!(
+        "../src/high/asn1/testdata/ed25519-p8v2.bin"
+    ))
+    .unwrap();
+    check_zeroed_on_drop(Box::pin(ed25519));
+}
+
+#[test]
 fn ecdh_x25519() {
     use graviola::key_agreement::x25519::PrivateKey;
     let x25519 = PrivateKey::new_random().unwrap();

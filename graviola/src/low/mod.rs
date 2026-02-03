@@ -66,6 +66,8 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::bignum_kmul_32_64::bignum_kmul_32_64;
         pub(crate) use x86_64::bignum_ksqr_16_32::bignum_ksqr_16_32;
         pub(crate) use x86_64::bignum_ksqr_32_64::bignum_ksqr_32_64;
+        pub(crate) use x86_64::bignum_madd_n25519::bignum_madd_n25519;
+        pub(crate) use x86_64::bignum_mod_n25519::bignum_mod_n25519;
         pub(crate) use x86_64::bignum_mod_n256::bignum_mod_n256;
         pub(crate) use x86_64::bignum_mod_n384::bignum_mod_n384;
         pub(crate) use x86_64::bignum_modadd::bignum_modadd;
@@ -81,6 +83,7 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::bignum_montsqr_p384::bignum_montsqr_p384;
         pub(crate) use x86_64::bignum_mul::bignum_mul;
         pub(crate) use x86_64::bignum_mux::bignum_mux;
+        pub(crate) use x86_64::bignum_neg_p25519::bignum_neg_p25519;
         pub(crate) use x86_64::bignum_neg_p256::bignum_neg_p256;
         pub(crate) use x86_64::bignum_neg_p384::bignum_neg_p384;
         pub(crate) use x86_64::bignum_negmodinv::bignum_negmodinv;
@@ -90,6 +93,9 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::bignum_tomont_p384::bignum_tomont_p384;
         pub(crate) use x86_64::curve25519_x25519::curve25519_x25519;
         pub(crate) use x86_64::curve25519_x25519base::curve25519_x25519base;
+        pub(crate) use x86_64::edwards25519_decode::edwards25519_decode;
+        pub(crate) use x86_64::edwards25519_scalarmulbase::edwards25519_scalarmulbase;
+        pub(crate) use x86_64::edwards25519_scalarmuldouble::edwards25519_scalarmuldouble;
         pub(crate) use x86_64::ghash;
         pub(crate) use x86_64::p256_montjadd::p256_montjadd;
         pub(crate) use x86_64::p256_montjdouble::p256_montjdouble;
@@ -126,6 +132,8 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::bignum_kmul_32_64::bignum_kmul_32_64;
         pub(crate) use aarch64::bignum_ksqr_16_32::bignum_ksqr_16_32;
         pub(crate) use aarch64::bignum_ksqr_32_64::bignum_ksqr_32_64;
+        pub(crate) use aarch64::bignum_madd_n25519::bignum_madd_n25519;
+        pub(crate) use aarch64::bignum_mod_n25519::bignum_mod_n25519;
         pub(crate) use aarch64::bignum_mod_n256::bignum_mod_n256;
         pub(crate) use aarch64::bignum_mod_n384::bignum_mod_n384;
         pub(crate) use aarch64::bignum_modadd::bignum_modadd;
@@ -141,6 +149,7 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::bignum_montsqr_p384::bignum_montsqr_p384;
         pub(crate) use aarch64::bignum_mul::bignum_mul;
         pub(crate) use aarch64::bignum_mux::bignum_mux;
+        pub(crate) use aarch64::bignum_neg_p25519::bignum_neg_p25519;
         pub(crate) use aarch64::bignum_neg_p256::bignum_neg_p256;
         pub(crate) use aarch64::bignum_neg_p384::bignum_neg_p384;
         pub(crate) use aarch64::bignum_negmodinv::bignum_negmodinv;
@@ -150,6 +159,9 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::bignum_tomont_p384::bignum_tomont_p384;
         pub(crate) use aarch64::curve25519_x25519::curve25519_x25519;
         pub(crate) use aarch64::curve25519_x25519base::curve25519_x25519base;
+        pub(crate) use aarch64::edwards25519_decode::edwards25519_decode;
+        pub(crate) use aarch64::edwards25519_scalarmulbase::edwards25519_scalarmulbase;
+        pub(crate) use aarch64::edwards25519_scalarmuldouble::edwards25519_scalarmuldouble;
         pub(crate) use aarch64::ghash;
         pub(crate) use aarch64::p256_montjadd::p256_montjadd;
         pub(crate) use aarch64::p256_montjdouble::p256_montjdouble;

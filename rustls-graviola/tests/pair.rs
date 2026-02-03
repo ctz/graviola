@@ -192,6 +192,7 @@ enum KeyType {
     Rsa4096,
     EcdsaP256,
     EcdsaP384,
+    Ed25519,
 }
 
 impl KeyType {
@@ -201,6 +202,7 @@ impl KeyType {
         Self::Rsa4096,
         Self::EcdsaP256,
         Self::EcdsaP384,
+        Self::Ed25519,
     ];
     const RSA: &[Self] = &[Self::Rsa2048, Self::Rsa3072, Self::Rsa4096];
     const ECDSA: &[Self] = &[Self::EcdsaP256, Self::EcdsaP384];
@@ -212,6 +214,7 @@ impl KeyType {
             Self::Rsa4096 => "rsa-4096",
             Self::EcdsaP256 => "ecdsa-p256",
             Self::EcdsaP384 => "ecdsa-p384",
+            Self::Ed25519 => "ed25519",
         }
     }
 
