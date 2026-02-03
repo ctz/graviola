@@ -264,3 +264,119 @@ impl fmt::Debug for EcdsaP384 {
         f.debug_struct("EcdsaP384").finish_non_exhaustive()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::panic;
+
+    use graviola::signing::rsa;
+    use rustls::sign::{Signer, SigningKey};
+
+    use super::*;
+
+    #[test]
+    fn test_rsa_signing_key() {
+        let signing_key = Arc::new(rsa::SigningKey::generate(rsa::KeySize::Rsa2048).unwrap());
+        let rsa = Rsa(signing_key.clone());
+        assert_eq!(rsa.algorithm(), rustls::SignatureAlgorithm::RSA);
+
+        // If multiple schemes are specified, choose PSS over PKCS#1 and then longest specified hash length.
+        assert!(rsa.choose_scheme(&[]).is_none());
+        assert_eq!(
+            rsa.choose_scheme(&[SignatureScheme::RSA_PKCS1_SHA256])
+                .unwrap()
+                .scheme(),
+            SignatureScheme::RSA_PKCS1_SHA256
+        );
+        assert_eq!(
+            rsa.choose_scheme(&[
+                SignatureScheme::RSA_PKCS1_SHA256,
+                SignatureScheme::RSA_PSS_SHA256
+            ])
+            .unwrap()
+            .scheme(),
+            SignatureScheme::RSA_PSS_SHA256
+        );
+        assert_eq!(
+            rsa.choose_scheme(&[
+                SignatureScheme::RSA_PSS_SHA256,
+                SignatureScheme::RSA_PKCS1_SHA384
+            ])
+            .unwrap()
+            .scheme(),
+            SignatureScheme::RSA_PSS_SHA256
+        );
+        assert_eq!(
+            rsa.choose_scheme(&[
+                SignatureScheme::RSA_PSS_SHA512,
+                SignatureScheme::RSA_PSS_SHA256,
+                SignatureScheme::RSA_PSS_SHA384
+            ])
+            .unwrap()
+            .scheme(),
+            SignatureScheme::RSA_PSS_SHA512
+        );
+        // Don't choose non-RSA schemes.
+        assert!(
+            rsa.choose_scheme(&[SignatureScheme::ECDSA_NISTP256_SHA256])
+                .is_none()
+        );
+        assert_eq!(
+            rsa.choose_scheme(&[SignatureScheme::ED25519, SignatureScheme::RSA_PSS_SHA384])
+                .unwrap()
+                .scheme(),
+            SignatureScheme::RSA_PSS_SHA384
+        );
+        assert_eq!(
+            rsa.choose_scheme(&[
+                SignatureScheme::ECDSA_NISTP521_SHA512,
+                SignatureScheme::RSA_PKCS1_SHA384
+            ])
+            .unwrap()
+            .scheme(),
+            SignatureScheme::RSA_PKCS1_SHA384
+        );
+        assert_eq!(
+            rsa.choose_scheme(&[SignatureScheme::ED448, SignatureScheme::RSA_PKCS1_SHA512])
+                .unwrap()
+                .scheme(),
+            SignatureScheme::RSA_PKCS1_SHA512
+        );
+        // Don't choose SHA1.
+        assert!(
+            rsa.choose_scheme(&[SignatureScheme::RSA_PKCS1_SHA1])
+                .is_none()
+        );
+
+        // An RsaSigner should work with supported RSA schemes and raise an error for all other schemes.
+        let message = vec![0u8; 64];
+        for scheme in [
+            SignatureScheme::RSA_PSS_SHA256,
+            SignatureScheme::RSA_PSS_SHA384,
+            SignatureScheme::RSA_PSS_SHA512,
+            SignatureScheme::RSA_PKCS1_SHA256,
+            SignatureScheme::RSA_PKCS1_SHA384,
+            SignatureScheme::RSA_PKCS1_SHA512,
+        ] {
+            let signer = RsaSigner {
+                key: signing_key.clone(),
+                scheme,
+            };
+            assert!(signer.sign(&message).is_ok());
+        }
+        for scheme in [
+            SignatureScheme::RSA_PKCS1_SHA1,
+            SignatureScheme::ECDSA_NISTP256_SHA256,
+            SignatureScheme::ECDSA_NISTP384_SHA384,
+            SignatureScheme::ECDSA_NISTP521_SHA512,
+            SignatureScheme::ED25519,
+            SignatureScheme::ED448,
+        ] {
+            let signer = RsaSigner {
+                key: signing_key.clone(),
+                scheme,
+            };
+            assert!(panic::catch_unwind(|| signer.sign(&message)).is_err());
+        }
+    }
+}
