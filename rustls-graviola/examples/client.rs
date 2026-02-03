@@ -4,7 +4,7 @@
 //! Second parameter is an optional path to CA store.
 
 use std::str::FromStr;
-use std::{env, fs, io};
+use std::{env, io};
 
 use http::Uri;
 use http_body_util::{BodyExt, Empty};
@@ -12,6 +12,8 @@ use hyper::body::Bytes;
 use hyper_rustls::ConfigBuilderExt;
 use hyper_util::{client::legacy::Client, rt::TokioExecutor};
 use rustls::RootCertStore;
+use rustls::pki_types::CertificateDer;
+use rustls::pki_types::pem::PemObject;
 
 fn main() {
     // Send GET request and inspect result, with proper error handling.
@@ -26,7 +28,7 @@ fn error(err: String) -> io::Error {
 }
 
 #[tokio::main]
-async fn run_client() -> io::Result<()> {
+async fn run_client() -> Result<(), Box<dyn std::error::Error>> {
     // Set a process wide default crypto provider.
     rustls_graviola::default_provider()
         .install_default()
@@ -43,21 +45,10 @@ async fn run_client() -> io::Result<()> {
     };
 
     // Second parameter is custom Root-CA store (optional, defaults to native cert store).
-    let mut ca = match env::args().nth(2) {
-        Some(ref path) => {
-            let f =
-                fs::File::open(path).map_err(|e| error(format!("failed to open {path}: {e}")))?;
-            let rd = io::BufReader::new(f);
-            Some(rd)
-        }
-        None => None,
-    };
-
-    // Prepare the TLS client config
-    let tls = match ca {
-        Some(ref mut rd) => {
+    let tls = match env::args().nth(2) {
+        Some(path) => {
             // Read trust roots
-            let certs = rustls_pemfile::certs(rd).collect::<Result<Vec<_>, _>>()?;
+            let certs = CertificateDer::pem_file_iter(&path)?.collect::<Result<Vec<_>, _>>()?;
             let mut roots = RootCertStore::empty();
             roots.add_parsable_certificates(certs);
             // TLS client config using the custom CA store for lookups

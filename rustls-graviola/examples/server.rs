@@ -7,7 +7,7 @@
 
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::Arc;
-use std::{env, fs, io};
+use std::{env, io};
 
 use http::{Method, Request, Response, StatusCode};
 use http_body_util::{BodyExt, Full};
@@ -16,6 +16,7 @@ use hyper::service::service_fn;
 use hyper_util::rt::{TokioExecutor, TokioIo};
 use hyper_util::server::conn::auto::Builder;
 use rustls::ServerConfig;
+use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
@@ -52,9 +53,9 @@ async fn run_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr = SocketAddr::new(Ipv4Addr::LOCALHOST.into(), port);
 
     // Load public certificate.
-    let certs = load_certs(&cert_file)?;
+    let certs = CertificateDer::pem_file_iter(&cert_file)?.collect::<Result<Vec<_>, _>>()?;
     // Load private key.
-    let key = load_private_key(&key_file)?;
+    let key = PrivateKeyDer::from_pem_file(&key_file)?;
 
     println!("Starting to serve on https://{addr}");
 
@@ -112,26 +113,4 @@ async fn echo(req: Request<Incoming>) -> Result<Response<Full<Bytes>>, hyper::Er
         }
     };
     Ok(response)
-}
-
-// Load public certificate from file.
-fn load_certs(filename: &str) -> io::Result<Vec<CertificateDer<'static>>> {
-    // Open certificate file.
-    let certfile =
-        fs::File::open(filename).map_err(|e| error(format!("failed to open {filename}: {e}")))?;
-    let mut reader = io::BufReader::new(certfile);
-
-    // Load and return certificate.
-    rustls_pemfile::certs(&mut reader).collect()
-}
-
-// Load private key from file.
-fn load_private_key(filename: &str) -> io::Result<PrivateKeyDer<'static>> {
-    // Open keyfile.
-    let keyfile =
-        fs::File::open(filename).map_err(|e| error(format!("failed to open {filename}: {e}")))?;
-    let mut reader = io::BufReader::new(keyfile);
-
-    // Load and return a single private key.
-    rustls_pemfile::private_key(&mut reader).map(|key| key.unwrap())
 }
