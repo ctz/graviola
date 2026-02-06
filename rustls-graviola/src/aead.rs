@@ -406,3 +406,134 @@ const MAX_FRAGMENT_LEN: usize = 16384;
 // TLS1.2-specific
 const AESGCM_EXPLICIT_NONCE_LEN: usize = 8;
 const AESGCM_OVERHEAD: usize = AESGCM_EXPLICIT_NONCE_LEN + AESGCM_TAG;
+
+#[cfg(test)]
+mod tests {
+    use rustls::Error;
+
+    use super::*;
+
+    fn random_bytes<const L: usize>() -> Result<[u8; L], Error> {
+        let mut bytes = [0; L];
+        graviola::random::fill(&mut bytes).map_err(|_| rustls::crypto::GetRandomFailed)?;
+        Ok(bytes)
+    }
+
+    #[test]
+    fn test_chacha20_poly1305_tls13() {
+        let cipher = Chacha20Poly1305;
+        assert_eq!(cipher.key_len(), 32);
+        let cipher_key = random_bytes::<32>().unwrap();
+        let cipher_iv = random_bytes::<12>().unwrap();
+        match rustls::crypto::cipher::Tls13AeadAlgorithm::extract_keys(
+            &cipher,
+            AeadKey::from(cipher_key),
+            Iv::from(cipher_iv),
+        )
+        .unwrap()
+        {
+            ConnectionTrafficSecrets::Chacha20Poly1305 { key, iv } => {
+                assert_eq!(key.as_ref(), cipher_key);
+                assert_eq!(iv.as_ref(), cipher_iv);
+            }
+            _ => panic!("Unexpected secret type extracted from ChaCha20-Poly1305 cipher"),
+        }
+    }
+
+    #[test]
+    fn test_chacha20_poly1305_tls12() {
+        let cipher = Chacha20Poly1305;
+        assert_eq!(cipher.key_len(), 32);
+        let cipher_key = random_bytes::<32>().unwrap();
+        let cipher_iv = random_bytes::<12>().unwrap();
+        let unused = [0u8; 1];
+        match rustls::crypto::cipher::Tls12AeadAlgorithm::extract_keys(
+            &cipher,
+            AeadKey::from(cipher_key),
+            &cipher_iv,
+            &unused,
+        )
+        .unwrap()
+        {
+            ConnectionTrafficSecrets::Chacha20Poly1305 { key, iv } => {
+                assert_eq!(key.as_ref(), cipher_key);
+                assert_eq!(iv.as_ref(), cipher_iv);
+            }
+            _ => panic!("Unexpected secret type extracted from ChaCha20-Poly1305 cipher"),
+        }
+    }
+
+    #[test]
+    fn test_aes_gcm_tls13() {
+        fn test_aes_gcm_tls13(key_bits: usize) {
+            let key_bytes = key_bits / 8;
+            let cipher = TlsAesGcm(key_bytes);
+            assert_eq!(cipher.key_len(), key_bytes);
+            let cipher_key = &random_bytes::<32>().unwrap();
+            let cipher_iv = random_bytes::<12>().unwrap();
+            match Tls13AeadAlgorithm::extract_keys(
+                &cipher,
+                AeadKey::from(*cipher_key),
+                Iv::from(cipher_iv),
+            )
+            .unwrap()
+            {
+                ConnectionTrafficSecrets::Aes128Gcm { key, iv } => {
+                    assert_eq!(key_bits, 128);
+                    assert_eq!(key.as_ref(), cipher_key);
+                    assert_eq!(iv.as_ref(), cipher_iv);
+                }
+                ConnectionTrafficSecrets::Aes256Gcm { key, iv } => {
+                    assert_eq!(key_bits, 256);
+                    assert_eq!(key.as_ref(), cipher_key);
+                    assert_eq!(iv.as_ref(), cipher_iv);
+                }
+                _ => panic!(
+                    "Unexpected secret type extracted from AES{}-GCM cipher",
+                    key_bits
+                ),
+            }
+        }
+
+        test_aes_gcm_tls13(128);
+        test_aes_gcm_tls13(256);
+    }
+
+    #[test]
+    fn test_aes_gcm_tls12() {
+        fn test_aes_gcm_tls12(key_bits: usize) {
+            let key_bytes = key_bits / 8;
+            let cipher = TlsAesGcm(key_bytes);
+            assert_eq!(cipher.key_len(), key_bytes);
+            let cipher_key = &random_bytes::<32>().unwrap();
+            let cipher_iv = random_bytes::<4>().unwrap();
+            let cipher_explicit = random_bytes::<8>().unwrap();
+            match Tls12AeadAlgorithm::extract_keys(
+                &cipher,
+                AeadKey::from(*cipher_key),
+                &cipher_iv,
+                &cipher_explicit,
+            )
+            .unwrap()
+            {
+                ConnectionTrafficSecrets::Aes128Gcm { key, iv } => {
+                    assert_eq!(key_bits, 128);
+                    assert_eq!(key.as_ref(), cipher_key);
+                    assert_eq!(iv.as_ref().len(), 12);
+                }
+                ConnectionTrafficSecrets::Aes256Gcm { key, iv } => {
+                    assert_eq!(key_bits, 256);
+                    assert_eq!(key.as_ref(), cipher_key);
+                    assert_eq!(iv.as_ref().len(), 12);
+                }
+                _ => panic!(
+                    "Unexpected secret type extracted from AES{}-GCM cipher",
+                    key_bits
+                ),
+            }
+        }
+
+        test_aes_gcm_tls12(128);
+        test_aes_gcm_tls12(256);
+    }
+}
