@@ -188,3 +188,73 @@ pub static X25519MLKEM768: &dyn SupportedKxGroup = &hybrid::Hybrid {
     },
     name: NamedGroup::X25519MLKEM768,
 };
+
+#[cfg(test)]
+mod tests {
+    use rustls::ProtocolVersion;
+
+    use super::*;
+
+    #[test]
+    fn test_kx_x25519() {
+        // Create a private key and verify its metadata.
+        let key = X25519;
+        assert_eq!(key.name(), NamedGroup::X25519);
+        assert_eq!(key.ffdhe_group(), None);
+        assert!(key.usable_for_version(ProtocolVersion::TLSv1_2));
+        assert!(key.usable_for_version(ProtocolVersion::TLSv1_3));
+
+        // A key exchange with an invalid peer public key should fail.
+        let active = key.start().unwrap();
+        assert!(active.complete(&[0u8]).is_err());
+
+        // A key exchange with a valid peer public key should succeed.
+        let active = key.start().unwrap();
+        assert_eq!(active.ffdhe_group(), None);
+        let peer = x25519::PrivateKey::new_random().unwrap();
+        let peer_public_key = peer.public_key().as_bytes();
+        assert!(active.complete(&peer_public_key).is_ok());
+    }
+
+    #[test]
+    fn test_kx_p256() {
+        // Create a private key and verify its metadata.
+        let key = P256;
+        assert_eq!(key.name(), NamedGroup::secp256r1);
+        assert_eq!(key.ffdhe_group(), None);
+        assert!(key.usable_for_version(ProtocolVersion::TLSv1_2));
+        assert!(key.usable_for_version(ProtocolVersion::TLSv1_3));
+
+        // A key exchange with an invalid peer public key should fail.
+        let active = key.start().unwrap();
+        assert!(active.complete(&[0u8]).is_err());
+
+        // A key exchange with a valid peer public key should succeed.
+        let active = key.start().unwrap();
+        assert_eq!(active.ffdhe_group(), None);
+        let peer = p256::PrivateKey::new_random().unwrap();
+        let peer_public_key = peer.public_key_uncompressed();
+        assert!(active.complete(&peer_public_key).is_ok());
+    }
+
+    #[test]
+    fn test_kx_p384() {
+        // Create a private key and verify its metadata.
+        let key = P384;
+        assert_eq!(key.name(), NamedGroup::secp384r1);
+        assert_eq!(key.ffdhe_group(), None);
+        assert!(key.usable_for_version(ProtocolVersion::TLSv1_2));
+        assert!(key.usable_for_version(ProtocolVersion::TLSv1_3));
+
+        // A key exchange with an invalid peer public key should fail.
+        let active = key.start().unwrap();
+        assert!(active.complete(&[0u8]).is_err());
+
+        // A key exchange with a valid peer public key should succeed.
+        let active = key.start().unwrap();
+        assert_eq!(active.ffdhe_group(), None);
+        let peer = p384::PrivateKey::new_random().unwrap();
+        let peer_public_key = peer.public_key_uncompressed();
+        assert!(active.complete(&peer_public_key).is_ok());
+    }
+}

@@ -83,3 +83,31 @@ fn random_bytes<const L: usize>() -> Result<[u8; L], Error> {
 }
 
 const INVALID_KEY_SHARE: Error = Error::PeerMisbehaved(PeerMisbehaved::InvalidKeyShare);
+
+#[cfg(test)]
+mod tests {
+    use rustls::ProtocolVersion;
+
+    use super::*;
+
+    #[test]
+    fn test_kx_mlkem() {
+        // Create a private key and verify its metadata.
+        let key = MlKem768;
+        assert_eq!(key.name(), NamedGroup::MLKEM768);
+        assert_eq!(key.ffdhe_group(), None);
+        assert!(!key.usable_for_version(ProtocolVersion::TLSv1_2));
+        assert!(key.usable_for_version(ProtocolVersion::TLSv1_3));
+        assert_eq!(key.start().unwrap().group(), NamedGroup::MLKEM768);
+
+        // A key exchange with an invalid peer public key should fail.
+        assert!(key.start_and_complete(&[0u8]).is_err());
+
+        // A key exchange with a valid peer public key should succeed.
+        let active = key.start().unwrap();
+        assert_eq!(active.ffdhe_group(), None);
+        let peer_key_pair = mlkem768::generate_key_pair(random_bytes().unwrap());
+        let peer_public_key = peer_key_pair.public_key().as_slice();
+        assert!(key.start_and_complete(peer_public_key).is_ok());
+    }
+}
