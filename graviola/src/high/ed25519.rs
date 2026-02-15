@@ -108,9 +108,20 @@ impl Ed25519SigningKey {
     pub fn from_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
         let _entry = Entry::new_secret();
 
-        pkcs8::Key::decode(bytes, &asn1::oid::id_ed25519, None)
-            .and_then(|k| asn1::OctetString::from_bytes(k.private_key()).map_err(Error::Asn1Error))
-            .and_then(|pk| Self::from_bytes(pk.as_octets()))
+        let p8 = pkcs8::Key::decode(bytes, &asn1::oid::id_ed25519, None)?;
+
+        let key = asn1::OctetString::from_bytes(p8.private_key())
+            .map_err(Error::Asn1Error)
+            .and_then(|pk| Self::from_bytes(pk.as_octets()))?;
+
+        if let Some(alleged_pub_key) = p8.public_key() {
+            let actual_pub_key = key.public_key().as_bytes();
+            if alleged_pub_key != actual_pub_key {
+                return Err(KeyFormatError::MismatchedPkcs8PublicKey.into());
+            }
+        }
+
+        Ok(key)
     }
 
     /// Encode this private key in PKCS#8 DER format.
@@ -205,6 +216,16 @@ mod tests {
         assert_eq!(
             pk.to_spki_der(&mut [0u8; 32]).unwrap_err(),
             Error::WrongLength
+        );
+    }
+
+    #[test]
+    fn pkcs8_public_key_wrong() {
+        let mut bytes = include_bytes!("asn1/testdata/ed25519-p8v2.bin").to_vec();
+        bytes[52] ^= 0x01;
+        assert_eq!(
+            Ed25519SigningKey::from_pkcs8_der(&bytes).err(),
+            Some(KeyFormatError::MismatchedPkcs8PublicKey.into())
         );
     }
 
