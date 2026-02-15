@@ -39,6 +39,7 @@ pub enum KeyFormatError {
     UnsupportedPkcs8Version,
     MismatchedPkcs8Algorithm,
     MismatchedPkcs8Parameters,
+    MismatchedPkcs8PublicKey,
     MismatchedSec1Curve,
     MismatchedSec1PublicKey,
     MismatchedSpkiAlgorithm,
@@ -56,6 +57,7 @@ impl core::fmt::Display for KeyFormatError {
             Self::UnsupportedPkcs8Version => write!(f, "unsupported PKCS#8 version"),
             Self::MismatchedPkcs8Algorithm => write!(f, "mismatched PKCS#8 algorithm"),
             Self::MismatchedPkcs8Parameters => write!(f, "mismatched PKCS#8 parameters"),
+            Self::MismatchedPkcs8PublicKey => write!(f, "mismatched PKCS#8 public key"),
             Self::MismatchedSec1Curve => write!(f, "mismatched SEC1 curve"),
             Self::MismatchedSec1PublicKey => write!(f, "mismatched SEC1 public key"),
             Self::MismatchedSpkiAlgorithm => write!(f, "mismatched SPKI algorithm"),
@@ -148,6 +150,10 @@ mod tests {
         assert_eq!(
             format!("{}", KeyFormatError::MismatchedPkcs8Parameters),
             "mismatched PKCS#8 parameters"
+        );
+        assert_eq!(
+            format!("{}", KeyFormatError::MismatchedPkcs8PublicKey),
+            "mismatched PKCS#8 public key"
         );
         assert_eq!(
             format!("{}", KeyFormatError::MismatchedSec1Curve),

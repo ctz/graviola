@@ -97,7 +97,6 @@ impl<'a> Key<'a> {
     ///
     /// This can be decoded by the caller as the correct asn1 type (or
     /// used raw, depending on the type)
-    #[cfg_attr(not(test), expect(dead_code))]
     pub(crate) fn public_key(&self) -> Option<&'a [u8]> {
         self.0.publicKey.inner().as_ref().map(|x| x.as_octets())
     }
