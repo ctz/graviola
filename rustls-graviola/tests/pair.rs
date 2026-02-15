@@ -58,6 +58,7 @@ fn all_suites() {
 #[test]
 fn all_key_exchanges() {
     // X25519MLKEM768 not supported by *ring*
+    #[cfg(feature = "libcrux-ml-kem")]
     for other in [OtherProvider::BaselineAwsLcRs, OtherProvider::SelfTest] {
         test_key_exchange(rustls_graviola::kx::X25519MLKEM768, other, KeyType::Rsa2048);
     }

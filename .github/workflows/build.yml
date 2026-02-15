@@ -56,6 +56,8 @@ jobs:
         run: cargo build -p graviola
       - name: Run tests (debug)
         run: cargo test
+      - name: Run tests (debug, --no-default-features)
+        run: cargo test --no-default-features
 
       - name: Build (release)
         run: cargo build -p graviola --release

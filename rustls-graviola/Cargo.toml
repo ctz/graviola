@@ -11,7 +11,7 @@ readme = "README.md"
 
 [dependencies]
 graviola = { version = "0.3.0", path = "../graviola" }
-libcrux-ml-kem = { version = "0.0.6", default-features = false, features = ["mlkem768", "alloc"] }
+libcrux-ml-kem = { version = "0.0.6", default-features = false, features = ["mlkem768", "alloc"], optional = true }
 rustls = { version = "0.23.18", default-features = false, features = ["std", "tls12"] }
 
 [dev-dependencies]
@@ -24,3 +24,7 @@ hyper-util = { version = "0.1", default-features = false, features = ["server-au
 rustls = { version = "0.23.23", default-features = false, features = ["aws-lc-rs", "ring"] }
 tokio = { version = "1.0", features = ["io-std", "macros", "net", "rt-multi-thread"] }
 tokio-rustls = { version = "0.26", default-features = false }
+
+[features]
+default = ["libcrux-ml-kem"]
+libcrux-ml-kem = ["dep:libcrux-ml-kem"]
