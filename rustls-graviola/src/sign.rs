@@ -270,9 +270,61 @@ mod tests {
     use std::panic;
 
     use graviola::signing::rsa;
+    use rustls::crypto::KeyProvider;
     use rustls::sign::{Signer, SigningKey};
 
     use super::*;
+
+    #[test]
+    fn test_load_signing_key() {
+        let provider = Provider;
+
+        // Valid inputs: RSA private keys in PKCS#1 and PKCS#8 DER format
+        let rsa2048_pkcs1 = pki_types::PrivateKeyDer::Pkcs1(pki_types::PrivatePkcs1KeyDer::from(
+            include_bytes!("../../graviola/src/high/rsa/rsa2048.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(rsa2048_pkcs1).is_ok());
+        let rsa2048_pkcs8 = pki_types::PrivateKeyDer::Pkcs8(pki_types::PrivatePkcs8KeyDer::from(
+            include_bytes!("../../graviola/src/high/rsa/rsa2048.pkcs8.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(rsa2048_pkcs8).is_ok());
+
+        // Valid inputs: ECDSA P256 and P384 keys in SEC1 and PKCS#8 DER format
+        let ecdsap256_sec1 = pki_types::PrivateKeyDer::Sec1(pki_types::PrivateSec1KeyDer::from(
+            include_bytes!("../../graviola/src/high/ecdsa/secp256r1.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(ecdsap256_sec1).is_ok());
+        let ecdsap256_pkcs8 = pki_types::PrivateKeyDer::Pkcs8(pki_types::PrivatePkcs8KeyDer::from(
+            include_bytes!("../../graviola/src/high/ecdsa/secp256r1.pkcs8.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(ecdsap256_pkcs8).is_ok());
+        let ecdsap384_sec1 = pki_types::PrivateKeyDer::Sec1(pki_types::PrivateSec1KeyDer::from(
+            include_bytes!("../../graviola/src/high/ecdsa/secp384r1.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(ecdsap384_sec1).is_ok());
+        let ecdsap384_pkcs8 = pki_types::PrivateKeyDer::Pkcs8(pki_types::PrivatePkcs8KeyDer::from(
+            include_bytes!("../../graviola/src/high/ecdsa/secp384r1.pkcs8.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(ecdsap384_pkcs8).is_ok());
+
+        // Error case: invalid key file
+        let invalid_pkcs1 = pki_types::PrivateKeyDer::Pkcs1(pki_types::PrivatePkcs1KeyDer::from(
+            [0u8; 1024].to_vec(),
+        ));
+        assert!(provider.load_private_key(invalid_pkcs1).is_err());
+        let invalid_pkcs8 = pki_types::PrivateKeyDer::Pkcs8(pki_types::PrivatePkcs8KeyDer::from(
+            [0u8; 1024].to_vec(),
+        ));
+        assert!(provider.load_private_key(invalid_pkcs8).is_err());
+        let invalid_sec1 = pki_types::PrivateKeyDer::Sec1(pki_types::PrivateSec1KeyDer::from(
+            [0u8; 1024].to_vec(),
+        ));
+        assert!(provider.load_private_key(invalid_sec1).is_err());
+        let ecdsap256_sec1 = pki_types::PrivateKeyDer::Sec1(pki_types::PrivateSec1KeyDer::from(
+            include_bytes!("../../graviola/src/high/ecdsa/secp256r1.wrong-version.der").to_vec(),
+        ));
+        assert!(provider.load_private_key(ecdsap256_sec1).is_err());
+    }
 
     #[test]
     fn test_rsa_signing_key() {
