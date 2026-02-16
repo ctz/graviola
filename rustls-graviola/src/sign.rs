@@ -269,6 +269,7 @@ impl fmt::Debug for EcdsaP384 {
 mod tests {
     use std::panic;
 
+    use graviola::signing::ecdsa;
     use graviola::signing::rsa;
     use rustls::crypto::KeyProvider;
     use rustls::sign::{Signer, SigningKey};
@@ -330,6 +331,7 @@ mod tests {
     fn test_rsa_signing_key() {
         let signing_key = Arc::new(rsa::SigningKey::generate(rsa::KeySize::Rsa2048).unwrap());
         let rsa = Rsa(signing_key.clone());
+        println!("{:?}", rsa);
         assert_eq!(rsa.algorithm(), rustls::SignatureAlgorithm::RSA);
 
         // If multiple schemes are specified, choose PSS over PKCS#1 and then longest specified hash length.
@@ -415,6 +417,7 @@ mod tests {
                 scheme,
             };
             assert!(signer.sign(&message).is_ok());
+            println!("{:?}", signer);
         }
         for scheme in [
             SignatureScheme::RSA_PKCS1_SHA1,
@@ -430,5 +433,99 @@ mod tests {
             };
             assert!(panic::catch_unwind(|| signer.sign(&message)).is_err());
         }
+    }
+
+    #[test]
+    fn test_ecdsap256_signing_key() {
+        let signing_key = Arc::new(
+            ecdsa::SigningKey::<ecdsa::P256>::from_pkcs8_der(include_bytes!(
+                "../../graviola/src/high/ecdsa/secp256r1.pkcs8.der"
+            ))
+            .unwrap(),
+        );
+        let ecdsa = EcdsaP256(signing_key.clone());
+        println!("{:?}", ecdsa);
+        assert_eq!(ecdsa.algorithm(), rustls::SignatureAlgorithm::ECDSA);
+
+        // Choose only a matching scheme.
+        assert!(ecdsa.choose_scheme(&[]).is_none());
+        assert!(
+            ecdsa
+                .choose_scheme(&[
+                    SignatureScheme::ECDSA_SHA1_Legacy,
+                    SignatureScheme::RSA_PKCS1_SHA256,
+                    SignatureScheme::RSA_PKCS1_SHA384,
+                    SignatureScheme::ECDSA_NISTP384_SHA384,
+                    SignatureScheme::RSA_PKCS1_SHA512,
+                    SignatureScheme::ECDSA_NISTP521_SHA512,
+                    SignatureScheme::RSA_PSS_SHA256,
+                    SignatureScheme::RSA_PSS_SHA384,
+                    SignatureScheme::RSA_PSS_SHA512,
+                    SignatureScheme::ED25519,
+                    SignatureScheme::ED448,
+                    SignatureScheme::ML_DSA_44,
+                    SignatureScheme::ML_DSA_65,
+                    SignatureScheme::ML_DSA_87,
+                ])
+                .is_none()
+        );
+        assert_eq!(
+            ecdsa
+                .choose_scheme(&[
+                    SignatureScheme::ECDSA_NISTP384_SHA384,
+                    SignatureScheme::ECDSA_NISTP521_SHA512,
+                    SignatureScheme::ECDSA_NISTP256_SHA256,
+                ])
+                .unwrap()
+                .scheme(),
+            SignatureScheme::ECDSA_NISTP256_SHA256
+        );
+    }
+
+    #[test]
+    fn test_ecdsap384_signing_key() {
+        let signing_key = Arc::new(
+            ecdsa::SigningKey::<ecdsa::P384>::from_pkcs8_der(include_bytes!(
+                "../../graviola/src/high/ecdsa/secp384r1.pkcs8.der"
+            ))
+            .unwrap(),
+        );
+        let ecdsa = EcdsaP384(signing_key.clone());
+        println!("{:?}", ecdsa);
+        assert_eq!(ecdsa.algorithm(), rustls::SignatureAlgorithm::ECDSA);
+
+        // Choose only a matching scheme.
+        assert!(ecdsa.choose_scheme(&[]).is_none());
+        assert!(
+            ecdsa
+                .choose_scheme(&[
+                    SignatureScheme::ECDSA_SHA1_Legacy,
+                    SignatureScheme::RSA_PKCS1_SHA256,
+                    SignatureScheme::RSA_PKCS1_SHA384,
+                    SignatureScheme::ECDSA_NISTP256_SHA256,
+                    SignatureScheme::RSA_PKCS1_SHA512,
+                    SignatureScheme::ECDSA_NISTP521_SHA512,
+                    SignatureScheme::RSA_PSS_SHA256,
+                    SignatureScheme::RSA_PSS_SHA384,
+                    SignatureScheme::RSA_PSS_SHA512,
+                    SignatureScheme::ED25519,
+                    SignatureScheme::ED448,
+                    SignatureScheme::ML_DSA_44,
+                    SignatureScheme::ML_DSA_65,
+                    SignatureScheme::ML_DSA_87,
+                ])
+                .is_none()
+        );
+        assert_eq!(
+            ecdsa
+                .choose_scheme(&[
+                    SignatureScheme::ECDSA_NISTP256_SHA256,
+                    SignatureScheme::ECDSA_NISTP521_SHA512,
+                    SignatureScheme::ECDSA_NISTP384_SHA384,
+                ])
+                .unwrap()
+                .scheme(),
+            SignatureScheme::ECDSA_NISTP384_SHA384
+        );
     }
 }
