@@ -1133,6 +1133,10 @@ mod tests {
     fn generate_key_1() {
         let scalar = Scalar::small_u64(1);
         let r = CURVE_GENERATOR.slow_multiply(&scalar);
+        assert_eq!(
+            r.as_bytes_uncompressed(),
+            CURVE_GENERATOR.as_bytes_uncompressed()
+        );
         println!("raw {r:x?}");
         println!("fmt {:x?}", r.as_bytes_uncompressed());
     }
@@ -1186,8 +1190,10 @@ mod tests {
         println!("priv = {private:x?}");
         let public = private.public_key_uncompressed();
         println!("pub = {public:x?}");
-        assert_eq!(&public,
-               b"\x04\xcb\x8a\x14\x1c\xd7\xe4\x07\xaf\x69\xa5\x01\x88\xe9\x1c\xe5\x5d\xcc\xfd\x33\x48\xda\xba\x4a\x9c\x46\x64\x33\x2e\x95\x59\xb6\x81\x44\xfc\x1a\x61\xd8\x41\xe4\xdb\x80\x1b\x33\x51\x20\x12\x1d\x0b\xa4\x84\xb3\xc9\x53\xb3\x1d\x35\x1d\x7f\xa2\x13\x97\xd1\x25\x47");
+        const EXPECTED: &[u8; 65] = b"\x04\xcb\x8a\x14\x1c\xd7\xe4\x07\xaf\x69\xa5\x01\x88\xe9\x1c\xe5\x5d\xcc\xfd\x33\x48\xda\xba\x4a\x9c\x46\x64\x33\x2e\x95\x59\xb6\x81\x44\xfc\x1a\x61\xd8\x41\xe4\xdb\x80\x1b\x33\x51\x20\x12\x1d\x0b\xa4\x84\xb3\xc9\x53\xb3\x1d\x35\x1d\x7f\xa2\x13\x97\xd1\x25\x47";
+        assert_eq!(&public, EXPECTED);
+        let public_key = PublicKey::from_x962_uncompressed(&public).unwrap();
+        assert_eq!(&public_key.as_bytes_uncompressed(), EXPECTED);
     }
 
     #[test]
