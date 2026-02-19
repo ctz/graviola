@@ -255,4 +255,15 @@ mod tests {
             b"\xa4\xe0\x92\x92\xb6\x51\xc2\x78\xb9\x77\x2c\x56\x9f\x5f\xa9\xbb\x13\xd9\x06\xb4\x6a\xb6\x8c\x9d\xf9\xdc\x2b\x44\x09\xf8\xa2\x09",
         );
     }
+
+    #[test]
+    fn random_keys() {
+        let key1 = StaticPrivateKey::new_random().unwrap();
+        let key2 = StaticPrivateKey::new_random().unwrap();
+        assert_ne!(key1.as_bytes(), key2.as_bytes());
+        assert_eq!(
+            key1.diffie_hellman(&key2.public_key()).unwrap().0,
+            key2.diffie_hellman(&key1.public_key()).unwrap().0
+        );
+    }
 }
