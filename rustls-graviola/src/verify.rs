@@ -186,3 +186,88 @@ impl SignatureVerificationAlgorithm for EcdsaP384Verify {
             .map_err(|_| InvalidSignature)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use graviola::random;
+
+    use super::*;
+
+    macro_rules! test_verify {
+        ($algorithm:ident, $signature:expr, $signing_key:expr, $hash:ty) => {
+            assert_eq!($algorithm.signature_alg_id(), $signature);
+            let mut message = [0u8; 64];
+            assert!(random::fill(&mut message).is_ok());
+            let mut signature = [0u8; 128];
+            let signature = $signing_key
+                .sign_asn1::<$hash>(&[&message], &mut signature)
+                .unwrap();
+            assert!(
+                $algorithm
+                    .verify_signature(
+                        &$signing_key.private_key.public_key_uncompressed(),
+                        &message,
+                        &signature
+                    )
+                    .is_ok()
+            );
+        };
+    }
+    #[test]
+    fn test_ecdsap256_verify() {
+        let signing_key = Arc::new(
+            ecdsa::SigningKey::<ecdsa::P256>::from_pkcs8_der(include_bytes!(
+                "../../graviola/src/high/ecdsa/secp256r1.pkcs8.der"
+            ))
+            .unwrap(),
+        );
+        test_verify!(
+            ECDSA_P256_SHA256,
+            alg_id::ECDSA_SHA256,
+            signing_key,
+            hashing::Sha256
+        );
+        test_verify!(
+            ECDSA_P256_SHA384,
+            alg_id::ECDSA_SHA384,
+            signing_key,
+            hashing::Sha384
+        );
+        test_verify!(
+            ECDSA_P256_SHA512,
+            alg_id::ECDSA_SHA512,
+            signing_key,
+            hashing::Sha512
+        );
+    }
+
+    #[test]
+    fn test_ecdsap384_verify() {
+        let signing_key = Arc::new(
+            ecdsa::SigningKey::<ecdsa::P384>::from_pkcs8_der(include_bytes!(
+                "../../graviola/src/high/ecdsa/secp384r1.pkcs8.der"
+            ))
+            .unwrap(),
+        );
+        test_verify!(
+            ECDSA_P384_SHA256,
+            alg_id::ECDSA_SHA256,
+            signing_key,
+            hashing::Sha256
+        );
+        test_verify!(
+            ECDSA_P384_SHA384,
+            alg_id::ECDSA_SHA384,
+            signing_key,
+            hashing::Sha384
+        );
+        test_verify!(
+            ECDSA_P384_SHA512,
+            alg_id::ECDSA_SHA512,
+            signing_key,
+            hashing::Sha512
+        );
+    }
+}
