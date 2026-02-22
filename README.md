@@ -90,6 +90,7 @@ We are grateful to:
 - [x] RSA-PKCS#1 signing
 - [x] ECDSA on P256 w/ SHA2
 - [x] ECDSA on P384 w/ SHA2
+- [x] Ed25519
 
 ### Hashing
 
