@@ -270,4 +270,48 @@ mod tests {
             hashing::Sha512
         );
     }
+
+    #[test]
+    fn test_rsa_verify() {
+        let signing_key = Arc::new(
+            rsa::SigningKey::from_pkcs8_der(include_bytes!(
+                "../../graviola/src/high/rsa/rsa2048.pkcs8.der"
+            ))
+            .unwrap(),
+        );
+        let mut message = [0u8; 64];
+        assert!(random::fill(&mut message).is_ok());
+
+        assert_eq!(RSA_PSS_SHA256.signature_alg_id(), alg_id::RSA_PSS_SHA256);
+        let mut signature = [0u8; 256];
+        let signature = signing_key
+            .sign_pss_sha256(&mut signature, &message)
+            .unwrap();
+        let mut public_key = [0u8; 512];
+        let public_key = signing_key
+            .public_key()
+            .to_pkcs1_der(&mut public_key)
+            .unwrap();
+        assert!(
+            RSA_PSS_SHA256
+                .verify_signature(public_key, &message, signature)
+                .is_ok()
+        );
+
+        assert_eq!(RSA_PSS_SHA384.signature_alg_id(), alg_id::RSA_PSS_SHA384);
+        let mut signature = [0u8; 256];
+        let signature = signing_key
+            .sign_pss_sha384(&mut signature, &message)
+            .unwrap();
+        let mut public_key = [0u8; 512];
+        let public_key = signing_key
+            .public_key()
+            .to_pkcs1_der(&mut public_key)
+            .unwrap();
+        assert!(
+            RSA_PSS_SHA384
+                .verify_signature(public_key, &message, signature)
+                .is_ok()
+        );
+    }
 }
