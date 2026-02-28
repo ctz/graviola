@@ -334,6 +334,7 @@ mod tests {
     // these test vectors from FIPS-197 appendices A.1 - A.3.
 
     #[test]
+    #[cfg(panic = "unwind")]
     fn test_construct() {
         // The generic AesKey::new wrapper should create the proper subtype of key when called
         // with a 128- or 256-bit value and should fail with any other argument length.
