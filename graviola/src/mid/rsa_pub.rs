@@ -94,6 +94,7 @@ type RsaPosInt = low::PosInt<MAX_PUBLIC_MODULUS_WORDS>;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::println;
 
     #[test]
     fn smoke() {

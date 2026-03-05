@@ -138,6 +138,7 @@ impl AesGcm {
 mod tests {
     use super::*;
     use crate::test::*;
+    use alloc::vec::Vec;
 
     #[test]
     fn smoketest() {
@@ -194,7 +195,7 @@ mod tests {
 
             fn on_value(&mut self, name: &str, value: Value<'_>) {
                 match name {
-                    "Count" => println!("  test {}", value.int()),
+                    "Count" => std::println!("  test {}", value.int()),
                     "Key" => self.key = Some(AesGcm::new(&value.bytes())),
                     "IV" => self.nonce = value.bytes(),
                     "CT" => self.ct = value.bytes(),
@@ -202,7 +203,7 @@ mod tests {
                     "Tag" if !self.encrypt => self.tag = value.bytes(),
                     "Tag" if self.encrypt => {
                         if self.nonce.len() != 12 {
-                            println!("skip unhandled nonce len");
+                            std::println!("skip unhandled nonce len");
                             return;
                         }
                         let mut got_tag = [0u8; 16];
@@ -219,7 +220,7 @@ mod tests {
                     "FAIL" => {
                         assert!(!self.encrypt);
                         if self.nonce.len() != 12 {
-                            println!("skip unhandled nonce len");
+                            std::println!("skip unhandled nonce len");
                             return;
                         }
                         assert_eq!(
@@ -238,7 +239,7 @@ mod tests {
                     }
                     "PT" if !self.encrypt => {
                         if self.nonce.len() != 12 || self.tag.len() != 16 {
-                            println!("skip unhandled nonce/tag len");
+                            std::println!("skip unhandled nonce/tag len");
                             return;
                         }
                         self.key

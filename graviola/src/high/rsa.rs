@@ -537,6 +537,8 @@ impl SigningKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::vec;
+    use std::println;
 
     fn check_all_algs(buf: &mut [u8], private: &SigningKey, public: &VerifyingKey) {
         let sig = private.sign_pkcs1_sha256(buf, b"hello").unwrap();

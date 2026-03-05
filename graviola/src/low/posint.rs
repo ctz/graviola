@@ -1,6 +1,7 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 use crate::Error;
@@ -125,15 +126,15 @@ impl<const N: usize> PosInt<N> {
         Ok(out)
     }
 
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) fn debug(&self, why: &str) {
         let mut bytes = [0u8; 1024];
         let bytes = self.to_bytes(&mut bytes).unwrap();
-        print!("{why} = 0x");
+        std::print!("{why} = 0x");
         for b in bytes {
-            print!("{b:02x}");
+            std::print!("{b:02x}");
         }
-        println!();
+        std::println!();
     }
 
     pub(crate) fn len_bytes(&self) -> usize {
@@ -162,7 +163,7 @@ impl<const N: usize> PosInt<N> {
 
     /// Return true if `gcd(self, other)` is one
     pub(crate) fn is_coprime(&self, other: &Self) -> bool {
-        let mut tmp = vec![0u64; N + N];
+        let mut tmp = alloc::vec![0u64; N + N];
         low::bignum_coprime(self.as_words(), other.as_words(), &mut tmp)
     }
 
@@ -643,7 +644,7 @@ impl<const N: usize> PosInt<N> {
     pub(crate) fn mod_inverse(&self, n: &Self) -> Self {
         let mut r = Self::zero();
         r.used = n.used;
-        let mut temp = vec![0u64; N * 3];
+        let mut temp = alloc::vec![0u64; N * 3];
         low::bignum_modinv(
             r.as_mut_words(),
             self.as_words_with_len_of(n),
@@ -925,7 +926,7 @@ mod tests {
     #[test]
     fn to_bytes() {
         let mut buf = [0xff; 8];
-        assert_eq!(PosInt::<2>::zero().to_bytes(&mut buf).unwrap(), &[]);
+        assert_eq!(PosInt::<2>::zero().to_bytes(&mut buf).unwrap(), &[][..]);
 
         let all_bits_set = PosInt::<2>::from_bytes(&[0xff; 16]).unwrap();
         assert_eq!(
@@ -974,7 +975,7 @@ mod tests {
         let x_4 = PosInt::<4>::from_bytes(b"\xed\x1f\xde\xb5\xc6\x39\x43\x8f\xea\x1d\x05\x9c\xba\xa8\xd3\x7c\x13\x96\xf4\x96\x1c\x8e\x5f\x52\x8f\x3c\x4c\x3c\x45\xe5\x75\xa2").unwrap();
         let y_4 = PosInt::<4>::from_bytes(b"\x38\x8f\xb5\xd8\xbd\xad\x46\xfd\xe2\x8e\x33\x11\xe4\xdd\xef\x79\x70\xfe\x4a\xb9\xef\x24\x85\xbe\x4f\xde\x81\x79\x36\x0c\x9c\x86").unwrap();
         let xy_8: PosInt<8> = PosInt::mul(&x_4, &y_4);
-        println!("{xy_8:x?}");
+        std::println!("{xy_8:x?}");
 
         let expect_8 = PosInt::<8>::from_bytes(b"\x34\x64\x15\xf5\x75\xf1\xb7\x01\x8b\x1d\xc4\x68\xde\x4b\xf7\x6e\x6f\x62\x87\xa1\x44\x08\x6f\xb1\x85\x9c\xf3\x84\x41\x64\x48\x9d\x16\xe7\xb0\xd0\xd3\x56\x13\xba\xa2\xb9\xa6\x12\x1a\x6c\x2f\x93\xcd\xe4\x20\xfa\x41\xa4\xef\xa2\xab\xcd\x8b\x48\x19\x62\x4a\xcc").unwrap();
         assert!(xy_8.pub_equals(&expect_8));

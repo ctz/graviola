@@ -8,7 +8,7 @@ cfg_if::cfg_if! {
 
         #[inline]
         pub(crate) fn secret_slice<T>(v: &[T]) {
-            cg::monitor_command(format!(
+            cg::monitor_command(std::format!(
                 "make_memory undefined {:p} {}",
                 v.as_ptr(),
                 size_of_val(v)
@@ -18,7 +18,7 @@ cfg_if::cfg_if! {
 
         #[inline]
         pub(crate) fn public_slice<T>(v: &[T]) {
-            cg::monitor_command(format!(
+            cg::monitor_command(std::format!(
                 "make_memory defined {:p} {}",
                 v.as_ptr(),
                 size_of_val(v)
@@ -29,7 +29,7 @@ cfg_if::cfg_if! {
         #[inline]
         #[must_use]
         pub(crate) fn into_secret<T>(v: T) -> T {
-            cg::monitor_command(format!(
+            cg::monitor_command(std::format!(
                 "make_memory undefined {:p} {}",
                 &v as *const T,
                 size_of_val(&v)
@@ -41,7 +41,7 @@ cfg_if::cfg_if! {
         #[inline]
         #[must_use]
         pub(crate) fn into_public<T>(v: T) -> T {
-            cg::monitor_command(format!(
+            cg::monitor_command(std::format!(
                 "make_memory defined {:p} {}",
                 &v as *const T,
                 size_of_val(&v)

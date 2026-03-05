@@ -263,6 +263,7 @@ impl HashContext for Sha512Context {
 mod tests {
     use super::*;
     use crate::test::*;
+    use alloc::vec::Vec;
 
     #[test]
     fn cavp() {

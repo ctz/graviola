@@ -902,6 +902,7 @@ dependencies = [
  "cfg-if",
  "crabgrind",
  "getrandom 0.3.4",
+ "graviola",
  "hex",
  "proptest",
  "serde",

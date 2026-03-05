@@ -1,6 +1,8 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use alloc::string::ToString;
+use alloc::vec::Vec;
 use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
@@ -52,7 +54,7 @@ pub(crate) fn process_cavp(filename: impl AsRef<Path>, sink: &mut dyn CavpSink) 
                 continue;
             }
             Some('#') => {
-                println!("{line}");
+                std::println!("{line}");
                 continue;
             }
             None => continue,

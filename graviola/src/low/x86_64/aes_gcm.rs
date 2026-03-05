@@ -494,11 +494,13 @@ const BYTESWAP_512_EPI64: __m512i = unsafe {
 mod tests {
     #![allow(clippy::undocumented_unsafe_blocks)]
 
+    use std::println;
+
     #[test]
     fn check_counter512() {
         use super::*;
 
-        if !is_x86_feature_detected!("avx512f") {
+        if !std::is_x86_feature_detected!("avx512f") {
             println!("no AVX512 support");
             return;
         }

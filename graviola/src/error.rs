@@ -93,6 +93,7 @@ impl core::error::Error for Error {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::format;
 
     #[test]
     fn test_error_display() {

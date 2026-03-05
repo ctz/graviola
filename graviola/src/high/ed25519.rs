@@ -168,6 +168,7 @@ impl Ed25519SigningKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::vec;
 
     #[test]
     fn pairwise() {

@@ -119,44 +119,50 @@ pub(in crate::low) unsafe fn ct_compare_bytes(a: *const u8, b: *const u8, len: u
 /// allow testability.
 macro_rules! have_cpu_feature {
     ("aes") => {
-        crate::low::x86_64::cpu::test_toggle("aes", is_x86_feature_detected!("aes"))
+        have_cpu_feature!(@_inner "aes")
     };
     ("vaes") => {
-        crate::low::x86_64::cpu::test_toggle("vaes", is_x86_feature_detected!("vaes"))
+        have_cpu_feature!(@_inner "vaes")
     };
     ("pclmulqdq") => {
-        crate::low::x86_64::cpu::test_toggle("pclmulqdq", is_x86_feature_detected!("pclmulqdq"))
+        have_cpu_feature!(@_inner "pclmulqdq")
     };
     ("vpclmulqdq") => {
-        crate::low::x86_64::cpu::test_toggle("vpclmulqdq", is_x86_feature_detected!("vpclmulqdq"))
+        have_cpu_feature!(@_inner "vpclmulqdq")
     };
     ("bmi1") => {
-        crate::low::x86_64::cpu::test_toggle("bmi1", is_x86_feature_detected!("bmi1"))
+        have_cpu_feature!(@_inner "bmi1")
     };
     ("bmi2") => {
-        crate::low::x86_64::cpu::test_toggle("bmi2", is_x86_feature_detected!("bmi2"))
+        have_cpu_feature!(@_inner "bmi2")
     };
     ("adx") => {
-        crate::low::x86_64::cpu::test_toggle("adx", is_x86_feature_detected!("adx"))
+        have_cpu_feature!(@_inner "adx")
     };
     ("avx") => {
-        crate::low::x86_64::cpu::test_toggle("avx", is_x86_feature_detected!("avx"))
+        have_cpu_feature!(@_inner "avx")
     };
     ("avx2") => {
-        crate::low::x86_64::cpu::test_toggle("avx2", is_x86_feature_detected!("avx2"))
+        have_cpu_feature!(@_inner "avx2")
     };
     ("avx512f") => {
-        crate::low::x86_64::cpu::test_toggle("avx512f", is_x86_feature_detected!("avx512f"))
+        have_cpu_feature!(@_inner "avx512f")
     };
     ("avx512bw") => {
-        crate::low::x86_64::cpu::test_toggle("avx512bw", is_x86_feature_detected!("avx512bw"))
+        have_cpu_feature!(@_inner "avx512bw")
     };
     ("avx512vl") => {
-        crate::low::x86_64::cpu::test_toggle("avx512vl", is_x86_feature_detected!("avx512vl"))
+        have_cpu_feature!(@_inner "avx512vl")
     };
     ("sha") => {
-        crate::low::x86_64::cpu::test_toggle("sha", is_x86_feature_detected!("sha"))
+        have_cpu_feature!(@_inner "sha")
     };
+    (@_inner $feature:tt) => {{
+        #[cfg(feature = "std")]
+        { crate::low::x86_64::cpu::test_toggle($feature, std::is_x86_feature_detected!($feature)) }
+        #[cfg(not(feature = "std"))]
+        { crate::low::x86_64::cpu::test_toggle("", false) }
+    }}
 }
 
 /// Token type reflecting the check for CPU features needed for AVX512-AES-GCM
@@ -208,18 +214,21 @@ impl HaveBmi2 {
         }
     }
 }
-#[cfg(not(debug_assertions))]
-pub(crate) fn test_toggle(_id: &str, detected: bool) -> bool {
-    detected
-}
 
-#[cfg(debug_assertions)]
-pub(crate) fn test_toggle(id: &str, detected: bool) -> bool {
-    if std::env::var(format!("GRAVIOLA_CPU_DISABLE_{id}")).is_ok() {
-        println!("DEBUG: denying cpuid {id:?}");
-        false
+cfg_if::cfg_if! {
+    if #[cfg(all(debug_assertions, feature = "std"))] {
+        pub(crate) fn test_toggle(id: &str, detected: bool) -> bool {
+            if std::env::var(alloc::format!("GRAVIOLA_CPU_DISABLE_{id}")).is_ok() {
+                std::println!("DEBUG: denying cpuid {id:?}");
+                false
+            } else {
+                detected
+            }
+        }
     } else {
-        detected
+        pub(crate) fn test_toggle(_id: &str, detected: bool) -> bool {
+            detected
+        }
     }
 }
 
@@ -252,7 +261,7 @@ pub(crate) fn verify_cpu_features() {
 
     // assorted intrinsic code
     assert!(
-        is_x86_feature_detected!("avx"),
+        have_cpu_feature!("avx"),
         "graviola requires avx CPU support"
     );
     assert!(

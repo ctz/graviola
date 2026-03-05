@@ -249,6 +249,8 @@ mod tests {
     use crate::high::asn1::{self, Type, oid, pkix};
     use crate::high::hash;
     use crate::mid::rng::SliceRandomSource;
+    use alloc::{vec, vec::Vec};
+    use std::println;
 
     #[test]
     fn digestinfo_sha256_is_correct() {

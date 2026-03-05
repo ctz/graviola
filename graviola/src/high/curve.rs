@@ -304,6 +304,8 @@ impl Scalar<P384> for p384::Scalar {
 mod tests {
     use super::*;
     use crate::test::*;
+    use alloc::{string::String, string::ToString, vec, vec::Vec};
+    use std::println;
 
     #[test]
     fn private_key_encode_error() {

@@ -86,6 +86,9 @@ asn1_struct! {
 mod tests {
     use super::*;
     use crate::high::asn1::{Any, Encoder, Error, Null, OctetString, Parser, Type, oid};
+    use alloc::vec;
+    use std::dbg;
+    use std::println;
 
     #[test]
     fn parse_public_key() {

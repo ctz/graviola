@@ -474,7 +474,7 @@ mod tests {
     }
 
     fn check(key: u128, input: &[u8]) {
-        println!("check: input={input:02x?}");
+        std::println!("check: input={input:02x?}");
         let ta = GhashTable::new(key);
         let tb = model::GhashTable::new(key);
         let mut a = Ghash::new(&ta);

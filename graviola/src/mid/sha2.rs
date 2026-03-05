@@ -224,6 +224,7 @@ impl Sha512Context {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::vec::Vec;
 
     #[test]
     fn hello() {

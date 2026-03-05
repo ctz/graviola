@@ -77,6 +77,8 @@ mod tests {
     use super::*;
     use crate::high::hash::{Sha256, Sha384, Sha512};
     use crate::test::*;
+    use alloc::vec::Vec;
+    use std::println;
 
     #[test]
     fn smoke() {

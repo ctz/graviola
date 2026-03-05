@@ -359,6 +359,8 @@ mod tests {
     use crate::mid::rng::SliceRandomSource;
     use crate::mid::rng::SystemRandom;
     use crate::test::*;
+    use alloc::{string::String, string::ToString, vec, vec::Vec};
+    use std::println;
 
     #[test]
     fn smoke_test_loading_keys() {

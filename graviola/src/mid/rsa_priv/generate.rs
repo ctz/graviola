@@ -323,6 +323,7 @@ type MaxPosInt = PosInt<{ super::MAX_PRIVATE_MODULUS_WORDS }>;
 
 #[cfg(test)]
 mod tests {
+    use alloc::vec::Vec;
     use core::time::Duration;
     use std::time::Instant;
 
@@ -343,7 +344,7 @@ mod tests {
 
     fn read_hex_lines_from_file(data: &str) -> impl Iterator<Item = Vec<u8>> + '_ {
         data.lines()
-            .inspect(|line| println!("Processing line: {line}"))
+            .inspect(|line| std::println!("Processing line: {line}"))
             .filter(|line| !line.starts_with("#"))
             .map(|line| {
                 (0..line.len())
@@ -377,7 +378,7 @@ mod tests {
     #[test]
     fn test_rsa_bench() {
         let bytes = read_hex_from_file(include_str!("../../testdata/rsa.bench.2048.txt"));
-        let mut results = vec![];
+        let mut results = alloc::vec![];
 
         for _ in 0..32 {
             let mut candidate_source = SliceRandomSource(&bytes);
@@ -387,7 +388,7 @@ mod tests {
             generate_key(KeySize::Rsa2048, &mut candidate_source, &mut witness_source).unwrap();
             results.push(start.elapsed());
         }
-        println!(
+        std::println!(
             "Results: min={}ns, mean={}ns, max={}ns",
             results.iter().min().unwrap().as_nanos(),
             results.iter().sum::<Duration>().as_nanos() / results.len() as u128,

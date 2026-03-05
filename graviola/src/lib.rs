@@ -24,6 +24,11 @@
     unused_extern_crates,
     unused_qualifications
 )]
+#![no_std]
+
+extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 /// Low level operations.
 ///

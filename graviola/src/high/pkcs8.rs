@@ -106,6 +106,7 @@ impl<'a> Key<'a> {
 mod tests {
     use super::*;
     use crate::high::asn1::oid;
+    use alloc::vec;
 
     #[test]
     fn round_trip_ed25519_v2() {

@@ -874,6 +874,7 @@ pub(crate) mod pkix;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::{format, vec};
 
     #[test]
     fn test_integer_encoding() {

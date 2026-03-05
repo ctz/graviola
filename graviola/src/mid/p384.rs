@@ -942,9 +942,10 @@ const CURVE_ORDER_MM: [u64; 6] = [
 
 #[cfg(test)]
 mod tests {
-    use core::mem::size_of_val;
-
     use super::*;
+    use alloc::format;
+    use core::mem::size_of_val;
+    use std::println;
 
     const CURVE_GENERATOR: AffineMontPoint = AffineMontPoint {
         xy: [
