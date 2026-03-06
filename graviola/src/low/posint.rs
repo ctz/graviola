@@ -216,23 +216,28 @@ impl<const N: usize> PosInt<N> {
             if u.is_even() {
                 u = u.shift_right_1();
 
-                if a.is_odd() || b.is_odd() {
-                    a = a.add_shift_right_1(y);
-                    b = b.add_shift_right_1(x);
-                } else {
-                    a = a.shift_right_1();
-                    b = b.shift_right_1();
-                }
+                // The operation being done here is more simply expressed as:
+                //     if a.is_odd() || b.is_odd() {
+                //         a = a.add_shift_right_1(y);
+                //         b = b.add_shift_right_1(x);
+                //     } else {
+                //         a = a.shift_right_1();
+                //         b = b.shift_right_1();
+                //     }
+                // To avoid variable-time operations, though, we compute it as:
+                //     a = a.shift_right_1(y & mask);
+                //     b = b.shift_right_1(x & mask);
+                // where mask is all ones if a or b is odd and all zeros otherwise.
+
+                let mask_bit = (a.words[0] | b.words[0]) & 1;
+                a = a.add_shift_right_1(&y.mask(mask_bit));
+                b = b.add_shift_right_1(&x.mask(mask_bit));
             } else {
                 v = v.shift_right_1();
 
-                if c.is_odd() || d.is_odd() {
-                    c = c.add_shift_right_1(y);
-                    d = d.add_shift_right_1(x);
-                } else {
-                    c = c.shift_right_1();
-                    d = d.shift_right_1();
-                }
+                let mask_bit = (c.words[0] | d.words[0]) & 1;
+                c = c.add_shift_right_1(&y.mask(mask_bit));
+                d = d.add_shift_right_1(&x.mask(mask_bit));
             }
 
             if v.is_zero() {
@@ -242,6 +247,21 @@ impl<const N: usize> PosInt<N> {
                 }
             }
         }
+    }
+
+    // Create a copy of `self` in which every bit of the value has been logically ANDed with
+    // the low order bit of `mask_bit`.
+    // Note: The result's `used` field is equal to that of `self`, even if the result
+    // value contains leading zeros.
+    fn mask(&self, mask_bit: u64) -> Self {
+        let mask = mask_bit << 63;
+        let mask = mask | mask.saturating_sub(1);
+
+        let mut result = self.clone();
+        for i in 0..N {
+            result.words[i] &= mask;
+        }
+        result
     }
 
     /// Returns `self` >> shift.
@@ -723,7 +743,7 @@ impl<const N: usize> PosInt<N> {
         r.used = tmp.used;
 
         // insert carry at top
-        r.words[r.used - 1] |= carry << 63;
+        r.words[r.used.saturating_sub(1)] |= carry << 63;
 
         r
     }
@@ -865,6 +885,20 @@ fn trim_leading_zeroes(mut bytes: &[u8]) -> &[u8] {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_mask() {
+        let x = PosInt::<2>::from_bytes(&[
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+            0x0f, 0x00,
+        ])
+        .unwrap();
+        assert!(x.mask(1).equals(&x));
+        assert!(x.mask(0).is_zero());
+        // Only the low order bit is used in masking
+        assert!(x.mask(0xa5a5a5a5a5a5a5a5).equals(&x));
+        assert!(x.mask(0xfffffffffffffffe).is_zero());
+    }
 
     #[test]
     fn from_bytes() {
