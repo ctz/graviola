@@ -199,46 +199,32 @@ impl<const N: usize> PosInt<N> {
         d.expand(x);
 
         loop {
-            if u.is_odd() && v.is_odd() {
-                if v.less_than(&u) {
-                    u = u.sub(&v);
-                    a = a.add_mod(&c, y);
-                    b = b.add_mod(&d, x);
-                } else {
-                    v = v.sub(&u);
-                    c = c.add_mod(&a, y);
-                    d = d.add_mod(&b, x);
-                }
-            }
+            let u_and_v_are_odd = u64::from(u.is_odd() & v.is_odd());
+            let v_is_less_than_u = u64::from(v.less_than(&u));
+            let v_is_not_less_than_u = (!v_is_less_than_u) & 1;
+
+            u = u.sub(&v.mask(u_and_v_are_odd & v_is_less_than_u));
+            a = a.add_mod(&c.mask(u_and_v_are_odd & v_is_less_than_u), y);
+            b = b.add_mod(&d.mask(u_and_v_are_odd & v_is_less_than_u), x);
+
+            v = v.sub(&u.mask(u_and_v_are_odd & v_is_not_less_than_u));
+            c = c.add_mod(&a.mask(u_and_v_are_odd & v_is_not_less_than_u), y);
+            d = d.add_mod(&b.mask(u_and_v_are_odd & v_is_not_less_than_u), x);
 
             assert!(u.is_even() || v.is_even());
 
-            if u.is_even() {
-                u = u.shift_right_1();
+            let u_is_even = u64::from(u.is_even());
+            let u_is_odd = u64::from(u.is_odd());
+            let a_or_b_is_odd = u64::from(a.is_odd() | b.is_odd());
+            let c_or_d_is_odd = u64::from(c.is_odd() | d.is_odd());
 
-                // The operation being done here is more simply expressed as:
-                //     if a.is_odd() || b.is_odd() {
-                //         a = a.add_shift_right_1(y);
-                //         b = b.add_shift_right_1(x);
-                //     } else {
-                //         a = a.shift_right_1();
-                //         b = b.shift_right_1();
-                //     }
-                // To avoid variable-time operations, though, we compute it as:
-                //     a = a.shift_right_1(y & mask);
-                //     b = b.shift_right_1(x & mask);
-                // where mask is all ones if a or b is odd and all zeros otherwise.
+            u = u.shift_right_small(u_is_even as _);
+            a = a.add_shift_right_small(&y.mask(a_or_b_is_odd & u_is_even), u_is_even as _);
+            b = b.add_shift_right_small(&x.mask(a_or_b_is_odd & u_is_even), u_is_even as _);
 
-                let mask_bit = (a.words[0] | b.words[0]) & 1;
-                a = a.add_shift_right_1(&y.mask(mask_bit));
-                b = b.add_shift_right_1(&x.mask(mask_bit));
-            } else {
-                v = v.shift_right_1();
-
-                let mask_bit = (c.words[0] | d.words[0]) & 1;
-                c = c.add_shift_right_1(&y.mask(mask_bit));
-                d = d.add_shift_right_1(&x.mask(mask_bit));
-            }
+            v = v.shift_right_small(u_is_odd as _);
+            c = c.add_shift_right_small(&y.mask(c_or_d_is_odd & u_is_odd), u_is_odd as _);
+            d = d.add_shift_right_small(&x.mask(c_or_d_is_odd & u_is_odd), u_is_odd as _);
 
             if v.is_zero() {
                 match u.len_bits() {
@@ -280,11 +266,13 @@ impl<const N: usize> PosInt<N> {
         r
     }
 
-    /// Returns `self` >> 1.
-    pub(crate) fn shift_right_1(&self) -> Self {
+    /// Returns `self` >> `c`.
+    ///
+    /// `c` must be <= 63.
+    pub(crate) fn shift_right_small(&self, c: u8) -> Self {
         let mut r = Self::zero();
         r.used = self.used;
-        low::bignum_shr_small(r.as_mut_words(), self.as_words(), 1);
+        low::bignum_shr_small(r.as_mut_words(), self.as_words(), c);
         r
     }
 
@@ -731,15 +719,16 @@ impl<const N: usize> PosInt<N> {
         r
     }
 
-    /// Computes (`self` + `b`) >> 1
+    /// Computes (`self` + `b`) >> `c`
+    // / `c` must be <= 63.
     #[must_use]
-    pub(crate) fn add_shift_right_1(&self, b: &Self) -> Self {
+    pub(crate) fn add_shift_right_small(&self, b: &Self, c: u8) -> Self {
         let mut tmp = Self::zero();
         let carry = low::bignum_add(&mut tmp.words, self.as_words(), b.as_words());
         tmp.used = low::bignum_digitsize(&tmp.words);
 
         let mut r = Self::zero();
-        low::bignum_shr_small(&mut r.words, tmp.as_words(), 1);
+        low::bignum_shr_small(&mut r.words, tmp.as_words(), c & 63);
         r.used = tmp.used;
 
         // insert carry at top
@@ -1146,7 +1135,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_shift_right_1() {
+    fn test_add_shift_right_small() {
         let a = PosInt::<1> {
             words: [0x8000_0000_0000_0021; 1],
             used: 1,
@@ -1155,14 +1144,14 @@ mod tests {
             words: [0x8421_8421_8421_8421; 1],
             used: 1,
         };
-        let c = a.add_shift_right_1(&b);
+        let c = a.add_shift_right_small(&b, 1);
         assert_eq!(c.as_words(), &[0x8210_c210_c210_c221]);
 
         let b = PosInt::<1> {
             words: [0x0421_8421_8421_8421; 1],
             used: 1,
         };
-        let c = a.add_shift_right_1(&b);
+        let c = a.add_shift_right_small(&b, 1);
         assert_eq!(c.as_words(), &[0x4210_c210_c210_c221]);
     }
 }
