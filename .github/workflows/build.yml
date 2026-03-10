@@ -38,10 +38,6 @@ jobs:
         with:
           toolchain: ${{ matrix.rustc }}
 
-      - name: Install NASM for aws-lc-rs on Windows
-        if: runner.os == 'Windows'
-        uses: ilammy/setup-nasm@v1
-
       - name: Install valgrind on Linux
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y valgrind
