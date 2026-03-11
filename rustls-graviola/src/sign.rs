@@ -468,6 +468,7 @@ mod tests {
             assert!(signer.sign(&message).is_ok());
             println!("{:?}", signer);
         }
+        #[cfg(panic = "unwind")]
         for scheme in [
             SignatureScheme::RSA_PKCS1_SHA1,
             SignatureScheme::ECDSA_NISTP256_SHA256,
