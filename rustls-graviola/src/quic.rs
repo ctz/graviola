@@ -1,6 +1,6 @@
+use rustls::Error;
 use rustls::crypto::cipher::{AeadKey, Iv, Nonce};
 use rustls::quic;
-use rustls::Error;
 
 pub(crate) struct Aes128Gcm;
 
@@ -65,6 +65,19 @@ impl quic::PacketKey for AesGcmPacketKey {
         Ok(quic::Tag::from(&tag[..]))
     }
 
+    fn encrypt_in_place_for_path(
+        &self,
+        path_id: u32,
+        packet_number: u64,
+        header: &[u8],
+        payload: &mut [u8],
+    ) -> Result<quic::Tag, Error> {
+        let mut tag = [0u8; 16];
+        let nonce = Nonce::for_path(path_id, &self.iv, packet_number);
+        self.key.encrypt(&nonce.0, header, payload, &mut tag);
+        Ok(quic::Tag::from(&tag[..]))
+    }
+
     fn decrypt_in_place<'a>(
         &self,
         packet_number: u64,
@@ -72,6 +85,28 @@ impl quic::PacketKey for AesGcmPacketKey {
         payload: &'a mut [u8],
     ) -> Result<&'a [u8], Error> {
         let nonce = Nonce::new(&self.iv, packet_number);
+
+        let (cipher, tag) = if payload.len() >= 16 {
+            payload.split_at_mut(payload.len() - 16)
+        } else {
+            return Err(Error::DecryptError);
+        };
+
+        self.key
+            .decrypt(&nonce.0, header, cipher, tag)
+            .map_err(|_| Error::DecryptError)?;
+
+        Ok(cipher)
+    }
+
+    fn decrypt_in_place_for_path<'a>(
+        &self,
+        path_id: u32,
+        packet_number: u64,
+        header: &[u8],
+        payload: &'a mut [u8],
+    ) -> Result<&'a [u8], Error> {
+        let nonce = Nonce::for_path(path_id, &self.iv, packet_number);
 
         let (cipher, tag) = if payload.len() >= 16 {
             payload.split_at_mut(payload.len() - 16)
