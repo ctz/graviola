@@ -10,9 +10,9 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::Parser;
-use quinn_proto::crypto::rustls::QuicServerConfig;
+use noq::{Runtime, TokioRuntime, crypto::rustls::QuicServerConfig};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 use tracing::{error, info, info_span};
 use tracing_futures::Instrument as _;
@@ -46,7 +46,6 @@ struct Opt {
 }
 
 fn main() {
-    rustls_graviola::default_provider().install_default().unwrap();
     tracing::subscriber::set_global_default(
         tracing_subscriber::FmtSubscriber::builder()
             .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
@@ -112,16 +111,20 @@ async fn run(options: Opt) -> Result<()> {
         (vec![cert], key)
     };
 
-    let mut server_crypto = rustls::ServerConfig::builder()
-        .with_no_client_auth()
-        .with_single_cert(certs, key)?;
+    let mut server_crypto =
+        rustls::ServerConfig::builder_with_provider(Arc::new(rustls_graviola::default_provider()))
+            .with_safe_default_protocol_versions()?
+            .with_no_client_auth()
+            .with_single_cert(certs, key)?;
     server_crypto.alpn_protocols = ALPN_QUIC_HTTP.iter().map(|&x| x.into()).collect();
     if options.keylog {
         server_crypto.key_log = Arc::new(rustls::KeyLogFile::new());
     }
 
-    let mut server_config =
-        quinn::ServerConfig::with_crypto(Arc::new(QuicServerConfig::try_from(server_crypto)?));
+    let mut server_config = noq::ServerConfig::new(
+        Arc::new(QuicServerConfig::try_from(server_crypto)?),
+        Arc::new(TokenKey::generate()),
+    );
     let transport_config = Arc::get_mut(&mut server_config.transport).unwrap();
     transport_config.max_concurrent_uni_streams(0_u8.into());
 
@@ -130,7 +133,13 @@ async fn run(options: Opt) -> Result<()> {
         bail!("root path does not exist");
     }
 
-    let endpoint = quinn::Endpoint::server(server_config, options.listen)?;
+    let socket = std::net::UdpSocket::bind(options.listen)?;
+    let endpoint = noq::Endpoint::new_with_abstract_socket(
+        noq::EndpointConfig::new(Arc::new(HmacKey::generate())),
+        Some(server_config),
+        TokioRuntime.wrap_udp_socket(socket)?,
+        Arc::new(TokioRuntime),
+    )?;
     eprintln!("listening on {}", endpoint.local_addr()?);
 
     while let Some(conn) = endpoint.accept().await {
@@ -160,7 +169,7 @@ async fn run(options: Opt) -> Result<()> {
     Ok(())
 }
 
-async fn handle_connection(root: Arc<Path>, conn: quinn::Incoming) -> Result<()> {
+async fn handle_connection(root: Arc<Path>, conn: noq::Incoming) -> Result<()> {
     let connection = conn.await?;
     let span = info_span!(
         "connection",
@@ -168,7 +177,7 @@ async fn handle_connection(root: Arc<Path>, conn: quinn::Incoming) -> Result<()>
         protocol = %connection
             .handshake_data()
             .unwrap()
-            .downcast::<quinn::crypto::rustls::HandshakeData>().unwrap()
+            .downcast::<noq::crypto::rustls::HandshakeData>().unwrap()
             .protocol
             .map_or_else(|| "<none>".into(), |x| String::from_utf8_lossy(&x).into_owned())
     );
@@ -179,7 +188,7 @@ async fn handle_connection(root: Arc<Path>, conn: quinn::Incoming) -> Result<()>
         loop {
             let stream = connection.accept_bi().await;
             let stream = match stream {
-                Err(quinn::ConnectionError::ApplicationClosed { .. }) => {
+                Err(noq::ConnectionError::ApplicationClosed { .. }) => {
                     info!("connection closed");
                     return Ok(());
                 }
@@ -206,7 +215,7 @@ async fn handle_connection(root: Arc<Path>, conn: quinn::Incoming) -> Result<()>
 
 async fn handle_request(
     root: Arc<Path>,
-    (mut send, mut recv): (quinn::SendStream, quinn::RecvStream),
+    (mut send, mut recv): (noq::SendStream, noq::RecvStream),
 ) -> Result<()> {
     let req = recv
         .read_to_end(64 * 1024)
@@ -267,3 +276,75 @@ fn process_get(root: &Path, x: &[u8]) -> Result<Vec<u8>> {
 }
 
 const ALPN_QUIC_HTTP: &[&[u8]] = &[b"hq-29"];
+
+struct TokenKey(graviola::aead::XChaCha20Poly1305);
+
+impl TokenKey {
+    pub fn generate() -> Self {
+        let mut key = [0u8; 32];
+        graviola::random::fill(&mut key).unwrap();
+        Self(graviola::aead::XChaCha20Poly1305::new(key))
+    }
+}
+
+impl noq::crypto::HandshakeTokenKey for TokenKey {
+    fn seal(
+        &self,
+        token_nonce: u128,
+        data: &mut Vec<u8>,
+    ) -> std::result::Result<(), noq::crypto::CryptoError> {
+        let mut nonce = [0u8; 24];
+        nonce.copy_from_slice(&token_nonce.to_le_bytes()); // 16 bytes of random nonce.
+        data.extend(&[0u8; 16]);
+        let (to_cipher, tag) = data.split_last_chunk_mut::<16>().unwrap();
+        self.0.encrypt(&nonce, &[], to_cipher, tag);
+        Ok(())
+    }
+
+    fn open<'a>(
+        &self,
+        token_nonce: u128,
+        data: &'a mut [u8],
+    ) -> std::result::Result<&'a [u8], noq::crypto::CryptoError> {
+        let mut nonce = [0u8; 24];
+        nonce.copy_from_slice(&token_nonce.to_le_bytes()); // 16 bytes of random nonce.
+        let (to_decipher, tag) = data.split_last_chunk_mut::<16>().unwrap();
+        self.0
+            .decrypt(&nonce, &[], to_decipher, tag)
+            .map_err(|_| noq::crypto::CryptoError)?;
+        Ok(to_decipher)
+    }
+}
+
+struct HmacKey([u8; 32]);
+
+impl HmacKey {
+    pub fn generate() -> Self {
+        let mut key = [0u8; 32];
+        graviola::random::fill(&mut key).unwrap();
+        Self(key)
+    }
+}
+
+impl noq::crypto::HmacKey for HmacKey {
+    fn sign(&self, data: &[u8], signature_out: &mut [u8]) {
+        let mut hmac = graviola::hashing::hmac::Hmac::<graviola::hashing::Sha256>::new(self.0);
+        hmac.update(data);
+        let out = hmac.finish();
+        signature_out.copy_from_slice(out.as_ref());
+    }
+
+    fn signature_len(&self) -> usize {
+        graviola::hashing::sha2::Sha256Context::OUTPUT_SZ
+    }
+
+    fn verify(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+    ) -> std::result::Result<(), noq::crypto::CryptoError> {
+        let mut hmac = graviola::hashing::hmac::Hmac::<graviola::hashing::Sha256>::new(self.0);
+        hmac.update(data);
+        hmac.verify(signature).map_err(|_| noq::crypto::CryptoError)
+    }
+}

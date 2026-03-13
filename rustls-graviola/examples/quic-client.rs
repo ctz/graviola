@@ -11,9 +11,9 @@ use std::{
     time::{Duration, Instant},
 };
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Parser;
-use quinn_proto::crypto::rustls::QuicClientConfig;
+use noq::{EndpointConfig, Runtime, TokioRuntime, crypto::rustls::QuicClientConfig};
 use rustls::pki_types::CertificateDer;
 use tracing::{error, info};
 use url::Url;
@@ -46,7 +46,6 @@ struct Opt {
 }
 
 fn main() {
-    rustls_graviola::default_provider().install_default().unwrap();
     tracing::subscriber::set_global_default(
         tracing_subscriber::FmtSubscriber::builder()
             .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
@@ -67,6 +66,7 @@ fn main() {
 
 #[tokio::main]
 async fn run(options: Opt) -> Result<()> {
+    let provider = Arc::new(rustls_graviola::default_provider());
     let url = options.url;
     let url_host = strip_ipv6_brackets(url.host_str().unwrap());
     let remote = (url_host, url.port().unwrap_or(4433))
@@ -90,7 +90,8 @@ async fn run(options: Opt) -> Result<()> {
             }
         }
     }
-    let mut client_crypto = rustls::ClientConfig::builder()
+    let mut client_crypto = rustls::ClientConfig::builder_with_provider(provider.clone())
+        .with_safe_default_protocol_versions()?
         .with_root_certificates(roots)
         .with_no_client_auth();
 
@@ -100,8 +101,14 @@ async fn run(options: Opt) -> Result<()> {
     }
 
     let client_config =
-        quinn::ClientConfig::new(Arc::new(QuicClientConfig::try_from(client_crypto)?));
-    let mut endpoint = quinn::Endpoint::client(options.bind)?;
+        noq::ClientConfig::new(Arc::new(QuicClientConfig::try_from(client_crypto)?));
+    let client_socket = std::net::UdpSocket::bind(options.bind)?;
+    let endpoint = noq::Endpoint::new_with_abstract_socket(
+        EndpointConfig::new(Arc::new(HmacKey::generate())),
+        None,
+        TokioRuntime.wrap_udp_socket(client_socket)?,
+        Arc::new(TokioRuntime),
+    )?;
     endpoint.set_default_client_config(client_config);
 
     let request = format!("GET {}\r\n", url.path());
@@ -167,3 +174,36 @@ fn duration_secs(x: &Duration) -> f32 {
 }
 
 const ALPN_QUIC_HTTP: &[&[u8]] = &[b"hq-29"];
+
+struct HmacKey([u8; 32]);
+
+impl HmacKey {
+    pub fn generate() -> Self {
+        let mut key = [0u8; 32];
+        graviola::random::fill(&mut key).unwrap();
+        Self(key)
+    }
+}
+
+impl noq::crypto::HmacKey for HmacKey {
+    fn sign(&self, data: &[u8], signature_out: &mut [u8]) {
+        let mut hmac = graviola::hashing::hmac::Hmac::<graviola::hashing::Sha256>::new(self.0);
+        hmac.update(data);
+        let out = hmac.finish();
+        signature_out.copy_from_slice(out.as_ref());
+    }
+
+    fn signature_len(&self) -> usize {
+        graviola::hashing::sha2::Sha256Context::OUTPUT_SZ
+    }
+
+    fn verify(
+        &self,
+        data: &[u8],
+        signature: &[u8],
+    ) -> std::result::Result<(), noq::crypto::CryptoError> {
+        let mut hmac = graviola::hashing::hmac::Hmac::<graviola::hashing::Sha256>::new(self.0);
+        hmac.update(data);
+        hmac.verify(signature).map_err(|_| noq::crypto::CryptoError)
+    }
+}
