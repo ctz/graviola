@@ -11,7 +11,7 @@ readme = "README.md"
 
 [dependencies]
 graviola = { version = "0.3.0", path = "../graviola" }
-libcrux-ml-kem = { version = "0.0.6", default-features = false, features = ["mlkem768", "alloc"], optional = true }
+libcrux-ml-kem = { version = "0.0.8", default-features = false, features = ["mlkem768", "alloc"], optional = true }
 rustls = { version = "0.23.18", default-features = false, features = ["std", "tls12"] }
 
 [dev-dependencies]
