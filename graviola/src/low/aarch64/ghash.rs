@@ -54,8 +54,8 @@ impl Drop for GhashTable {
 }
 
 pub(crate) struct Ghash<'a> {
-    table: &'a GhashTable,
-    current: uint64x2_t,
+    pub(crate) table: &'a GhashTable,
+    pub(crate) current: uint64x2_t,
 }
 
 impl<'a> Ghash<'a> {
@@ -112,7 +112,15 @@ impl<'a> Ghash<'a> {
         self.current = mul(self.current, self.table.powers[0]);
     }
 
-    fn eight_blocks(
+    #[inline]
+    pub(crate) fn add_block(&mut self, block: uint8x16_t) {
+        // SAFETY: This crate requires the `neon` CPU feature.
+        self.current = unsafe { veorq_u64(self.current, to_uint64x2_be(block)) };
+        self.current = mul(self.current, self.table.powers[0]);
+    }
+
+    #[inline]
+    pub(crate) fn eight_blocks(
         &mut self,
         b1: u128,
         b2: u128,
@@ -136,6 +144,35 @@ impl<'a> Ghash<'a> {
             from_u128(b7),
             from_u128(b8),
         );
+    }
+
+    #[inline]
+    pub(crate) fn add_eight_blocks(
+        &mut self,
+        b1: uint8x16_t,
+        b2: uint8x16_t,
+        b3: uint8x16_t,
+        b4: uint8x16_t,
+        b5: uint8x16_t,
+        b6: uint8x16_t,
+        b7: uint8x16_t,
+        b8: uint8x16_t,
+    ) {
+        // SAFETY: this crate requires the `neon` cpu feature
+        unsafe {
+            let b1 = veorq_u64(self.current, to_uint64x2_be(b1));
+            self.current = mul8(
+                self.table,
+                b1,
+                to_uint64x2_be(b2),
+                to_uint64x2_be(b3),
+                to_uint64x2_be(b4),
+                to_uint64x2_be(b5),
+                to_uint64x2_be(b6),
+                to_uint64x2_be(b7),
+                to_uint64x2_be(b8),
+            );
+        }
     }
 }
 
@@ -204,6 +241,7 @@ fn _mul(a: uint64x2_t, b: uint64x2_t) -> uint64x2_t {
 }
 
 #[target_feature(enable = "neon,aes")]
+#[inline]
 fn _mul8(
     table: &GhashTable,
     a: uint64x2_t,
@@ -292,6 +330,21 @@ fn from_u128(u: u128) -> uint64x2_t {
 fn to_u128(u: uint64x2_t) -> u128 {
     // SAFETY: u128 and uint64x2_t have the same size and meaning of bits
     unsafe { mem::transmute(u) }
+}
+
+#[inline]
+#[target_feature(enable = "neon")]
+// Make a copy of `u` with the bytes reversed, and cast to `uint64x2_t`.
+pub(crate) fn to_uint64x2_be(u: uint8x16_t) -> uint64x2_t {
+    // Reverse the order of the bytes in each of the two 64-bit lanes in `u`.
+    let u = vrev64q_u8(u);
+    let u = vreinterpretq_u64_u8(u);
+
+    // Swap the locations of the two 64-bit lanes to finish reversing the bytes.
+    let lane0 = vgetq_lane_u64(u, 0);
+    let lane1 = vgetq_lane_u64(u, 1);
+    let reversed = vsetq_lane_u64(lane0, u, 1);
+    vsetq_lane_u64(lane1, reversed, 0)
 }
 
 // SAFETY: u128 and uint64x2_t have the same size and meaning of bits
