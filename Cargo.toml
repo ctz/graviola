@@ -10,3 +10,4 @@ members = [
 
 [profile.bench]
 lto = "thin"
+debug = true
