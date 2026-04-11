@@ -1,11 +1,11 @@
 import copy
-from functools import reduce
-from io import StringIO
 import re
 import string
 import subprocess
+from functools import reduce
+from io import StringIO
 
-from parse import Type, register_from_token, tokenise, is_comment
+from parse import Type, is_comment, register_from_token, tokenise
 
 
 class Architecture:
@@ -58,6 +58,8 @@ class Architecture_amd64(Architecture):
 
     fn_arg_regs = "rdi rsi rdx rcx r8 r9".split()
     fn_ret_reg = "rax"
+
+    cpp_definitions = dict(__linux__="1", __ELF__="1")
 
     @staticmethod
     def lookup_register(reg):
@@ -118,6 +120,8 @@ class Architecture_aarch64(Architecture):
     constant_reference_alignment = 4096
 
     fn_arg_regs = "x0 x1 x2 x3 x4 x5".split()
+
+    cpp_definitions = dict(__linux__="1", __ELF__="1")
 
     @staticmethod
     def lookup_register(reg):
@@ -181,6 +185,9 @@ class Dispatcher:
     def on_eof(self):
         pass
 
+    def on_cpp(self, cpp):
+        print(f"!!! UNHANDLED on_cpp {self}")
+
 
 class QuietDispatcher(Dispatcher):
     def on_define(self, name, *value):
@@ -205,6 +212,9 @@ class QuietDispatcher(Dispatcher):
         pass
 
     def on_eof(self):
+        pass
+
+    def on_cpp(self, cpp):
         pass
 
 
@@ -767,6 +777,10 @@ use crate::low::macros::*;
             head_comment.append("")
         head_comment.insert(1, "")
         return head_comment[:-1]
+
+    def on_cpp(self, cpp):
+        for key, value in self.arch.cpp_definitions.items():
+            cpp.set(key, value)
 
     def on_function(self, contexts, name):
         assert contexts == []

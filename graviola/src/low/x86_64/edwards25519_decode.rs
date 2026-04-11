@@ -109,7 +109,6 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         // This avoids hassle arising from subroutine offsets
 
 
-
         // Save registers and make room for temporaries
 
         Q!("    push            " "rbx"),

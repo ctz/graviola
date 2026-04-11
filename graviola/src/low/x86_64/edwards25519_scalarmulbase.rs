@@ -373,7 +373,6 @@ pub(crate) fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4]) 
         // This avoids hassle arising from keeping code and data together.
 
 
-
         // Save registers, make room for temps, preserve input arguments.
 
         Q!("    push            " "rbx"),
