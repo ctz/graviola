@@ -1,12 +1,13 @@
 import enum
-import re
 import glob
+import io
+import re
 import string
 import subprocess
 from collections import namedtuple
 from os import path
-import io
 
+from cpp import Preprocessor
 
 MACRO = re.compile(r"^(?P<name>[a-z0-9_]+)\((?P<args>[a-z0-9_,\[\]\+\* \#]*)\);?$")
 ASM = re.compile(
@@ -29,6 +30,7 @@ class Type(enum.StrEnum):
     LABEL = enum.auto()
     DIRECTIVE = enum.auto()
     EOF = enum.auto()
+    CPP = enum.auto()
 
 
 def tidy_linewise(lines):
@@ -51,13 +53,16 @@ def tidy_linewise(lines):
 def parse_file(f, visit):
     continuation = None
     contexts = []
+    cpp = Preprocessor()
+    visit(Type.CPP, cpp)
+    cpp.set("__LF", ";")
 
     lines = f.readlines()
     lines = tidy_linewise(lines)
+    lines = cpp.apply_lines(lines)
 
     for l in lines:
         l = l.lstrip()
-        l = l.replace("__LF", ";")
 
         if continuation:
             lr = l.rstrip().rstrip("\\").rstrip()
@@ -103,12 +108,6 @@ def parse_file(f, visit):
         elif l.startswith(".set"):
             _, name, value = l.split()
             visit(Type.DEFINE, name.strip(), value.strip())
-        elif l.startswith("#endif"):
-            contexts.pop()
-        elif l.startswith("#if WINDOWS_ABI"):
-            contexts.append("WINDOWS_ABI")
-        elif l.startswith("#if defined(__linux__) && defined(__ELF__)"):
-            contexts.append("LINUX_ELF")
         elif l.startswith(".rep"):
             _, arg = l.split()
             contexts.append(("REP", int(arg)))
