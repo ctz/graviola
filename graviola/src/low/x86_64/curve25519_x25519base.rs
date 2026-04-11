@@ -373,7 +373,6 @@ pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         // This avoids hassle arising from keeping code and data together.
 
 
-
         // Save registers, make room for temps, preserve input arguments.
 
         Q!("    push            " "rbx"),

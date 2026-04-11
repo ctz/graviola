@@ -497,7 +497,6 @@ pub(crate) fn edwards25519_scalarmuldouble(
         // This avoids hassle arising from keeping code and data together.
 
 
-
         // Save registers, make room for temps, preserve input arguments.
 
         Q!("    push            " "rbx"),
