@@ -58,7 +58,7 @@ macro_rules! badun { () => { Q!("QWORD PTR [rsp + (30 * " N!() ")]") } }
 
 // Total size to reserve on the stack
 
-macro_rules! NSPACE { () => { Q!("(32 * " N!() ")") } }
+macro_rules! NSPACE { () => { Q!("32 * " N!()) } }
 
 // Corrupted versions when stack is down 8 more
 
@@ -102,6 +102,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
+
         Q!("    endbr64         " ),
 
         // In this case the Windows form literally makes a subroutine call.
@@ -153,7 +154,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         Q!("    lea             " "rdi, [rsp + " V!() "]"),
         Q!("    mov             " "rsi, 1"),
         Q!("    lea             " "rdx, [rsp + " Y!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
         Q!("    mov             " "rax, [rsp + " V!() "]"),
         Q!("    sub             " "rax, 20"),
         Q!("    mov             " "rbx, [rsp + " V!() "+ 8]"),
@@ -179,7 +180,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         Q!("    lea             " "rdi, [rsp + " V!() "]"),
         Q!("    lea             " "rsi, [rsp + " W!() "]"),
         Q!("    lea             " "rdx, [rsp + " V!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
         Q!("    mov             " "rax, [rsp + " V!() "]"),
         Q!("    add             " "rax, 1"),
         Q!("    mov             " "rbx, [rsp + " V!() "+ 8]"),
@@ -196,7 +197,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         Q!("    lea             " "rdi, [rsp + " W!() "]"),
         Q!("    lea             " "rsi, [rsp + " U!() "]"),
         Q!("    lea             " "rdx, [rsp + " V!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         // Get s = w^{252-3} as a candidate inverse square root 1/sqrt(w).
         // This power tower computation is the same as bignum_invsqrt_p25519
@@ -204,112 +205,112 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         Q!("    lea             " "rdi, [rsp + " T!() "]"),
         Q!("    mov             " "rsi, 1"),
         Q!("    lea             " "rdx, [rsp + " W!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
 
         Q!("    lea             " "rdi, [rsp + " T!() "]"),
         Q!("    lea             " "rsi, [rsp + " T!() "]"),
         Q!("    lea             " "rdx, [rsp + " W!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         Q!("    lea             " "rdi, [rsp + " S!() "]"),
         Q!("    mov             " "rsi, 2"),
         Q!("    lea             " "rdx, [rsp + " T!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
 
         Q!("    lea             " "rdi, [rsp + " T!() "]"),
         Q!("    lea             " "rsi, [rsp + " S!() "]"),
         Q!("    lea             " "rdx, [rsp + " T!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         Q!("    lea             " "rdi, [rsp + " S!() "]"),
         Q!("    mov             " "rsi, 1"),
         Q!("    lea             " "rdx, [rsp + " T!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
 
         Q!("    lea             " "rdi, [rsp + " V!() "]"),
         Q!("    lea             " "rsi, [rsp + " S!() "]"),
         Q!("    lea             " "rdx, [rsp + " W!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         Q!("    lea             " "rdi, [rsp + " S!() "]"),
         Q!("    mov             " "rsi, 5"),
         Q!("    lea             " "rdx, [rsp + " V!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
 
         Q!("    lea             " "rdi, [rsp + " T!() "]"),
         Q!("    lea             " "rsi, [rsp + " S!() "]"),
         Q!("    lea             " "rdx, [rsp + " V!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         Q!("    lea             " "rdi, [rsp + " S!() "]"),
         Q!("    mov             " "rsi, 10"),
         Q!("    lea             " "rdx, [rsp + " T!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
 
         Q!("    lea             " "rdi, [rsp + " T!() "]"),
         Q!("    lea             " "rsi, [rsp + " S!() "]"),
         Q!("    lea             " "rdx, [rsp + " T!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         Q!("    lea             " "rdi, [rsp + " S!() "]"),
         Q!("    mov             " "rsi, 5"),
         Q!("    lea             " "rdx, [rsp + " T!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
 
         Q!("    lea             " "rdi, [rsp + " V!() "]"),
         Q!("    lea             " "rsi, [rsp + " S!() "]"),
         Q!("    lea             " "rdx, [rsp + " V!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         Q!("    lea             " "rdi, [rsp + " S!() "]"),
         Q!("    mov             " "rsi, 25"),
         Q!("    lea             " "rdx, [rsp + " V!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
 
         Q!("    lea             " "rdi, [rsp + " T!() "]"),
         Q!("    lea             " "rsi, [rsp + " S!() "]"),
         Q!("    lea             " "rdx, [rsp + " V!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         Q!("    lea             " "rdi, [rsp + " S!() "]"),
         Q!("    mov             " "rsi, 50"),
         Q!("    lea             " "rdx, [rsp + " T!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
 
         Q!("    lea             " "rdi, [rsp + " T!() "]"),
         Q!("    lea             " "rsi, [rsp + " S!() "]"),
         Q!("    lea             " "rdx, [rsp + " T!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         Q!("    lea             " "rdi, [rsp + " S!() "]"),
         Q!("    mov             " "rsi, 25"),
         Q!("    lea             " "rdx, [rsp + " T!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
 
         Q!("    lea             " "rdi, [rsp + " V!() "]"),
         Q!("    lea             " "rsi, [rsp + " S!() "]"),
         Q!("    lea             " "rdx, [rsp + " V!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         Q!("    lea             " "rdi, [rsp + " S!() "]"),
         Q!("    mov             " "rsi, 125"),
         Q!("    lea             " "rdx, [rsp + " V!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
 
         Q!("    lea             " "rdi, [rsp + " V!() "]"),
         Q!("    lea             " "rsi, [rsp + " S!() "]"),
         Q!("    lea             " "rdx, [rsp + " V!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         Q!("    lea             " "rdi, [rsp + " S!() "]"),
         Q!("    mov             " "rsi, 2"),
         Q!("    lea             " "rdx, [rsp + " V!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
 
         Q!("    lea             " "rdi, [rsp + " S!() "]"),
         Q!("    lea             " "rsi, [rsp + " S!() "]"),
         Q!("    lea             " "rdx, [rsp + " W!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         // Compute v' = s^2 * w to discriminate whether the square root sqrt(u/v)
         // exists, in which case we should get 0, 1 or -1.
@@ -317,12 +318,12 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         Q!("    lea             " "rdi, [rsp + " V!() "]"),
         Q!("    mov             " "rsi, 1"),
         Q!("    lea             " "rdx, [rsp + " S!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_nsqr_p25519", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_nsqr_p25519", 2, After)),
 
         Q!("    lea             " "rdi, [rsp + " V!() "]"),
         Q!("    lea             " "rsi, [rsp + " V!() "]"),
         Q!("    lea             " "rdx, [rsp + " W!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         // Get the two candidates for sqrt(u / v), one being s = u * w^{252-3}
         // and the other being t = s * j_25519 where j_25519 = sqrt(-1).
@@ -330,7 +331,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         Q!("    lea             " "rdi, [rsp + " S!() "]"),
         Q!("    lea             " "rsi, [rsp + " U!() "]"),
         Q!("    lea             " "rdx, [rsp + " S!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
         Q!("    mov             " "rax, 0xc4ee1b274a0ea0b0"),
         Q!("    mov             " "[rsp + " T!() "], rax"),
         Q!("    mov             " "rax, 0x2f431806ad2fe478"),
@@ -342,7 +343,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         Q!("    lea             " "rdi, [rsp + " T!() "]"),
         Q!("    lea             " "rsi, [rsp + " S!() "]"),
         Q!("    lea             " "rdx, [rsp + " T!() "]"),
-        Q!("    call            " Label!("edwards25519_decode_mul_p25519", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_decode_mul_p25519", 3, After)),
 
         // rax = 0 <=> s^2 * w = 0 or 1
 
@@ -467,14 +468,15 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         Q!("    pop             " "r12"),
         Q!("    pop             " "rbp"),
         Q!("    pop             " "rbx"),
-        // proc hoisting in -> ret after edwards25519_decode_loop
+        // proc hoisting in -> ret after Ledwards25519_decode_loop
         Q!("    jmp             " Label!("hoist_finish", 4, After)),
 
         // *************************************************************
         // Local z = x * y
         // *************************************************************
 
-        Q!(Label!("edwards25519_decode_mul_p25519", 3) ":"),
+        Q!(Label!("Ledwards25519_decode_mul_p25519", 3) ":"),
+
         Q!("    mov             " "rcx, rdx"),
         Q!("    xor             " "ebp, ebp"),
         Q!("    mov             " "rdx, [rcx]"),
@@ -571,7 +573,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         // Local z = 2^n * x
         // *************************************************************
 
-        Q!(Label!("edwards25519_decode_nsqr_p25519", 2) ":"),
+        Q!(Label!("Ledwards25519_decode_nsqr_p25519", 2) ":"),
 
         // Copy input argument into q
 
@@ -587,7 +589,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         // Main squaring loop, accumulating in u consistently  and
         // only ensuring the intermediates are < 2 * p_25519 = 2^256 - 38
 
-        Q!(Label!("edwards25519_decode_loop", 5) ":"),
+        Q!(Label!("Ledwards25519_decode_loop", 5) ":"),
         Q!("    mov             " "rdx, [rsp + " Q8!() "]"),
         Q!("    mulx            " "r15, r8, rdx"),
         Q!("    mulx            " "r10, r9, [rsp + " Q8!() "+ 0x8]"),
@@ -660,7 +662,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         // Loop as applicable
 
         Q!("    dec             " "rsi"),
-        Q!("    jnz             " Label!("edwards25519_decode_loop", 5, Before)),
+        Q!("    jnz             " Label!("Ledwards25519_decode_loop", 5, Before)),
 
         // We know the intermediate result x < 2^256 - 38, and now we do strict
         // modular reduction mod 2^255 - 19. Note x < 2^255 - 19 <=> x + 19 < 2^255

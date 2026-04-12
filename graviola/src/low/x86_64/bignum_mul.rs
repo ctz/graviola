@@ -104,6 +104,7 @@ pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
+
         Q!("    endbr64         " ),
 
         // We use too many registers, and also we need rax:rdx for multiplications
@@ -122,7 +123,7 @@ pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
         // If we did a multiply-add variant, however, then we could
 
         Q!("    test            " p!() ", " p!()),
-        Q!("    jz              " Label!("bignum_mul_end", 2, After)),
+        Q!("    jz              " Label!("Lbignum_mul_end", 2, After)),
 
         // Set initial 2-part sum to zero (we zero c inside the body)
 
@@ -133,7 +134,7 @@ pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
 
         Q!("    xor             " k!() ", " k!()),
 
-        Q!(Label!("bignum_mul_outerloop", 3) ":"),
+        Q!(Label!("Lbignum_mul_outerloop", 3) ":"),
 
         // Zero our carry term first; we eventually want it and a zero is useful now
         // Set a =  max 0 (k + 1 - n), i = min (k + 1) m
@@ -159,11 +160,11 @@ pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
         Q!("    mov             " d!() ", " k!()),
         Q!("    sub             " d!() ", " i!()),
         Q!("    sub             " i!() ", " a!()),
-        Q!("    jbe             " Label!("bignum_mul_innerend", 4, After)),
+        Q!("    jbe             " Label!("Lbignum_mul_innerend", 4, After)),
         Q!("    lea             " x!() ", [rcx + 8 * " a!() "]"),
         Q!("    lea             " y!() ", [r9 + 8 * " d!() "-8]"),
 
-        Q!(Label!("bignum_mul_innerloop", 5) ":"),
+        Q!(Label!("Lbignum_mul_innerloop", 5) ":"),
         Q!("    mov             " "rax, [" y!() "+ 8 * " i!() "]"),
         Q!("    mul             " "QWORD PTR [" x!() "]"),
         Q!("    add             " x!() ", 8"),
@@ -171,9 +172,9 @@ pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
         Q!("    adc             " h!() ", rdx"),
         Q!("    adc             " c!() ", 0"),
         Q!("    dec             " i!()),
-        Q!("    jnz             " Label!("bignum_mul_innerloop", 5, Before)),
+        Q!("    jnz             " Label!("Lbignum_mul_innerloop", 5, Before)),
 
-        Q!(Label!("bignum_mul_innerend", 4) ":"),
+        Q!(Label!("Lbignum_mul_innerend", 4) ":"),
 
         Q!("    mov             " "[" z!() "], " l!()),
         Q!("    mov             " l!() ", " h!()),
@@ -181,9 +182,9 @@ pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
         Q!("    add             " z!() ", 8"),
 
         Q!("    cmp             " k!() ", " p!()),
-        Q!("    jc              " Label!("bignum_mul_outerloop", 3, Before)),
+        Q!("    jc              " Label!("Lbignum_mul_outerloop", 3, Before)),
 
-        Q!(Label!("bignum_mul_end", 2) ":"),
+        Q!(Label!("Lbignum_mul_end", 2) ":"),
         Q!("    pop             " "r15"),
         Q!("    pop             " "r14"),
         Q!("    pop             " "r13"),

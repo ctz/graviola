@@ -271,6 +271,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
+
         Q!("    endbr64         " ),
 
         // Save all required registers and make room on stack for all the above vars
@@ -286,7 +287,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         // If k = 0 then do nothing (this is out of scope anyway)
 
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("bignum_modinv_end", 2, After)),
+        Q!("    jz              " Label!("Lbignum_modinv_end", 2, After)),
 
         // Set up the additional two buffers m and n beyond w in temp space
         // and record all pointers m, n, w and z in stack-based variables
@@ -303,7 +304,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
 
         Q!("    xor             " "r11, r11"),
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modinv_copyloop", 3) ":"),
+        Q!(Label!("Lbignum_modinv_copyloop", 3) ":"),
         Q!("    mov             " a!() ", [rdx + 8 * " i!() "]"),
         Q!("    mov             " b!() ", [rcx + 8 * " i!() "]"),
         Q!("    mov             " "[r10 + 8 * " i!() "], " a!()),
@@ -312,7 +313,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " "[rsi + 8 * " i!() "], r11"),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("bignum_modinv_copyloop", 3, Before)),
+        Q!("    jc              " Label!("Lbignum_modinv_copyloop", 3, Before)),
 
         // Tweak down w to b - 1 (this crude approach is safe as b needs to be odd
         // for it to be in scope). We have then established the congruence invariant:
@@ -370,7 +371,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
 
         // Start of the main outer loop iterated t / CHUNKSIZE times
 
-        Q!(Label!("bignum_modinv_outerloop", 4) ":"),
+        Q!(Label!("Lbignum_modinv_outerloop", 4) ":"),
 
         // We need only bother with sharper l = min k (ceil(t/64)) digits
         // for the computations on m and n (but we still need k for w and z).
@@ -399,7 +400,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " p1!() ", " m!()),
         Q!("    lea             " p2!() ", [" p1!() "+ 8 * " k!() "]"),
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modinv_toploop", 5) ":"),
+        Q!(Label!("Lbignum_modinv_toploop", 5) ":"),
         Q!("    mov             " b!() ", [" p1!() "+ 8 * " i!() "]"),
         Q!("    mov             " c!() ", [" p2!() "+ 8 * " i!() "]"),
         Q!("    mov             " c1!() ", " c2!()),
@@ -415,7 +416,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    sbb             " c2!() ", " c2!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " l!()),
-        Q!("    jc              " Label!("bignum_modinv_toploop", 5, Before)),
+        Q!("    jc              " Label!("Lbignum_modinv_toploop", 5, Before)),
 
         Q!("    mov             " a!() ", " h1!()),
         Q!("    or              " a!() ", " h2!()),
@@ -475,7 +476,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         // The actual computation computes updates before actually swapping and
         // then corrects as needed.
 
-        Q!(Label!("bignum_modinv_innerloop", 6) ":"),
+        Q!(Label!("Lbignum_modinv_innerloop", 6) ":"),
 
         Q!("    xor             " "eax, eax"),
         Q!("    xor             " "ebx, ebx"),
@@ -512,7 +513,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         // End of the inner for-loop
 
         Q!("    dec             " i!()),
-        Q!("    jnz             " Label!("bignum_modinv_innerloop", 6, Before)),
+        Q!("    jnz             " Label!("Lbignum_modinv_innerloop", 6, Before)),
 
         // Unstash the temporary variables
 
@@ -547,7 +548,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    xor             " c1!() ", " c1!()),
         Q!("    xor             " c2!() ", " c2!()),
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modinv_congloop", 7) ":"),
+        Q!(Label!("Lbignum_modinv_congloop", 7) ":"),
 
         Q!("    mov             " c!() ", [" p1!() "+ 8 * " i!() "]"),
         Q!("    mov             " a!() ", " mat_mm!()),
@@ -583,7 +584,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
 
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("bignum_modinv_congloop", 7, Before)),
+        Q!("    jc              " Label!("Lbignum_modinv_congloop", 7, Before)),
 
         Q!("    shld            " l1!() ", " c1!() ", 64 - " CHUNKSIZE!()),
         Q!("    shld            " l2!() ", " c2!() ", 64 - " CHUNKSIZE!()),
@@ -602,9 +603,9 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " ishort!() ", 1"),
         Q!("    mov             " c!() ", " k!()),
         Q!("    dec             " c!()),
-        Q!("    jz              " Label!("bignum_modinv_wmontend", 8, After)),
+        Q!("    jz              " Label!("Lbignum_modinv_wmontend", 8, After)),
 
-        Q!(Label!("bignum_modinv_wmontloop", 9) ":"),
+        Q!(Label!("Lbignum_modinv_wmontloop", 9) ":"),
         Q!("    adc             " c1!() ", [" p1!() "+ 8 * " i!() "]"),
         Q!("    sbb             " b!() ", " b!()),
         Q!("    mov             " a!() ", [" p2!() "+ 8 * " i!() "]"),
@@ -615,9 +616,9 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " c1!() ", rdx"),
         Q!("    inc             " i!()),
         Q!("    dec             " c!()),
-        Q!("    jnz             " Label!("bignum_modinv_wmontloop", 9, Before)),
+        Q!("    jnz             " Label!("Lbignum_modinv_wmontloop", 9, Before)),
 
-        Q!(Label!("bignum_modinv_wmontend", 8) ":"),
+        Q!(Label!("Lbignum_modinv_wmontend", 8) ":"),
         Q!("    adc             " c1!() ", " l1!()),
         Q!("    mov             " "[" p1!() "+ 8 * " k!() "-8], " c1!()),
         Q!("    sbb             " c1!() ", " c1!()),
@@ -625,19 +626,19 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
 
         Q!("    mov             " c!() ", " k!()),
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modinv_wcmploop", 12) ":"),
+        Q!(Label!("Lbignum_modinv_wcmploop", 12) ":"),
         Q!("    mov             " a!() ", [" p1!() "+ 8 * " i!() "]"),
         Q!("    sbb             " a!() ", [" p2!() "+ 8 * " i!() "]"),
         Q!("    inc             " i!()),
         Q!("    dec             " c!()),
-        Q!("    jnz             " Label!("bignum_modinv_wcmploop", 12, Before)),
+        Q!("    jnz             " Label!("Lbignum_modinv_wcmploop", 12, Before)),
         Q!("    sbb             " c1!() ", 0"),
         Q!("    sbb             " c1!() ", " c1!()),
         Q!("    not             " c1!()),
 
         Q!("    xor             " c!() ", " c!()),
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modinv_wcorrloop", 13) ":"),
+        Q!(Label!("Lbignum_modinv_wcorrloop", 13) ":"),
         Q!("    mov             " a!() ", [" p1!() "+ 8 * " i!() "]"),
         Q!("    mov             " b!() ", [" p2!() "+ 8 * " i!() "]"),
         Q!("    and             " b!() ", " c1!()),
@@ -647,7 +648,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " "[" p1!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("bignum_modinv_wcorrloop", 13, Before)),
+        Q!("    jc              " Label!("Lbignum_modinv_wcorrloop", 13, Before)),
 
         // Do a Montgomery reduction of l2::z
 
@@ -663,9 +664,9 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " ishort!() ", 1"),
         Q!("    mov             " c!() ", " k!()),
         Q!("    dec             " c!()),
-        Q!("    jz              " Label!("bignum_modinv_zmontend", 14, After)),
+        Q!("    jz              " Label!("Lbignum_modinv_zmontend", 14, After)),
 
-        Q!(Label!("bignum_modinv_zmontloop", 15) ":"),
+        Q!(Label!("Lbignum_modinv_zmontloop", 15) ":"),
         Q!("    adc             " c2!() ", [" p1!() "+ 8 * " i!() "]"),
         Q!("    sbb             " b!() ", " b!()),
         Q!("    mov             " a!() ", [" p2!() "+ 8 * " i!() "]"),
@@ -676,9 +677,9 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " c2!() ", rdx"),
         Q!("    inc             " i!()),
         Q!("    dec             " c!()),
-        Q!("    jnz             " Label!("bignum_modinv_zmontloop", 15, Before)),
+        Q!("    jnz             " Label!("Lbignum_modinv_zmontloop", 15, Before)),
 
-        Q!(Label!("bignum_modinv_zmontend", 14) ":"),
+        Q!(Label!("Lbignum_modinv_zmontend", 14) ":"),
         Q!("    adc             " c2!() ", " l2!()),
         Q!("    mov             " "[" p1!() "+ 8 * " k!() "-8], " c2!()),
         Q!("    sbb             " c2!() ", " c2!()),
@@ -686,19 +687,19 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
 
         Q!("    mov             " c!() ", " k!()),
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modinv_zcmploop", 16) ":"),
+        Q!(Label!("Lbignum_modinv_zcmploop", 16) ":"),
         Q!("    mov             " a!() ", [" p1!() "+ 8 * " i!() "]"),
         Q!("    sbb             " a!() ", [" p2!() "+ 8 * " i!() "]"),
         Q!("    inc             " i!()),
         Q!("    dec             " c!()),
-        Q!("    jnz             " Label!("bignum_modinv_zcmploop", 16, Before)),
+        Q!("    jnz             " Label!("Lbignum_modinv_zcmploop", 16, Before)),
         Q!("    sbb             " c2!() ", 0"),
         Q!("    sbb             " c2!() ", " c2!()),
         Q!("    not             " c2!()),
 
         Q!("    xor             " c!() ", " c!()),
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modinv_zcorrloop", 17) ":"),
+        Q!(Label!("Lbignum_modinv_zcorrloop", 17) ":"),
         Q!("    mov             " a!() ", [" p1!() "+ 8 * " i!() "]"),
         Q!("    mov             " b!() ", [" p2!() "+ 8 * " i!() "]"),
         Q!("    and             " b!() ", " c2!()),
@@ -708,7 +709,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " "[" p1!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("bignum_modinv_zcorrloop", 17, Before)),
+        Q!("    jc              " Label!("Lbignum_modinv_zcorrloop", 17, Before)),
 
         // Now actually compute the updates to m and n corresponding to the matrix,
         // and correct the signs if they have gone negative. First we compute the
@@ -725,7 +726,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    xor             " l1!() ", " l1!()),
         Q!("    xor             " h2!() ", " h2!()),
         Q!("    xor             " l2!() ", " l2!()),
-        Q!(Label!("bignum_modinv_crossloop", 18) ":"),
+        Q!(Label!("Lbignum_modinv_crossloop", 18) ":"),
 
         Q!("    mov             " c!() ", [" p1!() "+ 8 * " i!() "]"),
         Q!("    mov             " a!() ", " mat_mm!()),
@@ -763,7 +764,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
 
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " l!()),
-        Q!("    jc              " Label!("bignum_modinv_crossloop", 18, Before)),
+        Q!("    jc              " Label!("Lbignum_modinv_crossloop", 18, Before)),
 
         // Now fix the signs of m and n if they have gone negative
 
@@ -772,7 +773,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " c2!() ", " h2!()),
         Q!("    xor             " l1!() ", " h1!()),
         Q!("    xor             " l2!() ", " h2!()),
-        Q!(Label!("bignum_modinv_optnegloop", 19) ":"),
+        Q!(Label!("Lbignum_modinv_optnegloop", 19) ":"),
         Q!("    mov             " a!() ", [" p1!() "+ 8 * " i!() "]"),
         Q!("    xor             " a!() ", " h1!()),
         Q!("    neg             " c1!()),
@@ -787,14 +788,14 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " "[" p2!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " l!()),
-        Q!("    jc              " Label!("bignum_modinv_optnegloop", 19, Before)),
+        Q!("    jc              " Label!("Lbignum_modinv_optnegloop", 19, Before)),
         Q!("    sub             " l1!() ", " c1!()),
         Q!("    sub             " l2!() ", " c2!()),
 
         // Now shift them right CHUNKSIZE bits
 
         Q!("    mov             " i!() ", " l!()),
-        Q!(Label!("bignum_modinv_shiftloop", 20) ":"),
+        Q!(Label!("Lbignum_modinv_shiftloop", 20) ":"),
         Q!("    mov             " a!() ", [" p1!() "+ 8 * " i!() "-8]"),
         Q!("    mov             " c1!() ", " a!()),
         Q!("    shrd            " a!() ", " l1!() ", " CHUNKSIZE!()),
@@ -806,7 +807,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " "[" p2!() "+ 8 * " i!() "-8], " a!()),
         Q!("    mov             " l2!() ", " c2!()),
         Q!("    dec             " i!()),
-        Q!("    jnz             " Label!("bignum_modinv_shiftloop", 20, Before)),
+        Q!("    jnz             " Label!("Lbignum_modinv_shiftloop", 20, Before)),
 
         // Finally, use the signs h1 and h2 to do optional modular negations of
         // w and z respectively, flipping h2 to make signs work. We don't make
@@ -823,7 +824,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " c1!() ", " h1!()),
         Q!("    mov             " c2!() ", " h2!()),
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modinv_fliploop", 21) ":"),
+        Q!(Label!("Lbignum_modinv_fliploop", 21) ":"),
         Q!("    mov             " d!() ", " h2!()),
         Q!("    mov             " a!() ", [" c!() "+ 8 * " i!() "]"),
         Q!("    and             " d!() ", " a!()),
@@ -842,7 +843,7 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         Q!("    mov             " "[" p2!() "+ 8 * " i!() "], " d!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("bignum_modinv_fliploop", 21, Before)),
+        Q!("    jc              " Label!("Lbignum_modinv_fliploop", 21, Before)),
 
         // End of main loop. We can stop if t' <= 0 since then m * n < 2^0, which
         // since n is odd and m and n are coprime (in the in-scope cases) means
@@ -851,9 +852,9 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
         // or the computation of the optimized digit bound l could collapse to 0.
 
         Q!("    sub             " t!() ", " CHUNKSIZE!()),
-        Q!("    jnbe            " Label!("bignum_modinv_outerloop", 4, Before)),
+        Q!("    jnbe            " Label!("Lbignum_modinv_outerloop", 4, Before)),
 
-        Q!(Label!("bignum_modinv_end", 2) ":"),
+        Q!(Label!("Lbignum_modinv_end", 2) ":"),
         Q!("    add             " "rsp, " STACKVARSIZE!()),
         Q!("    pop             " "r15"),
         Q!("    pop             " "r14"),

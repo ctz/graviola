@@ -79,6 +79,7 @@ pub(crate) fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) -> u64 {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
+
         Q!("    endbr64         " ),
 
         // Zero the main index counter for both branches
@@ -94,7 +95,7 @@ pub(crate) fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) -> u64 {
         Q!("    cmp             " p!() ", " n!()),
         Q!("    cmovc           " n!() ", " p!()),
         Q!("    cmp             " m!() ", " n!()),
-        Q!("    jc              " Label!("bignum_add_ylonger", 2, After)),
+        Q!("    jc              " Label!("Lbignum_add_ylonger", 2, After)),
 
         // The case where x is longer or of the same size (p >= m >= n)
 
@@ -102,70 +103,70 @@ pub(crate) fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) -> u64 {
         Q!("    sub             " m!() ", " n!()),
         Q!("    inc             " m!()),
         Q!("    test            " n!() ", " n!()),
-        Q!("    jz              " Label!("bignum_add_xtest", 3, After)),
-        Q!(Label!("bignum_add_xmainloop", 4) ":"),
+        Q!("    jz              " Label!("Lbignum_add_xtest", 3, After)),
+        Q!(Label!("Lbignum_add_xmainloop", 4) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
         Q!("    adc             " a!() ", [" y!() "+ 8 * " i!() "]"),
         Q!("    mov             " "[" z!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    dec             " n!()),
-        Q!("    jnz             " Label!("bignum_add_xmainloop", 4, Before)),
-        Q!("    jmp             " Label!("bignum_add_xtest", 3, After)),
-        Q!(Label!("bignum_add_xtoploop", 5) ":"),
+        Q!("    jnz             " Label!("Lbignum_add_xmainloop", 4, Before)),
+        Q!("    jmp             " Label!("Lbignum_add_xtest", 3, After)),
+        Q!(Label!("Lbignum_add_xtoploop", 5) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
         Q!("    adc             " a!() ", 0"),
         Q!("    mov             " "[" z!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
-        Q!(Label!("bignum_add_xtest", 3) ":"),
+        Q!(Label!("Lbignum_add_xtest", 3) ":"),
         Q!("    dec             " m!()),
-        Q!("    jnz             " Label!("bignum_add_xtoploop", 5, Before)),
+        Q!("    jnz             " Label!("Lbignum_add_xtoploop", 5, Before)),
         Q!("    mov             " ashort!() ", 0"),
         Q!("    adc             " a!() ", 0"),
         Q!("    test            " p!() ", " p!()),
-        Q!("    jnz             " Label!("bignum_add_tails", 6, After)),
-        // linear hoisting in -> ret after bignum_add_tail
+        Q!("    jnz             " Label!("Lbignum_add_tails", 6, After)),
+        // linear hoisting in -> ret after Lbignum_add_tail
         Q!("    jmp             " Label!("hoist_finish", 7, After)),
 
         // The case where y is longer (p >= n > m)
 
-        Q!(Label!("bignum_add_ylonger", 2) ":"),
 
+        Q!(Label!("Lbignum_add_ylonger", 2) ":"),
         Q!("    sub             " p!() ", " n!()),
         Q!("    sub             " n!() ", " m!()),
         Q!("    test            " m!() ", " m!()),
-        Q!("    jz              " Label!("bignum_add_ytoploop", 8, After)),
-        Q!(Label!("bignum_add_ymainloop", 9) ":"),
+        Q!("    jz              " Label!("Lbignum_add_ytoploop", 8, After)),
+        Q!(Label!("Lbignum_add_ymainloop", 9) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
         Q!("    adc             " a!() ", [" y!() "+ 8 * " i!() "]"),
         Q!("    mov             " "[" z!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    dec             " m!()),
-        Q!("    jnz             " Label!("bignum_add_ymainloop", 9, Before)),
-        Q!(Label!("bignum_add_ytoploop", 8) ":"),
+        Q!("    jnz             " Label!("Lbignum_add_ymainloop", 9, Before)),
+        Q!(Label!("Lbignum_add_ytoploop", 8) ":"),
         Q!("    mov             " a!() ", [" y!() "+ 8 * " i!() "]"),
         Q!("    adc             " a!() ", 0"),
         Q!("    mov             " "[" z!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    dec             " n!()),
-        Q!("    jnz             " Label!("bignum_add_ytoploop", 8, Before)),
+        Q!("    jnz             " Label!("Lbignum_add_ytoploop", 8, Before)),
         Q!("    mov             " ashort!() ", 0"),
         Q!("    adc             " a!() ", 0"),
         Q!("    test            " p!() ", " p!()),
-        Q!("    jnz             " Label!("bignum_add_tails", 6, After)),
+        Q!("    jnz             " Label!("Lbignum_add_tails", 6, After)),
         Q!("    jmp             " Label!("hoist_finish", 7, After)),
 
         // Adding a non-trivial tail, when p > max(m,n)
 
-        Q!(Label!("bignum_add_tails", 6) ":"),
+        Q!(Label!("Lbignum_add_tails", 6) ":"),
         Q!("    mov             " "[" z!() "+ 8 * " i!() "], " a!()),
         Q!("    xor             " a!() ", " a!()),
-        Q!("    jmp             " Label!("bignum_add_tail", 12, After)),
-        Q!(Label!("bignum_add_tailloop", 13) ":"),
+        Q!("    jmp             " Label!("Lbignum_add_tail", 12, After)),
+        Q!(Label!("Lbignum_add_tailloop", 13) ":"),
         Q!("    mov             " "[" z!() "+ 8 * " i!() "], " a!()),
-        Q!(Label!("bignum_add_tail", 12) ":"),
+        Q!(Label!("Lbignum_add_tail", 12) ":"),
         Q!("    inc             " i!()),
         Q!("    dec             " p!()),
-        Q!("    jnz             " Label!("bignum_add_tailloop", 13, Before)),
+        Q!("    jnz             " Label!("Lbignum_add_tailloop", 13, Before)),
         Q!(Label!("hoist_finish", 7) ":"),
         inout("rdi") z.len() => _,
         inout("rsi") z.as_mut_ptr() => _,

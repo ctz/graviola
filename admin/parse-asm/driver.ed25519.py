@@ -22,7 +22,7 @@ if __name__ == "__main__":
             ],
             return_value=("u64", "ret", "ret == 0"),
             return_map=("out", "ret"),
-            hoist=["proc", "edwards25519_decode_loop", "ret"],
+            hoist=["proc", "Ledwards25519_decode_loop", "ret"],
             rust_decl="fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool",
         )
         parse_file(input, d)
@@ -37,9 +37,9 @@ if __name__ == "__main__":
         ) as output,
     ):
         d = RustDriver(output, Architecture_amd64)
-        d.add_const_symbol("edwards25519_scalarmulbase_0g")
-        d.add_const_symbol("edwards25519_scalarmulbase_251g")
-        d.add_const_symbol("edwards25519_scalarmulbase_gtable")
+        d.add_const_symbol("Ledwards25519_scalarmulbase_0g")
+        d.add_const_symbol("Ledwards25519_scalarmulbase_251g")
+        d.add_const_symbol("Ledwards25519_scalarmulbase_gtable")
         d.emit_rust_function(
             "edwards25519_scalarmulbase",
             parameter_map=[
@@ -60,7 +60,7 @@ if __name__ == "__main__":
         ) as output,
     ):
         d = RustDriver(output, Architecture_amd64)
-        d.add_const_symbol("edwards25519_scalarmuldouble_table")
+        d.add_const_symbol("Ledwards25519_scalarmuldouble_table")
         d.emit_rust_function(
             "edwards25519_scalarmuldouble",
             parameter_map=[
@@ -69,7 +69,7 @@ if __name__ == "__main__":
                 ("inout", "point.as_ptr() => _"),
                 ("inout", "bscalar.as_ptr() => _"),
             ],
-            hoist=["proc", "edwards25519_scalarmuldouble_pepadd", "ret"],
+            hoist=["proc", "Ledwards25519_scalarmuldouble_pepadd", "ret"],
             rust_decl="fn edwards25519_scalarmuldouble(res: &mut [u64; 8], scalar: &[u64; 4], point: &[u64; 8], bscalar: &[u64; 4])",
         )
         parse_file(input, d)
@@ -107,7 +107,7 @@ if __name__ == "__main__":
                 ("inout", "x.len() => _"),
                 ("inout", "x.as_ptr() => _"),
             ],
-            hoist=["linear", "bignum_mod_n25519_shortinput", "jmp"],
+            # hoist=["linear", "Lbignum_mod_n25519_shortinput", "jmp"],
             rust_decl="fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64])",
         )
         parse_file(input, d)
@@ -143,7 +143,7 @@ if __name__ == "__main__":
                 ("inout", "c.as_ptr() => _"),
             ],
             return_value=("u64", "ret", "ret == 0"),
-            hoist=["proc", "edwards25519_decode_alt_loop", "ret"],
+            hoist=["proc", "Ledwards25519_decode_alt_loop", "ret"],
             rust_decl="fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool",
         )
         parse_file(input, d)
@@ -158,9 +158,7 @@ if __name__ == "__main__":
         ) as output,
     ):
         d = RustDriver(output, Architecture_aarch64)
-        d.add_const_symbol("edwards25519_scalarmulbase_alt_edwards25519_0g")
-        d.add_const_symbol("edwards25519_scalarmulbase_alt_edwards25519_251g")
-        d.add_const_symbol("edwards25519_scalarmulbase_alt_edwards25519_gtable")
+        d.add_const_symbol("edwards25519_scalarmulbase_alt_constant")
         d.emit_rust_function(
             "edwards25519_scalarmulbase_alt",
             parameter_map=[
@@ -181,7 +179,7 @@ if __name__ == "__main__":
         ) as output,
     ):
         d = RustDriver(output, Architecture_aarch64)
-        d.add_const_symbol("edwards25519_scalarmuldouble_alt_table")
+        d.add_const_symbol("edwards25519_scalarmuldouble_alt_constant")
         d.emit_rust_function(
             "edwards25519_scalarmuldouble_alt",
             parameter_map=[
@@ -190,7 +188,7 @@ if __name__ == "__main__":
                 ("inout", "point.as_ptr() => _"),
                 ("inout", "bscalar.as_ptr() => _"),
             ],
-            hoist=["proc", "edwards25519_scalarmuldouble_alt_pepadd", "ret"],
+            hoist=["proc", "Ledwards25519_scalarmuldouble_alt_pepadd", "ret"],
             rust_decl="fn edwards25519_scalarmuldouble(res: &mut [u64; 8], scalar: &[u64; 4], point: &[u64; 8], bscalar: &[u64; 4])",
         )
         parse_file(input, d)
@@ -228,7 +226,7 @@ if __name__ == "__main__":
                 ("inout", "x.len() => _"),
                 ("inout", "x.as_ptr() => _"),
             ],
-            hoist=["linear", "bignum_mod_n25519_short", "b"],
+            hoist=["linear", "Lbignum_mod_n25519_short", "b"],
             rust_decl="fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64])",
         )
         parse_file(input, d)

@@ -116,6 +116,7 @@ pub(crate) fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
+        Q!(Label!("bignum_tomont_p256_alt", 2) ":"),
 
         // Load the input
 
