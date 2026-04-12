@@ -99,7 +99,7 @@ macro_rules! tab { () => { Q!("sp, # (13 * " NUMSIZE!() ")") } }
 
 // Total size to reserve on the stack (excluding local subroutines)
 
-macro_rules! NSPACE { () => { Q!("(45 * " NUMSIZE!() ")") } }
+macro_rules! NSPACE { () => { Q!("45 * " NUMSIZE!()) } }
 
 // Sub-references used in local subroutines with local stack
 
@@ -545,13 +545,14 @@ pub(crate) fn edwards25519_scalarmuldouble(
         core::arch::asm!(
 
 
+
         // Save regs and make room for temporaries
 
-        Q!("    stp             " "x19, x20, [sp, -16] !"),
-        Q!("    stp             " "x21, x22, [sp, -16] !"),
-        Q!("    stp             " "x23, x24, [sp, -16] !"),
-        Q!("    stp             " "x25, x30, [sp, -16] !"),
-        Q!("    sub             " "sp, sp, # " NSPACE!()),
+        Q!("    stp             " "x19, x20, [sp, #-16] !"),
+        Q!("    stp             " "x21, x22, [sp, #-16] !"),
+        Q!("    stp             " "x23, x24, [sp, #-16] !"),
+        Q!("    stp             " "x25, x30, [sp, #-16] !"),
+        Q!("    sub             " "sp, sp, # (" NSPACE!() "+ 0)"),
 
         // Move the output pointer to a stable place
 
@@ -654,46 +655,46 @@ pub(crate) fn edwards25519_scalarmuldouble(
 
         Q!("    add             " p0!() ", " tab!() "+ 1 * 128"),
         Q!("    add             " p1!() ", " tab!()),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_epdouble", 2, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_epdouble", 2, After)),
 
         // Multiple 3
 
         Q!("    add             " p0!() ", " tab!() "+ 2 * 128"),
         Q!("    add             " p1!() ", " tab!()),
         Q!("    add             " p2!() ", " tab!() "+ 1 * 128"),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_epadd", 3, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_epadd", 3, After)),
 
         // Multiple 4
 
         Q!("    add             " p0!() ", " tab!() "+ 3 * 128"),
         Q!("    add             " p1!() ", " tab!() "+ 1 * 128"),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_epdouble", 2, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_epdouble", 2, After)),
 
         // Multiple 5
 
         Q!("    add             " p0!() ", " tab!() "+ 4 * 128"),
         Q!("    add             " p1!() ", " tab!()),
         Q!("    add             " p2!() ", " tab!() "+ 3 * 128"),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_epadd", 3, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_epadd", 3, After)),
 
         // Multiple 6
 
         Q!("    add             " p0!() ", " tab!() "+ 5 * 128"),
         Q!("    add             " p1!() ", " tab!() "+ 2 * 128"),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_epdouble", 2, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_epdouble", 2, After)),
 
         // Multiple 7
 
         Q!("    add             " p0!() ", " tab!() "+ 6 * 128"),
         Q!("    add             " p1!() ", " tab!()),
         Q!("    add             " p2!() ", " tab!() "+ 5 * 128"),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_epadd", 3, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_epadd", 3, After)),
 
         // Multiple 8
 
         Q!("    add             " p0!() ", " tab!() "+ 7 * 128"),
         Q!("    add             " p1!() ", " tab!() "+ 3 * 128"),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_epdouble", 2, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_epdouble", 2, After)),
 
         // Handle the initialization, starting the loop counter at i = 252
         // and initializing acc to the sum of the table entries for the
@@ -708,7 +709,8 @@ pub(crate) fn edwards25519_scalarmuldouble(
 
         // ...and constant-time indexing based on that index
 
-        Q!("    adrp            " "x14, " PageRef!("edwards25519_scalarmuldouble_alt_table")),
+        Q!("    adrp            " "x14, " PageRef!("edwards25519_scalarmuldouble_alt_constant")),
+        Q!("    add             " "x14, x14, " PageOffRef!("edwards25519_scalarmuldouble_alt_constant")),
 
         Q!("    mov             " "x0, #1"),
         Q!("    mov             " "x1, xzr"),
@@ -1152,12 +1154,12 @@ pub(crate) fn edwards25519_scalarmuldouble(
         Q!("    add             " p0!() ", " acc!()),
         Q!("    add             " p1!() ", " tabent!()),
         Q!("    add             " p2!() ", " btabent!()),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_pepadd", 4, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_pepadd", 4, After)),
 
         // Main loop with acc = [scalar/2^i] * point + [bscalar/2^i] * basepoint
         // Start with i = 252 for bits 248..251 and go down four at a time to 3..0
 
-        Q!(Label!("edwards25519_scalarmuldouble_alt_loop", 5) ":"),
+        Q!(Label!("Ledwards25519_scalarmuldouble_alt_loop", 5) ":"),
 
         Q!("    sub             " i!() ", " i!() ", #4"),
 
@@ -1165,7 +1167,7 @@ pub(crate) fn edwards25519_scalarmuldouble(
 
         Q!("    add             " p0!() ", " acc!()),
         Q!("    add             " p1!() ", " acc!()),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_pdouble", 6, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_pdouble", 6, After)),
 
         // Get btable entry, first getting the adjusted bitfield...
 
@@ -1180,7 +1182,8 @@ pub(crate) fn edwards25519_scalarmuldouble(
 
         // ... then doing constant-time lookup with the appropriate index...
 
-        Q!("    adrp            " "x14, " PageRef!("edwards25519_scalarmuldouble_alt_table")),
+        Q!("    adrp            " "x14, " PageRef!("edwards25519_scalarmuldouble_alt_constant")),
+        Q!("    add             " "x14, x14, " PageOffRef!("edwards25519_scalarmuldouble_alt_constant")),
 
         Q!("    mov             " "x0, #1"),
         Q!("    mov             " "x1, xzr"),
@@ -1697,37 +1700,37 @@ pub(crate) fn edwards25519_scalarmuldouble(
 
         Q!("    add             " p0!() ", " acc!()),
         Q!("    add             " p1!() ", " acc!()),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_pdouble", 6, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_pdouble", 6, After)),
 
         // Add tabent := tabent + btabent
 
         Q!("    add             " p0!() ", " tabent!()),
         Q!("    add             " p1!() ", " tabent!()),
         Q!("    add             " p2!() ", " btabent!()),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_pepadd", 4, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_pepadd", 4, After)),
 
         // Double to acc' = 8 * acc
 
         Q!("    add             " p0!() ", " acc!()),
         Q!("    add             " p1!() ", " acc!()),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_pdouble", 6, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_pdouble", 6, After)),
 
         // Double to acc' = 16 * acc
 
         Q!("    add             " p0!() ", " acc!()),
         Q!("    add             " p1!() ", " acc!()),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_epdouble", 2, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_epdouble", 2, After)),
 
         // Add table entry, acc := acc + tabent
 
         Q!("    add             " p0!() ", " acc!()),
         Q!("    add             " p1!() ", " acc!()),
         Q!("    add             " p2!() ", " tabent!()),
-        Q!("    bl              " Label!("edwards25519_scalarmuldouble_alt_epadd", 3, After)),
+        Q!("    bl              " Label!("Ledwards25519_scalarmuldouble_alt_epadd", 3, After)),
 
         // Loop down
 
-        Q!("    cbnz            " i!() ", " Label!("edwards25519_scalarmuldouble_alt_loop", 5, Before)),
+        Q!("    cbnz            " i!() ", " Label!("Ledwards25519_scalarmuldouble_alt_loop", 5, Before)),
 
         // Modular inverse setup
 
@@ -1787,8 +1790,8 @@ pub(crate) fn edwards25519_scalarmuldouble(
         Q!("    stp             " "x12, x13, [sp, #112]"),
         Q!("    mov             " "x21, #0xa"),
         Q!("    mov             " "x22, #0x1"),
-        Q!("    b               " Label!("edwards25519_scalarmuldouble_alt_invmidloop", 7, After)),
-        Q!(Label!("edwards25519_scalarmuldouble_alt_invloop", 8) ":"),
+        Q!("    b               " Label!("Ledwards25519_scalarmuldouble_alt_invmidloop", 7, After)),
+        Q!(Label!("Ledwards25519_scalarmuldouble_alt_invloop", 8) ":"),
         Q!("    cmp             " "x10, xzr"),
         Q!("    csetm           " "x14, mi"),
         Q!("    cneg            " "x10, x10, mi"),
@@ -2055,7 +2058,7 @@ pub(crate) fn edwards25519_scalarmuldouble(
         Q!("    adc             " "x2, x2, x5"),
         Q!("    stp             " "x0, x1, [sp, #96]"),
         Q!("    stp             " "x3, x2, [sp, #112]"),
-        Q!(Label!("edwards25519_scalarmuldouble_alt_invmidloop", 7) ":"),
+        Q!(Label!("Ledwards25519_scalarmuldouble_alt_invmidloop", 7) ":"),
         Q!("    mov             " "x1, x22"),
         Q!("    ldr             " "x2, [sp]"),
         Q!("    ldr             " "x3, [sp, #32]"),
@@ -2666,7 +2669,7 @@ pub(crate) fn edwards25519_scalarmuldouble(
         Q!("    msub            " "x13, x15, x17, x5"),
         Q!("    mov             " "x22, x1"),
         Q!("    subs            " "x21, x21, #0x1"),
-        Q!("    b.ne            " Label!("edwards25519_scalarmuldouble_alt_invloop", 8, Before)),
+        Q!("    b.ne            " Label!("Ledwards25519_scalarmuldouble_alt_invloop", 8, Before)),
         Q!("    ldr             " "x0, [sp]"),
         Q!("    ldr             " "x1, [sp, #32]"),
         Q!("    mul             " "x0, x0, x10"),
@@ -2784,14 +2787,16 @@ pub(crate) fn edwards25519_scalarmuldouble(
 
         // Restore stack and registers
 
-        Q!("    add             " "sp, sp, # " NSPACE!()),
-        Q!("    ldp             " "x25, x30, [sp], 16"),
-        Q!("    ldp             " "x23, x24, [sp], 16"),
-        Q!("    ldp             " "x21, x22, [sp], 16"),
-        Q!("    ldp             " "x19, x20, [sp], 16"),
+        Q!("    add             " "sp, sp, # (" NSPACE!() "+ 0)"),
+        Q!("    ldp             " "x25, x30, [sp], #16"),
+        Q!("    ldp             " "x23, x24, [sp], #16"),
+        Q!("    ldp             " "x21, x22, [sp], #16"),
+        Q!("    ldp             " "x19, x20, [sp], #16"),
 
-        // proc hoisting in -> ret after edwards25519_scalarmuldouble_alt_pepadd
+        // proc hoisting in -> ret after Ledwards25519_scalarmuldouble_alt_pepadd
         Q!("    b               " Label!("hoist_finish", 9, After)),
+
+
 
         // ****************************************************************************
         // Localized versions of subroutines.
@@ -2799,8 +2804,11 @@ pub(crate) fn edwards25519_scalarmuldouble(
         // but are only maintaining reduction modulo 2^256 - 38, not 2^255 - 19.
         // ****************************************************************************
 
-        Q!(Label!("edwards25519_scalarmuldouble_alt_epdouble", 2) ":"),
-        Q!("    sub             " "sp, sp, # (5 * " NUMSIZE!() ")"),
+
+
+        Q!(Label!("Ledwards25519_scalarmuldouble_alt_epdouble", 2) ":"),
+
+        Q!("    sub             " "sp, sp, # (5 * " NUMSIZE!() "+ 0)"),
         add_twice4!(t0!(), x_1!(), y_1!()),
         sqr_4!(t1!(), z_1!()),
         sqr_4!(t2!(), x_1!()),
@@ -2815,11 +2823,16 @@ pub(crate) fn edwards25519_scalarmuldouble(
         mul_4!(z_0!(), t3!(), t2!()),
         mul_4!(w_0!(), t1!(), t4!()),
         mul_4!(x_0!(), t1!(), t3!()),
-        Q!("    add             " "sp, sp, # (5 * " NUMSIZE!() ")"),
+        Q!("    add             " "sp, sp, # (5 * " NUMSIZE!() "+ 0)"),
         Q!("    ret             " ),
 
-        Q!(Label!("edwards25519_scalarmuldouble_alt_pdouble", 6) ":"),
-        Q!("    sub             " "sp, sp, # (5 * " NUMSIZE!() ")"),
+
+
+
+
+        Q!(Label!("Ledwards25519_scalarmuldouble_alt_pdouble", 6) ":"),
+
+        Q!("    sub             " "sp, sp, # (5 * " NUMSIZE!() "+ 0)"),
         add_twice4!(t0!(), x_1!(), y_1!()),
         sqr_4!(t1!(), z_1!()),
         sqr_4!(t2!(), x_1!()),
@@ -2833,11 +2846,16 @@ pub(crate) fn edwards25519_scalarmuldouble(
         mul_4!(y_0!(), t2!(), t4!()),
         mul_4!(z_0!(), t3!(), t2!()),
         mul_4!(x_0!(), t1!(), t3!()),
-        Q!("    add             " "sp, sp, # (5 * " NUMSIZE!() ")"),
+        Q!("    add             " "sp, sp, # (5 * " NUMSIZE!() "+ 0)"),
         Q!("    ret             " ),
 
-        Q!(Label!("edwards25519_scalarmuldouble_alt_epadd", 3) ":"),
-        Q!("    sub             " "sp, sp, # (6 * " NUMSIZE!() ")"),
+
+
+
+
+        Q!(Label!("Ledwards25519_scalarmuldouble_alt_epadd", 3) ":"),
+
+        Q!("    sub             " "sp, sp, # (6 * " NUMSIZE!() "+ 0)"),
         mul_4!(t0!(), w_1!(), w_2!()),
         sub_twice4!(t1!(), y_1!(), x_1!()),
         sub_twice4!(t2!(), y_2!(), x_2!()),
@@ -2857,11 +2875,16 @@ pub(crate) fn edwards25519_scalarmuldouble(
         mul_4!(x_0!(), t0!(), t1!()),
         mul_4!(y_0!(), t3!(), t5!()),
         mul_4!(z_0!(), t1!(), t3!()),
-        Q!("    add             " "sp, sp, # (6 * " NUMSIZE!() ")"),
+        Q!("    add             " "sp, sp, # (6 * " NUMSIZE!() "+ 0)"),
         Q!("    ret             " ),
 
-        Q!(Label!("edwards25519_scalarmuldouble_alt_pepadd", 4) ":"),
-        Q!("    sub             " "sp, sp, # (6 * " NUMSIZE!() ")"),
+
+
+
+
+        Q!(Label!("Ledwards25519_scalarmuldouble_alt_pepadd", 4) ":"),
+
+        Q!("    sub             " "sp, sp, # (6 * " NUMSIZE!() "+ 0)"),
         double_twice4!(t0!(), z_1!()),
         sub_twice4!(t1!(), y_1!(), x_1!()),
         add_twice4!(t2!(), y_1!(), x_1!()),
@@ -2876,14 +2899,14 @@ pub(crate) fn edwards25519_scalarmuldouble(
         mul_4!(x_0!(), t5!(), t4!()),
         mul_4!(y_0!(), t0!(), t1!()),
         mul_4!(w_0!(), t5!(), t1!()),
-        Q!("    add             " "sp, sp, # (6 * " NUMSIZE!() ")"),
+        Q!("    add             " "sp, sp, # (6 * " NUMSIZE!() "+ 0)"),
         Q!("    ret             " ),
         Q!(Label!("hoist_finish", 9) ":"),
         inout("x0") res.as_mut_ptr() => _,
         inout("x1") scalar.as_ptr() => _,
         inout("x2") point.as_ptr() => _,
         inout("x3") bscalar.as_ptr() => _,
-        edwards25519_scalarmuldouble_alt_table = sym edwards25519_scalarmuldouble_alt_table,
+        edwards25519_scalarmuldouble_alt_constant = sym edwards25519_scalarmuldouble_alt_constant,
         // clobbers
         out("x10") _,
         out("x11") _,
@@ -2911,21 +2934,13 @@ pub(crate) fn edwards25519_scalarmuldouble(
 }
 
 // ****************************************************************************
-// The precomputed data (all read-only). This is currently part of the same
-// text section, which gives position-independent code with simple PC-relative
-// addressing. However it could be put in a separate section via something like
-//
-// .section .rodata
+// The precomputed data (all read-only).
 // ****************************************************************************
 
 // Precomputed table of multiples of generator for edwards25519
 // all in precomputed extended-projective (y-x,x+y,2*d*x*y) triples.
 
-#[allow(dead_code)]
-#[repr(align(4096))]
-struct PageAlignedu64Array96([u64; 96]);
-
-static edwards25519_scalarmuldouble_alt_table: PageAlignedu64Array96 = PageAlignedu64Array96([
+static edwards25519_scalarmuldouble_alt_constant: [u64; 96] = [
     // 1 * G
     0x9d103905d740913e,
     0xfd399f05d140beb3,
@@ -3030,4 +3045,4 @@ static edwards25519_scalarmuldouble_alt_table: PageAlignedu64Array96 = PageAlign
     0xb8a371788bcca7d7,
     0x636412190eb62a32,
     0x26907c5c2ecc4e95,
-]);
+];

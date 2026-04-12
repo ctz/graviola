@@ -72,7 +72,11 @@ macro_rules! tab { () => { Q!("QWORD PTR [rsp + 15 * " NUMSIZE!() "]") } }
 
 // Total size to reserve on the stack
 
-macro_rules! NSPACE { () => { Q!("(15 * " NUMSIZE!() "+ 8)") } }
+macro_rules! NSPACE {
+    () => {
+        "488"
+    };
+}
 
 // Syntactic variants to make x86_att version simpler to generate
 
@@ -367,6 +371,7 @@ pub(crate) fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4]) 
     unsafe {
         core::arch::asm!(
 
+
         Q!("    endbr64         " ),
 
         // In this case the Windows form literally makes a subroutine call.
@@ -456,8 +461,8 @@ pub(crate) fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4]) 
         // Initialize accumulator "acc" to either 0 or 2^251 * B depending on
         // bit 251 of the (reduced) scalar. That leaves bits 0..250 to handle.
 
-        Q!("    lea             " "r10, [rip + {edwards25519_scalarmulbase_0g}]"),
-        Q!("    lea             " "r11, [rip + {edwards25519_scalarmulbase_251g}]"),
+        Q!("    lea             " "r10, [rip + {Ledwards25519_scalarmulbase_0g}]"),
+        Q!("    lea             " "r11, [rip + {Ledwards25519_scalarmulbase_251g}]"),
 
         Q!("    mov             " "rax, [r10]"),
         Q!("    mov             " "rcx, [r11]"),
@@ -540,13 +545,13 @@ pub(crate) fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4]) 
         // end because we made sure bit 251 is clear in the reduced scalar.
 
         Q!("    mov             " i!() ", 0"),
-        Q!("    lea             " "rax, [rip + {edwards25519_scalarmulbase_gtable}]"),
+        Q!("    lea             " "rax, [rip + {Ledwards25519_scalarmulbase_gtable}]"),
         Q!("    mov             " tab!() ", rax"),
         Q!("    mov             " bias!() ", 0"),
 
         // Start of the main loop, repeated 63 times for i = 4, 8, ..., 252
 
-        Q!(Label!("edwards25519_scalarmulbase_scalarloop", 2) ":"),
+        Q!(Label!("Ledwards25519_scalarmulbase_scalarloop", 2) ":"),
 
         // Look at the next 4-bit field "bf", adding the previous bias as well.
         // Choose the table index "ix" as bf when bf <= 8 and 16 - bf for bf >= 9,
@@ -903,7 +908,7 @@ pub(crate) fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4]) 
 
         Q!("    add             " i!() ", 4"),
         Q!("    cmp             " i!() ", 252"),
-        Q!("    jc              " Label!("edwards25519_scalarmulbase_scalarloop", 2, Before)),
+        Q!("    jc              " Label!("Ledwards25519_scalarmulbase_scalarloop", 2, Before)),
 
         // Insert the optional negation of the projective X coordinate, and
         // so by extension the final affine x coordinate x = X/Z and thus
@@ -998,8 +1003,8 @@ pub(crate) fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4]) 
         Q!("    mov             " "[rsp + 0x78], rax"),
         Q!("    mov             " "QWORD PTR [rsp + 0x90], 0xa"),
         Q!("    mov             " "QWORD PTR [rsp + 0x98], 0x1"),
-        Q!("    jmp             " Label!("edwards25519_scalarmulbase_midloop", 3, After)),
-        Q!(Label!("edwards25519_scalarmulbase_inverseloop", 4) ":"),
+        Q!("    jmp             " Label!("Ledwards25519_scalarmulbase_midloop", 3, After)),
+        Q!(Label!("Ledwards25519_scalarmulbase_inverseloop", 4) ":"),
         Q!("    mov             " "r9, r8"),
         Q!("    sar             " "r9, 0x3f"),
         Q!("    xor             " "r8, r9"),
@@ -1290,7 +1295,7 @@ pub(crate) fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4]) 
         Q!("    shl             " "rax, 0x3f"),
         Q!("    add             " "rsi, rax"),
         Q!("    mov             " "[rsp + 0x78], rsi"),
-        Q!(Label!("edwards25519_scalarmulbase_midloop", 3) ":"),
+        Q!(Label!("Ledwards25519_scalarmulbase_midloop", 3) ":"),
         Q!("    mov             " "rsi, [rsp + 0x98]"),
         Q!("    mov             " "rdx, [rsp]"),
         Q!("    mov             " "rcx, [rsp + 0x20]"),
@@ -2191,7 +2196,7 @@ pub(crate) fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4]) 
         Q!("    lea             " "r12, [rax + rdx]"),
         Q!("    mov             " "[rsp + 0x98], rsi"),
         Q!("    dec             " "QWORD PTR [rsp + 0x90]"),
-        Q!("    jne             " Label!("edwards25519_scalarmulbase_inverseloop", 4, Before)),
+        Q!("    jne             " Label!("Ledwards25519_scalarmulbase_inverseloop", 4, Before)),
         Q!("    mov             " "rax, [rsp]"),
         Q!("    mov             " "rcx, [rsp + 0x20]"),
         Q!("    imul            " "rax, r8"),
@@ -2317,9 +2322,9 @@ pub(crate) fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4]) 
         Q!("    pop             " "rbx"),
         inout("rdi") res.as_mut_ptr() => _,
         inout("rsi") scalar.as_ptr() => _,
-        edwards25519_scalarmulbase_0g = sym edwards25519_scalarmulbase_0g,
-        edwards25519_scalarmulbase_251g = sym edwards25519_scalarmulbase_251g,
-        edwards25519_scalarmulbase_gtable = sym edwards25519_scalarmulbase_gtable,
+        Ledwards25519_scalarmulbase_0g = sym Ledwards25519_scalarmulbase_0g,
+        Ledwards25519_scalarmulbase_251g = sym Ledwards25519_scalarmulbase_251g,
+        Ledwards25519_scalarmulbase_gtable = sym Ledwards25519_scalarmulbase_gtable,
         // clobbers
         out("r10") _,
         out("r11") _,
@@ -2347,7 +2352,7 @@ pub(crate) fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4]) 
 // 0 * B = 0 and 2^251 * B in extended-projective coordinates
 // but with Z = 1 assumed and hence left out, so they are (X,Y,T) only.
 
-static edwards25519_scalarmulbase_0g: [u64; 12] = [
+static Ledwards25519_scalarmulbase_0g: [u64; 12] = [
     0x0000000000000000,
     0x0000000000000000,
     0x0000000000000000,
@@ -2362,7 +2367,7 @@ static edwards25519_scalarmulbase_0g: [u64; 12] = [
     0x0000000000000000,
 ];
 
-static edwards25519_scalarmulbase_251g: [u64; 12] = [
+static Ledwards25519_scalarmulbase_251g: [u64; 12] = [
     0x525f946d7c7220e7,
     0x4636b0b2f1e35444,
     0x796e9d70e892ae0f,
@@ -2379,7 +2384,7 @@ static edwards25519_scalarmulbase_251g: [u64; 12] = [
     // all in precomputed extended-projective (y-x,x+y,2*d*x*y) triples.
 ];
 
-static edwards25519_scalarmulbase_gtable: [u64; 6048] = [
+static Ledwards25519_scalarmulbase_gtable: [u64; 6048] = [
     // 2^0 * 1 * G
     0x9d103905d740913e,
     0xfd399f05d140beb3,

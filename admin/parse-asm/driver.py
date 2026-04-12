@@ -13,10 +13,6 @@ class Architecture:
     # that should be ignored when calculating clobbers
     ignore_clobber = set()
 
-    # on some archs (aarch64), constant references must be specially
-    # aligned to support single instruction loads
-    constant_reference_alignment = None
-
     # instruction mnemonic for unconditional jump; used for hoisting
     unconditional_jump = "str"
 
@@ -26,6 +22,10 @@ class Architecture:
     # name of 64-bit return register per standard ABI
     # (only used if this register is not also a parameter register)
     fn_ret_reg = None
+
+    # on ARM64, constant refs using @PAGE and @PAGEOFF are also
+    # dropped to macros
+    constant_reference_page_offs = False
 
     # canonicalise register names, by returning a better name
     # for `reg`.
@@ -107,17 +107,7 @@ class Architecture_aarch64(Architecture):
 
     unconditional_jump = "b"
 
-    # on aarch64 single-insn address loads have limited span at byte
-    # resolution (but much wider at page resolution). this prevents
-    # relocation errors in larger programs (where the emitted function
-    # is >1MB away from the rodata section).
-    #
-    # also converts `adr` insns of such references into `adrp`
-    #
-    # note that while aarch64 docs call these references "page-aligned",
-    # the alignment value is constant across all aarch64 machines and is
-    # not related to the physical page size.
-    constant_reference_alignment = 4096
+    constant_reference_page_offs = True
 
     fn_arg_regs = "x0 x1 x2 x3 x4 x5".split()
 
@@ -164,9 +154,6 @@ class Dispatcher:
     def on_define(self, name, *value):
         print("!!! UNHANDLED: on_define(", name, ",", value, ")")
 
-    def on_function(self, contexts, name):
-        print("!!! UNHANDLED: on_function(", contexts, ",", name, ")")
-
     def on_asm(self, contexts, opcode, operands):
         print("!!! UNHANDLED: on_asm(", contexts, ",", opcode, ",", operands, ")")
 
@@ -191,9 +178,6 @@ class Dispatcher:
 
 class QuietDispatcher(Dispatcher):
     def on_define(self, name, *value):
-        pass
-
-    def on_function(self, contexts, name):
         pass
 
     def on_asm(self, contexts, opcode, operands):
@@ -287,6 +271,10 @@ class MacroWithLabelRefCollector(QuietDispatcher):
         self.current_block = rust_name
 
     def on_label(self, contexts, label):
+        if label in self.expected_functions:
+            self.on_function(contexts, label)
+            return
+
         if label not in self.expected_labels:
             print(f"label ({label}) not in expected_labels")
         self.current_block = label
@@ -491,6 +479,7 @@ class RustDriver:
         self.label_pass = LabelCollector()
         self.macro_pass = MacroWithLabelRefCollector()
         self.formatter = RustFormatter(output, architecture)
+        self.file_name = output.name
 
     def discard_rust_function(self, function):
         self.macro_pass.discard_rust_function(function)
@@ -562,9 +551,8 @@ class RustDriver:
             )
 
         output.close()
-        filename = output.name
-        subprocess.check_call(["rustfmt", filename])
-        print("GENERATED", filename)
+        subprocess.check_call(["rustfmt", self.file_name])
+        print("GENERATED", self.file_name)
 
 
 class RustFormatter(Dispatcher):
@@ -633,6 +621,10 @@ use crate::low::macros::*;
         self.constant_sym_rename[sym] = name
         self.constant_sym_alignment[name] = align
 
+        if self.arch.constant_reference_page_offs:
+            self.constant_sym_rename[sym + "@PAGE"] = name
+            self.constant_sym_rename[sym + "@PAGEOFF"] = name
+
     def find_label(self, label, defn=False):
         """
         Returns an ordinal "local label" for the name `label`
@@ -700,14 +692,17 @@ use crate::low::macros::*;
                     yield r.suffix
                 elif is_comment(t):
                     yield unquote(t)
-                elif t in self.constant_syms:
-                    t = self.constant_sym_rename[t]
+                elif t in self.constant_sym_rename:
+                    at = self.constant_sym_rename[t]
                     if self.function_state:
-                        self.function_state.referenced_constant_syms.add(t)
-                    if self.arch.constant_reference_alignment is not None:
-                        yield unquote('PageRef!("' + t + '")')
+                        self.function_state.referenced_constant_syms.add(at)
+                    if self.arch.constant_reference_page_offs:
+                        if t.endswith("@PAGE"):
+                            yield unquote('PageRef!("' + at + '")')
+                        else:
+                            yield unquote('PageOffRef!("' + at + '")')
                     else:
-                        yield "{" + t + "}"
+                        yield "{" + at + "}"
                 elif (
                     self.function_state and t in self.function_state.labels
                 ) or self.looks_like_label(t):
@@ -915,15 +910,7 @@ use crate::low::macros::*;
 
         self.visit_operands(operands)
 
-        contains_constant_ref = self.contains_constant_ref(operands)
         operands = self.expand_rust_macros_in_asm(operands)
-        if operands:
-            if (
-                contains_constant_ref
-                and self.arch.constant_reference_alignment is not None
-                and opcode == "adr"
-            ):
-                opcode = "adrp"
 
         parts = ['"    %-15s "' % opcode]
         parts.append(operands)
@@ -994,16 +981,10 @@ use crate::low::macros::*;
             }[ca.type]
 
             array_type = "[%s; %d]" % (rust_type, len(ca.items))
-            if (
-                self.arch.constant_reference_alignment is not None
-                or self.constant_sym_alignment[ca.name]
-            ):
-                if self.constant_sym_alignment[ca.name]:
-                    alignment = self.constant_sym_alignment[ca.name]
-                    how = "B" + str(alignment)
-                else:
-                    alignment = self.arch.constant_reference_alignment
-                    how = "Page"
+
+            if self.constant_sym_alignment[ca.name]:
+                alignment = self.constant_sym_alignment[ca.name]
+                how = "B" + str(alignment)
 
                 rust_type = "%sAligned%sArray%d" % (how, rust_type, len(ca.items))
                 value_start = rust_type + "("

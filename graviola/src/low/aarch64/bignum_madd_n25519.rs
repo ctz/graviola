@@ -148,7 +148,8 @@ pub(crate) fn bignum_madd_n25519(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4], c
         core::arch::asm!(
 
 
-        Q!("    stp             " "x19, x20, [sp, -16] !"),
+
+        Q!("    stp             " "x19, x20, [sp, #-16] !"),
 
         // Back up the result pointer so we can overwrite x0 in intermediate steps
 
@@ -250,7 +251,7 @@ pub(crate) fn bignum_madd_n25519(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4], c
 
         // Restore registers and return
 
-        Q!("    ldp             " "x19, x20, [sp], 16"),
+        Q!("    ldp             " "x19, x20, [sp], #16"),
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.as_ptr() => _,
         inout("x2") y.as_ptr() => _,
