@@ -145,9 +145,13 @@ def tokenise(source: str) -> Generator[Token, None, None]:
 class Preprocessor:
     def __init__(self):
         self.defs = dict()
+        self.funcs = dict()
 
     def set(self, key, value):
         self.defs[key] = value
+
+    def function(self, name, value_fn):
+        self.funcs[name] = value_fn
 
     def _eval_expr_truth(self, t, d=0):
         result = None
@@ -221,9 +225,21 @@ class Preprocessor:
                 skipping = False
                 continue
 
+            def splat(groups):
+                items = groups.split(",")
+                items = [item.strip() for item in items]
+                items = [item for item in items if item != ""]
+                return items
+
             if not skipping:
                 for k, v in self.defs.items():
                     l = re.sub("\\b" + k + "\\b", v, l)
+                for k, f in self.funcs.items():
+                    l = re.sub(
+                        r"\b" + k + "\\(([^)]*)\\)",
+                        lambda m: f(*splat(m.group(1))),
+                        l,
+                    )
 
                 r.append(l)
 
@@ -271,6 +287,7 @@ if __name__ == "__main__":
 
     p = Preprocessor()
     p.set("A", "1")
+    p.function("YYY", lambda *args: str(len(args)))
 
     assert p.apply_lines(["#if A", "OK", "#endif"]) == ["OK"]
     assert p.apply_lines(["#if A && A", "OK", "#endif"]) == ["OK"]
@@ -284,3 +301,9 @@ if __name__ == "__main__":
 
     assert p.apply_lines(["echo A"]) == ["echo 1"]
     assert p.apply_lines(["echoA"]) == ["echoA"]
+
+    assert p.apply_lines(["YYY"]) == ["YYY"]
+    assert p.apply_lines(["YYY()"]) == ["0"]
+    assert p.apply_lines(["YYY(a)"]) == ["1"]
+    assert p.apply_lines(["YYY(a,b)"]) == ["2"]
+    assert p.apply_lines(["YYY(a, b)"]) == ["2"]
