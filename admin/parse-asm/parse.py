@@ -56,6 +56,8 @@ def parse_file(f, visit):
     cpp = Preprocessor()
     visit(Type.CPP, cpp)
     cpp.set("__LF", ";")
+    cpp.function("S2N_BN_SYM_VISIBILITY_DIRECTIVE", lambda *args: "")
+    cpp.function("S2N_BN_SYM_PRIVACY_DIRECTIVE", lambda *args: "")
 
     lines = f.readlines()
     lines = tidy_linewise(lines)
@@ -129,10 +131,6 @@ def parse_file(f, visit):
                 m.group("opcode").strip(),
                 m.group("operands").strip(),
             )
-        elif l.startswith("S2N_BN_SYM_VISIBILITY_DIRECTIVE("):
-            continue
-        elif l.startswith("S2N_BN_SYM_PRIVACY_DIRECTIVE("):
-            continue
         elif l.strip() == "":
             visit(Type.VERTICAL_WHITESPACE)
         elif l.startswith("# "):
