@@ -50,7 +50,7 @@ macro_rules! y_3 { () => { Q!(input_z!() ", # " NUMSIZE!()) } }
 macro_rules! z_3 { () => { Q!(input_z!() ", # (2 * " NUMSIZE!() ")") } }
 
 // Pointer-offset pairs for temporaries, with some aliasing
-// NSPACE is the total stack needed for these temporaries
+// #NSPACE is the total stack needed for these temporaries
 
 macro_rules! z2 { () => { Q!("sp, # (" NUMSIZE!() "* 0)") } }
 macro_rules! y4 { () => { Q!("sp, # (" NUMSIZE!() "* 0)") } }
@@ -68,7 +68,7 @@ macro_rules! xy2 { () => { Q!("sp, # (" NUMSIZE!() "* 4)") } }
 macro_rules! x4p { () => { Q!("sp, # (" NUMSIZE!() "* 5)") } }
 macro_rules! d { () => { Q!("sp, # (" NUMSIZE!() "* 5)") } }
 
-macro_rules! NSPACE { () => { Q!("# (" NUMSIZE!() "* 6)") } }
+macro_rules! NSPACE { () => { Q!(NUMSIZE!() "* 6") } }
 
 // Corresponds exactly to bignum_montmul_p256_alt except registers
 
@@ -556,7 +556,7 @@ pub(crate) fn p256_montjdouble(p3: &mut [u64; 12], p1: &[u64; 12]) {
 
         // Make room on stack for temporary variables
 
-        Q!("    sub             " "sp, sp, " NSPACE!()),
+        Q!("    sub             " "sp, sp, # (" NSPACE!() "+ 0)"),
 
         // Move the input arguments to stable places
 
@@ -617,7 +617,7 @@ pub(crate) fn p256_montjdouble(p3: &mut [u64; 12], p1: &[u64; 12]) {
 
         // Restore stack and return
 
-        Q!("    add             " "sp, sp, " NSPACE!()),
+        Q!("    add             " "sp, sp, # (" NSPACE!() "+ 0)"),
         inout("x0") p3.as_mut_ptr() => _,
         inout("x1") p1.as_ptr() => _,
         // clobbers

@@ -69,42 +69,42 @@ pub(crate) fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
         // This will drop through for m = n
 
         Q!("    cmp             " m!() ", " n!()),
-        Q!("    bcs             " Label!("bignum_eq_mtest", 2, After)),
+        Q!("    bcs             " Label!("Lbignum_eq_mtest", 2, After)),
 
         // Toploop for the case n > m
 
-        Q!(Label!("bignum_eq_nloop", 3) ":"),
+        Q!(Label!("Lbignum_eq_nloop", 3) ":"),
         Q!("    sub             " n!() ", " n!() ", #1"),
         Q!("    ldr             " a!() ", [" y!() ", " n!() ", lsl #3]"),
         Q!("    orr             " c!() ", " c!() ", " a!()),
         Q!("    cmp             " m!() ", " n!()),
-        Q!("    bne             " Label!("bignum_eq_nloop", 3, Before)),
-        Q!("    b               " Label!("bignum_eq_mmain", 4, After)),
+        Q!("    bne             " Label!("Lbignum_eq_nloop", 3, Before)),
+        Q!("    b               " Label!("Lbignum_eq_mmain", 4, After)),
 
         // Toploop for the case m > n (or n = m which enters at "mtest")
 
-        Q!(Label!("bignum_eq_mloop", 5) ":"),
+        Q!(Label!("Lbignum_eq_mloop", 5) ":"),
         Q!("    sub             " m!() ", " m!() ", #1"),
         Q!("    ldr             " a!() ", [" x!() ", " m!() ", lsl #3]"),
         Q!("    orr             " c!() ", " c!() ", " a!()),
         Q!("    cmp             " m!() ", " n!()),
-        Q!(Label!("bignum_eq_mtest", 2) ":"),
-        Q!("    bne             " Label!("bignum_eq_mloop", 5, Before)),
+        Q!(Label!("Lbignum_eq_mtest", 2) ":"),
+        Q!("    bne             " Label!("Lbignum_eq_mloop", 5, Before)),
 
         // Combined main loop for the min(m,n) lower words
 
-        Q!(Label!("bignum_eq_mmain", 4) ":"),
-        Q!("    cbz             " m!() ", " Label!("bignum_eq_end", 6, After)),
+        Q!(Label!("Lbignum_eq_mmain", 4) ":"),
+        Q!("    cbz             " m!() ", " Label!("Lbignum_eq_end", 6, After)),
 
-        Q!(Label!("bignum_eq_loop", 7) ":"),
+        Q!(Label!("Lbignum_eq_loop", 7) ":"),
         Q!("    sub             " m!() ", " m!() ", #1"),
         Q!("    ldr             " a!() ", [" x!() ", " m!() ", lsl #3]"),
         Q!("    ldr             " d!() ", [" y!() ", " m!() ", lsl #3]"),
         Q!("    eor             " a!() ", " a!() ", " d!()),
         Q!("    orr             " c!() ", " c!() ", " a!()),
-        Q!("    cbnz            " m!() ", " Label!("bignum_eq_loop", 7, Before)),
+        Q!("    cbnz            " m!() ", " Label!("Lbignum_eq_loop", 7, Before)),
 
-        Q!(Label!("bignum_eq_end", 6) ":"),
+        Q!(Label!("Lbignum_eq_end", 6) ":"),
         Q!("    cmp             " c!() ", xzr"),
         Q!("    cset            " "x0, eq"),
         inout("x0") x.len() => ret,

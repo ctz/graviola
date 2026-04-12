@@ -75,6 +75,7 @@ pub(crate) fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
+
         Q!("    endbr64         " ),
 
         // We are essentially just doing a Montgomery multiplication of x and the

@@ -231,13 +231,18 @@ class Preprocessor:
                 items = [item for item in items if item != ""]
                 return items
 
+            def rejoin(xs):
+                if isinstance(xs, tuple):
+                    return " \n ".join(xs)
+                return xs
+
             if not skipping:
                 for k, v in self.defs.items():
                     l = re.sub("\\b" + k + "\\b", v, l)
                 for k, f in self.funcs.items():
                     l = re.sub(
                         r"\b" + k + "\\(([^)]*)\\)",
-                        lambda m: f(*splat(m.group(1))),
+                        lambda m: rejoin(f(*splat(m.group(1)))),
                         l,
                     )
 

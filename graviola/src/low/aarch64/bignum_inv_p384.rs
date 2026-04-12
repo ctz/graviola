@@ -161,7 +161,7 @@ macro_rules! v { () => { Q!("sp, # (24 * " N!() ")") } }
 
 // Total size to reserve on the stack
 
-macro_rules! NSPACE { () => { Q!("# (32 * " N!() ")") } }
+macro_rules! NSPACE { () => { Q!("32 * " N!()) } }
 
 // ---------------------------------------------------------------------------
 // Core signed almost-Montgomery reduction macro. Takes input in
@@ -858,10 +858,10 @@ pub(crate) fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6]) {
 
         // Save registers and make room for temporaries
 
-        Q!("    stp             " "x19, x20, [sp, -16] !"),
-        Q!("    stp             " "x21, x22, [sp, -16] !"),
-        Q!("    stp             " "x23, x24, [sp, -16] !"),
-        Q!("    sub             " "sp, sp, " NSPACE!()),
+        Q!("    stp             " "x19, x20, [sp, #-16] !"),
+        Q!("    stp             " "x21, x22, [sp, #-16] !"),
+        Q!("    stp             " "x23, x24, [sp, #-16] !"),
+        Q!("    sub             " "sp, sp, # (" NSPACE!() "+ 0)"),
 
         // Save the return pointer for the end so we can overwrite x0 later
 
@@ -923,9 +923,9 @@ pub(crate) fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6]) {
 
         Q!("    mov             " i!() ", #15"),
         Q!("    mov             " d!() ", #1"),
-        Q!("    b               " Label!("bignum_inv_p384_midloop", 2, After)),
+        Q!("    b               " Label!("Lbignum_inv_p384_midloop", 2, After)),
 
-        Q!(Label!("bignum_inv_p384_loop", 3) ":"),
+        Q!(Label!("Lbignum_inv_p384_loop", 3) ":"),
 
         // Separate the matrix elements into sign-magnitude pairs
 
@@ -1364,7 +1364,7 @@ pub(crate) fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6]) {
         Q!("    stp             " "x3, x4, [" v!() "+ 16]"),
         Q!("    stp             " "x5, x6, [" v!() "+ 32]"),
 
-        Q!(Label!("bignum_inv_p384_midloop", 2) ":"),
+        Q!(Label!("Lbignum_inv_p384_midloop", 2) ":"),
 
         Q!("    mov             " "x1, " d!()),
         Q!("    ldr             " "x2, [" f!() "]"),
@@ -1375,7 +1375,7 @@ pub(crate) fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6]) {
         // Next iteration
 
         Q!("    subs            " i!() ", " i!() ", #1"),
-        Q!("    bne             " Label!("bignum_inv_p384_loop", 3, Before)),
+        Q!("    bne             " Label!("Lbignum_inv_p384_loop", 3, Before)),
 
         // The 15th and last iteration does not need anything except the
         // u value and the sign of f; the latter can be obtained from the
@@ -1561,10 +1561,10 @@ pub(crate) fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6]) {
 
         // Restore stack and registers
 
-        Q!("    add             " "sp, sp, " NSPACE!()),
-        Q!("    ldp             " "x23, x24, [sp], 16"),
-        Q!("    ldp             " "x21, x22, [sp], 16"),
-        Q!("    ldp             " "x19, x20, [sp], 16"),
+        Q!("    add             " "sp, sp, # (" NSPACE!() "+ 0)"),
+        Q!("    ldp             " "x23, x24, [sp], #16"),
+        Q!("    ldp             " "x21, x22, [sp], #16"),
+        Q!("    ldp             " "x19, x20, [sp], #16"),
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.as_ptr() => _,
         // clobbers

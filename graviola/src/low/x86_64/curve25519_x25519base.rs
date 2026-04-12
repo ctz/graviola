@@ -80,7 +80,11 @@ macro_rules! tab { () => { Q!("QWORD PTR [rsp + 15 * " NUMSIZE!() "]") } }
 
 // Total size to reserve on the stack
 
-macro_rules! NSPACE { () => { Q!("(15 * " NUMSIZE!() "+ 8)") } }
+macro_rules! NSPACE {
+    () => {
+        "488"
+    };
+}
 
 // Macro wrapping up the basic field multiplication, only trivially
 // different from a pure function call to bignum_mul_p25519.
@@ -366,6 +370,8 @@ pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
+        Q!(Label!("curve25519_x25519base_byte", 2) ":"),
+
         Q!("    endbr64         " ),
 
         // In this case the Windows form literally makes a subroutine call.
@@ -415,8 +421,8 @@ pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         Q!("    mov             " "rax, [rsp]"),
         Q!("    and             " "rax, 8"),
 
-        Q!("    lea             " "r10, [rip + {curve25519_x25519base_edwards25519_0g}]"),
-        Q!("    lea             " "r11, [rip + {curve25519_x25519base_edwards25519_8g}]"),
+        Q!("    lea             " "r10, [rip + {Lcurve25519_x25519base_edwards25519_0g}]"),
+        Q!("    lea             " "r11, [rip + {Lcurve25519_x25519base_edwards25519_8g}]"),
 
         Q!("    mov             " "rax, [r10]"),
         Q!("    mov             " "rcx, [r11]"),
@@ -500,13 +506,13 @@ pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         // l >= 9 case cannot arise on the last iteration.
 
         Q!("    mov             " i!() ", 4"),
-        Q!("    lea             " "rax, [rip + {curve25519_x25519base_edwards25519_gtable}]"),
+        Q!("    lea             " "rax, [rip + {Lcurve25519_x25519base_edwards25519_gtable}]"),
         Q!("    mov             " tab!() ", rax"),
         Q!("    mov             " bias!() ", 0"),
 
         // Start of the main loop, repeated 63 times for i = 4, 8, ..., 252
 
-        Q!(Label!("curve25519_x25519base_scalarloop", 2) ":"),
+        Q!(Label!("Lcurve25519_x25519base_scalarloop", 3) ":"),
 
         // Look at the next 4-bit field "bf", adding the previous bias as well.
         // Choose the table index "ix" as bf when bf <= 8 and 16 - bf for bf >= 9,
@@ -863,7 +869,7 @@ pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
 
         Q!("    add             " i!() ", 4"),
         Q!("    cmp             " i!() ", 256"),
-        Q!("    jc              " Label!("curve25519_x25519base_scalarloop", 2, Before)),
+        Q!("    jc              " Label!("Lcurve25519_x25519base_scalarloop", 3, Before)),
 
         // Now we need to translate from Edwards curve edwards25519 back
         // to the Montgomery form curve25519. The mapping in the affine
@@ -955,8 +961,8 @@ pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         Q!("    mov             " "[rsp + 0x78], rax"),
         Q!("    mov             " "QWORD PTR [rsp + 0x90], 0xa"),
         Q!("    mov             " "QWORD PTR [rsp + 0x98], 0x1"),
-        Q!("    jmp             " Label!("curve25519_x25519base_midloop", 3, After)),
-        Q!(Label!("curve25519_x25519base_inverseloop", 4) ":"),
+        Q!("    jmp             " Label!("Lcurve25519_x25519base_midloop", 4, After)),
+        Q!(Label!("Lcurve25519_x25519base_inverseloop", 5) ":"),
         Q!("    mov             " "r9, r8"),
         Q!("    sar             " "r9, 0x3f"),
         Q!("    xor             " "r8, r9"),
@@ -1247,7 +1253,7 @@ pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         Q!("    shl             " "rax, 0x3f"),
         Q!("    add             " "rsi, rax"),
         Q!("    mov             " "[rsp + 0x78], rsi"),
-        Q!(Label!("curve25519_x25519base_midloop", 3) ":"),
+        Q!(Label!("Lcurve25519_x25519base_midloop", 4) ":"),
         Q!("    mov             " "rsi, [rsp + 0x98]"),
         Q!("    mov             " "rdx, [rsp]"),
         Q!("    mov             " "rcx, [rsp + 0x20]"),
@@ -2148,7 +2154,7 @@ pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         Q!("    lea             " "r12, [rax + rdx]"),
         Q!("    mov             " "[rsp + 0x98], rsi"),
         Q!("    dec             " "QWORD PTR [rsp + 0x90]"),
-        Q!("    jne             " Label!("curve25519_x25519base_inverseloop", 4, Before)),
+        Q!("    jne             " Label!("Lcurve25519_x25519base_inverseloop", 5, Before)),
         Q!("    mov             " "rax, [rsp]"),
         Q!("    mov             " "rcx, [rsp + 0x20]"),
         Q!("    imul            " "rax, r8"),
@@ -2273,9 +2279,9 @@ pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
         Q!("    pop             " "rbx"),
         inout("rdi") res.as_mut_ptr() => _,
         inout("rsi") scalar.as_ptr() => _,
-        curve25519_x25519base_edwards25519_0g = sym curve25519_x25519base_edwards25519_0g,
-        curve25519_x25519base_edwards25519_8g = sym curve25519_x25519base_edwards25519_8g,
-        curve25519_x25519base_edwards25519_gtable = sym curve25519_x25519base_edwards25519_gtable,
+        Lcurve25519_x25519base_edwards25519_0g = sym Lcurve25519_x25519base_edwards25519_0g,
+        Lcurve25519_x25519base_edwards25519_8g = sym Lcurve25519_x25519base_edwards25519_8g,
+        Lcurve25519_x25519base_edwards25519_gtable = sym Lcurve25519_x25519base_edwards25519_gtable,
         // clobbers
         out("r10") _,
         out("r11") _,
@@ -2303,7 +2309,7 @@ pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
 // 2^254 * G and (2^254 + 8) * G in extended-projective coordinates
 // but with z = 1 assumed and hence left out, so they are (X,Y,T) only.
 
-static curve25519_x25519base_edwards25519_0g: [u64; 12] = [
+static Lcurve25519_x25519base_edwards25519_0g: [u64; 12] = [
     0x251037f7cf4e861d,
     0x10ede0fb19fb128f,
     0x96c033b175f5e2c8,
@@ -2318,7 +2324,7 @@ static curve25519_x25519base_edwards25519_0g: [u64; 12] = [
     0x1253c19e53dbe1bc,
 ];
 
-static curve25519_x25519base_edwards25519_8g: [u64; 12] = [
+static Lcurve25519_x25519base_edwards25519_8g: [u64; 12] = [
     0x331d086e0d9abcaa,
     0x1e23c96d311a10c9,
     0x96d0f95e58c13478,
@@ -2335,7 +2341,7 @@ static curve25519_x25519base_edwards25519_8g: [u64; 12] = [
     // all in precomputed extended-projective (y-x,x+y,2*d*x*y) triples.
 ];
 
-static curve25519_x25519base_edwards25519_gtable: [u64; 6048] = [
+static Lcurve25519_x25519base_edwards25519_gtable: [u64; 6048] = [
     // 2^4 * 1 * G
     0x7ec851ca553e2df3,
     0xa71284cba64878b3,
