@@ -125,7 +125,7 @@ pub(crate) fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64]) {
         // If the input is already <= 3 words long, go to a trivial "copy" path
 
         Q!("    cmp             " k!() ", #4"),
-        Q!("    bcc             " Label!("bignum_mod_n25519_short", 2, After)),
+        Q!("    bcc             " Label!("Lbignum_mod_n25519_short", 2, After)),
 
         // Otherwise load the top 4 digits (top-down) and reduce k by 4
         // This [m3;m2;m1;m0] is the initial x where we begin reduction.
@@ -178,9 +178,9 @@ pub(crate) fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64]) {
         // is similar to the sequence above except for the more refined quotient
         // estimation process.
 
-        Q!("    cbz             " k!() ", " Label!("bignum_mod_n25519_writeback", 3, After)),
+        Q!("    cbz             " k!() ", " Label!("Lbignum_mod_n25519_writeback", 3, After)),
 
-        Q!(Label!("bignum_mod_n25519_loop", 4) ":"),
+        Q!(Label!("Lbignum_mod_n25519_loop", 4) ":"),
 
         // Assume that the new 5-digit x is 2^64 * previous_x + next_digit.
         // Get the quotient estimate q = max (floor(x/2^252)) (2^64 - 1)
@@ -224,33 +224,33 @@ pub(crate) fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64]) {
         Q!("    adcs            " m2!() ", " t2!() ", xzr"),
         Q!("    adc             " m3!() ", " t3!() ", " m3!()),
 
-        Q!("    cbnz            " k!() ", " Label!("bignum_mod_n25519_loop", 4, Before)),
+        Q!("    cbnz            " k!() ", " Label!("Lbignum_mod_n25519_loop", 4, Before)),
 
         // Finally write back [m3;m2;m1;m0] and return
 
-        Q!(Label!("bignum_mod_n25519_writeback", 3) ":"),
+        Q!(Label!("Lbignum_mod_n25519_writeback", 3) ":"),
         Q!("    stp             " m0!() ", " m1!() ", [" z!() "]"),
         Q!("    stp             " m2!() ", " m3!() ", [" z!() ", #16]"),
-        // linear hoisting in -> b after bignum_mod_n25519_short
+        // linear hoisting in -> b after Lbignum_mod_n25519_short
         Q!("    b               " Label!("hoist_finish", 5, After)),
 
         // Short case: just copy the input with zero-padding
 
-        Q!(Label!("bignum_mod_n25519_short", 2) ":"),
+        Q!(Label!("Lbignum_mod_n25519_short", 2) ":"),
         Q!("    mov             " m0!() ", xzr"),
         Q!("    mov             " m1!() ", xzr"),
         Q!("    mov             " m2!() ", xzr"),
         Q!("    mov             " m3!() ", xzr"),
 
-        Q!("    cbz             " k!() ", " Label!("bignum_mod_n25519_writeback", 3, Before)),
+        Q!("    cbz             " k!() ", " Label!("Lbignum_mod_n25519_writeback", 3, Before)),
         Q!("    ldr             " m0!() ", [" x!() "]"),
         Q!("    subs            " k!() ", " k!() ", #1"),
-        Q!("    beq             " Label!("bignum_mod_n25519_writeback", 3, Before)),
+        Q!("    beq             " Label!("Lbignum_mod_n25519_writeback", 3, Before)),
         Q!("    ldr             " m1!() ", [" x!() ", #8]"),
         Q!("    subs            " k!() ", " k!() ", #1"),
-        Q!("    beq             " Label!("bignum_mod_n25519_writeback", 3, Before)),
+        Q!("    beq             " Label!("Lbignum_mod_n25519_writeback", 3, Before)),
         Q!("    ldr             " m2!() ", [" x!() ", #16]"),
-        Q!("    b               " Label!("bignum_mod_n25519_writeback", 3, Before)),
+        Q!("    b               " Label!("Lbignum_mod_n25519_writeback", 3, Before)),
         Q!(Label!("hoist_finish", 5) ":"),
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.len() => _,

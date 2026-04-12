@@ -52,7 +52,7 @@ macro_rules! res { () => { Q!("QWORD PTR [rsp + (28 * " N!() ")]") } }
 
 // Total size to reserve on the stack
 
-macro_rules! NSPACE { () => { Q!("(30 * " N!() ")") } }
+macro_rules! NSPACE { () => { Q!("30 * " N!()) } }
 
 // Syntactic variants to make x86_att version simpler to generate
 
@@ -1044,6 +1044,7 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
+
         Q!("    endbr64         " ),
 
         // Save registers and make room for temporaries
@@ -1131,9 +1132,9 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         Q!("    mov             " i!() ", 10"),
         Q!("    mov             " d!() ", 1"),
-        Q!("    jmp             " Label!("bignum_inv_p256_midloop", 2, After)),
+        Q!("    jmp             " Label!("Lbignum_inv_p256_midloop", 2, After)),
 
-        Q!(Label!("bignum_inv_p256_loop", 3) ":"),
+        Q!(Label!("Lbignum_inv_p256_loop", 3) ":"),
 
         // Separate out the matrix into sign-magnitude pairs
 
@@ -1462,7 +1463,7 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         amontred!(v!()),
 
-        Q!(Label!("bignum_inv_p256_midloop", 2) ":"),
+        Q!(Label!("Lbignum_inv_p256_midloop", 2) ":"),
 
         divstep59!(d!(), ff!(), gg!()),
         Q!("    mov             " d!() ", rsi"),
@@ -1470,7 +1471,7 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Next iteration
 
         Q!("    dec             " i!()),
-        Q!("    jnz             " Label!("bignum_inv_p256_loop", 3, Before)),
+        Q!("    jnz             " Label!("Lbignum_inv_p256_loop", 3, Before)),
 
         // The 10th and last iteration does not need anything except the
         // u value and the sign of f; the latter can be obtained from the

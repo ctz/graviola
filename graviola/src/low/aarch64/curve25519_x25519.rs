@@ -87,7 +87,7 @@ macro_rules! s { () => { Q!("sp, # (9 * " NUMSIZE!() ")") } }
 
 // Total size to reserve on the stack
 
-macro_rules! NSPACE { () => { Q!("(10 * " NUMSIZE!() ")") } }
+macro_rules! NSPACE { () => { Q!("10 * " NUMSIZE!()) } }
 
 // Macro wrapping up the basic field operation bignum_mul_p25519_alt, only
 // trivially different from a pure function call to that subroutine.
@@ -507,10 +507,10 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
 
         // Save regs and make room for temporaries
 
-        Q!("    stp             " "x19, x20, [sp, -16] !"),
-        Q!("    stp             " "x21, x22, [sp, -16] !"),
-        Q!("    stp             " "x23, x24, [sp, -16] !"),
-        Q!("    sub             " "sp, sp, # " NSPACE!()),
+        Q!("    stp             " "x19, x20, [sp, #-16] !"),
+        Q!("    stp             " "x21, x22, [sp, #-16] !"),
+        Q!("    stp             " "x23, x24, [sp, #-16] !"),
+        Q!("    sub             " "sp, sp, # (" NSPACE!() "+ 0)"),
 
         // Move the output pointer to a stable place
 
@@ -566,7 +566,7 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
 
         Q!("    mov             " i!() ", #253"),
 
-        Q!(Label!("curve25519_x25519_alt_scalarloop", 2) ":"),
+        Q!(Label!("Lcurve25519_x25519_alt_scalarloop", 2) ":"),
 
         // sm = xm + zm; sn = xn + zn; dm = xm - zm; dn = xn - zn
 
@@ -638,7 +638,7 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
 
         Q!("    sub             " i!() ", " i!() ", #1"),
         Q!("    cmp             " i!() ", #3"),
-        Q!("    bcs             " Label!("curve25519_x25519_alt_scalarloop", 2, Before)),
+        Q!("    bcs             " Label!("Lcurve25519_x25519_alt_scalarloop", 2, Before)),
 
         // Multiplex directly into (xn,zn) then do three pure doubling steps;
         // this accounts for the implicit zeroing of the three lowest bits
@@ -740,8 +740,8 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
         Q!("    stp             " "x12, x13, [sp, #112]"),
         Q!("    mov             " "x21, #0xa"),
         Q!("    mov             " "x22, #0x1"),
-        Q!("    b               " Label!("curve25519_x25519_alt_invmidloop", 3, After)),
-        Q!(Label!("curve25519_x25519_alt_invloop", 4) ":"),
+        Q!("    b               " Label!("Lcurve25519_x25519_alt_invmidloop", 3, After)),
+        Q!(Label!("Lcurve25519_x25519_alt_invloop", 4) ":"),
         Q!("    cmp             " "x10, xzr"),
         Q!("    csetm           " "x14, mi"),
         Q!("    cneg            " "x10, x10, mi"),
@@ -1008,7 +1008,7 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
         Q!("    adc             " "x2, x2, x5"),
         Q!("    stp             " "x0, x1, [sp, #96]"),
         Q!("    stp             " "x3, x2, [sp, #112]"),
-        Q!(Label!("curve25519_x25519_alt_invmidloop", 3) ":"),
+        Q!(Label!("Lcurve25519_x25519_alt_invmidloop", 3) ":"),
         Q!("    mov             " "x1, x22"),
         Q!("    ldr             " "x2, [sp]"),
         Q!("    ldr             " "x3, [sp, #32]"),
@@ -1619,7 +1619,7 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
         Q!("    msub            " "x13, x15, x17, x5"),
         Q!("    mov             " "x22, x1"),
         Q!("    subs            " "x21, x21, #0x1"),
-        Q!("    b.ne            " Label!("curve25519_x25519_alt_invloop", 4, Before)),
+        Q!("    b.ne            " Label!("Lcurve25519_x25519_alt_invloop", 4, Before)),
         Q!("    ldr             " "x0, [sp]"),
         Q!("    ldr             " "x1, [sp, #32]"),
         Q!("    mul             " "x0, x0, x10"),
@@ -1733,10 +1733,10 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
 
         // Restore stack and registers
 
-        Q!("    add             " "sp, sp, # " NSPACE!()),
-        Q!("    ldp             " "x23, x24, [sp], 16"),
-        Q!("    ldp             " "x21, x22, [sp], 16"),
-        Q!("    ldp             " "x19, x20, [sp], 16"),
+        Q!("    add             " "sp, sp, # (" NSPACE!() "+ 0)"),
+        Q!("    ldp             " "x23, x24, [sp], #16"),
+        Q!("    ldp             " "x21, x22, [sp], #16"),
+        Q!("    ldp             " "x19, x20, [sp], #16"),
 
         inout("x0") res.as_mut_ptr() => _,
         inout("x1") scalar.as_ptr() => _,
