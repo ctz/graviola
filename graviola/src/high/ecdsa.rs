@@ -255,6 +255,12 @@ impl<C: Curve> SigningKey<C> {
     }
 }
 
+impl<C: Curve> core::fmt::Debug for SigningKey<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SigningKey").finish()
+    }
+}
+
 /// An ECDSA verification key, on curve `C`.
 pub struct VerifyingKey<C: Curve> {
     /// The public key.
