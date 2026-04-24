@@ -1128,13 +1128,11 @@ mod tests {
         println!(
             "pub(super) static CURVE_GENERATOR_PRECOMP_W5: super::JacobianMontPointTableW5 = ["
         );
-        let mut i = 1;
-        for point in precomp.chunks_exact(18) {
+        for (i, point) in (1..).zip(precomp.chunks_exact(18)) {
             println!("// {i}G");
             for p in point {
                 println!("            0x{p:016x}, ");
             }
-            i += 1;
         }
         println!("];");
 

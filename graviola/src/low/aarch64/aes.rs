@@ -486,6 +486,7 @@ mod tests {
 
     fn to_u128(v: uint8x16_t) -> u128 {
         let mut buf = [0u8; 16];
+        // SAFETY: This crate requires the `neon` cpu feature.
         unsafe {
             vst1q_u8(buf.as_mut_ptr(), v);
         }
