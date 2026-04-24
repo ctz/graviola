@@ -521,8 +521,7 @@ impl JacobianMontPoint {
             digit,
         ));
 
-        let mut index = 1;
-        for (digit, sign) in terms {
+        for (index, (digit, sign)) in (1..).zip(terms) {
             let tmp = if SECRET {
                 let mut tmp = AffineMontPoint::lookup_w7(&precomp[index], digit);
                 tmp.maybe_negate_y(sign);
@@ -536,7 +535,6 @@ impl JacobianMontPoint {
             };
 
             result.add_inplace_affine(&tmp);
-            index += 1;
         }
 
         result
