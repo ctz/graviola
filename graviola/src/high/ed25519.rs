@@ -165,6 +165,12 @@ impl Ed25519SigningKey {
     }
 }
 
+impl core::fmt::Debug for Ed25519SigningKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Ed25519SigningKey").finish()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
