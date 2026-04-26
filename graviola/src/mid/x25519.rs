@@ -99,7 +99,9 @@ impl StaticPrivateKey {
     /// Extract the bytes of this private key.
     pub fn as_bytes(&self) -> [u8; Self::BYTES] {
         let _entry = low::Entry::new_secret();
-        util::u64x4_to_little_endian(&self.0.0)
+        let bytes = util::u64x4_to_little_endian(&self.0.0);
+        low::ct::public_slice(&bytes);
+        bytes
     }
 
     /// Generate a new key using the system random number generator.
@@ -162,6 +164,15 @@ impl PublicKey {
 
 /// A shared secret resulting from a X25519 Diffie-Hellman operation.
 pub struct SharedSecret(pub [u8; 32]);
+
+impl SharedSecret {
+    /// Extract the bytes of this shared secret.
+    pub fn as_bytes(&self) -> [u8; 32] {
+        let bytes = self.0;
+        low::ct::public_slice(&bytes);
+        bytes
+    }
+}
 
 impl Drop for SharedSecret {
     fn drop(&mut self) {
@@ -262,8 +273,8 @@ mod tests {
         let key2 = StaticPrivateKey::new_random().unwrap();
         assert_ne!(key1.as_bytes(), key2.as_bytes());
         assert_eq!(
-            key1.diffie_hellman(&key2.public_key()).unwrap().0,
-            key2.diffie_hellman(&key1.public_key()).unwrap().0
+            key1.diffie_hellman(&key2.public_key()).unwrap().as_bytes(),
+            key2.diffie_hellman(&key1.public_key()).unwrap().as_bytes()
         );
     }
 }
