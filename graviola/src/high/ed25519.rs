@@ -168,6 +168,7 @@ impl Ed25519SigningKey {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::low::ct;
 
     #[test]
     fn pairwise() {
@@ -185,7 +186,7 @@ mod tests {
     #[test]
     fn test_round_trip_seed() {
         let seed = [0xff; 32];
-        let key = Ed25519SigningKey::from_bytes(&seed).unwrap();
+        let key = ct::into_public(Ed25519SigningKey::from_bytes(&seed)).unwrap();
         assert_eq!(key.as_seed(), &seed);
     }
 
@@ -207,6 +208,7 @@ mod tests {
 
         let mut buf = vec![0; bytes.len()];
         let buf = key.to_pkcs8_der(&mut buf).unwrap();
+        ct::public_slice(buf);
         assert_eq!(bytes, buf);
     }
 
