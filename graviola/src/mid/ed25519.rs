@@ -47,7 +47,7 @@ impl SigningKey {
             seed: *seed,
             prefix,
             s,
-            verifying_key: VerifyingKey { point, bytes },
+            verifying_key: low::ct::into_public(VerifyingKey { point, bytes }),
         }
     }
 

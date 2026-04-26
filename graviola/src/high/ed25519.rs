@@ -5,8 +5,7 @@ use crate::Error;
 use crate::error::KeyFormatError;
 use crate::high::asn1::{self, Type, pkix};
 use crate::high::pkcs8;
-use crate::low::Entry;
-use crate::low::zeroise;
+use crate::low::{Entry, ct, zeroise};
 use crate::mid::ed25519;
 use crate::mid::rng::{RandomSource, SystemRandom};
 
@@ -142,13 +141,20 @@ impl Ed25519SigningKey {
 
         let public_key = self.public_key().as_bytes();
 
-        pkcs8::Key::construct(
+        match pkcs8::Key::construct(
             &private_key_buf[..],
             Some(&public_key[..]),
             asn1::oid::id_ed25519.clone(),
             None,
         )
         .encode(output)
+        {
+            Ok(bytes) => {
+                ct::public_slice(bytes);
+                Ok(bytes)
+            }
+            Err(e) => Err(e),
+        }
     }
 
     /// Load an Ed25519 private key from a 32-byte seed.
@@ -160,8 +166,8 @@ impl Ed25519SigningKey {
     }
 
     /// Return a reference to the 32-byte seed.
-    pub fn as_seed(&self) -> &[u8; 32] {
-        self.0.as_seed_bytes()
+    pub fn as_seed(&self) -> [u8; 32] {
+        ct::into_public(*self.0.as_seed_bytes())
     }
 }
 
@@ -186,7 +192,7 @@ mod tests {
     fn test_round_trip_seed() {
         let seed = [0xff; 32];
         let key = Ed25519SigningKey::from_bytes(&seed).unwrap();
-        assert_eq!(key.as_seed(), &seed);
+        assert_eq!(key.as_seed(), seed);
     }
 
     #[test]
