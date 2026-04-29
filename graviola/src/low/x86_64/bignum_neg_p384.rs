@@ -71,6 +71,7 @@ pub(crate) fn bignum_neg_p384(z: &mut [u64; 6], x: &[u64; 6]) {
     unsafe {
         core::arch::asm!(
 
+
         Q!("    endbr64         " ),
 
 

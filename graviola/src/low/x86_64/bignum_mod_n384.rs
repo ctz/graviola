@@ -83,6 +83,7 @@ pub(crate) fn bignum_mod_n384(z: &mut [u64; 6], x: &[u64; 6]) {
     unsafe {
         core::arch::asm!(
 
+
         Q!("    endbr64         " ),
 
 
