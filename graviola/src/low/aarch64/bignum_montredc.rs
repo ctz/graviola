@@ -147,9 +147,10 @@ pub(crate) fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64) {
         core::arch::asm!(
 
 
+
         // If k = 0 the whole operation is trivial
 
-        Q!("    cbz             " k!() ", " Label!("bignum_montredc_end", 2, After)),
+        Q!("    cbz             " k!() ", " Label!("Lbignum_montredc_end", 2, After)),
 
         // Compute word-level negated modular inverse w for m == m[0].
         // This is essentially the same as word_negmodinv.
@@ -173,36 +174,36 @@ pub(crate) fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64) {
         Q!("    cmp             " n!() ", " k!()),
         Q!("    csel            " j!() ", " k!() ", " n!() ", cs"),
         Q!("    mov             " i!() ", xzr"),
-        Q!("    cbz             " j!() ", " Label!("bignum_montredc_padloop", 3, After)),
-        Q!(Label!("bignum_montredc_copyloop", 4) ":"),
+        Q!("    cbz             " j!() ", " Label!("Lbignum_montredc_padloop", 3, After)),
+        Q!(Label!("Lbignum_montredc_copyloop", 4) ":"),
         Q!("    ldr             " a!() ", [" x!() ", " i!() ", lsl #3]"),
         Q!("    str             " a!() ", [" z!() ", " i!() ", lsl #3]"),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    cmp             " i!() ", " j!()),
-        Q!("    bcc             " Label!("bignum_montredc_copyloop", 4, Before)),
+        Q!("    bcc             " Label!("Lbignum_montredc_copyloop", 4, Before)),
 
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    bcs             " Label!("bignum_montredc_initialized", 5, After)),
+        Q!("    bcs             " Label!("Lbignum_montredc_initialized", 5, After)),
 
-        Q!(Label!("bignum_montredc_padloop", 3) ":"),
+        Q!(Label!("Lbignum_montredc_padloop", 3) ":"),
         Q!("    str             " "xzr, [" z!() ", " i!() ", lsl #3]"),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    bcc             " Label!("bignum_montredc_padloop", 3, Before)),
+        Q!("    bcc             " Label!("Lbignum_montredc_padloop", 3, Before)),
 
-        Q!(Label!("bignum_montredc_initialized", 5) ":"),
+        Q!(Label!("Lbignum_montredc_initialized", 5) ":"),
         Q!("    mov             " c!() ", xzr"),
 
         // Now if p = 0 we just need the corrective tail, and even that is
         // only needed for the case when the input is exactly the modulus,
         // to maintain the <= 2^64p * n precondition
 
-        Q!("    cbz             " p!() ", " Label!("bignum_montredc_corrective", 6, After)),
+        Q!("    cbz             " p!() ", " Label!("Lbignum_montredc_corrective", 6, After)),
 
         // Outer loop, just doing a standard Montgomery reduction on z
 
         Q!("    mov             " i!() ", xzr"),
-        Q!(Label!("bignum_montredc_outerloop", 7) ":"),
+        Q!(Label!("Lbignum_montredc_outerloop", 7) ":"),
 
         Q!("    ldr             " e!() ", [" z!() "]"),
         Q!("    mul             " d!() ", " e!() ", " w!()),
@@ -212,8 +213,8 @@ pub(crate) fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64) {
         Q!("    adds            " e!() ", " e!() ", " l!()),
         Q!("    mov             " j!() ", #1"),
         Q!("    sub             " a!() ", " k!() ", #1"),
-        Q!("    cbz             " a!() ", " Label!("bignum_montredc_montend", 8, After)),
-        Q!(Label!("bignum_montredc_montloop", 9) ":"),
+        Q!("    cbz             " a!() ", " Label!("Lbignum_montredc_montend", 8, After)),
+        Q!(Label!("Lbignum_montredc_montloop", 9) ":"),
         Q!("    ldr             " a!() ", [" m!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " e!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    mul             " l!() ", " d!() ", " a!()),
@@ -225,17 +226,17 @@ pub(crate) fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64) {
         Q!("    str             " e!() ", [" z!() ", " l!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("bignum_montredc_montloop", 9, Before)),
-        Q!(Label!("bignum_montredc_montend", 8) ":"),
+        Q!("    cbnz            " a!() ", " Label!("Lbignum_montredc_montloop", 9, Before)),
+        Q!(Label!("Lbignum_montredc_montend", 8) ":"),
         Q!("    adcs            " h!() ", " h!() ", " c!()),
         Q!("    adc             " c!() ", xzr, xzr"),
         Q!("    add             " j!() ", " j!() ", " i!()),
         Q!("    cmp             " j!() ", " n!()),
-        Q!("    bcs             " Label!("bignum_montredc_offtheend", 12, After)),
+        Q!("    bcs             " Label!("Lbignum_montredc_offtheend", 12, After)),
         Q!("    ldr             " a!() ", [" x!() ", " j!() ", lsl #3]"),
         Q!("    adds            " h!() ", " h!() ", " a!()),
         Q!("    adc             " c!() ", " c!() ", xzr"),
-        Q!(Label!("bignum_montredc_offtheend", 12) ":"),
+        Q!(Label!("Lbignum_montredc_offtheend", 12) ":"),
         Q!("    sub             " j!() ", " k!() ", #1"),
         Q!("    str             " h!() ", [" z!() ", " j!() ", lsl #3]"),
 
@@ -243,21 +244,21 @@ pub(crate) fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64) {
 
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    cmp             " i!() ", " p!()),
-        Q!("    bcc             " Label!("bignum_montredc_outerloop", 7, Before)),
+        Q!("    bcc             " Label!("Lbignum_montredc_outerloop", 7, Before)),
 
         // Now do a comparison of (c::z) with (0::m) to set a final correction mask
         // indicating that (c::z) >= m and so we need to subtract m.
 
-        Q!(Label!("bignum_montredc_corrective", 6) ":"),
+        Q!(Label!("Lbignum_montredc_corrective", 6) ":"),
 
         Q!("    subs            " j!() ", xzr, xzr"),
-        Q!(Label!("bignum_montredc_cmploop", 13) ":"),
+        Q!(Label!("Lbignum_montredc_cmploop", 13) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " e!() ", [" m!() ", " j!() ", lsl #3]"),
         Q!("    sbcs            " "xzr, " a!() ", " e!()),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("bignum_montredc_cmploop", 13, Before)),
+        Q!("    cbnz            " a!() ", " Label!("Lbignum_montredc_cmploop", 13, Before)),
 
         Q!("    sbcs            " "xzr, " c!() ", xzr"),
         Q!("    csetm           " c!() ", cs"),
@@ -265,7 +266,7 @@ pub(crate) fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64) {
         // Now do a masked subtraction of m for the final reduced result.
 
         Q!("    subs            " j!() ", xzr, xzr"),
-        Q!(Label!("bignum_montredc_corrloop", 14) ":"),
+        Q!(Label!("Lbignum_montredc_corrloop", 14) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    ldr             " e!() ", [" m!() ", " j!() ", lsl #3]"),
         Q!("    and             " e!() ", " e!() ", " c!()),
@@ -273,9 +274,9 @@ pub(crate) fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64) {
         Q!("    str             " a!() ", [" z!() ", " j!() ", lsl #3]"),
         Q!("    add             " j!() ", " j!() ", #1"),
         Q!("    sub             " a!() ", " j!() ", " k!()),
-        Q!("    cbnz            " a!() ", " Label!("bignum_montredc_corrloop", 14, Before)),
+        Q!("    cbnz            " a!() ", " Label!("Lbignum_montredc_corrloop", 14, Before)),
 
-        Q!(Label!("bignum_montredc_end", 2) ":"),
+        Q!(Label!("Lbignum_montredc_end", 2) ":"),
         inout("x0") z.len() => _,
         inout("x1") z.as_mut_ptr() => _,
         inout("x2") x.len() => _,

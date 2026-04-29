@@ -105,6 +105,7 @@ pub(crate) fn bignum_negmodinv(z: &mut [u64], x: &[u64]) {
     unsafe {
         core::arch::asm!(
 
+
         Q!("    endbr64         " ),
 
 
@@ -114,7 +115,7 @@ pub(crate) fn bignum_negmodinv(z: &mut [u64], x: &[u64]) {
         // If k = 0 do nothing (actually we could have avoiding the pushes and pops)
 
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("bignum_negmodinv_end", 2, After)),
+        Q!("    jz              " Label!("Lbignum_negmodinv_end", 2, After)),
 
         // Move the x pointer into its permanent home (rdx is needed for muls)
 
@@ -157,7 +158,7 @@ pub(crate) fn bignum_negmodinv(z: &mut [u64], x: &[u64]) {
 
         Q!("    mov             " "[" z!() "], " w!()),
         Q!("    cmp             " k!() ", 1"),
-        Q!("    jz              " Label!("bignum_negmodinv_end", 2, After)),
+        Q!("    jz              " Label!("Lbignum_negmodinv_end", 2, After)),
 
         // Otherwise compute and write the other digits (1..k-1) of w * x + 1
 
@@ -167,7 +168,7 @@ pub(crate) fn bignum_negmodinv(z: &mut [u64], x: &[u64]) {
         Q!("    add             " a!() ", 1"),
         Q!("    adc             " h!() ", " d!()),
         Q!("    mov             " ishort!() ", 1"),
-        Q!(Label!("bignum_negmodinv_initloop", 3) ":"),
+        Q!(Label!("Lbignum_negmodinv_initloop", 3) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
         Q!("    mul             " w!()),
         Q!("    add             " a!() ", " h!()),
@@ -176,7 +177,7 @@ pub(crate) fn bignum_negmodinv(z: &mut [u64], x: &[u64]) {
         Q!("    mov             " h!() ", " d!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("bignum_negmodinv_initloop", 3, Before)),
+        Q!("    jc              " Label!("Lbignum_negmodinv_initloop", 3, Before)),
 
         // For simpler indexing, z := z + 8 and k := k - 1 per outer iteration
         // Then we can use the same index for x and for z and effective size k.
@@ -190,9 +191,9 @@ pub(crate) fn bignum_negmodinv(z: &mut [u64], x: &[u64]) {
         // since we do one outer loop iteration too few.
 
         Q!("    sub             " k!() ", 2"),
-        Q!("    jz              " Label!("bignum_negmodinv_finale", 4, After)),
+        Q!("    jz              " Label!("Lbignum_negmodinv_finale", 4, After)),
 
-        Q!(Label!("bignum_negmodinv_outerloop", 5) ":"),
+        Q!(Label!("Lbignum_negmodinv_outerloop", 5) ":"),
         Q!("    add             " z!() ", 8"),
 
         Q!("    mov             " h!() ", [" z!() "]"),
@@ -206,7 +207,7 @@ pub(crate) fn bignum_negmodinv(z: &mut [u64], x: &[u64]) {
         Q!("    mov             " h!() ", " d!()),
         Q!("    mov             " ishort!() ", 1"),
         Q!("    mov             " t!() ", " k!()),
-        Q!(Label!("bignum_negmodinv_innerloop", 6) ":"),
+        Q!(Label!("Lbignum_negmodinv_innerloop", 6) ":"),
         Q!("    adc             " h!() ", [" z!() "+ 8 * " i!() "]"),
         Q!("    sbb             " e!() ", " e!()),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
@@ -217,17 +218,17 @@ pub(crate) fn bignum_negmodinv(z: &mut [u64], x: &[u64]) {
         Q!("    mov             " h!() ", " d!()),
         Q!("    inc             " i!()),
         Q!("    dec             " t!()),
-        Q!("    jnz             " Label!("bignum_negmodinv_innerloop", 6, Before)),
+        Q!("    jnz             " Label!("Lbignum_negmodinv_innerloop", 6, Before)),
 
         Q!("    dec             " k!()),
-        Q!("    jnz             " Label!("bignum_negmodinv_outerloop", 5, Before)),
+        Q!("    jnz             " Label!("Lbignum_negmodinv_outerloop", 5, Before)),
 
-        Q!(Label!("bignum_negmodinv_finale", 4) ":"),
+        Q!(Label!("Lbignum_negmodinv_finale", 4) ":"),
         Q!("    mov             " a!() ", [" z!() "+ 8]"),
         Q!("    imul            " a!() ", " w!()),
         Q!("    mov             " "[" z!() "+ 8], " a!()),
 
-        Q!(Label!("bignum_negmodinv_end", 2) ":"),
+        Q!(Label!("Lbignum_negmodinv_end", 2) ":"),
         Q!("    pop             " "r12"),
         Q!("    pop             " "rbx"),
         inout("rdi") z.len() => _,

@@ -62,6 +62,7 @@ pub(crate) fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64 {
     unsafe {
         core::arch::asm!(
 
+
         Q!("    endbr64         " ),
 
 
@@ -72,51 +73,51 @@ pub(crate) fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64 {
         // Speculatively form m := m - n and do case split
 
         Q!("    sub             " m!() ", " n!()),
-        Q!("    jc              " Label!("bignum_lt_ylonger", 2, After)),
+        Q!("    jc              " Label!("Lbignum_lt_ylonger", 2, After)),
 
         // The case where x is longer or of the same size (m >= n)
 
         Q!("    inc             " m!()),
         Q!("    test            " n!() ", " n!()),
-        Q!("    jz              " Label!("bignum_lt_xtest", 3, After)),
-        Q!(Label!("bignum_lt_xmainloop", 4) ":"),
+        Q!("    jz              " Label!("Lbignum_lt_xtest", 3, After)),
+        Q!(Label!("Lbignum_lt_xmainloop", 4) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
         Q!("    sbb             " a!() ", [" y!() "+ 8 * " i!() "]"),
         Q!("    inc             " i!()),
         Q!("    dec             " n!()),
-        Q!("    jnz             " Label!("bignum_lt_xmainloop", 4, Before)),
-        Q!("    jmp             " Label!("bignum_lt_xtest", 3, After)),
-        Q!(Label!("bignum_lt_xtoploop", 5) ":"),
+        Q!("    jnz             " Label!("Lbignum_lt_xmainloop", 4, Before)),
+        Q!("    jmp             " Label!("Lbignum_lt_xtest", 3, After)),
+        Q!(Label!("Lbignum_lt_xtoploop", 5) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
         Q!("    sbb             " a!() ", 0"),
         Q!("    inc             " i!()),
-        Q!(Label!("bignum_lt_xtest", 3) ":"),
+        Q!(Label!("Lbignum_lt_xtest", 3) ":"),
         Q!("    dec             " m!()),
-        Q!("    jnz             " Label!("bignum_lt_xtoploop", 5, Before)),
+        Q!("    jnz             " Label!("Lbignum_lt_xtoploop", 5, Before)),
         Q!("    sbb             " a!() ", " a!()),
         Q!("    neg             " a!()),
-        // linear hoisting in -> ret after bignum_lt_ytoploop
+        // linear hoisting in -> ret after Lbignum_lt_ytoploop
         Q!("    jmp             " Label!("hoist_finish", 6, After)),
 
         // The case where y is longer (n > m)
 
-        Q!(Label!("bignum_lt_ylonger", 2) ":"),
+        Q!(Label!("Lbignum_lt_ylonger", 2) ":"),
         Q!("    add             " m!() ", " n!()),
         Q!("    sub             " n!() ", " m!()),
         Q!("    test            " m!() ", " m!()),
-        Q!("    jz              " Label!("bignum_lt_ytoploop", 7, After)),
-        Q!(Label!("bignum_lt_ymainloop", 8) ":"),
+        Q!("    jz              " Label!("Lbignum_lt_ytoploop", 7, After)),
+        Q!(Label!("Lbignum_lt_ymainloop", 8) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
         Q!("    sbb             " a!() ", [" y!() "+ 8 * " i!() "]"),
         Q!("    inc             " i!()),
         Q!("    dec             " m!()),
-        Q!("    jnz             " Label!("bignum_lt_ymainloop", 8, Before)),
-        Q!(Label!("bignum_lt_ytoploop", 7) ":"),
+        Q!("    jnz             " Label!("Lbignum_lt_ymainloop", 8, Before)),
+        Q!(Label!("Lbignum_lt_ytoploop", 7) ":"),
         Q!("    mov             " ashort!() ", 0"),
         Q!("    sbb             " a!() ", [" y!() "+ 8 * " i!() "]"),
         Q!("    inc             " i!()),
         Q!("    dec             " n!()),
-        Q!("    jnz             " Label!("bignum_lt_ytoploop", 7, Before)),
+        Q!("    jnz             " Label!("Lbignum_lt_ytoploop", 7, Before)),
 
         Q!("    sbb             " a!() ", " a!()),
         Q!("    neg             " a!()),

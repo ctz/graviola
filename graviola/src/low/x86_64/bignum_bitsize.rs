@@ -65,6 +65,7 @@ pub(crate) fn bignum_bitsize(x: &[u64]) -> usize {
     unsafe {
         core::arch::asm!(
 
+
         Q!("    endbr64         " ),
 
 
@@ -75,21 +76,21 @@ pub(crate) fn bignum_bitsize(x: &[u64]) -> usize {
         // If the bignum is zero-length, just return 0
 
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("bignum_bitsize_end", 2, After)),
+        Q!("    jz              " Label!("Lbignum_bitsize_end", 2, After)),
 
         // Use w = a[i-1] to store nonzero words in a bottom-up sweep
         // Set the initial default to be as if we had a 11...11 word directly below
 
         Q!("    mov             " w!() ", -1"),
         Q!("    xor             " j!() ", " j!()),
-        Q!(Label!("bignum_bitsize_loop", 3) ":"),
+        Q!(Label!("Lbignum_bitsize_loop", 3) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " j!() "]"),
         Q!("    inc             " j!()),
         Q!("    test            " a!() ", " a!()),
         Q!("    cmovnz          " i!() ", " j!()),
         Q!("    cmovnz          " w!() ", " a!()),
         Q!("    cmp             " j!() ", " k!()),
-        Q!("    jnz             " Label!("bignum_bitsize_loop", 3, Before)),
+        Q!("    jnz             " Label!("Lbignum_bitsize_loop", 3, Before)),
 
         // Now w = a[i-1] is the highest nonzero word, or in the zero case the
         // default of the "extra" 11...11 = a[0-1]. We now want 64* i - clz(w) =
@@ -102,7 +103,7 @@ pub(crate) fn bignum_bitsize(x: &[u64]) -> usize {
         Q!("    bsr             " w!() ", " w!()),
         Q!("    add             " "rax, " w!()),
 
-        Q!(Label!("bignum_bitsize_end", 2) ":"),
+        Q!(Label!("Lbignum_bitsize_end", 2) ":"),
         inout("rdi") x.len() => _,
         inout("rsi") x.as_ptr() => _,
         out("rax") ret,

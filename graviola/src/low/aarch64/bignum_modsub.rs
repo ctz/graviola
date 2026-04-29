@@ -78,27 +78,28 @@ pub(crate) fn bignum_modsub(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
         core::arch::asm!(
 
 
+
         Q!("    adds            " j!() ", " k!() ", xzr"),
-        Q!("    beq             " Label!("bignum_modsub_end", 2, After)),
+        Q!("    beq             " Label!("Lbignum_modsub_end", 2, After)),
         Q!("    subs            " i!() ", xzr, xzr"),
 
         // Subtract z := x - y and record a mask for the carry x - y < 0
 
-        Q!(Label!("bignum_modsub_subloop", 3) ":"),
+        Q!(Label!("Lbignum_modsub_subloop", 3) ":"),
         Q!("    ldr             " a!() ", [" x!() ", " i!() "]"),
         Q!("    ldr             " b!() ", [" y!() ", " i!() "]"),
         Q!("    sbcs            " a!() ", " a!() ", " b!()),
         Q!("    str             " a!() ", [" z!() ", " i!() "]"),
         Q!("    add             " i!() ", " i!() ", #8"),
         Q!("    sub             " j!() ", " j!() ", #1"),
-        Q!("    cbnz            " j!() ", " Label!("bignum_modsub_subloop", 3, Before)),
+        Q!("    cbnz            " j!() ", " Label!("Lbignum_modsub_subloop", 3, Before)),
         Q!("    csetm           " c!() ", cc"),
 
         // Now do a masked addition z := z + [c] * m
 
         Q!("    mov             " j!() ", " k!()),
         Q!("    adds            " i!() ", xzr, xzr"),
-        Q!(Label!("bignum_modsub_addloop", 4) ":"),
+        Q!(Label!("Lbignum_modsub_addloop", 4) ":"),
         Q!("    ldr             " a!() ", [" z!() ", " i!() "]"),
         Q!("    ldr             " b!() ", [" m!() ", " i!() "]"),
         Q!("    and             " b!() ", " b!() ", " c!()),
@@ -106,9 +107,9 @@ pub(crate) fn bignum_modsub(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
         Q!("    str             " a!() ", [" z!() ", " i!() "]"),
         Q!("    add             " i!() ", " i!() ", #8"),
         Q!("    sub             " j!() ", " j!() ", #1"),
-        Q!("    cbnz            " j!() ", " Label!("bignum_modsub_addloop", 4, Before)),
+        Q!("    cbnz            " j!() ", " Label!("Lbignum_modsub_addloop", 4, Before)),
 
-        Q!(Label!("bignum_modsub_end", 2) ":"),
+        Q!(Label!("Lbignum_modsub_end", 2) ":"),
         inout("x0") z.len() => _,
         inout("x1") z.as_mut_ptr() => _,
         inout("x2") x.as_ptr() => _,
