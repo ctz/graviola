@@ -508,8 +508,8 @@ class RustDriver:
             hoist=hoist,
         )
 
-    def add_const_symbol(self, sym, rename=None, align=None):
-        self.formatter.add_const_symbol(sym, rename=rename, align=align)
+    def add_const_symbol(self, sym):
+        self.formatter.add_const_symbol(sym)
 
     def set_att_syntax(self, att_syntax):
         self.formatter.set_att_syntax(att_syntax)
@@ -615,15 +615,13 @@ use crate::low::macros::*;
             file=self.output,
         )
 
-    def add_const_symbol(self, sym, rename=None, align=None):
+    def add_const_symbol(self, sym):
         self.constant_syms.add(sym)
-        name = rename if rename else sym
-        self.constant_sym_rename[sym] = name
-        self.constant_sym_alignment[name] = align
+        self.constant_sym_rename[sym] = sym
 
         if self.arch.constant_reference_page_offs:
-            self.constant_sym_rename[sym + "@PAGE"] = name
-            self.constant_sym_rename[sym + "@PAGEOFF"] = name
+            self.constant_sym_rename[sym + "@PAGE"] = sym
+            self.constant_sym_rename[sym + "@PAGEOFF"] = sym
 
     def find_label(self, label, defn=False):
         """
@@ -981,33 +979,15 @@ use crate::low::macros::*;
 
             array_type = "[%s; %d]" % (rust_type, len(ca.items))
 
-            if self.constant_sym_alignment[ca.name]:
-                alignment = self.constant_sym_alignment[ca.name]
-                how = "B" + str(alignment)
-
-                rust_type = "%sAligned%sArray%d" % (how, rust_type, len(ca.items))
-                value_start = rust_type + "("
-                value_end = ")"
-
-                if rust_type not in self.emitted_page_aligned_types:
-                    print("#[allow(dead_code)]", file=self.output)
-                    print("#[repr(align(%d))]" % alignment, file=self.output)
-                    print(
-                        "struct %s(%s);\n" % (rust_type, array_type), file=self.output
-                    )
-                    self.emitted_page_aligned_types.add(rust_type)
-            else:
-                rust_type = array_type
-                value_start = ""
-                value_end = ""
+            rust_type = array_type
 
             print(
-                "static %s: %s = %s[" % (ca.name, rust_type, value_start),
+                "static %s: %s = [" % (ca.name, rust_type),
                 file=self.output,
             )
             for line in ca.lines:
                 print("    %s" % line, file=self.output)
-            print("]%s;" % value_end, file=self.output)
+            print("];", file=self.output)
             print("", file=self.output)
 
     def finish_function(self):
