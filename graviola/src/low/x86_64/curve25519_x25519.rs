@@ -92,7 +92,7 @@ macro_rules! d { () => { Q!("rsp + (11 * " NUMSIZE!() ")") } }
 // This includes space for the 3 other variables above
 // and rounds up to a multiple of 32
 
-macro_rules! NSPACE { () => { Q!("(13 * " NUMSIZE!() ")") } }
+macro_rules! NSPACE { () => { Q!("13 * " NUMSIZE!()) } }
 
 // Macro wrapping up the basic field operation bignum_mul_p25519, only
 // trivially different from a pure function call to that subroutine.
@@ -649,6 +649,8 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
     unsafe {
         core::arch::asm!(
 
+        Q!(Label!("curve25519_x25519_byte", 2) ":"),
+
         Q!("    endbr64         " ),
 
 
@@ -729,7 +731,7 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
         Q!("    mov             " "eax, 253"),
         Q!("    mov             " i!() ", rax"),
 
-        Q!(Label!("curve25519_x25519_scalarloop", 2) ":"),
+        Q!(Label!("Lcurve25519_x25519_scalarloop", 3) ":"),
 
         // sm = xm + zm; sn = xn + zn; dm = xm - zm; dn = xn - zn
 
@@ -799,7 +801,7 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
         Q!("    sub             " "rax, 1"),
         Q!("    mov             " i!() ", rax"),
         Q!("    cmp             " "rax, 3"),
-        Q!("    jnc             " Label!("curve25519_x25519_scalarloop", 2, Before)),
+        Q!("    jnc             " Label!("Lcurve25519_x25519_scalarloop", 3, Before)),
 
         // Multiplex directly into (xn,zn) then do three pure doubling steps;
         // this accounts for the implicit zeroing of the three lowest bits
@@ -898,8 +900,8 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
         Q!("    mov             " "[rsp + 0x78], rax"),
         Q!("    mov             " "QWORD PTR [rsp + 0x90], 0xa"),
         Q!("    mov             " "QWORD PTR [rsp + 0x98], 0x1"),
-        Q!("    jmp             " Label!("curve25519_x25519_midloop", 3, After)),
-        Q!(Label!("curve25519_x25519_inverseloop", 4) ":"),
+        Q!("    jmp             " Label!("Lcurve25519_x25519_midloop", 4, After)),
+        Q!(Label!("Lcurve25519_x25519_inverseloop", 5) ":"),
         Q!("    mov             " "r9, r8"),
         Q!("    sar             " "r9, 0x3f"),
         Q!("    xor             " "r8, r9"),
@@ -1190,7 +1192,7 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
         Q!("    shl             " "rax, 0x3f"),
         Q!("    add             " "rsi, rax"),
         Q!("    mov             " "[rsp + 0x78], rsi"),
-        Q!(Label!("curve25519_x25519_midloop", 3) ":"),
+        Q!(Label!("Lcurve25519_x25519_midloop", 4) ":"),
         Q!("    mov             " "rsi, [rsp + 0x98]"),
         Q!("    mov             " "rdx, [rsp]"),
         Q!("    mov             " "rcx, [rsp + 0x20]"),
@@ -2091,7 +2093,7 @@ pub(crate) fn curve25519_x25519(res: &mut [u64; 4], scalar: &[u64; 4], point: &[
         Q!("    lea             " "r12, [rax + rdx]"),
         Q!("    mov             " "[rsp + 0x98], rsi"),
         Q!("    dec             " "QWORD PTR [rsp + 0x90]"),
-        Q!("    jne             " Label!("curve25519_x25519_inverseloop", 4, Before)),
+        Q!("    jne             " Label!("Lcurve25519_x25519_inverseloop", 5, Before)),
         Q!("    mov             " "rax, [rsp]"),
         Q!("    mov             " "rcx, [rsp + 0x20]"),
         Q!("    imul            " "rax, r8"),
