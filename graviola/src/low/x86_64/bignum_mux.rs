@@ -66,22 +66,23 @@ pub(crate) fn bignum_mux(p: u64, z: &mut [u64], x_if_p: &[u64], y_if_not_p: &[u6
     unsafe {
         core::arch::asm!(
 
+
         Q!("    endbr64         " ),
 
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("bignum_mux_end", 2, After)),
+        Q!("    jz              " Label!("Lbignum_mux_end", 2, After)),
 
         Q!("    xor             " i!() ", " i!()),
         Q!("    neg             " b!()),
-        Q!(Label!("bignum_mux_loop", 3) ":"),
+        Q!(Label!("Lbignum_mux_loop", 3) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
         Q!("    mov             " b!() ", [" y!() "+ 8 * " i!() "]"),
         Q!("    cmovnc          " a!() ", " b!()),
         Q!("    mov             " "[" z!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    dec             " k!()),
-        Q!("    jnz             " Label!("bignum_mux_loop", 3, Before)),
-        Q!(Label!("bignum_mux_end", 2) ":"),
+        Q!("    jnz             " Label!("Lbignum_mux_loop", 3, Before)),
+        Q!(Label!("Lbignum_mux_end", 2) ":"),
         inout("rdi") p => _,
         inout("rsi") z.len() => _,
         inout("rdx") z.as_mut_ptr() => _,

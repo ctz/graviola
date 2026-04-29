@@ -83,7 +83,7 @@ macro_rules! resy { () => { Q!("rsp + (" NUMSIZE!() "* 4)") } }
 macro_rules! xd { () => { Q!("rsp + (" NUMSIZE!() "* 5)") } }
 macro_rules! resz { () => { Q!("rsp + (" NUMSIZE!() "* 5)") } }
 
-macro_rules! NSPACE { () => { Q!("(" NUMSIZE!() "* 6)") } }
+macro_rules! NSPACE { () => { Q!(NUMSIZE!() "* 6") } }
 
 // Corresponds exactly to bignum_montmul_p256
 
@@ -507,6 +507,7 @@ pub(crate) fn p256_montjmixadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 8]
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
+
 
         Q!("    endbr64         " ),
 

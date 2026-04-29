@@ -86,25 +86,26 @@ pub(crate) fn bignum_copy_row_from_table_8n(
         core::arch::asm!(
 
 
-        Q!("    cbz             " height!() ", " Label!("bignum_copy_row_from_table_8n_end", 2, After)),
-        Q!("    cbz             " width!() ", " Label!("bignum_copy_row_from_table_8n_end", 2, After)),
+
+        Q!("    cbz             " height!() ", " Label!("Lbignum_copy_row_from_table_8n_end", 2, After)),
+        Q!("    cbz             " width!() ", " Label!("Lbignum_copy_row_from_table_8n_end", 2, After)),
         Q!("    mov             " i!() ", " width!()),
         Q!("    mov             " "x6, " z!()),
         Q!("    dup             " "v16.2d, xzr"),
 
-        Q!(Label!("bignum_copy_row_from_table_8n_initzero", 3) ":"),
+        Q!(Label!("Lbignum_copy_row_from_table_8n_initzero", 3) ":"),
         Q!("    str             " "q16, [x6]"),
         Q!("    str             " "q16, [x6, #16]"),
         Q!("    str             " "q16, [x6, #32]"),
         Q!("    str             " "q16, [x6, #48]"),
         Q!("    add             " "x6, x6, #64"),
         Q!("    subs            " i!() ", " i!() ", #8"),
-        Q!("    bne             " Label!("bignum_copy_row_from_table_8n_initzero", 3, Before)),
+        Q!("    bne             " Label!("Lbignum_copy_row_from_table_8n_initzero", 3, Before)),
 
         Q!("    mov             " i!() ", xzr"),
         Q!("    mov             " "x8, " table!()),
 
-        Q!(Label!("bignum_copy_row_from_table_8n_outerloop", 4) ":"),
+        Q!(Label!("Lbignum_copy_row_from_table_8n_outerloop", 4) ":"),
 
         Q!("    cmp             " i!() ", " idx!()),
         Q!("    csetm           " mask!() ", eq"),
@@ -113,7 +114,7 @@ pub(crate) fn bignum_copy_row_from_table_8n(
         Q!("    mov             " j!() ", " width!()),
         Q!("    mov             " "x9, " z!()),
 
-        Q!(Label!("bignum_copy_row_from_table_8n_innerloop", 5) ":"),
+        Q!(Label!("Lbignum_copy_row_from_table_8n_innerloop", 5) ":"),
 
         Q!("    ldr             " "q17, [x8]"),
         Q!("    ldr             " "q18, [x9]"),
@@ -138,14 +139,14 @@ pub(crate) fn bignum_copy_row_from_table_8n(
         Q!("    add             " "x8, x8, #64"),
         Q!("    add             " "x9, x9, #64"),
         Q!("    subs            " j!() ", " j!() ", #8"),
-        Q!("    bne             " Label!("bignum_copy_row_from_table_8n_innerloop", 5, Before)),
+        Q!("    bne             " Label!("Lbignum_copy_row_from_table_8n_innerloop", 5, Before)),
 
-        Q!(Label!("bignum_copy_row_from_table_8n_innerloop_done", 6) ":"),
+        Q!(Label!("Lbignum_copy_row_from_table_8n_innerloop_done", 6) ":"),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    cmp             " i!() ", " height!()),
-        Q!("    bne             " Label!("bignum_copy_row_from_table_8n_outerloop", 4, Before)),
+        Q!("    bne             " Label!("Lbignum_copy_row_from_table_8n_outerloop", 4, Before)),
 
-        Q!(Label!("bignum_copy_row_from_table_8n_end", 2) ":"),
+        Q!(Label!("Lbignum_copy_row_from_table_8n_end", 2) ":"),
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") table.as_ptr() => _,
         inout("x2") height => _,

@@ -61,20 +61,21 @@ pub(crate) fn bignum_mux(p: u64, z: &mut [u64], x_if_p: &[u64], y_if_not_p: &[u6
         core::arch::asm!(
 
 
-        Q!("    cbz             " k!() ", " Label!("bignum_mux_end", 2, After)),
+
+        Q!("    cbz             " k!() ", " Label!("Lbignum_mux_end", 2, After)),
         Q!("    cmp             " b!() ", #0"),
 
         // We've set cc's from b once and for all and can now re-use "b" as a temporary
 
-        Q!(Label!("bignum_mux_loop", 3) ":"),
+        Q!(Label!("Lbignum_mux_loop", 3) ":"),
         Q!("    sub             " k!() ", " k!() ", #1"),
         Q!("    ldr             " a!() ", [" x!() ", " k!() ", lsl #3]"),
         Q!("    ldr             " b!() ", [" y!() ", " k!() ", lsl #3]"),
         Q!("    csel            " a!() ", " a!() ", " b!() ", ne"),
         Q!("    str             " a!() ", [" z!() ", " k!() ", lsl #3]"),
-        Q!("    cbnz            " k!() ", " Label!("bignum_mux_loop", 3, Before)),
+        Q!("    cbnz            " k!() ", " Label!("Lbignum_mux_loop", 3, Before)),
 
-        Q!(Label!("bignum_mux_end", 2) ":"),
+        Q!(Label!("Lbignum_mux_end", 2) ":"),
         inout("x0") p => _,
         inout("x1") z.len() => _,
         inout("x2") z.as_mut_ptr() => _,

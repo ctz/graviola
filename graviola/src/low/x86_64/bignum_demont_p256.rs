@@ -53,6 +53,7 @@ pub(crate) fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
+
         Q!("    endbr64         " ),
 
 
