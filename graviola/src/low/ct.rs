@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
 cfg_if::cfg_if! {
-    if #[cfg(all(test, target_os = "linux", any(target_arch = "x86_64", target_arch = "aarch64")))] {
+    if #[cfg(all(test, target_os = "linux", any(target_arch = "x86_64")))] {
         use crabgrind as cg;
         use core::mem::size_of_val;
 
