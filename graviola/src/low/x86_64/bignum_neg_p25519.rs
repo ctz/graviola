@@ -72,9 +72,7 @@ pub(crate) fn bignum_neg_p25519(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // Load the 4 digits of x and let q be an OR of all the digits
 

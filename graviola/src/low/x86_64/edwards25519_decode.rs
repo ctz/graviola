@@ -103,12 +103,10 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
 
         // In this case the Windows form literally makes a subroutine call.
         // This avoids hassle arising from subroutine offsets
-
 
         // Save registers and make room for temporaries
 
@@ -473,13 +471,9 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         // proc hoisting in -> ret after Ledwards25519_decode_loop
         Q!("    jmp             " Label!("hoist_finish", 4, After)),
 
-
-
         // *************************************************************
         // Local z = x * y
         // *************************************************************
-
-
 
         Q!(Label!("Ledwards25519_decode_mul_p25519", 3) ":"),
 
@@ -575,16 +569,11 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         Q!("    mov             " "[rdi + 0x18], r11"),
         Q!("    ret             " ),
 
-
-
         // *************************************************************
         // Local z = 2^n * x
         // *************************************************************
 
-
-
         Q!(Label!("Ledwards25519_decode_nsqr_p25519", 2) ":"),
-
 
         // Copy input argument into q
 

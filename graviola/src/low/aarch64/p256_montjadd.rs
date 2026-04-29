@@ -448,8 +448,6 @@ pub(crate) fn p256_montjadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 12]) 
     unsafe {
         core::arch::asm!(
 
-
-
         // Make room on stack for temporary variables
         // Move the input arguments to stable places
 

@@ -83,8 +83,6 @@ pub(crate) fn bignum_shr_small(z: &mut [u64], x: &[u64], c: u8) {
     unsafe {
         core::arch::asm!(
 
-
-
         // Set default carry-in word to 0
 
         Q!("    mov             " b!() ", xzr"),

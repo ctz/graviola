@@ -68,9 +68,7 @@ pub(crate) fn bignum_ctz(x: &[u64]) -> usize {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // If the bignum is zero-length, just return 0
 

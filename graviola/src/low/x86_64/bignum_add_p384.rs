@@ -95,9 +95,7 @@ pub(crate) fn bignum_add_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6]) {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // Add the inputs as 2^384 * c + [d5;d4;d3;d2;d1;d0] = x + y
         // This could be combined with the next block using ADCX and ADOX.

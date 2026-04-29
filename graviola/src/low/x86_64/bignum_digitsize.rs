@@ -54,9 +54,7 @@ pub(crate) fn bignum_digitsize(z: &[u64]) -> usize {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // Initialize the index i and also prepare default return value of 0 (i = rax)
 

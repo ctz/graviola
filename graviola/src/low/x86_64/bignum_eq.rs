@@ -57,9 +57,7 @@ pub(crate) fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // Initialize the accumulated OR of differences to zero
 

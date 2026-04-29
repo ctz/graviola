@@ -212,8 +212,6 @@ pub(crate) fn bignum_coprime(x: &[u64], y: &[u64], t: &mut [u64]) -> bool {
     unsafe {
         core::arch::asm!(
 
-
-
         // We make use of just a couple of additional registers
 
         Q!("    stp             " "x19, x20, [sp, #-16] !"),

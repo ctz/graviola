@@ -239,8 +239,6 @@ pub(crate) fn bignum_modinv(z: &mut [u64], a: &[u64], b: &[u64], t: &mut [u64]) 
     unsafe {
         core::arch::asm!(
 
-
-
         // We make use of registers beyond the modifiable
 
         Q!("    stp             " "x19, x20, [sp, #-16] !"),

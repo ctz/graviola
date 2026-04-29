@@ -491,12 +491,10 @@ pub(crate) fn edwards25519_scalarmuldouble(
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
 
         // In this case the Windows form literally makes a subroutine call.
         // This avoids hassle arising from keeping code and data together.
-
 
         // Save registers, make room for temps, preserve input arguments.
 
@@ -3441,15 +3439,11 @@ pub(crate) fn edwards25519_scalarmuldouble(
         // proc hoisting in -> ret after Ledwards25519_scalarmuldouble_pepadd
         Q!("    jmp             " Label!("hoist_finish", 9, After)),
 
-
-
         // ****************************************************************************
         // Localized versions of subroutines.
         // These are close to the standalone functions "edwards25519_epdouble" etc.,
         // but are only maintaining reduction modulo 2^256 - 38, not 2^255 - 19.
         // ****************************************************************************
-
-
 
         Q!(Label!("Ledwards25519_scalarmuldouble_epdouble", 2) ":"),
 
@@ -3471,10 +3465,6 @@ pub(crate) fn edwards25519_scalarmuldouble(
         Q!("    add             " "rsp, 5 * " NUMSIZE!()),
         Q!("    ret             " ),
 
-
-
-
-
         Q!(Label!("Ledwards25519_scalarmuldouble_pdouble", 6) ":"),
 
         Q!("    sub             " "rsp, 5 * " NUMSIZE!()),
@@ -3493,10 +3483,6 @@ pub(crate) fn edwards25519_scalarmuldouble(
         mul_4!(x_0!(), t1!(), t3!()),
         Q!("    add             " "rsp, 5 * " NUMSIZE!()),
         Q!("    ret             " ),
-
-
-
-
 
         Q!(Label!("Ledwards25519_scalarmuldouble_epadd", 3) ":"),
 
@@ -3522,10 +3508,6 @@ pub(crate) fn edwards25519_scalarmuldouble(
         mul_4!(z_0!(), t1!(), t3!()),
         Q!("    add             " "rsp, 6 * " NUMSIZE!()),
         Q!("    ret             " ),
-
-
-
-
 
         Q!(Label!("Ledwards25519_scalarmuldouble_pepadd", 4) ":"),
 

@@ -126,9 +126,7 @@ pub(crate) fn bignum_demont(z: &mut [u64], x: &[u64], m: &[u64]) {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // Save registers
 

@@ -111,8 +111,6 @@ pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
     unsafe {
         core::arch::asm!(
 
-
-
         // If p = 0 the result is trivial and nothing needs doing
 
         Q!("    cbz             " p!() ", " Label!("Lbignum_mul_end", 2, After)),

@@ -85,9 +85,7 @@ pub(crate) fn bignum_shr_small(z: &mut [u64], x: &[u64], c: u8) {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // Reshuffle registers to put the shift count into CL
 

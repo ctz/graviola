@@ -105,9 +105,7 @@ pub(crate) fn bignum_negmodinv(z: &mut [u64], x: &[u64]) {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         Q!("    push            " "rbx"),
         Q!("    push            " "r12"),

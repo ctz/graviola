@@ -62,9 +62,7 @@ pub(crate) fn bignum_cmp_lt(x: &[u64], y: &[u64]) -> u64 {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // Zero the main index counter for both branches
 

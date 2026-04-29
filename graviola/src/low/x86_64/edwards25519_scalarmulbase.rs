@@ -371,12 +371,10 @@ pub(crate) fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4]) 
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
 
         // In this case the Windows form literally makes a subroutine call.
         // This avoids hassle arising from keeping code and data together.
-
 
         // Save registers, make room for temps, preserve input arguments.
 

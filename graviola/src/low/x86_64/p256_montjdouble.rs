@@ -580,9 +580,7 @@ pub(crate) fn p256_montjdouble(p3: &mut [u64; 12], p1: &[u64; 12]) {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // Save registers and make room on stack for temporary variables
 

@@ -118,8 +118,6 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
     unsafe {
         core::arch::asm!(
 
-
-
         // If k = 0 the whole operation is trivial
 
         Q!("    cbz             " k!() ", " Label!("Lbignum_montifier_end", 2, After)),

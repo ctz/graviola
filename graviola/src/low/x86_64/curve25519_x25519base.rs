@@ -370,14 +370,12 @@ pub(crate) fn curve25519_x25519base(res: &mut [u64; 4], scalar: &[u64; 4]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!(Label!("curve25519_x25519base_byte", 2) ":"),
 
         Q!("    endbr64         " ),
 
         // In this case the Windows form literally makes a subroutine call.
         // This avoids hassle arising from keeping code and data together.
-
 
         // Save registers, make room for temps, preserve input arguments.
 

@@ -77,8 +77,6 @@ pub(crate) fn bignum_modadd(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
     unsafe {
         core::arch::asm!(
 
-
-
         Q!("    adds            " j!() ", " k!() ", xzr"),
         Q!("    beq             " Label!("Lbignum_modadd_end", 2, After)),
         Q!("    adds            " i!() ", xzr, xzr"),

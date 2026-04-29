@@ -83,9 +83,7 @@ pub(crate) fn bignum_neg_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // Load the input digits as [d3;d2;d1;d0] and also set a bitmask q
         // for the input being nonzero, so that we avoid doing -0 = p_256

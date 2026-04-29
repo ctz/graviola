@@ -78,9 +78,7 @@ pub(crate) fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64]) {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // Save extra registers
 

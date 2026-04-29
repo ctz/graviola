@@ -122,8 +122,6 @@ pub(crate) fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64]) {
     unsafe {
         core::arch::asm!(
 
-
-
         // If the input is already <= 3 words long, go to a trivial "copy" path
 
         Q!("    cmp             " k!() ", #4"),

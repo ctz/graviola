@@ -129,8 +129,6 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
     unsafe {
         core::arch::asm!(
 
-
-
         // Save registers and make room for temporaries
 
         Q!("    stp             " "x19, x20, [sp, #-16] !"),
@@ -392,13 +390,9 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         // proc hoisting in -> ret after Ledwards25519_decode_alt_loop
         Q!("    b               " Label!("hoist_finish", 2, After)),
 
-
-
         // *************************************************************
         // Local z = x * y
         // *************************************************************
-
-
 
         Q!(Label!("Ledwards25519_decode_alt_mul_p25519", 3) ":"),
 
@@ -504,16 +498,11 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         Q!("    stp             " "x14, x15, [x0, #16]"),
         Q!("    ret             " ),
 
-
-
         // *************************************************************
         // Local z = 2^n * x
         // *************************************************************
 
-
-
         Q!(Label!("Ledwards25519_decode_alt_nsqr_p25519", 4) ":"),
-
 
         // Copy input argument into [x5;x4;x3;x2] (overwriting input pointer x20
 

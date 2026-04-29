@@ -85,8 +85,6 @@ pub(crate) fn bignum_copy_row_from_table_8n(
     unsafe {
         core::arch::asm!(
 
-
-
         Q!("    cbz             " height!() ", " Label!("Lbignum_copy_row_from_table_8n_end", 2, After)),
         Q!("    cbz             " width!() ", " Label!("Lbignum_copy_row_from_table_8n_end", 2, After)),
         Q!("    mov             " i!() ", " width!()),

@@ -36,7 +36,6 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    endbr64         " ),
         Q!("    push            " "rbp"),
         Q!("    push            " "rbx"),

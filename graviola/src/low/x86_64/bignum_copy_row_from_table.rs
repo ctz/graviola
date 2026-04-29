@@ -71,9 +71,7 @@ pub(crate) fn bignum_copy_row_from_table(
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         Q!("    test            " height!() ", " height!()),
         Q!("    jz              " Label!("Lbignum_copy_row_from_table_end", 2, After)),

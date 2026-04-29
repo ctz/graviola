@@ -131,9 +131,7 @@ pub(crate) fn bignum_tomont_p384(z: &mut [u64; 6], x: &[u64; 6]) {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // We are essentially just doing a Montgomery multiplication of x and the
         // precomputed constant y = 2^768 mod p, so the code is almost the same

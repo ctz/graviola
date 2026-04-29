@@ -508,9 +508,7 @@ pub(crate) fn p256_montjmixadd(p3: &mut [u64; 12], p1: &[u64; 12], p2: &[u64; 8]
     unsafe {
         core::arch::asm!(
 
-
         Q!("    endbr64         " ),
-
 
         // Save registers and make room on stack for temporary variables
         // Put the input y in rbp where it lasts as long as it's needed.

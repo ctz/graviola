@@ -822,8 +822,7 @@ use crate::low::macros::*;
                     """pub(crate) %s {
                     %s
                     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
-                    unsafe { core::arch::asm!(
-                """
+                    unsafe { core::arch::asm!("""
                     % (self.function_state.rust_decl, locals),
                     file=self.output,
                 )
