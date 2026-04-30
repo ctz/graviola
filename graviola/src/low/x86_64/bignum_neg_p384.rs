@@ -70,9 +70,7 @@ pub(crate) fn bignum_neg_p384(z: &mut [u64; 6], x: &[u64; 6]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    endbr64         " ),
-
 
         // Or together the input digits and create a bitmask q if this is nonzero, so
         // that we avoid doing -0 = p_384 and hence maintain strict modular reduction

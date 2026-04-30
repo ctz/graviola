@@ -856,7 +856,6 @@ pub(crate) fn bignum_inv_p384(z: &mut [u64; 6], x: &[u64; 6]) {
     unsafe {
         core::arch::asm!(
 
-
         // Save registers and make room for temporaries
 
         Q!("    stp             " "x19, x20, [sp, -16] !"),

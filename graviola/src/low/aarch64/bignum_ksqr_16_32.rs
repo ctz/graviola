@@ -31,7 +31,6 @@ pub(crate) fn bignum_ksqr_16_32(z: &mut [u64], x: &[u64], t: &mut [u64; 24]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    stp             " "x19, x20, [sp, #-16] !"),
         Q!("    stp             " "x21, x22, [sp, #-16] !"),
         Q!("    stp             " "x23, x24, [sp, #-16] !"),

@@ -78,7 +78,6 @@ pub(crate) fn bignum_add(z: &mut [u64], x: &[u64], y: &[u64]) -> u64 {
     unsafe {
         core::arch::asm!(
 
-
         // First clamp the two input sizes m := min(p,m) and n := min(p,n) since
         // we'll never need words past the p'th. Can now assume m <= p and n <= p.
         // Then compare the modified m and n and branch accordingly

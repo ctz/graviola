@@ -134,7 +134,6 @@ pub(crate) fn bignum_demont_p384(z: &mut [u64; 6], x: &[u64; 6]) {
         core::arch::asm!(
 
 
-
         // Set up an initial window with the input x and an extra leading zero
 
         Q!("    ldp             " d0!() ", " d1!() ", [" x!() "]"),

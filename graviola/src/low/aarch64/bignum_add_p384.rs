@@ -79,7 +79,6 @@ pub(crate) fn bignum_add_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6]) {
     unsafe {
         core::arch::asm!(
 
-
         // First just add the numbers as c + [d5; d4; d3; d2; d1; d0]
 
         Q!("    ldp             " d0!() ", " d1!() ", [" x!() "]"),
