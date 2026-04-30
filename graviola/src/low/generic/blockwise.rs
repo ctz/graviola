@@ -19,6 +19,14 @@ impl<const N: usize> Blockwise<N> {
         self.used
     }
 
+    pub(crate) fn add(&mut self, bytes: &[u8]) {
+        if self.used == 0 {
+            self.add_trailing(bytes);
+        } else {
+            self.add_leading(bytes);
+        }
+    }
+
     pub(crate) fn add_leading<'a>(&mut self, bytes: &'a [u8]) -> &'a [u8] {
         if self.used == 0 {
             return bytes;
