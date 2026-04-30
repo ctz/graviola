@@ -79,7 +79,6 @@ pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
 
         Q!("    endbr64         " ),
 
-
         // Initialize top carry to zero in all cases (also return value)
 
         Q!("    xor             " c!() ", " c!()),
@@ -87,7 +86,7 @@ pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
         // If k = 0 do nothing
 
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("bignum_optsub_end", 2, After)),
+        Q!("    jz              " Label!("Lbignum_optsub_end", 2, After)),
 
         // Convert the nonzero/zero status of p into an all-1s or all-0s mask
 
@@ -97,7 +96,7 @@ pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
         // Now go round the loop for i=0...k-1, saving the carry in c each iteration
 
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_optsub_loop", 3) ":"),
+        Q!(Label!("Lbignum_optsub_loop", 3) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
         Q!("    mov             " b!() ", [" y!() "+ 8 * " i!() "]"),
         Q!("    and             " b!() ", " p!()),
@@ -107,13 +106,13 @@ pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
         Q!("    mov             " "[" z!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("bignum_optsub_loop", 3, Before)),
+        Q!("    jc              " Label!("Lbignum_optsub_loop", 3, Before)),
 
         // Return top carry
 
         Q!("    neg             " "rax"),
 
-        Q!(Label!("bignum_optsub_end", 2) ":"),
+        Q!(Label!("Lbignum_optsub_end", 2) ":"),
         inout("rdi") z.len() => _,
         inout("rsi") z.as_mut_ptr() => _,
         inout("rdx") x.as_ptr() => _,

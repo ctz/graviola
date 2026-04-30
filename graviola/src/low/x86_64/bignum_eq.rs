@@ -59,7 +59,6 @@ pub(crate) fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
 
         Q!("    endbr64         " ),
 
-
         // Initialize the accumulated OR of differences to zero
 
         Q!("    xor             " c!() ", " c!()),
@@ -68,42 +67,42 @@ pub(crate) fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
         // This will drop through for m = n
 
         Q!("    cmp             " m!() ", " n!()),
-        Q!("    jnc             " Label!("bignum_eq_mtest", 2, After)),
+        Q!("    jnc             " Label!("Lbignum_eq_mtest", 2, After)),
 
         // Toploop for the case n > m
 
-        Q!(Label!("bignum_eq_nloop", 3) ":"),
+        Q!(Label!("Lbignum_eq_nloop", 3) ":"),
         Q!("    dec             " n!()),
         Q!("    or              " c!() ", [" y!() "+ 8 * " n!() "]"),
         Q!("    cmp             " m!() ", " n!()),
-        Q!("    jnz             " Label!("bignum_eq_nloop", 3, Before)),
-        Q!("    jmp             " Label!("bignum_eq_mmain", 4, After)),
+        Q!("    jnz             " Label!("Lbignum_eq_nloop", 3, Before)),
+        Q!("    jmp             " Label!("Lbignum_eq_mmain", 4, After)),
 
         // Toploop for the case m > n (or n = m which enters at "mtest")
 
-        Q!(Label!("bignum_eq_mloop", 5) ":"),
+        Q!(Label!("Lbignum_eq_mloop", 5) ":"),
         Q!("    dec             " m!()),
         Q!("    or              " c!() ", [" x!() "+ 8 * " m!() "]"),
         Q!("    cmp             " m!() ", " n!()),
-        Q!(Label!("bignum_eq_mtest", 2) ":"),
-        Q!("    jnz             " Label!("bignum_eq_mloop", 5, Before)),
+        Q!(Label!("Lbignum_eq_mtest", 2) ":"),
+        Q!("    jnz             " Label!("Lbignum_eq_mloop", 5, Before)),
 
         // Combined main loop for the min(m,n) lower words
 
-        Q!(Label!("bignum_eq_mmain", 4) ":"),
+        Q!(Label!("Lbignum_eq_mmain", 4) ":"),
         Q!("    test            " m!() ", " m!()),
-        Q!("    jz              " Label!("bignum_eq_end", 6, After)),
+        Q!("    jz              " Label!("Lbignum_eq_end", 6, After)),
 
-        Q!(Label!("bignum_eq_loop", 7) ":"),
+        Q!(Label!("Lbignum_eq_loop", 7) ":"),
         Q!("    mov             " d!() ", [" x!() "+ 8 * " m!() "-8]"),
         Q!("    xor             " d!() ", [" y!() "+ 8 * " m!() "-8]"),
         Q!("    or              " c!() ", " d!()),
         Q!("    dec             " m!()),
-        Q!("    jnz             " Label!("bignum_eq_loop", 7, Before)),
+        Q!("    jnz             " Label!("Lbignum_eq_loop", 7, Before)),
 
         // Set a standard C condition based on whether c is nonzero
 
-        Q!(Label!("bignum_eq_end", 6) ":"),
+        Q!(Label!("Lbignum_eq_end", 6) ":"),
         Q!("    neg             " c!()),
         Q!("    sbb             " c!() ", " c!()),
         Q!("    inc             " c!()),

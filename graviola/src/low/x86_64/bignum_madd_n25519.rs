@@ -112,7 +112,6 @@ pub(crate) fn bignum_madd_n25519(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4], c
 
         Q!("    endbr64         " ),
 
-
         // Save some additional registers for use
 
         Q!("    push            " "rbx"),

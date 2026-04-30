@@ -108,7 +108,7 @@ pub(crate) fn bignum_demont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
-
+        Q!(Label!("bignum_demont_p256_alt", 2) ":"),
 
         // Set up an initial window with the input x and an extra leading zero
 

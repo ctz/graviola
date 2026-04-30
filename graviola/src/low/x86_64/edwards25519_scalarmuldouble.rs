@@ -60,7 +60,7 @@ macro_rules! res { () => { Q!("QWORD PTR [rsp + 45 * " NUMSIZE!() "+ 24]") } }
 
 // Total size to reserve on the stack (excluding local subroutines)
 
-macro_rules! NSPACE { () => { Q!("(46 * " NUMSIZE!() ")") } }
+macro_rules! NSPACE { () => { Q!("46 * " NUMSIZE!()) } }
 
 // Syntactic variants to make x86_att forms easier to generate
 
@@ -496,8 +496,6 @@ pub(crate) fn edwards25519_scalarmuldouble(
         // In this case the Windows form literally makes a subroutine call.
         // This avoids hassle arising from keeping code and data together.
 
-
-
         // Save registers, make room for temps, preserve input arguments.
 
         Q!("    push            " "rbx"),
@@ -640,46 +638,46 @@ pub(crate) fn edwards25519_scalarmuldouble(
 
         Q!("    lea             " "rdi, [rsp + " TAB!() "+ 1 * 128]"),
         Q!("    lea             " "rsi, [rsp + " TAB!() "]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_epdouble", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_epdouble", 2, After)),
 
         // Multiple 3
 
         Q!("    lea             " "rdi, [rsp + " TAB!() "+ 2 * 128]"),
         Q!("    lea             " "rsi, [rsp + " TAB!() "]"),
         Q!("    lea             " "rbp, [rsp + " TAB!() "+ 1 * 128]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_epadd", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_epadd", 3, After)),
 
         // Multiple 4
 
         Q!("    lea             " "rdi, [rsp + " TAB!() "+ 3 * 128]"),
         Q!("    lea             " "rsi, [rsp + " TAB!() "+ 1 * 128]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_epdouble", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_epdouble", 2, After)),
 
         // Multiple 5
 
         Q!("    lea             " "rdi, [rsp + " TAB!() "+ 4 * 128]"),
         Q!("    lea             " "rsi, [rsp + " TAB!() "]"),
         Q!("    lea             " "rbp, [rsp + " TAB!() "+ 3 * 128]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_epadd", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_epadd", 3, After)),
 
         // Multiple 6
 
         Q!("    lea             " "rdi, [rsp + " TAB!() "+ 5 * 128]"),
         Q!("    lea             " "rsi, [rsp + " TAB!() "+ 2 * 128]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_epdouble", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_epdouble", 2, After)),
 
         // Multiple 7
 
         Q!("    lea             " "rdi, [rsp + " TAB!() "+ 6 * 128]"),
         Q!("    lea             " "rsi, [rsp + " TAB!() "]"),
         Q!("    lea             " "rbp, [rsp + " TAB!() "+ 5 * 128]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_epadd", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_epadd", 3, After)),
 
         // Multiple 8
 
         Q!("    lea             " "rdi, [rsp + " TAB!() "+ 7 * 128]"),
         Q!("    lea             " "rsi, [rsp + " TAB!() "+ 3 * 128]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_epdouble", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_epdouble", 2, After)),
 
         // Handle the initialization, starting the loop counter at i = 252
         // and initializing acc to the sum of the table entries for the
@@ -709,7 +707,7 @@ pub(crate) fn edwards25519_scalarmuldouble(
         Q!("    xor             " "r14d, r14d"),
         Q!("    xor             " "r15d, r15d"),
 
-        Q!("    lea             " "rbp, [rip + {edwards25519_scalarmuldouble_table}]"),
+        Q!("    lea             " "rbp, [rip + {Ledwards25519_scalarmuldouble_table}]"),
 
         Q!("    cmp             " bf!() ", 1"),
         Q!("    mov             " "rsi, [rbp]"),
@@ -1297,12 +1295,12 @@ pub(crate) fn edwards25519_scalarmuldouble(
         Q!("    lea             " "rdi, [rsp + " ACC!() "]"),
         Q!("    lea             " "rsi, [rsp + " TABENT!() "]"),
         Q!("    lea             " "rbp, [rsp + " BTABENT!() "]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_pepadd", 4, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_pepadd", 4, After)),
 
         // Main loop with acc = [scalar/2^i] * point + [bscalar/2^i] * basepoint
         // Start with i = 252 for bits 248..251 and go down four at a time to 3..0
 
-        Q!(Label!("edwards25519_scalarmuldouble_loop", 5) ":"),
+        Q!(Label!("Ledwards25519_scalarmuldouble_loop", 5) ":"),
 
         Q!("    mov             " "rax, " i!()),
         Q!("    sub             " "rax, 4"),
@@ -1312,7 +1310,7 @@ pub(crate) fn edwards25519_scalarmuldouble(
 
         Q!("    lea             " "rdi, [rsp + " ACC!() "]"),
         Q!("    lea             " "rsi, [rsp + " ACC!() "]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_pdouble", 6, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_pdouble", 6, After)),
 
         // Get btable entry, first getting the adjusted bitfield...
 
@@ -1345,7 +1343,7 @@ pub(crate) fn edwards25519_scalarmuldouble(
         Q!("    xor             " "r14d, r14d"),
         Q!("    xor             " "r15d, r15d"),
 
-        Q!("    lea             " "rbp, [rip + {edwards25519_scalarmuldouble_table}]"),
+        Q!("    lea             " "rbp, [rip + {Ledwards25519_scalarmuldouble_table}]"),
 
         Q!("    cmp             " bf!() ", 1"),
         Q!("    mov             " "rsi, [rbp]"),
@@ -2023,39 +2021,39 @@ pub(crate) fn edwards25519_scalarmuldouble(
 
         Q!("    lea             " "rdi, [rsp + " ACC!() "]"),
         Q!("    lea             " "rsi, [rsp + " ACC!() "]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_pdouble", 6, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_pdouble", 6, After)),
 
         // Add tabent := tabent + btabent
 
         Q!("    lea             " "rdi, [rsp + " TABENT!() "]"),
         Q!("    lea             " "rsi, [rsp + " TABENT!() "]"),
         Q!("    lea             " "rbp, [rsp + " BTABENT!() "]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_pepadd", 4, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_pepadd", 4, After)),
 
         // Double to acc' = 8 * acc
 
         Q!("    lea             " "rdi, [rsp + " ACC!() "]"),
         Q!("    lea             " "rsi, [rsp + " ACC!() "]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_pdouble", 6, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_pdouble", 6, After)),
 
         // Double to acc' = 16 * acc
 
         Q!("    lea             " "rdi, [rsp + " ACC!() "]"),
         Q!("    lea             " "rsi, [rsp + " ACC!() "]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_epdouble", 2, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_epdouble", 2, After)),
 
         // Add table entry, acc := acc + tabent
 
         Q!("    lea             " "rdi, [rsp + " ACC!() "]"),
         Q!("    lea             " "rsi, [rsp + " ACC!() "]"),
         Q!("    lea             " "rbp, [rsp + " TABENT!() "]"),
-        Q!("    call            " Label!("edwards25519_scalarmuldouble_epadd", 3, After)),
+        Q!("    call            " Label!("Ledwards25519_scalarmuldouble_epadd", 3, After)),
 
         // Loop down
 
         Q!("    mov             " "rax, " i!()),
         Q!("    test            " "rax, rax"),
-        Q!("    jnz             " Label!("edwards25519_scalarmuldouble_loop", 5, Before)),
+        Q!("    jnz             " Label!("Ledwards25519_scalarmuldouble_loop", 5, Before)),
 
         // Prepare to call the modular inverse function to get tab = 1/z
 
@@ -2117,8 +2115,8 @@ pub(crate) fn edwards25519_scalarmuldouble(
         Q!("    mov             " "[rsp + 0x78], rax"),
         Q!("    mov             " "QWORD PTR [rsp + 0x90], 0xa"),
         Q!("    mov             " "QWORD PTR [rsp + 0x98], 0x1"),
-        Q!("    jmp             " Label!("edwards25519_scalarmuldouble_midloop", 7, After)),
-        Q!(Label!("edwards25519_scalarmuldouble_inverseloop", 8) ":"),
+        Q!("    jmp             " Label!("Ledwards25519_scalarmuldouble_midloop", 7, After)),
+        Q!(Label!("Ledwards25519_scalarmuldouble_inverseloop", 8) ":"),
         Q!("    mov             " "r9, r8"),
         Q!("    sar             " "r9, 0x3f"),
         Q!("    xor             " "r8, r9"),
@@ -2409,7 +2407,7 @@ pub(crate) fn edwards25519_scalarmuldouble(
         Q!("    shl             " "rax, 0x3f"),
         Q!("    add             " "rsi, rax"),
         Q!("    mov             " "[rsp + 0x78], rsi"),
-        Q!(Label!("edwards25519_scalarmuldouble_midloop", 7) ":"),
+        Q!(Label!("Ledwards25519_scalarmuldouble_midloop", 7) ":"),
         Q!("    mov             " "rsi, [rsp + 0x98]"),
         Q!("    mov             " "rdx, [rsp]"),
         Q!("    mov             " "rcx, [rsp + 0x20]"),
@@ -3310,7 +3308,7 @@ pub(crate) fn edwards25519_scalarmuldouble(
         Q!("    lea             " "r12, [rax + rdx]"),
         Q!("    mov             " "[rsp + 0x98], rsi"),
         Q!("    dec             " "QWORD PTR [rsp + 0x90]"),
-        Q!("    jne             " Label!("edwards25519_scalarmuldouble_inverseloop", 8, Before)),
+        Q!("    jne             " Label!("Ledwards25519_scalarmuldouble_inverseloop", 8, Before)),
         Q!("    mov             " "rax, [rsp]"),
         Q!("    mov             " "rcx, [rsp + 0x20]"),
         Q!("    imul            " "rax, r8"),
@@ -3438,7 +3436,7 @@ pub(crate) fn edwards25519_scalarmuldouble(
         Q!("    pop             " "r12"),
         Q!("    pop             " "rbp"),
         Q!("    pop             " "rbx"),
-        // proc hoisting in -> ret after edwards25519_scalarmuldouble_pepadd
+        // proc hoisting in -> ret after Ledwards25519_scalarmuldouble_pepadd
         Q!("    jmp             " Label!("hoist_finish", 9, After)),
 
         // ****************************************************************************
@@ -3447,8 +3445,9 @@ pub(crate) fn edwards25519_scalarmuldouble(
         // but are only maintaining reduction modulo 2^256 - 38, not 2^255 - 19.
         // ****************************************************************************
 
-        Q!(Label!("edwards25519_scalarmuldouble_epdouble", 2) ":"),
-        Q!("    sub             " "rsp, (5 * " NUMSIZE!() ")"),
+        Q!(Label!("Ledwards25519_scalarmuldouble_epdouble", 2) ":"),
+
+        Q!("    sub             " "rsp, 5 * " NUMSIZE!()),
         add_twice4!(t0!(), x_1!(), y_1!()),
         sqr_4!(t1!(), z_1!()),
         sqr_4!(t2!(), x_1!()),
@@ -3463,11 +3462,12 @@ pub(crate) fn edwards25519_scalarmuldouble(
         mul_4!(z_0!(), t3!(), t2!()),
         mul_4!(w_0!(), t1!(), t4!()),
         mul_4!(x_0!(), t1!(), t3!()),
-        Q!("    add             " "rsp, (5 * " NUMSIZE!() ")"),
+        Q!("    add             " "rsp, 5 * " NUMSIZE!()),
         Q!("    ret             " ),
 
-        Q!(Label!("edwards25519_scalarmuldouble_pdouble", 6) ":"),
-        Q!("    sub             " "rsp, (5 * " NUMSIZE!() ")"),
+        Q!(Label!("Ledwards25519_scalarmuldouble_pdouble", 6) ":"),
+
+        Q!("    sub             " "rsp, 5 * " NUMSIZE!()),
         add_twice4!(t0!(), x_1!(), y_1!()),
         sqr_4!(t1!(), z_1!()),
         sqr_4!(t2!(), x_1!()),
@@ -3481,11 +3481,12 @@ pub(crate) fn edwards25519_scalarmuldouble(
         mul_4!(y_0!(), t2!(), t4!()),
         mul_4!(z_0!(), t3!(), t2!()),
         mul_4!(x_0!(), t1!(), t3!()),
-        Q!("    add             " "rsp, (5 * " NUMSIZE!() ")"),
+        Q!("    add             " "rsp, 5 * " NUMSIZE!()),
         Q!("    ret             " ),
 
-        Q!(Label!("edwards25519_scalarmuldouble_epadd", 3) ":"),
-        Q!("    sub             " "rsp, (6 * " NUMSIZE!() ")"),
+        Q!(Label!("Ledwards25519_scalarmuldouble_epadd", 3) ":"),
+
+        Q!("    sub             " "rsp, 6 * " NUMSIZE!()),
         mul_4!(t0!(), w_1!(), w_2!()),
         sub_twice4!(t1!(), y_1!(), x_1!()),
         sub_twice4!(t2!(), y_2!(), x_2!()),
@@ -3505,11 +3506,12 @@ pub(crate) fn edwards25519_scalarmuldouble(
         mul_4!(x_0!(), t0!(), t1!()),
         mul_4!(y_0!(), t3!(), t5!()),
         mul_4!(z_0!(), t1!(), t3!()),
-        Q!("    add             " "rsp, (6 * " NUMSIZE!() ")"),
+        Q!("    add             " "rsp, 6 * " NUMSIZE!()),
         Q!("    ret             " ),
 
-        Q!(Label!("edwards25519_scalarmuldouble_pepadd", 4) ":"),
-        Q!("    sub             " "rsp, (6 * " NUMSIZE!() ")"),
+        Q!(Label!("Ledwards25519_scalarmuldouble_pepadd", 4) ":"),
+
+        Q!("    sub             " "rsp, 6 * " NUMSIZE!()),
         double_twice4!(t0!(), z_1!()),
         sub_twice4!(t1!(), y_1!(), x_1!()),
         add_twice4!(t2!(), y_1!(), x_1!()),
@@ -3524,14 +3526,14 @@ pub(crate) fn edwards25519_scalarmuldouble(
         mul_4!(x_0!(), t5!(), t4!()),
         mul_4!(y_0!(), t0!(), t1!()),
         mul_4!(w_0!(), t5!(), t1!()),
-        Q!("    add             " "rsp, (6 * " NUMSIZE!() ")"),
+        Q!("    add             " "rsp, 6 * " NUMSIZE!()),
         Q!("    ret             " ),
         Q!(Label!("hoist_finish", 9) ":"),
         inout("rdi") res.as_mut_ptr() => _,
         inout("rsi") scalar.as_ptr() => _,
         inout("rdx") point.as_ptr() => _,
         inout("rcx") bscalar.as_ptr() => _,
-        edwards25519_scalarmuldouble_table = sym edwards25519_scalarmuldouble_table,
+        Ledwards25519_scalarmuldouble_table = sym Ledwards25519_scalarmuldouble_table,
         // clobbers
         out("r10") _,
         out("r11") _,
@@ -3557,7 +3559,7 @@ pub(crate) fn edwards25519_scalarmuldouble(
 // Precomputed table of multiples of generator for edwards25519
 // all in precomputed extended-projective (y-x,x+y,2*d*x*y) triples.
 
-static edwards25519_scalarmuldouble_table: [u64; 96] = [
+static Ledwards25519_scalarmuldouble_table: [u64; 96] = [
     // 1 * G
     0x9d103905d740913e,
     0xfd399f05d140beb3,

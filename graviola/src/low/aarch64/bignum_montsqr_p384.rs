@@ -357,7 +357,6 @@ pub(crate) fn bignum_montsqr_p384(z: &mut [u64; 6], x: &[u64; 6]) {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    ldr             " "q1, [x1]"),
         Q!("    ldp             " "x9, x2, [x1]"),
         Q!("    ldr             " "q0, [x1]"),

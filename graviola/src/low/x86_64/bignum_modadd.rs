@@ -75,43 +75,42 @@ pub(crate) fn bignum_modadd(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
 
         Q!("    endbr64         " ),
 
-
         // If k = 0 do nothing
 
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("bignum_modadd_end", 2, After)),
+        Q!("    jz              " Label!("Lbignum_modadd_end", 2, After)),
 
         // First just add (c::z) := x + y
 
         Q!("    xor             " c!() ", " c!()),
         Q!("    mov             " j!() ", " k!()),
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modadd_addloop", 3) ":"),
+        Q!(Label!("Lbignum_modadd_addloop", 3) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
         Q!("    adc             " a!() ", [" y!() "+ 8 * " i!() "]"),
         Q!("    mov             " "[" z!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    dec             " j!()),
-        Q!("    jnz             " Label!("bignum_modadd_addloop", 3, Before)),
+        Q!("    jnz             " Label!("Lbignum_modadd_addloop", 3, Before)),
         Q!("    adc             " c!() ", 0"),
 
         // Now do a comparison subtraction (c::z) - m, recording mask for (c::z) >= m
 
         Q!("    mov             " j!() ", " k!()),
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modadd_cmploop", 4) ":"),
+        Q!(Label!("Lbignum_modadd_cmploop", 4) ":"),
         Q!("    mov             " a!() ", [" z!() "+ 8 * " i!() "]"),
         Q!("    sbb             " a!() ", [" m!() "+ 8 * " i!() "]"),
         Q!("    inc             " i!()),
         Q!("    dec             " j!()),
-        Q!("    jnz             " Label!("bignum_modadd_cmploop", 4, Before)),
+        Q!("    jnz             " Label!("Lbignum_modadd_cmploop", 4, Before)),
         Q!("    sbb             " c!() ", 0"),
         Q!("    not             " c!()),
 
         // Now do a masked subtraction z := z - [c] * m
 
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modadd_subloop", 5) ":"),
+        Q!(Label!("Lbignum_modadd_subloop", 5) ":"),
         Q!("    mov             " a!() ", [" m!() "+ 8 * " i!() "]"),
         Q!("    and             " a!() ", " c!()),
         Q!("    neg             " j!()),
@@ -119,9 +118,9 @@ pub(crate) fn bignum_modadd(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
         Q!("    sbb             " j!() ", " j!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("bignum_modadd_subloop", 5, Before)),
+        Q!("    jc              " Label!("Lbignum_modadd_subloop", 5, Before)),
 
-        Q!(Label!("bignum_modadd_end", 2) ":"),
+        Q!(Label!("Lbignum_modadd_end", 2) ":"),
         inout("rdi") m.len() => _,
         inout("rsi") z.as_mut_ptr() => _,
         inout("rdx") x.as_ptr() => _,

@@ -75,30 +75,29 @@ pub(crate) fn bignum_modsub(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
 
         Q!("    endbr64         " ),
 
-
         // If k = 0 do nothing
 
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("bignum_modsub_end", 2, After)),
+        Q!("    jz              " Label!("Lbignum_modsub_end", 2, After)),
 
         // Subtract z := x - y and record a mask for the carry x - y < 0
 
         Q!("    xor             " c!() ", " c!()),
         Q!("    mov             " j!() ", " k!()),
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modsub_subloop", 3) ":"),
+        Q!(Label!("Lbignum_modsub_subloop", 3) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " i!() "]"),
         Q!("    sbb             " a!() ", [" y!() "+ 8 * " i!() "]"),
         Q!("    mov             " "[" z!() "+ 8 * " i!() "], " a!()),
         Q!("    inc             " i!()),
         Q!("    dec             " j!()),
-        Q!("    jnz             " Label!("bignum_modsub_subloop", 3, Before)),
+        Q!("    jnz             " Label!("Lbignum_modsub_subloop", 3, Before)),
         Q!("    sbb             " c!() ", " c!()),
 
         // Now do a masked addition z := z + [c] * m
 
         Q!("    xor             " i!() ", " i!()),
-        Q!(Label!("bignum_modsub_addloop", 4) ":"),
+        Q!(Label!("Lbignum_modsub_addloop", 4) ":"),
         Q!("    mov             " a!() ", [" m!() "+ 8 * " i!() "]"),
         Q!("    and             " a!() ", " c!()),
         Q!("    neg             " j!()),
@@ -106,9 +105,9 @@ pub(crate) fn bignum_modsub(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
         Q!("    sbb             " j!() ", " j!()),
         Q!("    inc             " i!()),
         Q!("    cmp             " i!() ", " k!()),
-        Q!("    jc              " Label!("bignum_modsub_addloop", 4, Before)),
+        Q!("    jc              " Label!("Lbignum_modsub_addloop", 4, Before)),
 
-        Q!(Label!("bignum_modsub_end", 2) ":"),
+        Q!(Label!("Lbignum_modsub_end", 2) ":"),
         inout("rdi") z.len() => _,
         inout("rsi") z.as_mut_ptr() => _,
         inout("rdx") x.as_ptr() => _,

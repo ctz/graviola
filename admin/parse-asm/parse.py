@@ -1,18 +1,18 @@
 import enum
-import re
 import glob
+import io
+import re
 import string
 import subprocess
 from collections import namedtuple
 from os import path
-import io
 
+from cpp import Preprocessor
 
 MACRO = re.compile(r"^(?P<name>[a-z0-9_]+)\((?P<args>[a-z0-9_,\[\]\+\* \#]*)\);?$")
 ASM = re.compile(
-    r"^(?P<opcode>[a-z][a-z0-9\.]*)\s?(?P<operands>[A-Za-z0-9_,\s\(\)\[\]\+\*\-~\t#\.!%$]*) ?;? ?(//(?P<comment>[A-Za-z0-9 =\/@#\*\+\(\)^\.\<\>\-_:,\!\?\|])*)?$"
+    r"^(?P<opcode>[a-z][a-z0-9\.]*)\s?(?P<operands>[A-Za-z0-9_,\s\(\)\[\]\+\*\-~\t#\.!%$@]*) ?;? ?(//(?P<comment>[A-Za-z0-9 =\/@#\*\+\(\)^\.\<\>\-_:,\!\?\|])*)?$"
 )
-DECL = re.compile(r"S2N_BN_SYMBOL\((?P<name>[a-z0-9_]+)\):")
 CONST = re.compile(r"\s?(?P<type>\.(quad|long))\s+(?P<value>((0x[0-9a-fA-F]+),?)+)")
 LABEL = re.compile(r"^(?P<name>(\.L)?[a-zA-Z0-9_]+):$")
 
@@ -24,11 +24,11 @@ class Type(enum.StrEnum):
     MACRO = enum.auto()
     ASM = enum.auto()
     CONST = enum.auto()
-    FUNCTION = enum.auto()
     ALIGN = enum.auto()
     LABEL = enum.auto()
     DIRECTIVE = enum.auto()
     EOF = enum.auto()
+    CPP = enum.auto()
 
 
 def tidy_linewise(lines):
@@ -48,16 +48,75 @@ def tidy_linewise(lines):
     return lines
 
 
+def merge_blank_lines(lines):
+    run_start = None
+    run_count = 0
+    spans = []
+
+    for i in range(len(lines)):
+        if lines[i].strip() == "":
+            if run_start is None:
+                run_start = i
+            run_count += 1
+        else:
+            if run_count > 1:
+                spans.append((run_start, run_count))
+
+            run_start = None
+            run_count = 0
+
+    for start, count in reversed(spans):
+        lines[start : start + count] = ["\n"]
+
+    while len(lines) and lines[0].strip() == "":
+        lines.pop(0)
+
+    return lines
+
+
 def parse_file(f, visit):
     continuation = None
     contexts = []
+    cpp = Preprocessor()
+    visit(Type.CPP, cpp)
+    cpp.set("__LF", ";")
+    cpp.function("S2N_BN_SYM_VISIBILITY_DIRECTIVE", lambda *args: "")
+    cpp.function("S2N_BN_SYM_PRIVACY_DIRECTIVE", lambda *args: "")
+    cpp.function("S2N_BN_FUNCTION_TYPE_DIRECTIVE", lambda *args: "")
+    cpp.function("S2N_BN_SYMBOL", lambda s: s)
+    cpp.function("S2N_BN_SIZE_DIRECTIVE", lambda *args: "")
+    cpp.set("CFI_START", "")
+    cpp.function("CFI_DEC_RSP", lambda a: f"sub rsp, {a}")
+    cpp.function("CFI_INC_RSP", lambda a: f"add rsp, {a}")
+    cpp.function("CFI_DEC_SP", lambda a: f"sub sp, sp, #({a}+0)")
+    cpp.function(
+        "CFI_INC_SP",
+        lambda a: f"add sp, sp, #({a}+0)",
+    )
+    cpp.function("CFI_CALL", lambda a: f"call {a}")
+    cpp.set("CFI_RET", "ret")
+    cpp.function("CFI_BL", lambda a: f"bl {a}")
+    cpp.function("CFI_PUSH", lambda a: f"push {a}")
+    cpp.function(
+        "CFI_PUSH2",
+        lambda lo, hi: (f"stp {lo}, {hi}, [sp, #-16]!",),
+    )
+    cpp.function(
+        "CFI_POP",
+        lambda a: f"pop {a}",
+    )
+    cpp.function(
+        "CFI_POP2",
+        lambda lo, hi: f"ldp {lo}, {hi}, [sp], #16",
+    )
 
     lines = f.readlines()
     lines = tidy_linewise(lines)
+    lines = cpp.apply_lines(lines)
+    lines = merge_blank_lines(lines)
 
     for l in lines:
         l = l.lstrip()
-        l = l.replace("__LF", ";")
 
         if continuation:
             lr = l.rstrip().rstrip("\\").rstrip()
@@ -103,12 +162,6 @@ def parse_file(f, visit):
         elif l.startswith(".set"):
             _, name, value = l.split()
             visit(Type.DEFINE, name.strip(), value.strip())
-        elif l.startswith("#endif"):
-            contexts.pop()
-        elif l.startswith("#if WINDOWS_ABI"):
-            contexts.append("WINDOWS_ABI")
-        elif l.startswith("#if defined(__linux__) && defined(__ELF__)"):
-            contexts.append("LINUX_ELF")
         elif l.startswith(".rep"):
             _, arg = l.split()
             contexts.append(("REP", int(arg)))
@@ -130,10 +183,6 @@ def parse_file(f, visit):
                 m.group("opcode").strip(),
                 m.group("operands").strip(),
             )
-        elif l.startswith("S2N_BN_SYM_VISIBILITY_DIRECTIVE("):
-            continue
-        elif l.startswith("S2N_BN_SYM_PRIVACY_DIRECTIVE("):
-            continue
         elif l.strip() == "":
             visit(Type.VERTICAL_WHITESPACE)
         elif l.startswith("# "):
@@ -152,9 +201,6 @@ def parse_file(f, visit):
                 m.group("opcode").strip(),
                 m.group("operands").strip(),
             )
-        elif DECL.match(l):
-            m = DECL.match(l)
-            visit(Type.FUNCTION, contexts, m.group("name"))
         elif CONST.match(l):
             m = CONST.match(l)
             for v in m.group("value").split(","):
@@ -191,7 +237,7 @@ def register_from_token(t):
 
 def tokenise(s):
     def tokenise_gen(s):
-        symbol = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*")
+        symbol = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_@]*")
         register = re.compile(r"^%?[a-z]\.?[a-z0-9]+(\.[a-z]\[\d+\]|\.[a-zA-Z0-9]+)?")
         label = re.compile(r"^\.?[a-zA-Z][a-zA-Z0-9_]+")
         comment = re.compile(r"^/\*.*?\*/")

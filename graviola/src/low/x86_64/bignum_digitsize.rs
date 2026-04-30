@@ -56,7 +56,6 @@ pub(crate) fn bignum_digitsize(z: &[u64]) -> usize {
 
         Q!("    endbr64         " ),
 
-
         // Initialize the index i and also prepare default return value of 0 (i = rax)
 
         Q!("    xor             " i!() ", " i!()),
@@ -64,20 +63,20 @@ pub(crate) fn bignum_digitsize(z: &[u64]) -> usize {
         // If the bignum is zero-length, just return 0
 
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("bignum_digitsize_end", 2, After)),
+        Q!("    jz              " Label!("Lbignum_digitsize_end", 2, After)),
 
         // Run over the words j = 0..i-1, and set i := j + 1 when hitting nonzero a[j]
 
         Q!("    xor             " j!() ", " j!()),
-        Q!(Label!("bignum_digitsize_loop", 3) ":"),
+        Q!(Label!("Lbignum_digitsize_loop", 3) ":"),
         Q!("    mov             " a!() ", [" x!() "+ 8 * " j!() "]"),
         Q!("    inc             " j!()),
         Q!("    test            " a!() ", " a!()),
         Q!("    cmovnz          " i!() ", " j!()),
         Q!("    cmp             " j!() ", " k!()),
-        Q!("    jnz             " Label!("bignum_digitsize_loop", 3, Before)),
+        Q!("    jnz             " Label!("Lbignum_digitsize_loop", 3, Before)),
 
-        Q!(Label!("bignum_digitsize_end", 2) ":"),
+        Q!(Label!("Lbignum_digitsize_end", 2) ":"),
         inout("rdi") z.len() => _,
         inout("rsi") z.as_ptr() => _,
         out("rax") ret,

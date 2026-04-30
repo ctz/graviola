@@ -131,7 +131,6 @@ pub(crate) fn bignum_montmul_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6]) 
 
         Q!("    endbr64         " ),
 
-
         // Save more registers to play with
 
         Q!("    push            " "rbx"),

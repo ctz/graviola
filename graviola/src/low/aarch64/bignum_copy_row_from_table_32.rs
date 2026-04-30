@@ -246,7 +246,6 @@ pub(crate) fn bignum_copy_row_from_table_32(z: &mut [u64], table: &[u64], height
     unsafe {
         core::arch::asm!(
 
-
         // Clear accumulator
         // Zeroing can be done via xor, but xor isn't formalized yet.
         Q!("    dup             " ventry0!() ".2d, xzr"),
@@ -267,7 +266,7 @@ pub(crate) fn bignum_copy_row_from_table_32(z: &mut [u64], table: &[u64], height
         Q!("    mov             " ventry15!() ".16b, " ventry0!() ".16b"),
 
         Q!("    mov             " cnt!() ", #0"),
-        Q!(Label!("bignum_copy_row_from_table_32_loop", 2) ":"),
+        Q!(Label!("Lbignum_copy_row_from_table_32_loop", 2) ":"),
 
         // Compute mask: Check if current index matches target index
         Q!("    subs            " "xzr, " cnt!() ", " idx!()),
@@ -326,9 +325,9 @@ pub(crate) fn bignum_copy_row_from_table_32(z: &mut [u64], table: &[u64], height
 
         Q!("    add             " cnt!() ", " cnt!() ", #1"),
         Q!("    subs            " "xzr, " height!() ", " cnt!()),
-        Q!("    b.ne            " Label!("bignum_copy_row_from_table_32_loop", 2, Before)),
+        Q!("    b.ne            " Label!("Lbignum_copy_row_from_table_32_loop", 2, Before)),
 
-        Q!(Label!("bignum_copy_row_from_table_32_end", 3) ":"),
+        Q!(Label!("Lbignum_copy_row_from_table_32_end", 3) ":"),
 
         Q!("    str             " qentry0!() ", [" z!() ", #16 * 0]"),
         Q!("    str             " qentry1!() ", [" z!() ", #16 * 1]"),

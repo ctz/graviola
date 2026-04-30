@@ -71,7 +71,7 @@ macro_rules! badun {
 
 // Total size to reserve on the stack
 
-macro_rules! NSPACE { () => { Q!("# (24 * " N!() ")") } }
+macro_rules! NSPACE { () => { Q!("24 * " N!()) } }
 
 // Loading large constants
 
@@ -91,7 +91,7 @@ macro_rules! mulp {
         "add x0, " $dest ";\n"
         "add x1, " $src1 ";\n"
         "add x2, " $src2 ";\n"
-        "bl " Label!("edwards25519_decode_alt_mul_p25519", 3, After)
+        "bl " Label!("Ledwards25519_decode_alt_mul_p25519", 3, After)
     )}
 }
 
@@ -100,7 +100,7 @@ macro_rules! nsqr {
         "add x0, " $dest ";\n"
         "mov x1, " $n ";\n"
         "add x2, " $src ";\n"
-        "bl " Label!("edwards25519_decode_alt_nsqr_p25519", 4, After)
+        "bl " Label!("Ledwards25519_decode_alt_nsqr_p25519", 4, After)
     )}
 }
 
@@ -129,12 +129,11 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
     unsafe {
         core::arch::asm!(
 
-
         // Save registers and make room for temporaries
 
-        Q!("    stp             " "x19, x20, [sp, -16] !"),
-        Q!("    stp             " "x21, x30, [sp, -16] !"),
-        Q!("    sub             " "sp, sp, " NSPACE!()),
+        Q!("    stp             " "x19, x20, [sp, #-16] !"),
+        Q!("    stp             " "x21, x30, [sp, #-16] !"),
+        Q!("    sub             " "sp, sp, # (" NSPACE!() "+ 0)"),
 
         // Save the return pointer for the end so we can overwrite x0 later
 
@@ -384,18 +383,19 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
 
         // Restore stack and registers
 
-        Q!("    add             " "sp, sp, " NSPACE!()),
+        Q!("    add             " "sp, sp, # (" NSPACE!() "+ 0)"),
 
-        Q!("    ldp             " "x21, x30, [sp], 16"),
-        Q!("    ldp             " "x19, x20, [sp], 16"),
-        // proc hoisting in -> ret after edwards25519_decode_alt_loop
+        Q!("    ldp             " "x21, x30, [sp], #16"),
+        Q!("    ldp             " "x19, x20, [sp], #16"),
+        // proc hoisting in -> ret after Ledwards25519_decode_alt_loop
         Q!("    b               " Label!("hoist_finish", 2, After)),
 
         // *************************************************************
         // Local z = x * y
         // *************************************************************
 
-        Q!(Label!("edwards25519_decode_alt_mul_p25519", 3) ":"),
+        Q!(Label!("Ledwards25519_decode_alt_mul_p25519", 3) ":"),
+
         Q!("    ldp             " "x3, x4, [x1]"),
         Q!("    ldp             " "x7, x8, [x2]"),
         Q!("    mul             " "x12, x3, x7"),
@@ -502,7 +502,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         // Local z = 2^n * x
         // *************************************************************
 
-        Q!(Label!("edwards25519_decode_alt_nsqr_p25519", 4) ":"),
+        Q!(Label!("Ledwards25519_decode_alt_nsqr_p25519", 4) ":"),
 
         // Copy input argument into [x5;x4;x3;x2] (overwriting input pointer x20
 
@@ -513,7 +513,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         // Main squaring loop, accumulating in [x5;x4;x3;x2] consistently and
         // only ensuring the intermediates are < 2 * p_25519 = 2^256 - 38
 
-        Q!(Label!("edwards25519_decode_alt_loop", 5) ":"),
+        Q!(Label!("Ledwards25519_decode_alt_loop", 5) ":"),
         Q!("    mul             " "x9, x2, x3"),
         Q!("    umulh           " "x10, x2, x3"),
         Q!("    mul             " "x11, x2, x5"),
@@ -586,7 +586,7 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
         // Loop as applicable
 
         Q!("    subs            " "x1, x1, #1"),
-        Q!("    bne             " Label!("edwards25519_decode_alt_loop", 5, Before)),
+        Q!("    bne             " Label!("Ledwards25519_decode_alt_loop", 5, Before)),
 
         // We know the intermediate result x < 2^256 - 38, and now we do strict
         // modular reduction mod 2^255 - 19. Note x < 2^255 - 19 <=> x + 19 < 2^255

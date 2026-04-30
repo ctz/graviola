@@ -1,21 +1,17 @@
 import copy
-from functools import reduce
-from io import StringIO
 import re
 import string
 import subprocess
+from functools import reduce
+from io import StringIO
 
-from parse import Type, register_from_token, tokenise, is_comment
+from parse import Type, is_comment, register_from_token, tokenise
 
 
 class Architecture:
     # registers (canonically named via `lookup_register`)
     # that should be ignored when calculating clobbers
     ignore_clobber = set()
-
-    # on some archs (aarch64), constant references must be specially
-    # aligned to support single instruction loads
-    constant_reference_alignment = None
 
     # instruction mnemonic for unconditional jump; used for hoisting
     unconditional_jump = "str"
@@ -26,6 +22,10 @@ class Architecture:
     # name of 64-bit return register per standard ABI
     # (only used if this register is not also a parameter register)
     fn_ret_reg = None
+
+    # on ARM64, constant refs using @PAGE and @PAGEOFF are also
+    # dropped to macros
+    constant_reference_page_offs = False
 
     # canonicalise register names, by returning a better name
     # for `reg`.
@@ -58,6 +58,8 @@ class Architecture_amd64(Architecture):
 
     fn_arg_regs = "rdi rsi rdx rcx r8 r9".split()
     fn_ret_reg = "rax"
+
+    cpp_definitions = dict(__linux__="1", __ELF__="1")
 
     @staticmethod
     def lookup_register(reg):
@@ -105,19 +107,11 @@ class Architecture_aarch64(Architecture):
 
     unconditional_jump = "b"
 
-    # on aarch64 single-insn address loads have limited span at byte
-    # resolution (but much wider at page resolution). this prevents
-    # relocation errors in larger programs (where the emitted function
-    # is >1MB away from the rodata section).
-    #
-    # also converts `adr` insns of such references into `adrp`
-    #
-    # note that while aarch64 docs call these references "page-aligned",
-    # the alignment value is constant across all aarch64 machines and is
-    # not related to the physical page size.
-    constant_reference_alignment = 4096
+    constant_reference_page_offs = True
 
     fn_arg_regs = "x0 x1 x2 x3 x4 x5".split()
+
+    cpp_definitions = dict(__linux__="1", __ELF__="1")
 
     @staticmethod
     def lookup_register(reg):
@@ -160,9 +154,6 @@ class Dispatcher:
     def on_define(self, name, *value):
         print("!!! UNHANDLED: on_define(", name, ",", value, ")")
 
-    def on_function(self, contexts, name):
-        print("!!! UNHANDLED: on_function(", contexts, ",", name, ")")
-
     def on_asm(self, contexts, opcode, operands):
         print("!!! UNHANDLED: on_asm(", contexts, ",", opcode, ",", operands, ")")
 
@@ -181,12 +172,12 @@ class Dispatcher:
     def on_eof(self):
         pass
 
+    def on_cpp(self, cpp):
+        print(f"!!! UNHANDLED on_cpp {self}")
+
 
 class QuietDispatcher(Dispatcher):
     def on_define(self, name, *value):
-        pass
-
-    def on_function(self, contexts, name):
         pass
 
     def on_asm(self, contexts, opcode, operands):
@@ -205,6 +196,9 @@ class QuietDispatcher(Dispatcher):
         pass
 
     def on_eof(self):
+        pass
+
+    def on_cpp(self, cpp):
         pass
 
 
@@ -277,6 +271,10 @@ class MacroWithLabelRefCollector(QuietDispatcher):
         self.current_block = rust_name
 
     def on_label(self, contexts, label):
+        if label in self.expected_functions:
+            self.on_function(contexts, label)
+            return
+
         if label not in self.expected_labels:
             print(f"label ({label}) not in expected_labels")
         self.current_block = label
@@ -481,6 +479,7 @@ class RustDriver:
         self.label_pass = LabelCollector()
         self.macro_pass = MacroWithLabelRefCollector()
         self.formatter = RustFormatter(output, architecture)
+        self.file_name = output.name
 
     def discard_rust_function(self, function):
         self.macro_pass.discard_rust_function(function)
@@ -509,8 +508,8 @@ class RustDriver:
             hoist=hoist,
         )
 
-    def add_const_symbol(self, sym, rename=None, align=None):
-        self.formatter.add_const_symbol(sym, rename=rename, align=align)
+    def add_const_symbol(self, sym):
+        self.formatter.add_const_symbol(sym)
 
     def set_att_syntax(self, att_syntax):
         self.formatter.set_att_syntax(att_syntax)
@@ -552,9 +551,8 @@ class RustDriver:
             )
 
         output.close()
-        filename = output.name
-        subprocess.check_call(["rustfmt", filename])
-        print("GENERATED", filename)
+        subprocess.check_call(["rustfmt", self.file_name])
+        print("GENERATED", self.file_name)
 
 
 class RustFormatter(Dispatcher):
@@ -617,11 +615,13 @@ use crate::low::macros::*;
             file=self.output,
         )
 
-    def add_const_symbol(self, sym, rename=None, align=None):
+    def add_const_symbol(self, sym):
         self.constant_syms.add(sym)
-        name = rename if rename else sym
-        self.constant_sym_rename[sym] = name
-        self.constant_sym_alignment[name] = align
+        self.constant_sym_rename[sym] = sym
+
+        if self.arch.constant_reference_page_offs:
+            self.constant_sym_rename[sym + "@PAGE"] = sym
+            self.constant_sym_rename[sym + "@PAGEOFF"] = sym
 
     def find_label(self, label, defn=False):
         """
@@ -690,14 +690,17 @@ use crate::low::macros::*;
                     yield r.suffix
                 elif is_comment(t):
                     yield unquote(t)
-                elif t in self.constant_syms:
-                    t = self.constant_sym_rename[t]
+                elif t in self.constant_sym_rename:
+                    at = self.constant_sym_rename[t]
                     if self.function_state:
-                        self.function_state.referenced_constant_syms.add(t)
-                    if self.arch.constant_reference_alignment is not None:
-                        yield unquote('PageRef!("' + t + '")')
+                        self.function_state.referenced_constant_syms.add(at)
+                    if self.arch.constant_reference_page_offs:
+                        if t.endswith("@PAGE"):
+                            yield unquote('PageRef!("' + at + '")')
+                        else:
+                            yield unquote('PageOffRef!("' + at + '")')
                     else:
-                        yield "{" + t + "}"
+                        yield "{" + at + "}"
                 elif (
                     self.function_state and t in self.function_state.labels
                 ) or self.looks_like_label(t):
@@ -768,6 +771,10 @@ use crate::low::macros::*;
         head_comment.insert(1, "")
         return head_comment[:-1]
 
+    def on_cpp(self, cpp):
+        for key, value in self.arch.cpp_definitions.items():
+            cpp.set(key, value)
+
     def on_function(self, contexts, name):
         assert contexts == []
         if name in self.expected_functions:
@@ -815,8 +822,7 @@ use crate::low::macros::*;
                     """pub(crate) %s {
                     %s
                     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
-                    unsafe { core::arch::asm!(
-                """
+                    unsafe { core::arch::asm!("""
                     % (self.function_state.rust_decl, locals),
                     file=self.output,
                 )
@@ -901,15 +907,7 @@ use crate::low::macros::*;
 
         self.visit_operands(operands)
 
-        contains_constant_ref = self.contains_constant_ref(operands)
         operands = self.expand_rust_macros_in_asm(operands)
-        if operands:
-            if (
-                contains_constant_ref
-                and self.arch.constant_reference_alignment is not None
-                and opcode == "adr"
-            ):
-                opcode = "adrp"
 
         parts = ['"    %-15s "' % opcode]
         parts.append(operands)
@@ -980,40 +978,16 @@ use crate::low::macros::*;
             }[ca.type]
 
             array_type = "[%s; %d]" % (rust_type, len(ca.items))
-            if (
-                self.arch.constant_reference_alignment is not None
-                or self.constant_sym_alignment[ca.name]
-            ):
-                if self.constant_sym_alignment[ca.name]:
-                    alignment = self.constant_sym_alignment[ca.name]
-                    how = "B" + str(alignment)
-                else:
-                    alignment = self.arch.constant_reference_alignment
-                    how = "Page"
 
-                rust_type = "%sAligned%sArray%d" % (how, rust_type, len(ca.items))
-                value_start = rust_type + "("
-                value_end = ")"
-
-                if rust_type not in self.emitted_page_aligned_types:
-                    print("#[allow(dead_code)]", file=self.output)
-                    print("#[repr(align(%d))]" % alignment, file=self.output)
-                    print(
-                        "struct %s(%s);\n" % (rust_type, array_type), file=self.output
-                    )
-                    self.emitted_page_aligned_types.add(rust_type)
-            else:
-                rust_type = array_type
-                value_start = ""
-                value_end = ""
+            rust_type = array_type
 
             print(
-                "static %s: %s = %s[" % (ca.name, rust_type, value_start),
+                "static %s: %s = [" % (ca.name, rust_type),
                 file=self.output,
             )
             for line in ca.lines:
                 print("    %s" % line, file=self.output)
-            print("]%s;" % value_end, file=self.output)
+            print("];", file=self.output)
             print("", file=self.output)
 
     def finish_function(self):

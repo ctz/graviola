@@ -75,10 +75,9 @@ pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
     unsafe {
         core::arch::asm!(
 
-
         // if k = 0 do nothing. This is also the right top carry in X0
 
-        Q!("    cbz             " k!() ", " Label!("bignum_optsub_end", 2, After)),
+        Q!("    cbz             " k!() ", " Label!("Lbignum_optsub_end", 2, After)),
 
         // Convert p into a strict bitmask (same register in fact)
 
@@ -91,7 +90,7 @@ pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
 
         // Main loop
 
-        Q!(Label!("bignum_optsub_loop", 3) ":"),
+        Q!(Label!("Lbignum_optsub_loop", 3) ":"),
         Q!("    ldr             " a!() ", [" x!() ", " i!() "]"),
         Q!("    ldr             " b!() ", [" y!() ", " i!() "]"),
         Q!("    and             " b!() ", " b!() ", " m!()),
@@ -99,13 +98,13 @@ pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
         Q!("    str             " a!() ", [" z!() ", " i!() "]"),
         Q!("    add             " i!() ", " i!() ", #8"),
         Q!("    sub             " k!() ", " k!() ", #1"),
-        Q!("    cbnz            " k!() ", " Label!("bignum_optsub_loop", 3, Before)),
+        Q!("    cbnz            " k!() ", " Label!("Lbignum_optsub_loop", 3, Before)),
 
         // Return (non-inverted) carry flag
 
         Q!("    cset            " "x0, cc"),
 
-        Q!(Label!("bignum_optsub_end", 2) ":"),
+        Q!(Label!("Lbignum_optsub_end", 2) ":"),
         inout("x0") z.len() => _,
         inout("x1") z.as_mut_ptr() => _,
         inout("x2") x.as_ptr() => _,

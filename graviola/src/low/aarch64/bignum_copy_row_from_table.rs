@@ -79,22 +79,21 @@ pub(crate) fn bignum_copy_row_from_table(
     unsafe {
         core::arch::asm!(
 
-
-        Q!("    cbz             " height!() ", " Label!("bignum_copy_row_from_table_end", 2, After)),
-        Q!("    cbz             " width!() ", " Label!("bignum_copy_row_from_table_end", 2, After)),
+        Q!("    cbz             " height!() ", " Label!("Lbignum_copy_row_from_table_end", 2, After)),
+        Q!("    cbz             " width!() ", " Label!("Lbignum_copy_row_from_table_end", 2, After)),
         Q!("    mov             " i!() ", " width!()),
         Q!("    mov             " "x6, " z!()),
 
-        Q!(Label!("bignum_copy_row_from_table_initzero", 3) ":"),
+        Q!(Label!("Lbignum_copy_row_from_table_initzero", 3) ":"),
         Q!("    str             " "xzr, [x6]"),
         Q!("    add             " "x6, x6, #8"),
         Q!("    subs            " i!() ", " i!() ", #1"),
-        Q!("    bne             " Label!("bignum_copy_row_from_table_initzero", 3, Before)),
+        Q!("    bne             " Label!("Lbignum_copy_row_from_table_initzero", 3, Before)),
 
         Q!("    mov             " i!() ", xzr"),
         Q!("    mov             " "x8, " table!()),
 
-        Q!(Label!("bignum_copy_row_from_table_outerloop", 4) ":"),
+        Q!(Label!("Lbignum_copy_row_from_table_outerloop", 4) ":"),
 
         Q!("    cmp             " i!() ", " idx!()),
         Q!("    csetm           " mask!() ", eq"),
@@ -102,7 +101,7 @@ pub(crate) fn bignum_copy_row_from_table(
         Q!("    mov             " j!() ", " width!()),
         Q!("    mov             " "x9, " z!()),
 
-        Q!(Label!("bignum_copy_row_from_table_innerloop", 5) ":"),
+        Q!(Label!("Lbignum_copy_row_from_table_innerloop", 5) ":"),
 
         Q!("    ldr             " "x10, [x8]"),
         Q!("    ldr             " "x11, [x9]"),
@@ -113,14 +112,14 @@ pub(crate) fn bignum_copy_row_from_table(
         Q!("    add             " "x8, x8, #8"),
         Q!("    add             " "x9, x9, #8"),
         Q!("    subs            " j!() ", " j!() ", #1"),
-        Q!("    bne             " Label!("bignum_copy_row_from_table_innerloop", 5, Before)),
+        Q!("    bne             " Label!("Lbignum_copy_row_from_table_innerloop", 5, Before)),
 
-        Q!(Label!("bignum_copy_row_from_table_innerloop_done", 6) ":"),
+        Q!(Label!("Lbignum_copy_row_from_table_innerloop_done", 6) ":"),
         Q!("    add             " i!() ", " i!() ", #1"),
         Q!("    cmp             " i!() ", " height!()),
-        Q!("    bne             " Label!("bignum_copy_row_from_table_outerloop", 4, Before)),
+        Q!("    bne             " Label!("Lbignum_copy_row_from_table_outerloop", 4, Before)),
 
-        Q!(Label!("bignum_copy_row_from_table_end", 2) ":"),
+        Q!(Label!("Lbignum_copy_row_from_table_end", 2) ":"),
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") table.as_ptr() => _,
         inout("x2") height => _,

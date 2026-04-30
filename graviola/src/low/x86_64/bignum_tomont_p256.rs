@@ -78,7 +78,6 @@ pub(crate) fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         Q!("    endbr64         " ),
 
-
         // We are essentially just doing a Montgomery multiplication of x and the
         // precomputed constant y = 2^512 mod p, so the code is almost the same
         // modulo a few registers and the change from loading y[i] to using constants.

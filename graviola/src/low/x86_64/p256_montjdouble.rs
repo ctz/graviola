@@ -66,7 +66,7 @@ macro_rules! xy2 { () => { Q!("rsp + (" NUMSIZE!() "* 4)") } }
 macro_rules! x4p { () => { Q!("rsp + (" NUMSIZE!() "* 5)") } }
 macro_rules! d { () => { Q!("rsp + (" NUMSIZE!() "* 5)") } }
 
-macro_rules! NSPACE { () => { Q!("(" NUMSIZE!() "* 6)") } }
+macro_rules! NSPACE { () => { Q!(NUMSIZE!() "* 6") } }
 
 // Corresponds exactly to bignum_montmul_p256
 
@@ -581,7 +581,6 @@ pub(crate) fn p256_montjdouble(p3: &mut [u64; 12], p1: &[u64; 12]) {
         core::arch::asm!(
 
         Q!("    endbr64         " ),
-
 
         // Save registers and make room on stack for temporary variables
 

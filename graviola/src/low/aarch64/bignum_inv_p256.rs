@@ -157,7 +157,7 @@ macro_rules! v { () => { Q!("sp, # (16 * " N!() ")") } }
 
 // Total size to reserve on the stack
 
-macro_rules! NSPACE { () => { Q!("# (20 * " N!() ")") } }
+macro_rules! NSPACE { () => { Q!("20 * " N!()) } }
 
 // ---------------------------------------------------------------------------
 // Core signed almost-Montgomery reduction macro. Takes input in
@@ -837,13 +837,12 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
-
         // Save registers and make room for temporaries
 
-        Q!("    stp             " "x19, x20, [sp, -16] !"),
-        Q!("    stp             " "x21, x22, [sp, -16] !"),
-        Q!("    stp             " "x23, x24, [sp, -16] !"),
-        Q!("    sub             " "sp, sp, " NSPACE!()),
+        Q!("    stp             " "x19, x20, [sp, #-16] !"),
+        Q!("    stp             " "x21, x22, [sp, #-16] !"),
+        Q!("    stp             " "x23, x24, [sp, #-16] !"),
+        Q!("    sub             " "sp, sp, # (" NSPACE!() "+ 0)"),
 
         // Save the return pointer for the end so we can overwrite x0 later
 
@@ -895,9 +894,9 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         Q!("    mov             " i!() ", #10"),
         Q!("    mov             " d!() ", #1"),
-        Q!("    b               " Label!("bignum_inv_p256_midloop", 2, After)),
+        Q!("    b               " Label!("Lbignum_inv_p256_midloop", 2, After)),
 
-        Q!(Label!("bignum_inv_p256_loop", 3) ":"),
+        Q!(Label!("Lbignum_inv_p256_loop", 3) ":"),
 
         // Separate the matrix elements into sign-magnitude pairs
 
@@ -1212,7 +1211,7 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         Q!("    stp             " "x1, x3, [" v!() "]"),
         Q!("    stp             " "x2, x5, [" v!() "+ 16]"),
 
-        Q!(Label!("bignum_inv_p256_midloop", 2) ":"),
+        Q!(Label!("Lbignum_inv_p256_midloop", 2) ":"),
 
         Q!("    mov             " "x1, " d!()),
         Q!("    ldr             " "x2, [" f!() "]"),
@@ -1223,7 +1222,7 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         // Next iteration
 
         Q!("    subs            " i!() ", " i!() ", #1"),
-        Q!("    bne             " Label!("bignum_inv_p256_loop", 3, Before)),
+        Q!("    bne             " Label!("Lbignum_inv_p256_loop", 3, Before)),
 
         // The 10th and last iteration does not need anything except the
         // u value and the sign of f; the latter can be obtained from the
@@ -1367,10 +1366,10 @@ pub(crate) fn bignum_inv_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         // Restore stack and registers
 
-        Q!("    add             " "sp, sp, " NSPACE!()),
-        Q!("    ldp             " "x23, x24, [sp], 16"),
-        Q!("    ldp             " "x21, x22, [sp], 16"),
-        Q!("    ldp             " "x19, x20, [sp], 16"),
+        Q!("    add             " "sp, sp, # (" NSPACE!() "+ 0)"),
+        Q!("    ldp             " "x23, x24, [sp], #16"),
+        Q!("    ldp             " "x21, x22, [sp], #16"),
+        Q!("    ldp             " "x19, x20, [sp], #16"),
         inout("x0") z.as_mut_ptr() => _,
         inout("x1") x.as_ptr() => _,
         // clobbers

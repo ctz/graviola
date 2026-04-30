@@ -83,7 +83,6 @@ pub(crate) fn bignum_demont_p384(z: &mut [u64; 6], x: &[u64; 6]) {
 
         Q!("    endbr64         " ),
 
-
         // Save more registers to play with
 
         Q!("    push            " "r12"),

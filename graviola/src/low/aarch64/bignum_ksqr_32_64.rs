@@ -31,17 +31,16 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    stp             " "x19, x20, [sp, #-16] !"),
         Q!("    stp             " "x21, x30, [sp, #-16] !"),
         Q!("    mov             " "x19, x0"),
         Q!("    mov             " "x20, x1"),
         Q!("    mov             " "x21, x2"),
-        Q!("    bl              " Label!("bignum_ksqr_32_64_local_ksqr_16_32", 2, After)),
+        Q!("    bl              " Label!("Lbignum_ksqr_32_64_local_ksqr_16_32", 2, After)),
         Q!("    add             " "x0, x19, #0x100"),
         Q!("    add             " "x1, x20, #0x80"),
         Q!("    mov             " "x2, x21"),
-        Q!("    bl              " Label!("bignum_ksqr_32_64_local_ksqr_16_32", 2, After)),
+        Q!("    bl              " Label!("Lbignum_ksqr_32_64_local_ksqr_16_32", 2, After)),
         Q!("    ldp             " "x0, x1, [x19, #256]"),
         Q!("    ldp             " "x2, x3, [x19, #128]"),
         Q!("    adds            " "x0, x0, x2"),
@@ -191,7 +190,7 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
         Q!("    add             " "x0, x21, #0x80"),
         Q!("    mov             " "x1, x21"),
         Q!("    add             " "x2, x21, #0x180"),
-        Q!("    bl              " Label!("bignum_ksqr_32_64_local_ksqr_16_32", 2, After)),
+        Q!("    bl              " Label!("Lbignum_ksqr_32_64_local_ksqr_16_32", 2, After)),
         Q!("    ldp             " "x0, x1, [x19, #256]"),
         Q!("    ldp             " "x2, x3, [x19]"),
         Q!("    adds            " "x0, x0, x2"),
@@ -389,10 +388,10 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
         Q!("    stp             " "x0, x1, [x19, #496]"),
         Q!("    ldp             " "x21, x30, [sp], #16"),
         Q!("    ldp             " "x19, x20, [sp], #16"),
-        // proc hoisting in -> ret after bignum_ksqr_32_64_local_sqr_8_16
+        // proc hoisting in -> ret after Lbignum_ksqr_32_64_local_sqr_8_16
         Q!("    b               " Label!("hoist_finish", 3, After)),
 
-        Q!(Label!("bignum_ksqr_32_64_local_ksqr_16_32", 2) ":"),
+        Q!(Label!("Lbignum_ksqr_32_64_local_ksqr_16_32", 2) ":"),
         Q!("    stp             " "x19, x20, [sp, #-16] !"),
         Q!("    stp             " "x21, x22, [sp, #-16] !"),
         Q!("    stp             " "x23, x24, [sp, #-16] !"),
@@ -400,7 +399,7 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
         Q!("    mov             " "x23, x0"),
         Q!("    mov             " "x24, x1"),
         Q!("    mov             " "x25, x2"),
-        Q!("    bl              " Label!("bignum_ksqr_32_64_local_sqr_8_16", 4, After)),
+        Q!("    bl              " Label!("Lbignum_ksqr_32_64_local_sqr_8_16", 4, After)),
         Q!("    ldp             " "x10, x11, [x24]"),
         Q!("    ldp             " "x8, x9, [x24, #64]"),
         Q!("    subs            " "x10, x10, x8"),
@@ -441,7 +440,7 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
         Q!("    stp             " "x16, x17, [x25, #48]"),
         Q!("    add             " "x0, x23, #0x80"),
         Q!("    add             " "x1, x24, #0x40"),
-        Q!("    bl              " Label!("bignum_ksqr_32_64_local_sqr_8_16", 4, After)),
+        Q!("    bl              " Label!("Lbignum_ksqr_32_64_local_sqr_8_16", 4, After)),
         Q!("    ldp             " "x10, x11, [x23, #128]"),
         Q!("    ldp             " "x12, x13, [x23, #64]"),
         Q!("    adds            " "x10, x10, x12"),
@@ -480,7 +479,7 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
         Q!("    stp             " "x10, x11, [x23, #240]"),
         Q!("    add             " "x0, x25, #0x40"),
         Q!("    mov             " "x1, x25"),
-        Q!("    bl              " Label!("bignum_ksqr_32_64_local_sqr_8_16", 4, After)),
+        Q!("    bl              " Label!("Lbignum_ksqr_32_64_local_sqr_8_16", 4, After)),
         Q!("    ldp             " "x0, x1, [x23]"),
         Q!("    ldp             " "x16, x17, [x23, #128]"),
         Q!("    adds            " "x0, x0, x16"),
@@ -570,7 +569,7 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
         Q!("    ldp             " "x19, x20, [sp], #16"),
         Q!("    ret             " ),
 
-        Q!(Label!("bignum_ksqr_32_64_local_sqr_8_16", 4) ":"),
+        Q!(Label!("Lbignum_ksqr_32_64_local_sqr_8_16", 4) ":"),
         Q!("    ldp             " "x2, x3, [x1]"),
         Q!("    ldr             " "q20, [x1]"),
         Q!("    ldp             " "x4, x5, [x1, #16]"),

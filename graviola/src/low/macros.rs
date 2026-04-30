@@ -41,8 +41,19 @@ macro_rules! PageRef {
     ($sym:literal) => { Q!( "{" $sym "}@PAGE" ) }
 }
 
+#[cfg(target_os = "macos")]
+macro_rules! PageOffRef {
+    ($sym:literal) => { Q!( "{" $sym "}@PAGEOFF" ) }
+}
+
 #[allow(unused_macros)]
 #[cfg(not(target_os = "macos"))]
 macro_rules! PageRef {
     ($sym:literal) => { Q!( "{" $sym "}" ) }
+}
+
+#[allow(unused_macros)]
+#[cfg(not(target_os = "macos"))]
+macro_rules! PageOffRef {
+    ($sym:literal) => { Q!( ":lo12:" "{" $sym "}" ) }
 }

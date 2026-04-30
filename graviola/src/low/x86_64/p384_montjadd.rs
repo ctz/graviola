@@ -93,7 +93,11 @@ macro_rules! y1a { () => { Q!("rsp + (" NUMSIZE!() "* 6)") } }
 macro_rules! input_x { () => { Q!("[rsp + (" NUMSIZE!() "* 7)]") } }
 macro_rules! input_y { () => { Q!("[rsp + (" NUMSIZE!() "* 7 + 8)]") } }
 
-macro_rules! NSPACE { () => { Q!("(" NUMSIZE!() "* 7 + 16)") } }
+macro_rules! NSPACE {
+    () => {
+        "352"
+    };
+}
 
 // Corresponds exactly to bignum_montmul_p384
 
@@ -940,7 +944,6 @@ pub(crate) fn p384_montjadd(p3: &mut [u64; 18], p1: &[u64; 18], p2: &[u64; 18]) 
         core::arch::asm!(
 
         Q!("    endbr64         " ),
-
 
         // Save registers and make room on stack for temporary variables
         // Put the input arguments in non-volatile places on the stack

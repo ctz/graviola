@@ -61,10 +61,9 @@ pub(crate) fn bignum_ctz(x: &[u64]) -> usize {
     unsafe {
         core::arch::asm!(
 
-
         // If the bignum is zero-length, x0 is already the right answer of 0
 
-        Q!("    cbz             " k!() ", " Label!("bignum_ctz_end", 2, After)),
+        Q!("    cbz             " k!() ", " Label!("Lbignum_ctz_end", 2, After)),
 
         // Use w = a[i] to store nonzero words in a top-down sweep
         // Set the initial default to be as if we had a 1 word directly above
@@ -72,13 +71,13 @@ pub(crate) fn bignum_ctz(x: &[u64]) -> usize {
         Q!("    mov             " i!() ", " k!()),
         Q!("    mov             " w!() ", #1"),
 
-        Q!(Label!("bignum_ctz_loop", 3) ":"),
+        Q!(Label!("Lbignum_ctz_loop", 3) ":"),
         Q!("    sub             " k!() ", " k!() ", #1"),
         Q!("    ldr             " a!() ", [" x!() ", " k!() ", lsl #3]"),
         Q!("    cmp             " a!() ", #0"),
         Q!("    csel            " i!() ", " k!() ", " i!() ", ne"),
         Q!("    csel            " w!() ", " a!() ", " w!() ", ne"),
-        Q!("    cbnz            " k!() ", " Label!("bignum_ctz_loop", 3, Before)),
+        Q!("    cbnz            " k!() ", " Label!("Lbignum_ctz_loop", 3, Before)),
 
         // Now w = a[i] is the lowest nonzero word, or in the zero case the
         // default of the "extra" 1 = a[k]. We now want 64*i + ctz(w).
@@ -96,7 +95,7 @@ pub(crate) fn bignum_ctz(x: &[u64]) -> usize {
         Q!("    clz             " a!() ", " w!()),
         Q!("    sub             " "x0, " i!() ", " a!()),
 
-        Q!(Label!("bignum_ctz_end", 2) ":"),
+        Q!(Label!("Lbignum_ctz_end", 2) ":"),
         inout("x0") x.len() => ret,
         inout("x1") x.as_ptr() => _,
         // clobbers

@@ -80,7 +80,6 @@ pub(crate) fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64]) {
 
         Q!("    endbr64         " ),
 
-
         // Save extra registers
 
         Q!("    push            " "rbx"),
@@ -90,7 +89,7 @@ pub(crate) fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64]) {
         // If the input is already <= 3 words long, go to a trivial "copy" path
 
         Q!("    cmp             " k!() ", 4"),
-        Q!("    jc              " Label!("bignum_mod_n25519_shortinput", 2, After)),
+        Q!("    jc              " Label!("Lbignum_mod_n25519_shortinput", 2, After)),
 
         // Otherwise load the top 4 digits (top-down) and reduce k by 4
         // This [m3;m2;m1;m0] is the initial x where we begin reduction.
@@ -156,9 +155,9 @@ pub(crate) fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64]) {
         // estimation process.
 
         Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("bignum_mod_n25519_writeback", 3, After)),
+        Q!("    jz              " Label!("Lbignum_mod_n25519_writeback", 3, After)),
 
-        Q!(Label!("bignum_mod_n25519_loop", 4) ":"),
+        Q!(Label!("Lbignum_mod_n25519_loop", 4) ":"),
 
         // Assume that the new 5-digit x is 2^64 * previous_x + next_digit.
         // Get the quotient estimate q = max (floor(x/2^252)) (2^64 - 1)
@@ -220,11 +219,29 @@ pub(crate) fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64]) {
         Q!("    mov             " m0!() ", " d!()),
 
         Q!("    dec             " k!()),
-        Q!("    jnz             " Label!("bignum_mod_n25519_loop", 4, Before)),
+        Q!("    jnz             " Label!("Lbignum_mod_n25519_loop", 4, Before)),
+        Q!("    jmp             " Label!("Lbignum_mod_n25519_writeback", 3, After)),
+
+        Q!(Label!("Lbignum_mod_n25519_shortinput", 2) ":"),
+
+        Q!("    xor             " m0!() ", " m0!()),
+        Q!("    xor             " m1!() ", " m1!()),
+        Q!("    xor             " m2!() ", " m2!()),
+        Q!("    xor             " m3!() ", " m3!()),
+
+        Q!("    test            " k!() ", " k!()),
+        Q!("    jz              " Label!("Lbignum_mod_n25519_writeback", 3, After)),
+        Q!("    mov             " m0!() ", [rdx]"),
+        Q!("    dec             " k!()),
+        Q!("    jz              " Label!("Lbignum_mod_n25519_writeback", 3, After)),
+        Q!("    mov             " m1!() ", [rdx + 8]"),
+        Q!("    dec             " k!()),
+        Q!("    jz              " Label!("Lbignum_mod_n25519_writeback", 3, After)),
+        Q!("    mov             " m2!() ", [rdx + 16]"),
 
         // Write back
 
-        Q!(Label!("bignum_mod_n25519_writeback", 3) ":"),
+        Q!(Label!("Lbignum_mod_n25519_writeback", 3) ":"),
 
         Q!("    mov             " "[" z!() "], " m0!()),
         Q!("    mov             " "[" z!() "+ 8], " m1!()),
@@ -236,27 +253,6 @@ pub(crate) fn bignum_mod_n25519(z: &mut [u64; 4], x: &[u64]) {
         Q!("    pop             " "r12"),
         Q!("    pop             " "rbp"),
         Q!("    pop             " "rbx"),
-        // linear hoisting in -> jmp after bignum_mod_n25519_shortinput
-        Q!("    jmp             " Label!("hoist_finish", 5, After)),
-
-        Q!(Label!("bignum_mod_n25519_shortinput", 2) ":"),
-
-        Q!("    xor             " m0!() ", " m0!()),
-        Q!("    xor             " m1!() ", " m1!()),
-        Q!("    xor             " m2!() ", " m2!()),
-        Q!("    xor             " m3!() ", " m3!()),
-
-        Q!("    test            " k!() ", " k!()),
-        Q!("    jz              " Label!("bignum_mod_n25519_writeback", 3, Before)),
-        Q!("    mov             " m0!() ", [rdx]"),
-        Q!("    dec             " k!()),
-        Q!("    jz              " Label!("bignum_mod_n25519_writeback", 3, Before)),
-        Q!("    mov             " m1!() ", [rdx + 8]"),
-        Q!("    dec             " k!()),
-        Q!("    jz              " Label!("bignum_mod_n25519_writeback", 3, Before)),
-        Q!("    mov             " m2!() ", [rdx + 16]"),
-        Q!("    jmp             " Label!("bignum_mod_n25519_writeback", 3, Before)),
-        Q!(Label!("hoist_finish", 5) ":"),
         inout("rdi") z.as_mut_ptr() => _,
         inout("rsi") x.len() => _,
         inout("rdx") x.as_ptr() => _,

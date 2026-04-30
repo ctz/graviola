@@ -91,7 +91,6 @@ pub(crate) fn bignum_mod_n256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         Q!("    endbr64         " ),
 
-
         // Load a set of registers [n3; 0; n1; n0] = 2^256 - n_256
 
         Q!("    mov             " n0!() ", 0x0c46353d039cdaaf"),

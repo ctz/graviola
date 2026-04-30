@@ -68,7 +68,6 @@ pub(crate) fn bignum_montsqr_p256(z: &mut [u64; 4], x: &[u64; 4]) {
 
         Q!("    endbr64         " ),
 
-
         // Save more registers to play with
 
         Q!("    push            " "rbx"),

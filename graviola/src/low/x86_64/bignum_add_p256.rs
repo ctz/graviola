@@ -85,7 +85,6 @@ pub(crate) fn bignum_add_p256(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4]) {
 
         Q!("    endbr64         " ),
 
-
         // Load and add the two inputs as 2^256 * c + [d3;d2;d1;d0] = x + y
 
         Q!("    xor             " c!() ", " c!()),

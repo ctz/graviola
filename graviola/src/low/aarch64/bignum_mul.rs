@@ -111,10 +111,9 @@ pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
     unsafe {
         core::arch::asm!(
 
-
         // If p = 0 the result is trivial and nothing needs doing
 
-        Q!("    cbz             " p!() ", " Label!("bignum_mul_end", 2, After)),
+        Q!("    cbz             " p!() ", " Label!("Lbignum_mul_end", 2, After)),
 
         // initialize (h,l) = 0, saving c = 0 for inside the loop
 
@@ -124,7 +123,7 @@ pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
         // Iterate outer loop from k = 0 ... k = p - 1 producing result digits
 
         Q!("    mov             " k!() ", xzr"),
-        Q!(Label!("bignum_mul_outerloop", 3) ":"),
+        Q!(Label!("Lbignum_mul_outerloop", 3) ":"),
 
         // Zero the carry for this stage
 
@@ -142,7 +141,7 @@ pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
         // Set loop count i = b - a, and skip everything if it's <= 0
 
         Q!("    subs            " i!() ", " b!() ", " a!()),
-        Q!("    bls             " Label!("bignum_mul_innerend", 4, After)),
+        Q!("    bls             " Label!("Lbignum_mul_innerend", 4, After)),
 
         // Use temporary pointers xx = x + 8 * a and yy = y + 8 * (k - b)
         // Increment xx per iteration but just use loop counter with yy
@@ -157,7 +156,7 @@ pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
 
         // And index using the loop counter i = b - a, ..., i = 1
 
-        Q!(Label!("bignum_mul_innerloop", 5) ":"),
+        Q!(Label!("Lbignum_mul_innerloop", 5) ":"),
         Q!("    ldr             " a!() ", [" xx!() "], #8"),
         Q!("    ldr             " b!() ", [" yy!() ", " i!() ", lsl #3]"),
         Q!("    mul             " d!() ", " a!() ", " b!()),
@@ -166,18 +165,18 @@ pub(crate) fn bignum_mul(z: &mut [u64], x: &[u64], y: &[u64]) {
         Q!("    adcs            " h!() ", " h!() ", " a!()),
         Q!("    adc             " c!() ", " c!() ", xzr"),
         Q!("    subs            " i!() ", " i!() ", #1"),
-        Q!("    bne             " Label!("bignum_mul_innerloop", 5, Before)),
+        Q!("    bne             " Label!("Lbignum_mul_innerloop", 5, Before)),
 
-        Q!(Label!("bignum_mul_innerend", 4) ":"),
+        Q!(Label!("Lbignum_mul_innerend", 4) ":"),
         Q!("    str             " l!() ", [" z!() ", " k!() ", lsl #3]"),
         Q!("    mov             " l!() ", " h!()),
         Q!("    mov             " h!() ", " c!()),
 
         Q!("    add             " k!() ", " k!() ", #1"),
         Q!("    cmp             " k!() ", " p!()),
-        Q!("    bcc             " Label!("bignum_mul_outerloop", 3, Before)),
+        Q!("    bcc             " Label!("Lbignum_mul_outerloop", 3, Before)),
 
-        Q!(Label!("bignum_mul_end", 2) ":"),
+        Q!(Label!("Lbignum_mul_end", 2) ":"),
         inout("x0") z.len() => _,
         inout("x1") z.as_mut_ptr() => _,
         inout("x2") x.len() => _,

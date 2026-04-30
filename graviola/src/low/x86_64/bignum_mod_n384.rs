@@ -85,7 +85,6 @@ pub(crate) fn bignum_mod_n384(z: &mut [u64; 6], x: &[u64; 6]) {
 
         Q!("    endbr64         " ),
 
-
         // Load the input and compute x + (2^384 - n_384)
 
         Q!("    mov             " a!() ", 0x1313e695333ad68d"),

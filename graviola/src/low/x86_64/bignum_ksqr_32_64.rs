@@ -36,7 +36,6 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    endbr64         " ),
         Q!("    push            " "rbp"),
         Q!("    push            " "rbx"),
@@ -45,10 +44,10 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
         Q!("    push            " "r14"),
         Q!("    push            " "r15"),
         Q!("    mov             " "rcx, rdx"),
-        Q!("    call            " Label!("bignum_ksqr_32_64_local_bignum_sqr_16_32", 2, After)),
+        Q!("    call            " Label!("Lbignum_ksqr_32_64_local_bignum_sqr_16_32", 2, After)),
         Q!("    lea             " "rsi, [rsi + 0x80]"),
         Q!("    lea             " "rdi, [rdi + 0x100]"),
-        Q!("    call            " Label!("bignum_ksqr_32_64_local_bignum_sqr_16_32", 2, After)),
+        Q!("    call            " Label!("Lbignum_ksqr_32_64_local_bignum_sqr_16_32", 2, After)),
         Q!("    mov             " "rax, QWORD PTR [rsi -0x80]"),
         Q!("    sub             " "rax, QWORD PTR [rsi]"),
         Q!("    mov             " "QWORD PTR [rcx], rax"),
@@ -330,7 +329,7 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
         Q!("    mov             " "rsi, rcx"),
         Q!("    lea             " "rcx, [rdi -0x100]"),
         Q!("    lea             " "rdi, [rsi + 0x100]"),
-        Q!("    call            " Label!("bignum_ksqr_32_64_local_bignum_sqr_16_32", 2, After)),
+        Q!("    call            " Label!("Lbignum_ksqr_32_64_local_bignum_sqr_16_32", 2, After)),
         Q!("    mov             " "rax, QWORD PTR [rsi + 0x80]"),
         Q!("    sub             " "rax, QWORD PTR [rdi]"),
         Q!("    mov             " "QWORD PTR [rcx + 0x80], rax"),
@@ -452,10 +451,10 @@ pub(crate) fn bignum_ksqr_32_64(z: &mut [u64], x: &[u64], t: &mut [u64; 72]) {
         Q!("    pop             " "r12"),
         Q!("    pop             " "rbx"),
         Q!("    pop             " "rbp"),
-        // proc hoisting in -> ret after bignum_ksqr_32_64_local_bignum_sqr_16_32
+        // proc hoisting in -> ret after Lbignum_ksqr_32_64_local_bignum_sqr_16_32
         Q!("    jmp             " Label!("hoist_finish", 3, After)),
 
-        Q!(Label!("bignum_ksqr_32_64_local_bignum_sqr_16_32", 2) ":"),
+        Q!(Label!("Lbignum_ksqr_32_64_local_bignum_sqr_16_32", 2) ":"),
         Q!("    xor             " "ebp, ebp"),
         Q!("    mov             " "rdx, QWORD PTR [rsi]"),
         Q!("    mulx            " "rax, r9, QWORD PTR [rsi + 0x8]"),
