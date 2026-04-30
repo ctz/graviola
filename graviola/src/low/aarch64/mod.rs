@@ -67,3 +67,4 @@ pub(crate) mod p256_montjmixadd;
 pub(crate) mod p384_montjadd;
 pub(crate) mod p384_montjdouble;
 pub(crate) mod sha256;
+pub(crate) mod sha3_keccak_f1600;

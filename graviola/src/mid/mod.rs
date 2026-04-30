@@ -12,6 +12,7 @@ pub(super) mod rng;
 pub(super) mod rsa_priv;
 pub(super) mod rsa_pub;
 pub mod sha2;
+pub mod sha3;
 pub(super) mod util;
 pub(super) mod x25519;
 pub(super) mod xchacha20poly1305;
