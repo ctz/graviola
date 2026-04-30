@@ -109,6 +109,13 @@ def parse_file(f, visit):
         "CFI_POP2",
         lambda lo, hi: f"ldp {lo}, {hi}, [sp], #16",
     )
+    cpp.function(
+        "CFI_STACKSAVE2X",
+        lambda lo, hi, offset, _: f"stp {lo}, {hi}, [sp, #({offset}+0)]",
+    )
+    cpp.function(
+        "CFI_STACKLOAD2", lambda lo, hi, offset: f"ldp {lo}, {hi}, [sp, #({offset}+0)]"
+    )
 
     lines = f.readlines()
     lines = tidy_linewise(lines)
