@@ -129,7 +129,6 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
     unsafe {
         core::arch::asm!(
 
-
         // Save registers and make room for temporaries
 
         Q!("    stp             " "x19, x20, [sp, -16] !"),

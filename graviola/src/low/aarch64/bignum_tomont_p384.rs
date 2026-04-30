@@ -150,7 +150,6 @@ pub(crate) fn bignum_tomont_p384(z: &mut [u64; 6], x: &[u64; 6]) {
         core::arch::asm!(
 
 
-
         // <macro definition d0 hoisted upwards>
         // <macro definition d1 hoisted upwards>
         // <macro definition d2 hoisted upwards>

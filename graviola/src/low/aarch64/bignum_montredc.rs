@@ -146,7 +146,6 @@ pub(crate) fn bignum_montredc(z: &mut [u64], x: &[u64], m: &[u64], p: u64) {
     unsafe {
         core::arch::asm!(
 
-
         // If k = 0 the whole operation is trivial
 
         Q!("    cbz             " k!() ", " Label!("bignum_montredc_end", 2, After)),

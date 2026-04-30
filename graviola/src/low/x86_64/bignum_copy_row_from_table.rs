@@ -70,9 +70,7 @@ pub(crate) fn bignum_copy_row_from_table(
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    endbr64         " ),
-
 
         Q!("    test            " height!() ", " height!()),
         Q!("    jz              " Label!("bignum_copy_row_from_table_end", 2, After)),

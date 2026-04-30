@@ -64,7 +64,6 @@ pub(crate) fn bignum_bitsize(x: &[u64]) -> usize {
     unsafe {
         core::arch::asm!(
 
-
         // If the bignum is zero-length, x0 is already the right answer of 0
 
         Q!("    cbz             " k!() ", " Label!("bignum_bitsize_end", 2, After)),

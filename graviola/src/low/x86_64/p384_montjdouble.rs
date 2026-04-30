@@ -946,9 +946,7 @@ pub(crate) fn p384_montjdouble(p3: &mut [u64; 18], p1: &[u64; 18]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    endbr64         " ),
-
 
         // Save registers and make room on stack for temporary variables
         // Save the output pointer rdi which gets overwritten in earlier

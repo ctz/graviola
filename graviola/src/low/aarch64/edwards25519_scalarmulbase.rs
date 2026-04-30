@@ -400,7 +400,6 @@ pub(crate) fn edwards25519_scalarmulbase(res: &mut [u64; 8], scalar: &[u64; 4]) 
     unsafe {
         core::arch::asm!(
 
-
         // Save regs and make room for temporaries
 
         Q!("    stp             " "x19, x20, [sp, -16] !"),

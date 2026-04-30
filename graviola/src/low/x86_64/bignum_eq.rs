@@ -56,9 +56,7 @@ pub(crate) fn bignum_eq(x: &[u64], y: &[u64]) -> bool {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    endbr64         " ),
-
 
         // Initialize the accumulated OR of differences to zero
 

@@ -117,7 +117,6 @@ pub(crate) fn bignum_tomont_p256(z: &mut [u64; 4], x: &[u64; 4]) {
         core::arch::asm!(
 
 
-
         // Load the input
 
         Q!("    ldp             " d0!() ", " d1!() ", [x1]"),

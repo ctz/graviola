@@ -50,6 +50,32 @@ def tidy_linewise(lines):
     return lines
 
 
+def merge_blank_lines(lines):
+    run_start = None
+    run_count = 0
+    spans = []
+
+    for i in range(len(lines)):
+        if lines[i].strip() == "":
+            if run_start is None:
+                run_start = i
+            run_count += 1
+        else:
+            if run_count > 1:
+                spans.append((run_start, run_count))
+
+            run_start = None
+            run_count = 0
+
+    for start, count in reversed(spans):
+        lines[start : start + count] = ["\n"]
+
+    while len(lines) and lines[0].strip() == "":
+        lines.pop(0)
+
+    return lines
+
+
 def parse_file(f, visit):
     continuation = None
     contexts = []
@@ -62,6 +88,7 @@ def parse_file(f, visit):
     lines = f.readlines()
     lines = tidy_linewise(lines)
     lines = cpp.apply_lines(lines)
+    lines = merge_blank_lines(lines)
 
     for l in lines:
         l = l.lstrip()

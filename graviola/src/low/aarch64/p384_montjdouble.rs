@@ -917,7 +917,6 @@ pub(crate) fn p384_montjdouble(p3: &mut [u64; 18], p1: &[u64; 18]) {
     unsafe {
         core::arch::asm!(
 
-
         // Save regs and make room on stack for temporary variables
 
         Q!("    stp             " "x19, x20, [sp, #-16] !"),

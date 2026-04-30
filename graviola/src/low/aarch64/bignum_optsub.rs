@@ -75,7 +75,6 @@ pub(crate) fn bignum_optsub(z: &mut [u64], x: &[u64], y: &[u64], p: u64) {
     unsafe {
         core::arch::asm!(
 
-
         // if k = 0 do nothing. This is also the right top carry in X0
 
         Q!("    cbz             " k!() ", " Label!("bignum_optsub_end", 2, After)),

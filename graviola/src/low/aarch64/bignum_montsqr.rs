@@ -148,7 +148,6 @@ pub(crate) fn bignum_montsqr(z: &mut [u64], x: &[u64], m: &[u64]) {
     unsafe {
         core::arch::asm!(
 
-
         // If k = 0 the whole operation is trivial
 
         Q!("    cbz             " k!() ", " Label!("bignum_montsqr_end", 2, After)),

@@ -154,7 +154,6 @@ pub(crate) fn bignum_montmul(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
     unsafe {
         core::arch::asm!(
 
-
         // If k = 0 the whole operation is trivial
 
         Q!("    cbz             " k!() ", " Label!("bignum_montmul_end", 2, After)),

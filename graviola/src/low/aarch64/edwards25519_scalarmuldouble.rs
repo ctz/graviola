@@ -544,7 +544,6 @@ pub(crate) fn edwards25519_scalarmuldouble(
     unsafe {
         core::arch::asm!(
 
-
         // Save regs and make room for temporaries
 
         Q!("    stp             " "x19, x20, [sp, -16] !"),

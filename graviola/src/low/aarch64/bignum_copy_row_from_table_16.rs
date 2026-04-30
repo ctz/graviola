@@ -170,7 +170,6 @@ pub(crate) fn bignum_copy_row_from_table_16(z: &mut [u64], table: &[u64], height
     unsafe {
         core::arch::asm!(
 
-
         // Clear accumulator
         // Zeroing can be done via xor, but xor isn't formalized yet.
         Q!("    dup             " ventry0!() ".2d, xzr"),

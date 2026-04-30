@@ -87,7 +87,6 @@ pub(crate) fn bignum_negmodinv(z: &mut [u64], x: &[u64]) {
     unsafe {
         core::arch::asm!(
 
-
         // If k = 0 do nothing
 
         Q!("    cbz             " k!() ", " Label!("bignum_negmodinv_end", 2, After)),

@@ -60,7 +60,6 @@ pub(crate) fn bignum_mux(p: u64, z: &mut [u64], x_if_p: &[u64], y_if_not_p: &[u6
     unsafe {
         core::arch::asm!(
 
-
         Q!("    cbz             " k!() ", " Label!("bignum_mux_end", 2, After)),
         Q!("    cmp             " b!() ", #0"),
 

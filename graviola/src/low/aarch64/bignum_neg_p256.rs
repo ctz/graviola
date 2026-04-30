@@ -65,7 +65,6 @@ pub(crate) fn bignum_neg_p256(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
-
         // Load the 4 digits of x
 
         Q!("    ldp             " d0!() ", " d1!() ", [" x!() "]"),
