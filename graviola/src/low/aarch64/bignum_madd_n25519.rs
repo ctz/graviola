@@ -147,7 +147,6 @@ pub(crate) fn bignum_madd_n25519(z: &mut [u64; 4], x: &[u64; 4], y: &[u64; 4], c
     unsafe {
         core::arch::asm!(
 
-
         Q!("    stp             " "x19, x20, [sp, -16] !"),
 
         // Back up the result pointer so we can overwrite x0 in intermediate steps

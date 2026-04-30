@@ -77,7 +77,6 @@ pub(crate) fn bignum_modsub(z: &mut [u64], x: &[u64], y: &[u64], m: &[u64]) {
     unsafe {
         core::arch::asm!(
 
-
         Q!("    adds            " j!() ", " k!() ", xzr"),
         Q!("    beq             " Label!("bignum_modsub_end", 2, After)),
         Q!("    subs            " i!() ", xzr, xzr"),

@@ -467,7 +467,6 @@ pub(crate) fn bignum_montmul_p384(z: &mut [u64; 6], x: &[u64; 6], y: &[u64; 6]) 
     unsafe {
         core::arch::asm!(
 
-
         // Save some registers
 
         Q!("    stp             " "x19, x20, [sp, -16] !"),

@@ -150,9 +150,7 @@ pub(crate) fn bignum_montifier(z: &mut [u64], m: &[u64], t: &mut [u64]) {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    endbr64         " ),
-
 
         // Save some additional registers for use, copy args out of RCX and RDX
 

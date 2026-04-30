@@ -67,9 +67,7 @@ pub(crate) fn bignum_ctz(x: &[u64]) -> usize {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    endbr64         " ),
-
 
         // If the bignum is zero-length, just return 0
 

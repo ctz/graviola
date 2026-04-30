@@ -102,12 +102,10 @@ pub(crate) fn edwards25519_decode(z: &mut [u64; 8], c: &[u8; 32]) -> bool {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    endbr64         " ),
 
         // In this case the Windows form literally makes a subroutine call.
         // This avoids hassle arising from subroutine offsets
-
 
         // Save registers and make room for temporaries
 

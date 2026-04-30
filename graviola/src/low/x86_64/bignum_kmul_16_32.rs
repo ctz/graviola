@@ -34,7 +34,6 @@ pub(crate) fn bignum_kmul_16_32(z: &mut [u64], x: &[u64], y: &[u64], t: &mut [u6
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    endbr64         " ),
         Q!("    push            " "rbx"),
         Q!("    push            " "rbp"),

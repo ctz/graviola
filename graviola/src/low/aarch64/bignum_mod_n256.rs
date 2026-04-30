@@ -90,7 +90,6 @@ pub(crate) fn bignum_mod_n256(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
-
         // Load the complicated three words of n_256, the other being all 1s
 
         movbig!(n0!(), "#0xf3b9", "#0xcac2", "#0xfc63", "#0x2551"),

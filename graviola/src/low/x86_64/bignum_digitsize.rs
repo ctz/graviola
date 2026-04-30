@@ -53,9 +53,7 @@ pub(crate) fn bignum_digitsize(z: &[u64]) -> usize {
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
-
         Q!("    endbr64         " ),
-
 
         // Initialize the index i and also prepare default return value of 0 (i = rax)
 

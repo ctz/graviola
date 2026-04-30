@@ -64,7 +64,6 @@ pub(crate) fn bignum_neg_p25519(z: &mut [u64; 4], x: &[u64; 4]) {
     unsafe {
         core::arch::asm!(
 
-
         // Load the digits of x and compute [d3;d2;d1;d0] = (2^255 - 19) - x
         // while also computing c = the OR of the digits of x
 
