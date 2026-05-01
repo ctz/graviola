@@ -15,6 +15,7 @@ use core::mem::size_of;
 use core::ops::Deref;
 use core::pin::Pin;
 use core::ptr;
+use std::alloc::{Layout, dealloc};
 
 #[test]
 fn rsa() {
@@ -108,18 +109,42 @@ fn xchacha20_poly1305() {
     check_zeroed_on_drop(Box::pin(xchacha));
 }
 
-fn check_zeroed_on_drop<T>(value: Pin<Box<T>>) {
+fn check_zeroed_on_drop<T: Unpin>(value: Pin<Box<T>>) {
     check_zeroed_on_drop_bounded(value, Bounds::All)
 }
 
-fn check_zeroed_on_drop_bounded<T>(value: Pin<Box<T>>, bounds: Bounds) {
+fn check_zeroed_on_drop_bounded<T: Unpin>(value: Pin<Box<T>>, bounds: Bounds) {
     let ptr = value.deref() as *const T as *const u8;
     let len = size_of::<T>();
     assert_ne!(len, 0);
     println!("this value is {len} bytes in length");
     let before_drop = read_into_vec(ptr, len);
-    drop(value);
+
+    // Drop `value` and then read its contents to verify they've been zeroed.
+    //
+    // Note that we can't just do `drop(value)` and then read the memory where
+    // `value` used to be, because of a race condition: if any code in this or
+    // any other thread does a heap allocation between the freeing of `value`
+    // and the read, that allocation might reuse the same memory where `value`
+    // used to live, and those bytes could be overwritten before the read begins.
+    //
+    // Instead, we unwrap `value`'s `Pin<Box>` to get a raw pointer, call
+    // `drop_in_place` on that raw pointer to invoke the object's `Drop`
+    // implementation, then make a copy of the memory where `value` used to live,
+    // and then finally deallocate the raw pointer to free the memory.
+
+    // SAFETY: After unpinning `value`, we do not do anything that might move it before dropping it.
+    let addr = Box::into_raw(unsafe { Pin::into_inner_unchecked(value) });
+
+    // SAFETY: We obtained `addr` by unwrapping a valid `Box<T>`, so it is aligned and non-null.
+    unsafe {
+        ptr::drop_in_place(addr);
+    }
     let after_drop = read_into_vec(ptr, len);
+    // SAFETY: We obtained `addr` by unwrapping a valid `Box<T>`, so it is allocated and `T-`aligned.
+    unsafe {
+        dealloc(addr as *mut u8, Layout::new::<T>());
+    }
 
     for i in bounds.start()..bounds.end(len) {
         if after_drop[i] != 0x00 {
