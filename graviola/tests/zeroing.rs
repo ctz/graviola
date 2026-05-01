@@ -9,7 +9,7 @@
 //! Does it work? If you're reading this, it has probably
 //! broken, so also no.
 
-#![cfg(target_os = "linux")]
+#![cfg(any(target_os = "linux", target_os = "macos"))]
 
 use core::mem::size_of;
 use core::ops::Deref;
