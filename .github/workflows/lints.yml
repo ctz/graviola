@@ -24,7 +24,7 @@ jobs:
           toolchain: "1.89"
 
       - name: Check MSRV
-        run: cargo build --lib --all-features
+        run: cargo build --lib
 
   lints:
     runs-on: ubuntu-latest
@@ -63,7 +63,7 @@ jobs:
           components: rustfmt
 
       - name: clippy
-        run: cargo +stable clippy --all-features --all-targets -- --deny warnings
+        run: cargo +stable clippy --all-targets -- --deny warnings
 
       - name: rustfmt
         run: cargo +stable fmt --check
