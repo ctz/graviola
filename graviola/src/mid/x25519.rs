@@ -258,8 +258,8 @@ mod tests {
 
     #[test]
     fn random_keys() {
-        let key1 = StaticPrivateKey::new_random().unwrap();
-        let key2 = StaticPrivateKey::new_random().unwrap();
+        let key1 = low::ct::into_public(StaticPrivateKey::new_random().unwrap());
+        let key2 = low::ct::into_public(StaticPrivateKey::new_random().unwrap());
         assert_ne!(key1.as_bytes(), key2.as_bytes());
         assert_eq!(
             key1.diffie_hellman(&key2.public_key()).unwrap().0,
