@@ -1,9 +1,8 @@
 #!/bin/sh
 set -e
 
-# ensure tests are built: cargo and rustc are not valgrind-friendly
-cargo test --no-run "$@"
+export VALGRIND_BUG_494162=1
+export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind --track-origins=yes"
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER="valgrind --track-origins=yes"
 
-# nb. do not run zeroing test, it is extremely valgrind-unfriendly
-valgrind --trace-children=yes --track-origins=yes \
-    cargo test --lib --test wycheproof "$@"
+cargo test --lib --test wycheproof --features __ctgrind "$@"
