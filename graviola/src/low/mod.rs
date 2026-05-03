@@ -13,9 +13,12 @@ mod generic {
     pub(super) mod blockwise;
     #[cfg(target_arch = "aarch64")]
     pub(crate) mod chacha20;
+    pub(super) mod ct_copy;
     pub(super) mod ct_equal;
     #[cfg(test)]
     pub(crate) mod ghash;
+    #[cfg(target_arch = "aarch64")]
+    pub(crate) mod mlkem;
     pub(crate) mod poly1305;
     #[cfg(target_arch = "x86_64")]
     pub(super) mod sha256;
@@ -28,6 +31,7 @@ mod posint;
 
 pub(crate) use entry::Entry;
 pub(crate) use generic::blockwise::Blockwise;
+pub(crate) use generic::ct_copy::{ct_copy, ct_select_i16};
 pub(crate) use generic::ct_equal::ct_equal;
 pub(crate) use generic::poly1305;
 pub(crate) use generic::zeroise::{zeroise, zeroise_value};
@@ -98,6 +102,18 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::edwards25519_scalarmulbase::edwards25519_scalarmulbase;
         pub(crate) use x86_64::edwards25519_scalarmuldouble::edwards25519_scalarmuldouble;
         pub(crate) use x86_64::ghash;
+        pub(crate) use x86_64::mlkem::{
+            mlkem_ntt,
+            mlkem_intt,
+            mlkem_mulcache_compute,
+            mlkem_rej_uniform_vartime
+        };
+        pub(crate) use x86_64::mlkem_basemul_k3::mlkem_basemul_k3;
+        pub(crate) use x86_64::mlkem_reduce::mlkem_reduce;
+        pub(crate) use x86_64::mlkem_frombytes::mlkem_frombytes;
+        pub(crate) use x86_64::mlkem_tobytes::mlkem_tobytes;
+        pub(crate) use x86_64::mlkem_tomont::mlkem_tomont;
+        pub(crate) use x86_64::mlkem_unpack::mlkem_unpack;
         pub(crate) use x86_64::p256_montjadd::p256_montjadd;
         pub(crate) use x86_64::p256_montjdouble::p256_montjdouble;
         pub(crate) use x86_64::p256_montjmixadd::p256_montjmixadd;
@@ -164,6 +180,16 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::edwards25519_decode::edwards25519_decode;
         pub(crate) use aarch64::edwards25519_scalarmulbase::edwards25519_scalarmulbase;
         pub(crate) use aarch64::edwards25519_scalarmuldouble::edwards25519_scalarmuldouble;
+        pub(crate) use aarch64::mlkem::{
+            mlkem_ntt,
+            mlkem_intt,
+            mlkem_mulcache_compute,
+            mlkem_rej_uniform_vartime,
+        };
+        pub(crate) use aarch64::mlkem_basemul_k3::mlkem_basemul_k3;
+        pub(crate) use aarch64::mlkem_reduce::mlkem_reduce;
+        pub(crate) use aarch64::mlkem_tobytes::mlkem_tobytes;
+        pub(crate) use aarch64::mlkem_tomont::mlkem_tomont;
         pub(crate) use aarch64::ghash;
         pub(crate) use aarch64::p256_montjadd::p256_montjadd;
         pub(crate) use aarch64::p256_montjdouble::p256_montjdouble;
@@ -175,6 +201,7 @@ cfg_if::cfg_if! {
 
         pub(crate) use generic::chacha20;
         pub(crate) use generic::sha512::sha512_compress_blocks;
+        pub(crate) use generic::mlkem::{mlkem_frombytes, mlkem_unpack};
     } else {
         compile_error!("This crate only supports x86_64 or aarch64");
     }

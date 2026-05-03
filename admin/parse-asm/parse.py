@@ -114,6 +114,10 @@ def parse_file(f, visit):
         lambda lo, hi, offset, _: f"stp {lo}, {hi}, [sp, #({offset}+0)]",
     )
     cpp.function(
+        "CFI_STACKSAVE2",
+        lambda lo, hi, offset: f"stp {lo}, {hi}, [sp, #({offset})]",
+    )
+    cpp.function(
         "CFI_STACKLOAD2", lambda lo, hi, offset: f"ldp {lo}, {hi}, [sp, #({offset}+0)]"
     )
 

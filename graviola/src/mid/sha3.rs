@@ -82,13 +82,8 @@ impl Shake128 {
     ///
     /// The items of `message` are processed in order, as if concatenated.
     pub fn new(message: &[&[u8]]) -> Self {
-        let mut sponge = Sponge::new();
-        for m in message {
-            sponge.absorb(m);
-        }
-        sponge.absorb_final();
         Self {
-            sponge,
+            sponge: Sponge::new_for_message(message),
             buffer: [0u8; SHAKE_128_R_BYTES],
             buffer_offset: SHAKE_128_R_BYTES,
         }
@@ -102,6 +97,8 @@ impl Shake128 {
             .shake_read(output, &mut self.buffer, &mut self.buffer_offset);
     }
 }
+
+pub(crate) type Shake128Sponge = Sponge<SHAKE_128_R_BYTES, SHAKE_PAD_BYTE>;
 
 /// This is SHAKE256.
 ///
@@ -118,13 +115,8 @@ impl Shake256 {
     ///
     /// The items of `message` are processed in order, as if concatenated.
     pub fn new(message: &[&[u8]]) -> Self {
-        let mut sponge = Sponge::new();
-        for m in message {
-            sponge.absorb(m);
-        }
-        sponge.absorb_final();
         Self {
-            sponge,
+            sponge: Sponge::new_for_message(message),
             buffer: [0u8; SHAKE_256_R_BYTES],
             buffer_offset: SHAKE_256_R_BYTES,
         }
@@ -139,7 +131,7 @@ impl Shake256 {
     }
 }
 
-struct Sponge<const R: usize, const PAD: u8> {
+pub(crate) struct Sponge<const R: usize, const PAD: u8> {
     s: [u64; 25],
     buffer: Blockwise<R>,
 }
@@ -150,6 +142,15 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
             s: [0; 25],
             buffer: Blockwise::new(),
         }
+    }
+
+    pub(crate) fn new_for_message(message: &[&[u8]]) -> Self {
+        let mut s = Self::new();
+        for m in message {
+            s.absorb(m);
+        }
+        s.absorb_final();
+        s
     }
 
     fn absorb(&mut self, bytes: &[u8]) {
@@ -179,6 +180,10 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
             }
         };
 
+        if output.is_empty() {
+            return;
+        }
+
         let whole_chunks = output.len() / R;
         let (whole, tail) = output.split_at_mut(whole_chunks * R);
         self.squeeze(whole);
@@ -192,7 +197,7 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
     }
 
     /// Squeeze into `output`.
-    fn squeeze(&mut self, output: &mut [u8]) {
+    pub(crate) fn squeeze(&mut self, output: &mut [u8]) {
         for chunk in output.chunks_mut(R) {
             self.squeeze_current(chunk);
             sha3_keccak_f1600(&mut self.s, &RC);
@@ -266,7 +271,7 @@ const RC: [u64; 24] = [
 
 const R_ZEROES: [u8; SHAKE_128_R_BYTES] = [0; SHAKE_128_R_BYTES];
 
-const SHAKE_128_R_BYTES: usize = (1600 - 256) / 8;
+pub(crate) const SHAKE_128_R_BYTES: usize = (1600 - 256) / 8;
 const SHAKE_256_R_BYTES: usize = (1600 - 512) / 8;
 
 const SHA3_256_R_BYTES: usize = (1600 - 512) / 8;

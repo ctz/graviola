@@ -6,6 +6,7 @@
 pub(super) mod aes_gcm;
 pub(super) mod chacha20poly1305;
 pub(super) mod ed25519;
+pub mod mlkem768;
 pub(super) mod p256;
 pub(super) mod p384;
 pub(super) mod rng;
