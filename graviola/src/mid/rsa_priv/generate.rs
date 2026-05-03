@@ -379,7 +379,14 @@ mod tests {
         let bytes = read_hex_from_file(include_str!("../../testdata/rsa.bench.2048.txt"));
         let mut results = vec![];
 
-        for _ in 0..32 {
+        // If running under Valgrind, which is slow, do fewer iterations.
+        #[cfg(feature = "__ctgrind")]
+        const NUM_ITERATIONS: usize = 1;
+
+        #[cfg(not(feature = "__ctgrind"))]
+        const NUM_ITERATIONS: usize = 32;
+
+        for _ in 0..NUM_ITERATIONS {
             let mut candidate_source = SliceRandomSource(&bytes);
             let mut witness_source = SystemRandom;
 
