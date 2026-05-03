@@ -5,7 +5,7 @@ use graviola::Error;
 use graviola::aead::{AesGcm, ChaCha20Poly1305, XChaCha20Poly1305};
 use graviola::hashing::hmac::Hmac;
 use graviola::hashing::{Sha256, Sha384, Sha512};
-use graviola::key_agreement::{p256, p384, x25519};
+use graviola::key_agreement::{mlkem768, p256, p384, x25519};
 use graviola::signing::{ecdsa, eddsa, rsa};
 use serde::Deserialize;
 
@@ -47,9 +47,10 @@ struct Test {
     #[allow(unused)] // for Debug
     id: usize,
     #[allow(unused)] // for Debug
-    comment: String,
+    comment: Option<String>,
+    #[serde(default)]
     flags: Vec<String>,
-    #[serde(default, with = "hex::serde")]
+    #[serde(default, with = "hex::serde", alias = "K")]
     key: Vec<u8>,
     #[serde(default, with = "hex::serde")]
     msg: Vec<u8>,
@@ -69,6 +70,16 @@ struct Test {
     aad: Vec<u8>,
     #[serde(default, with = "hex::serde")]
     iv: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    seed: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    ek: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    dk: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    m: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    c: Vec<u8>,
     result: ExpectedResult,
 }
 
@@ -812,6 +823,125 @@ fn test_xchacha20poly1305() {
                 assert_eq!(ct, test.ct);
                 assert_eq!(&tag, &test.tag[..]);
             }
+        }
+    }
+}
+
+#[test]
+fn test_mlkem768_keygen() {
+    let data_file =
+        File::open("../thirdparty/wycheproof/testvectors_v1/mlkem_768_keygen_seed_test.json")
+            .expect("failed to open data file");
+
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
+    let mut summary = Summary::new();
+
+    for group in tests.groups {
+        summary.group(&group);
+
+        for test in group.tests {
+            summary.start(&test);
+
+            let decap = mlkem768::DecapKey::keygen_internal(&test.seed.try_into().unwrap());
+            if test.result == ExpectedResult::Valid {
+                assert_eq!(decap.as_bytes().as_slice(), &test.dk);
+                assert_eq!(decap.encapsulation_key().as_bytes().as_slice(), &test.ek);
+            }
+        }
+    }
+}
+
+#[test]
+fn test_mlkem768_encaps() {
+    let data_file =
+        File::open("../thirdparty/wycheproof/testvectors_v1/mlkem_768_encaps_test.json")
+            .expect("failed to open data file");
+
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
+    let mut summary = Summary::new();
+
+    for group in tests.groups {
+        summary.group(&group);
+
+        for test in group.tests {
+            summary.start(&test);
+
+            let Ok(encap_array) = test.ek.try_into() else {
+                summary.skipped("ek wrong size");
+                continue;
+            };
+
+            let Ok(m_array) = test.m.try_into() else {
+                summary.skipped("m wrong size");
+                continue;
+            };
+
+            let r = mlkem768::EncapKey::from_bytes(&encap_array)
+                .map(|encap| encap.encaps_internal(mlkem768::Message(m_array)));
+
+            match (test.result, r) {
+                (ExpectedResult::Valid, Ok((shared_secret, ciphertext))) => {
+                    assert_eq!(&shared_secret.as_ref(), &test.key.as_slice());
+                    assert_eq!(&ciphertext.as_ref(), &test.c.as_slice());
+                }
+                (ExpectedResult::Invalid, Ok((shared_secret, ciphertext))) => {
+                    assert!(
+                        shared_secret.as_ref() != test.key.as_slice()
+                            || ciphertext.as_ref() != test.c.as_slice()
+                    );
+                }
+                (ExpectedResult::Invalid, Err(_)) => {}
+                (_, _) => panic!(),
+            }
+        }
+    }
+}
+
+#[test]
+fn test_mlkem768() {
+    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/mlkem_768_test.json")
+        .expect("failed to open data file");
+
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
+    let mut summary = Summary::new();
+
+    for group in tests.groups {
+        summary.group(&group);
+
+        for test in group.tests {
+            summary.start(&test);
+
+            let Ok(seed_array) = test.seed.try_into() else {
+                summary.skipped("seed wrong size");
+                continue;
+            };
+
+            let Ok(c_array): Result<[u8; 1088], _> = test.c.try_into() else {
+                summary.skipped("ciphertext wrong size");
+                continue;
+            };
+
+            let Ok(ek_array): Result<[u8; 1184], _> = test.ek.as_slice().try_into() else {
+                summary.skipped("ek wrong size");
+                continue;
+            };
+
+            let decap = mlkem768::DecapKey::keygen_internal(&seed_array);
+            let encap = mlkem768::EncapKey::from_bytes(&ek_array);
+            let shared_secret = decap.decaps(&mlkem768::Ciphertext::from(c_array));
+
+            match (test.result, encap) {
+                (ExpectedResult::Valid, Ok(encap)) => {
+                    assert_eq!(&shared_secret.as_ref(), &test.key.as_slice());
+                    assert_eq!(encap.as_bytes().as_slice(), &test.ek);
+                }
+                (ExpectedResult::Invalid, Err(_)) => {}
+
+                (expect, err) => panic!("unexpected: expected={expect:?} - err={:?}", err.err()),
+            };
         }
     }
 }

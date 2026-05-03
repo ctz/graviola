@@ -141,6 +141,8 @@ pub mod key_agreement {
     pub mod p384 {
         pub use crate::mid::p384::{PrivateKey, PublicKey, SharedSecret, StaticPrivateKey};
     }
+
+    pub use crate::mid::mlkem768;
 }
 
 /// Public key signatures.
