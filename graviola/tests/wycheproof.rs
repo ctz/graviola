@@ -1,4 +1,5 @@
 use std::fs::File;
+use std::io::BufReader;
 
 use graviola::Error;
 use graviola::aead::{AesGcm, ChaCha20Poly1305, XChaCha20Poly1305};
@@ -144,7 +145,8 @@ fn hmac_sha256_tests() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hmac_sha256_test.json")
         .expect("failed to open data file");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
     let mut summary = Summary::new();
 
     for group in tests.groups {
@@ -177,7 +179,8 @@ fn hmac_sha384_tests() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hmac_sha384_test.json")
         .expect("failed to open data file");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
     let mut summary = Summary::new();
 
     for group in tests.groups {
@@ -210,7 +213,8 @@ fn hmac_sha512_tests() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hmac_sha512_test.json")
         .expect("failed to open data file");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
     let mut summary = Summary::new();
 
     for group in tests.groups {
@@ -250,7 +254,8 @@ fn test_verify_ecdsa_p256() {
         let data_file = File::open(format!("../thirdparty/wycheproof/testvectors_v1/{file}"))
             .unwrap_or_else(|_| panic!("failed to open data file {}", file));
 
-        let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+        let reader = BufReader::new(data_file);
+        let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
         let mut summary = Summary::new();
 
         for group in tests.groups {
@@ -305,7 +310,8 @@ fn test_verify_ecdsa_p384() {
         let data_file = File::open(format!("../thirdparty/wycheproof/testvectors_v1/{file}"))
             .expect("failed to open data file");
 
-        let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+        let reader = BufReader::new(data_file);
+        let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
         let mut summary = Summary::new();
 
         for group in tests.groups {
@@ -357,7 +363,8 @@ fn test_ecdh_p256() {
         File::open("../thirdparty/wycheproof/testvectors_v1/ecdh_secp256r1_ecpoint_test.json")
             .expect("failed to open data file");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
     let mut summary = Summary::new();
 
     for group in tests.groups {
@@ -395,7 +402,8 @@ fn test_ecdh_p384() {
         File::open("../thirdparty/wycheproof/testvectors_v1/ecdh_secp384r1_ecpoint_test.json")
             .expect("failed to open data file");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
     let mut summary = Summary::new();
 
     for group in tests.groups {
@@ -432,7 +440,8 @@ fn test_ecdh_x25519() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/x25519_test.json")
         .expect("failed to open data file");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
     let mut summary = Summary::new();
 
     for group in tests.groups {
@@ -461,7 +470,8 @@ fn test_aes_gcm() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/aes_gcm_test.json")
         .expect("failed to open data file");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
     let mut summary = Summary::new();
 
     for group in tests.groups {
@@ -515,7 +525,8 @@ fn test_aes_gmac() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/aes_gmac_test.json")
         .expect("failed to open data file");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
     let mut summary = Summary::new();
 
     for group in tests.groups {
@@ -579,7 +590,8 @@ fn test_rsa_pkcs1_verify() {
             .expect("failed to open data file");
         println!("file: {data_file:?}");
 
-        let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+        let reader = BufReader::new(data_file);
+        let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
         let mut summary = Summary::new();
 
         for group in tests.groups {
@@ -626,7 +638,8 @@ fn test_rsa_pss_verify() {
             .expect("failed to open data file");
         println!("file: {data_file:?}");
 
-        let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+        let reader = BufReader::new(data_file);
+        let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
         let mut summary = Summary::new();
 
         for group in tests.groups {
@@ -677,7 +690,8 @@ fn test_ed25519_verify() {
         .expect("failed to open data file");
     println!("file: {data_file:?}");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
     let mut summary = Summary::new();
 
     for group in tests.groups {
@@ -708,7 +722,8 @@ fn test_chacha20poly1305() {
         File::open("../thirdparty/wycheproof/testvectors_v1/chacha20_poly1305_test.json")
             .expect("failed to open data file");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
     let mut summary = Summary::new();
 
     for group in tests.groups {
@@ -757,7 +772,8 @@ fn test_xchacha20poly1305() {
         File::open("../thirdparty/wycheproof/testvectors_v1/xchacha20_poly1305_test.json")
             .expect("failed to open data file");
 
-    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
     let mut summary = Summary::new();
 
     for group in tests.groups {
