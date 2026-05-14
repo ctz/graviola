@@ -3,50 +3,58 @@
 
 cfg_if::cfg_if! {
     if #[cfg(all(test, feature = "__ctgrind"))] {
-        use crabgrind as cg;
+        use crabgrind::{memcheck, valgrind};
         use core::mem::size_of_val;
 
         #[inline]
         pub(crate) fn secret_slice<T>(v: &[T]) {
-            cg::monitor_command(format!(
-                "make_memory undefined {:p} {}",
-                v.as_ptr(),
-                size_of_val(v)
-            ))
-            .unwrap();
+            if let valgrind::RunningMode::Valgrind = valgrind::running_mode() {
+                memcheck::mark_memory(
+                    v.as_ptr().cast(),
+                    size_of_val(v),
+                    memcheck::MemState::Undefined,
+                )
+                .unwrap();
+            }
         }
 
         #[inline]
         pub(crate) fn public_slice<T>(v: &[T]) {
-            cg::monitor_command(format!(
-                "make_memory defined {:p} {}",
-                v.as_ptr(),
-                size_of_val(v)
-            ))
-            .unwrap();
+            if let valgrind::RunningMode::Valgrind = valgrind::running_mode() {
+                memcheck::mark_memory(
+                    v.as_ptr().cast(),
+                    size_of_val(v),
+                    memcheck::MemState::Defined,
+                )
+                .unwrap();
+            }
         }
 
         #[inline]
         #[must_use]
         pub(crate) fn into_secret<T>(v: T) -> T {
-            cg::monitor_command(format!(
-                "make_memory undefined {:p} {}",
-                &v as *const T,
-                size_of_val(&v)
-            ))
-            .unwrap();
+            if let valgrind::RunningMode::Valgrind = valgrind::running_mode() {
+                memcheck::mark_memory(
+                    (&v as *const T).cast(),
+                    size_of_val(&v),
+                    memcheck::MemState::Undefined,
+                )
+                .unwrap();
+            }
             v
         }
 
         #[inline]
         #[must_use]
         pub(crate) fn into_public<T>(v: T) -> T {
-            cg::monitor_command(format!(
-                "make_memory defined {:p} {}",
-                &v as *const T,
-                size_of_val(&v)
-            ))
-            .unwrap();
+            if let valgrind::RunningMode::Valgrind = valgrind::running_mode() {
+                memcheck::mark_memory(
+                    (&v as *const T).cast(),
+                    size_of_val(&v),
+                    memcheck::MemState::Defined,
+                )
+                .unwrap();
+            }
             v
         }
     } else {

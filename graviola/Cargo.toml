@@ -16,7 +16,7 @@ __ctgrind = ["dep:crabgrind"]
 [dependencies]
 cfg-if = "1"
 getrandom = "0.3"
-crabgrind = { version = "=0.1.9", optional = true }
+crabgrind = { version = "0.2.6", optional = true }
 
 [dev-dependencies]
 aws-lc-rs = { version = "1.16", default-features = false, features = ["alloc", "prebuilt-nasm", "non-fips"] }
