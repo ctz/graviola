@@ -11,7 +11,7 @@ from cpp import Preprocessor
 
 MACRO = re.compile(r"^(?P<name>[a-z0-9_]+)\((?P<args>[a-z0-9_,\[\]\+\* \#]*)\);?$")
 ASM = re.compile(
-    r"^(?P<opcode>[a-z][a-z0-9\.]*)\s?(?P<operands>[A-Za-z0-9_,\s\(\)\[\]\+\*\-~\t#\.!%$@]*) ?;? ?(//(?P<comment>[A-Za-z0-9 =\/@#\*\+\(\)^\.\<\>\-_:,\!\?\|])*)?$"
+    r"^(?P<opcode>[a-z][a-z0-9\.]*)\s?(?P<operands>[A-Za-z0-9_,\s\(\)\[\]{}\+\*\-~\t#\.!%$@]*) ?;? ?(//(?P<comment>[A-Za-z0-9 =\/@#\*\+\(\)^\.\<\>\-_:,\!\?\|])*)?$"
 )
 CONST = re.compile(r"\s?(?P<type>\.(quad|long))\s+(?P<value>((0x[0-9a-fA-F]+),?)+)")
 LABEL = re.compile(r"^(?P<name>(\.L)?[a-zA-Z0-9_]+):$")
@@ -249,7 +249,7 @@ def tokenise(s):
         label = re.compile(r"^\.?[a-zA-Z][a-zA-Z0-9_]+")
         comment = re.compile(r"^/\*.*?\*/")
         number = re.compile(r"^[\$#]?(-?0x[0-9a-fA-F]+|-?[0-9]+)")
-        operator = re.compile(r'^["\(\)\[\]\+\*/\-,;:#\.!]')
+        operator = re.compile(r'^["\(\)\[\]{}\+\*/\-,;:#\.!][{}]?')
         whitespace = re.compile(r"^\s+")
 
         while s:
