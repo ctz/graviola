@@ -228,7 +228,7 @@ class LabelCollector(QuietDispatcher):
         return set(self.labels)
 
 
-RUST_FUNCTION_DECL = re.compile(r"^fn (?P<name>[a-zA-Z0-9_]+)\(")
+RUST_FUNCTION_DECL = re.compile(r"^(unsafe )?fn (?P<name>[a-zA-Z0-9_]+)\(")
 
 
 # A pass to collect (1) all macro definitions that reference labels, and (2) the
@@ -494,6 +494,7 @@ class RustDriver:
         return_value=None,
         assertions=[],
         allow_inline=True,
+        func_attrs="",
         hoist=None,
     ):
         self.macro_pass.emit_rust_function(name, rust_decl)
@@ -505,6 +506,7 @@ class RustDriver:
             return_value=return_value,
             assertions=assertions,
             allow_inline=allow_inline,
+            func_attrs=func_attrs,
             hoist=hoist,
         )
 
@@ -585,6 +587,7 @@ class RustFormatter(Dispatcher):
         return_value=None,
         assertions=[],
         allow_inline=True,
+        func_attrs="",
         hoist=None,
     ):
         self.expected_functions[name] = (
@@ -595,6 +598,7 @@ class RustFormatter(Dispatcher):
             allow_inline,
             hoist,
             assertions,
+            func_attrs,
         )
 
     def set_att_syntax(self, att_syntax):
@@ -794,10 +798,12 @@ use crate::low::macros::*;
                     allow_inline,
                     hoist,
                     assertions,
+                    func_attrs,
                 ) = defn
                 self.function_state.parameter_map = parameter_map
                 self.function_state.return_map = return_map
                 self.function_state.rust_decl = rust_decl
+                self.function_state.func_attrs = func_attrs
                 self.function_state.return_value = return_value
                 self.function_state.hoist = hoist
 
@@ -819,11 +825,15 @@ use crate::low::macros::*;
                     print("#[inline(never)]", file=self.output)
 
                 print(
-                    """pub(crate) %s {
+                    """%spub(crate) %s {
                     %s
                     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
                     unsafe { core::arch::asm!("""
-                    % (self.function_state.rust_decl, locals),
+                    % (
+                        self.function_state.func_attrs,
+                        self.function_state.rust_decl,
+                        locals,
+                    ),
                     file=self.output,
                 )
 
@@ -907,6 +917,7 @@ use crate::low::macros::*;
 
         self.visit_operands(operands)
 
+        operands = operands.replace("{", "{{").replace("}", "}}")
         operands = self.expand_rust_macros_in_asm(operands)
 
         parts = ['"    %-15s "' % opcode]

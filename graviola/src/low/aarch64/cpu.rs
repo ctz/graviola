@@ -1,8 +1,6 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
-use std::arch::is_aarch64_feature_detected;
-
 pub(crate) fn enter_cpu_state() -> u32 {
     dit::maybe_enable()
 }
@@ -157,28 +155,77 @@ pub(in crate::low) unsafe fn ct_compare_bytes(a: *const u8, b: *const u8, len: u
     }
 }
 
+/// This macro interdicts is_aarch64_feature_detected to allow testability.
+macro_rules! have_cpu_feature {
+    ("neon") => {
+        crate::low::aarch64::cpu::test_toggle(
+            "neon",
+            std::arch::is_aarch64_feature_detected!("neon"),
+        )
+    };
+    ("aes") => {
+        crate::low::aarch64::cpu::test_toggle("aes", std::arch::is_aarch64_feature_detected!("aes"))
+    };
+    ("pmull") => {
+        crate::low::aarch64::cpu::test_toggle(
+            "pmull",
+            std::arch::is_aarch64_feature_detected!("pmull"),
+        )
+    };
+    ("sha2") => {
+        crate::low::aarch64::cpu::test_toggle(
+            "sha2",
+            std::arch::is_aarch64_feature_detected!("sha2"),
+        )
+    };
+    ("sha3") => {
+        crate::low::aarch64::cpu::test_toggle(
+            "sha3",
+            std::arch::is_aarch64_feature_detected!("sha3"),
+        )
+    };
+    ("dit") => {
+        crate::low::aarch64::cpu::test_toggle("dit", std::arch::is_aarch64_feature_detected!("dit"))
+    };
+}
+
+/// Token type reflecting the check for the SHA3 CPU feature
+///
+/// A value of this type is proof that the CPU dynamic feature check has happened.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct HaveSha3(());
+
+impl HaveSha3 {
+    pub(crate) fn check() -> Option<Self> {
+        match have_cpu_feature!("sha3") {
+            true => Some(Self(())),
+            false => None,
+        }
+    }
+}
+
 pub(crate) fn verify_cpu_features() {
     assert!(
-        is_aarch64_feature_detected!("neon"),
+        have_cpu_feature!("neon"),
         "graviola requires neon CPU support"
     );
     assert!(
-        is_aarch64_feature_detected!("aes"),
+        have_cpu_feature!("aes"),
         "graviola requires aes CPU support"
     );
     assert!(
-        is_aarch64_feature_detected!("pmull"),
+        have_cpu_feature!("pmull"),
         "graviola requires pmull CPU support"
     );
     assert!(
-        is_aarch64_feature_detected!("sha2"),
+        have_cpu_feature!("sha2"),
         "graviola requires sha2 CPU support"
     );
 }
 
 mod dit {
     pub(super) fn maybe_enable() -> u32 {
-        if super::is_aarch64_feature_detected!("dit") {
+        if have_cpu_feature!("dit") {
             // SAFETY: in this branch, we verified `dit` cpu feature is supported
             match unsafe { read() } {
                 0 => {
@@ -226,6 +273,21 @@ mod dit {
             // SAFETY: `msr DIT, _` is defined only if `dit` cpu feature is supported
             unsafe { core::arch::asm!("msr DIT, #0") }
         }
+    }
+}
+
+#[cfg(not(debug_assertions))]
+pub(crate) fn test_toggle(_id: &str, detected: bool) -> bool {
+    detected
+}
+
+#[cfg(debug_assertions)]
+pub(crate) fn test_toggle(id: &str, detected: bool) -> bool {
+    if std::env::var(format!("GRAVIOLA_CPU_DISABLE_{id}")).is_ok() {
+        println!("DEBUG: denying cpuid {id:?}");
+        false
+    } else {
+        detected
     }
 }
 

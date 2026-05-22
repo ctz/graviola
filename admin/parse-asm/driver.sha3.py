@@ -35,3 +35,19 @@ if __name__ == "__main__":
             rust_decl="fn sha3_keccak_f1600(a: &mut [u64; 25], rc: &[u64; 24])",
         )
         parse_file(input, d)
+
+    with (
+        open("../../thirdparty/s2n-bignum/arm/sha3/sha3_keccak_f1600_alt.S") as input,
+        open("../../graviola/src/low/aarch64/sha3_keccak_f1600_alt.rs", "w") as output,
+    ):
+        d = RustDriver(output, Architecture_aarch64)
+        d.emit_rust_function(
+            "sha3_keccak_f1600_alt",
+            parameter_map=[
+                ("inout", "a.as_mut_ptr() => _"),
+                ("inout", "rc.as_ptr() => _"),
+            ],
+            func_attrs='#[target_feature(enable = "sha3")]\n',
+            rust_decl="unsafe fn sha3_keccak_f1600(a: &mut [u64; 25], rc: &[u64; 24])",
+        )
+        parse_file(input, d)
