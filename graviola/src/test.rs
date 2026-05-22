@@ -16,18 +16,11 @@ pub(crate) struct Value<'a>(&'a str);
 impl Value<'_> {
     pub(crate) fn bytes(&self) -> Vec<u8> {
         if self.0.len().is_multiple_of(2) {
-            (0..self.0.len())
-                .step_by(2)
-                .map(|i| u8::from_str_radix(&self.0[i..i + 2], 16).unwrap())
-                .collect()
-        } else {
-            let mut buf = self.0.to_string();
-            buf.insert(0, '0');
-            (0..buf.len())
-                .step_by(2)
-                .map(|i| u8::from_str_radix(&buf[i..i + 2], 16).unwrap())
-                .collect()
+            return hex::decode(self.0).unwrap();
         }
+        let mut buf = self.0.to_string();
+        buf.insert(0, '0');
+        hex::decode(buf).unwrap()
     }
 
     pub(crate) fn int(&self) -> u64 {
