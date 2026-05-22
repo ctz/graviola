@@ -26,6 +26,8 @@ rsa = { version = "0.9", features = ["sha2"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10.8"
+sha3 = "0.12.0"
+shake = "0.1.0"
 x25519-dalek = "2"
 
 [target.'cfg(all(target_arch = "x86_64", target_os = "linux"))'.dev-dependencies]
@@ -49,6 +51,10 @@ harness = false
 
 [[bench]]
 name = "sha2"
+harness = false
+
+[[bench]]
+name = "sha3"
 harness = false
 
 [[bench]]
