@@ -2,7 +2,7 @@
 set -e
 
 export VALGRIND_BUG_494162=1
-export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind --track-origins=yes"
-export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER="valgrind --track-origins=yes"
+export CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER="valgrind --track-origins=yes --error-exitcode=99"
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER="valgrind --track-origins=yes --error-exitcode=99"
 
 cargo test --lib --test wycheproof --features __ctgrind "$@"
