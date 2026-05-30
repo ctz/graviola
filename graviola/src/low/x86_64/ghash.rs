@@ -443,6 +443,7 @@ const GF128_POLY_CARRY_MASK: __m128i =
     unsafe { mem::transmute(0xc2000000_00000001_00000000_00000001u128) };
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::low::generic::ghash as model;

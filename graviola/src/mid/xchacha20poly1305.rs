@@ -124,6 +124,7 @@ impl Drop for XChaCha20Poly1305 {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     #[test]

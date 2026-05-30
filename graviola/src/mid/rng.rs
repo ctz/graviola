@@ -29,6 +29,7 @@ impl RandomSource for SystemRandom {
 pub(crate) struct SliceRandomSource<'a>(pub &'a [u8]);
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 impl RandomSource for SliceRandomSource<'_> {
     fn fill(&mut self, out: &mut [u8]) -> Result<(), Error> {
         if out.len() > self.0.len() {
@@ -56,6 +57,7 @@ pub(crate) enum ChainRandomSource<'a> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 impl RandomSource for ChainRandomSource<'_> {
     fn fill(&mut self, out: &mut [u8]) -> Result<(), Error> {
         let taken = mem::replace(self, Self::Dead);

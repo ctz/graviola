@@ -285,6 +285,7 @@ const SHA_PAD_BYTE: u8 = 0b0000_0110;
 const SHAKE_PAD_BYTE: u8 = 0b0001_1111;
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::test::*;

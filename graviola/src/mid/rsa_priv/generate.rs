@@ -322,6 +322,7 @@ const PRODUCT_OF_SMALL_PRIMES: &[u8] = &[
 type MaxPosInt = PosInt<{ super::MAX_PRIVATE_MODULUS_WORDS }>;
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use core::time::Duration;
     use std::time::Instant;

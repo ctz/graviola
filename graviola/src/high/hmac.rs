@@ -73,6 +73,7 @@ impl<H: Hash> Hmac<H> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::high::hash::{Sha256, Sha384, Sha512};

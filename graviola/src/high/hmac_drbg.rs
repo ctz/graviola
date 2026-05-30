@@ -118,6 +118,7 @@ impl<H: Hash> RandomSource for HmacDrbg<H> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::high::hash::Sha256;

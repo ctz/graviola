@@ -34,6 +34,7 @@ pub(crate) use generic::zeroise::{zeroise, zeroise_value};
 pub(crate) use posint::{PosInt, SecretPosInt};
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests;
 
 cfg_if::cfg_if! {

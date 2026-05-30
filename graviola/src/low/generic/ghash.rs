@@ -78,6 +78,7 @@ fn double(a: u128) -> u128 {
 const R: u128 = 0xe1000000_00000000_00000000_00000000;
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 

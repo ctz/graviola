@@ -1102,6 +1102,7 @@ const CURVE_ORDER_MM: [u64; 4] = [
 ];
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use core::mem::size_of_val;
 

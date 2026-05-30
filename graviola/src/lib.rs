@@ -24,6 +24,7 @@
     unused_extern_crates,
     unused_qualifications
 )]
+#![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
 /// Low level operations.
 ///
@@ -48,6 +49,7 @@ mod error;
 
 /// Test infrastructure.
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod test;
 
 // vvv Public API
