@@ -241,7 +241,7 @@ macro_rules! vmask {
 /// `idx`-th row.
 pub(crate) fn bignum_copy_row_from_table_32(z: &mut [u64], table: &[u64], height: u64, index: u64) {
     debug_assert!(z.len() == 32);
-    debug_assert!(index < height);
+    debug_assert!(crate::low::ct::into_public(index) < height);
     // SAFETY: inline assembly. see [crate::low::inline_assembly_safety] for safety info.
     unsafe {
         core::arch::asm!(
