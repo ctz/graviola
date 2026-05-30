@@ -872,6 +872,7 @@ pub(crate) mod oid;
 pub(crate) mod pkix;
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 

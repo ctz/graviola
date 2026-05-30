@@ -479,6 +479,7 @@ fn _aes256_8_blocks(
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use std::panic;
 

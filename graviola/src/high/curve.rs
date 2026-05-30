@@ -301,6 +301,7 @@ impl Scalar<P384> for p384::Scalar {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::test::*;

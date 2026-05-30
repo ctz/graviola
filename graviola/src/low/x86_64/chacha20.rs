@@ -536,6 +536,7 @@ fn hchacha(key: &[u8; 32], nonce: &[u8; 24]) -> ChaCha20 {
 const SIGMA: [u8; 16] = *b"expand 32-byte k";
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 

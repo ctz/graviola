@@ -83,6 +83,7 @@ asn1_struct! {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::high::asn1::{Any, Encoder, Error, Null, OctetString, Parser, Type, oid};

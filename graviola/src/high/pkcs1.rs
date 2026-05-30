@@ -244,6 +244,7 @@ fn mgf1_xor<H: Hash>(seed: &[u8], h_len: usize, out: &mut [u8]) {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::high::asn1::{self, Type, oid, pkix};

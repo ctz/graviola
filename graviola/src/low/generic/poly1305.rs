@@ -258,6 +258,7 @@ fn equal_mask(x: u32, y: u32) -> u32 {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 

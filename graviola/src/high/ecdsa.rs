@@ -352,6 +352,7 @@ fn write_fixed(out: &mut [u8], mut value: &[u8]) -> Result<(), Error> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::high::curve::Curve;

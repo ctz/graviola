@@ -92,6 +92,7 @@ const MIN_PUBLIC_MODULUS_BYTES: usize = MIN_PUBLIC_MODULUS_BITS / 8;
 type RsaPosInt = low::PosInt<MAX_PUBLIC_MODULUS_WORDS>;
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
 

@@ -491,6 +491,7 @@ const BYTESWAP_512_EPI64: __m512i = unsafe {
 };
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     #![allow(clippy::undocumented_unsafe_blocks)]
 

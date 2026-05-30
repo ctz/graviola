@@ -103,6 +103,7 @@ impl<'a> Key<'a> {
 }
 
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::high::asn1::oid;
