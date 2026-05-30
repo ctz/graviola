@@ -2,7 +2,11 @@
 
 set -e
 
-cargo llvm-cov show-env --export-prefix "$@" > envsh
+# for branch coverage support, which is unstable
+export RUSTC_BOOTSTRAP=1
+OPTIONS=--branch
+
+cargo llvm-cov show-env --export-prefix $OPTIONS "$@" > envsh
 source ./envsh
 cargo llvm-cov clean --workspace
 
@@ -20,4 +24,4 @@ esac
 
 cargo run --example client https://jbp.io >/dev/null
 
-cargo llvm-cov report "$@"
+cargo llvm-cov report $OPTIONS "$@"
