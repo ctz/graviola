@@ -592,7 +592,7 @@ if __name__ == "__main__":
             rust_decl="fn bignum_copy_row_from_table_32(z: &mut [u64], table: &[u64], height: u64, index: u64)",
             assertions=[
                 "z.len() == 32",
-                "index < height",
+                "crate::low::ct::into_public(index) < height",
             ],
         )
         parse_file(input, d)
