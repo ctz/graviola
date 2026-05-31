@@ -26,7 +26,7 @@ jobs:
       - name: Check MSRV
         run: cargo build --lib
 
-  lints:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -49,12 +49,44 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-          components: rustfmt, clippy
+          components: rustfmt
 
       - name: Install cargo-modules
         uses: taiki-e/cache-cargo-install-action@v2
         with:
           tool: cargo-modules
+
+      - name: check codegen
+        working-directory: admin/parse-asm
+        run: |
+          ./all.sh
+          git diff --exit-code
+
+      - name: check license headers
+        run: ./admin/scan-license
+
+      - name: check module structure
+        run: ./admin/structure
+
+  lints:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
 
       - name: Install nightly toolchain
         uses: dtolnay/rust-toolchain@master
@@ -70,15 +102,3 @@ jobs:
 
       - name: rustfmt (nightly)
         run: cargo +nightly-2025-02-14 fmt --check -- --config-path=.rustfmt.unstable.toml
-
-      - name: check codegen
-        working-directory: admin/parse-asm
-        run: |
-          ./all.sh
-          git diff --exit-code
-
-      - name: check license headers
-        run: ./admin/scan-license
-
-      - name: check module structure
-        run: ./admin/structure
