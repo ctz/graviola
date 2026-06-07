@@ -314,6 +314,17 @@ impl<const N: usize> PosInt<N> {
         self.words[..s_used] == other.words[..o_used]
     }
 
+    #[cfg(test)]
+    /// Returns a public (in the ctgrind sense) copy of `self`.
+    /// Note: Useful when comparing the result of a SecretPosInt operation to
+    ///       an expected result in tests.
+    fn to_public(&self) -> Self {
+        Self {
+            used: self.used,
+            words: low::ct::into_public(self.words),
+        }
+    }
+
     /// Returns `self` < `other`.
     pub(crate) fn less_than(&self, other: &Self) -> bool {
         low::bignum_cmp_lt(self.as_words(), other.as_words()) > 0
@@ -867,6 +878,13 @@ fn trim_leading_zeroes(mut bytes: &[u8]) -> &[u8] {
 mod tests {
     use super::*;
 
+    // Make a SecretPosInt copy of a PosInt
+    macro_rules! secret {
+        ($p:expr) => {
+            SecretPosInt::from($p.clone())
+        };
+    }
+
     #[test]
     fn from_bytes() {
         // no bytes -> zero
@@ -960,21 +978,21 @@ mod tests {
         let one_1 = PosInt::<1>::one();
         let one_2 = PosInt::<2>::one();
 
-        let r = PosInt::mul(&one_1, &one_1);
+        let r = PosInt::mul(&secret!(one_1), &secret!(one_1)).to_public();
         r.debug("1 x 1");
         assert!(r.pub_equals(&one_2));
 
-        let r = PosInt::mul(&zero_1, &one_1);
+        let r = PosInt::mul(&secret!(zero_1), &secret!(one_1)).to_public();
         r.debug("1 x 0");
         assert!(r.pub_equals(&zero_2));
 
-        let r = PosInt::mul(&zero_1, &zero_1);
+        let r = PosInt::mul(&secret!(zero_1), &secret!(zero_1)).to_public();
         r.debug("0 x 0");
         assert!(r.pub_equals(&zero_2));
 
         let x_4 = PosInt::<4>::from_bytes(b"\xed\x1f\xde\xb5\xc6\x39\x43\x8f\xea\x1d\x05\x9c\xba\xa8\xd3\x7c\x13\x96\xf4\x96\x1c\x8e\x5f\x52\x8f\x3c\x4c\x3c\x45\xe5\x75\xa2").unwrap();
         let y_4 = PosInt::<4>::from_bytes(b"\x38\x8f\xb5\xd8\xbd\xad\x46\xfd\xe2\x8e\x33\x11\xe4\xdd\xef\x79\x70\xfe\x4a\xb9\xef\x24\x85\xbe\x4f\xde\x81\x79\x36\x0c\x9c\x86").unwrap();
-        let xy_8: PosInt<8> = PosInt::mul(&x_4, &y_4);
+        let xy_8: PosInt<8> = PosInt::mul(&secret!(x_4), &secret!(y_4)).to_public();
         println!("{xy_8:x?}");
 
         let expect_8 = PosInt::<8>::from_bytes(b"\x34\x64\x15\xf5\x75\xf1\xb7\x01\x8b\x1d\xc4\x68\xde\x4b\xf7\x6e\x6f\x62\x87\xa1\x44\x08\x6f\xb1\x85\x9c\xf3\x84\x41\x64\x48\x9d\x16\xe7\xb0\xd0\xd3\x56\x13\xba\xa2\xb9\xa6\x12\x1a\x6c\x2f\x93\xcd\xe4\x20\xfa\x41\xa4\xef\xa2\xab\xcd\x8b\x48\x19\x62\x4a\xcc").unwrap();
