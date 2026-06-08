@@ -1,0 +1,57 @@
+name: cranelift
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 18 * * *"
+
+env:
+  CARGO_TERM_COLOR: "always"
+  CARGO_UNSTABLE_CODEGEN_BACKEND: "true"
+  CARGO_PROFILE_DEV_CODEGEN_BACKEND: "cranelift"
+  CARGO_PROFILE_RELEASE_CODEGEN_BACKEND: "cranelift"
+  # Cranelift doesn't support unwinding: https://github.com/rust-lang/rustc_codegen_cranelift/issues/1567
+  CARGO_UNSTABLE_PANIC_ABORT_TESTS: "true"
+  CARGO_PROFILE_DEV_PANIC: "abort"
+  CARGO_PROFILE_RELEASE_PANIC: "abort"
+  # Cranelift lacks AVX-512 intrinsics
+  GRAVIOLA_CPU_DISABLE_avx512f: "1"
+  GRAVIOLA_CPU_DISABLE_avx512bw: "1"
+  GRAVIOLA_CPU_DISABLE_avx512vl: "1"
+  # Fix AWS LC linking: https://github.com/rust-lang/rustc_codegen_cranelift/issues/1520
+  AWS_LC_SYS_NO_U1_BINDINGS: "1"
+
+jobs:
+  cranelift:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+          - os: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: nightly
+          components: rustc-codegen-cranelift
+
+      - name: Build (debug)
+        run: cargo build -p graviola
+      - name: Run tests (debug)
+        run: cargo test
+      - name: Run tests (debug, --no-default-features)
+        run: cargo test --no-default-features
+
+      - name: Build (release)
+        run: cargo build -p graviola --release
+      - name: Run tests (release)
+        run: env SLOW_TESTS=1 cargo test --release

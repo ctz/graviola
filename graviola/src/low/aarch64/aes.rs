@@ -38,6 +38,14 @@ impl AesKey {
     }
 }
 
+impl Drop for AesKey {
+    fn drop(&mut self) {
+        low::zeroise_value(self);
+    }
+}
+
+impl low::generic::zeroise::Zeroable for AesKey {}
+
 pub(crate) struct AesKey128 {
     round_keys: [uint8x16_t; 10 + 1],
 }
@@ -76,12 +84,6 @@ impl AesKey128 {
 
     pub(crate) fn round_keys(&self) -> &[uint8x16_t; 11] {
         &self.round_keys
-    }
-}
-
-impl Drop for AesKey128 {
-    fn drop(&mut self) {
-        low::zeroise(&mut self.round_keys);
     }
 }
 
@@ -131,12 +133,6 @@ impl AesKey256 {
 
     pub(crate) fn round_keys(&self) -> &[uint8x16_t; 15] {
         &self.round_keys
-    }
-}
-
-impl Drop for AesKey256 {
-    fn drop(&mut self) {
-        low::zeroise(&mut self.round_keys);
     }
 }
 
@@ -378,6 +374,7 @@ pub(crate) fn _aes256_8_blocks(
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
+    #[cfg(panic = "unwind")]
     use std::panic;
 
     use super::*;

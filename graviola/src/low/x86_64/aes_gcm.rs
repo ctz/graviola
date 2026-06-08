@@ -499,7 +499,7 @@ mod tests {
     fn check_counter512() {
         use super::*;
 
-        if !is_x86_feature_detected!("avx512f") {
+        if HaveAvx512ForAesGcm::check().is_none() {
             println!("no AVX512 support");
             return;
         }
