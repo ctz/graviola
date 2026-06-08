@@ -90,6 +90,14 @@ impl AesKey {
     }
 }
 
+impl Drop for AesKey {
+    fn drop(&mut self) {
+        low::zeroise_value(self);
+    }
+}
+
+impl low::generic::zeroise::Zeroable for AesKey {}
+
 #[expect(clippy::large_enum_variant)] // 200 bytes is a bad heuristic for large enums
 pub(crate) enum RoundKeys512 {
     Aes128([__m512i; 11]),
@@ -127,12 +135,6 @@ impl AesKey128 {
     }
 }
 
-impl Drop for AesKey128 {
-    fn drop(&mut self) {
-        low::zeroise(&mut self.round_keys);
-    }
-}
-
 fn zero() -> __m128i {
     // SAFETY: this crate requires the `avx` cpu feature
     unsafe { _mm_setzero_si128() }
@@ -157,12 +159,6 @@ impl AesKey256 {
     pub(crate) fn encrypt_block(&self, inout: &mut [u8; 16]) {
         // SAFETY: this crate requires the `aes` & `avx` cpu features
         unsafe { aes256_block(&self.round_keys, inout) }
-    }
-}
-
-impl Drop for AesKey256 {
-    fn drop(&mut self) {
-        low::zeroise(&mut self.round_keys);
     }
 }
 
@@ -319,6 +315,7 @@ fn aes256_block(round_keys: &[__m128i; 15], block_inout: &mut [u8; 16]) {
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
+    #[cfg(panic = "unwind")]
     use std::panic;
 
     use super::*;

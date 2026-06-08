@@ -315,6 +315,7 @@ impl fmt::Debug for Ed25519 {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(panic = "unwind")]
     use std::panic;
 
     use graviola::signing::ecdsa;
