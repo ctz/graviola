@@ -35,6 +35,14 @@ fn mlkem768_keygen(c: &mut Criterion) {
             black_box(MlKem768::generate(&mut rand_core::OsRng));
         });
     });
+
+    group.bench_function("graviola", |b| {
+        use graviola::key_agreement::mlkem768;
+
+        b.iter(|| {
+            black_box(mlkem768::DecapKey::generate().unwrap());
+        });
+    });
 }
 
 // server operation
@@ -91,6 +99,20 @@ fn mlkem768_encaps(c: &mut Criterion) {
             black_box(encaps.encapsulate(&mut rng).unwrap());
         });
     });
+
+    group.bench_function("graviola", |b| {
+        use graviola::key_agreement::mlkem768;
+
+        let encaps_bytes = mlkem768::DecapKey::generate()
+            .unwrap()
+            .encapsulation_key()
+            .as_bytes();
+
+        b.iter(|| {
+            let encaps = mlkem768::EncapKey::from_bytes(&encaps_bytes).unwrap();
+            black_box(encaps.encaps().unwrap());
+        });
+    });
 }
 
 // client second operation
@@ -140,6 +162,17 @@ fn mlkem768_decaps(c: &mut Criterion) {
         b.iter(|| {
             let ciphertext = array::Array::try_from(ciphertext.as_slice()).unwrap();
             black_box(decaps.decapsulate(&ciphertext).unwrap());
+        });
+    });
+
+    group.bench_function("graviola", |b| {
+        use graviola::key_agreement::mlkem768;
+
+        let decap = mlkem768::DecapKey::generate().unwrap();
+        let (_ss, ciphertext) = decap.encapsulation_key().encaps().unwrap();
+
+        b.iter(|| {
+            black_box(decap.decaps_internal(&ciphertext));
         });
     });
 }
@@ -193,6 +226,18 @@ fn mlkem768_combined(c: &mut Criterion) {
             let (ciphertext, _secret) = encaps.encapsulate(&mut rng).unwrap();
             let ciphertext = array::Array::try_from(ciphertext.as_slice()).unwrap();
             black_box(decaps.decapsulate(&ciphertext).unwrap());
+        });
+    });
+
+    group.bench_function("graviola", |b| {
+        use graviola::key_agreement::mlkem768;
+
+        b.iter(|| {
+            let decap = mlkem768::DecapKey::generate().unwrap();
+            let encap_encoded = decap.encapsulation_key().as_bytes();
+            let encap = mlkem768::EncapKey::from_bytes(&encap_encoded).unwrap();
+            let (_ss, ciphertext) = encap.encaps().unwrap();
+            black_box(decap.decaps_internal(&ciphertext));
         });
     });
 }
