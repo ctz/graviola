@@ -1,4 +1,4 @@
-use libcrux_ml_kem::mlkem768;
+use graviola::key_agreement::mlkem768;
 use rustls::crypto::{ActiveKeyExchange, CompletedKeyExchange, SharedSecret, SupportedKxGroup};
 use rustls::ffdhe_groups::FfdheGroup;
 use rustls::{Error, NamedGroup, PeerMisbehaved, ProtocolVersion};
@@ -13,26 +13,30 @@ impl MlKem768 {
 
 impl SupportedKxGroup for MlKem768 {
     fn start(&self) -> Result<Box<dyn ActiveKeyExchange>, Error> {
-        let key_pair = mlkem768::generate_key_pair(random_bytes()?);
-
-        let (decaps_key, encaps_key) = key_pair.into_parts();
+        let decaps_key =
+            mlkem768::DecapKey::generate().map_err(|_| Error::FailedToGetRandomBytes)?;
+        let encaps_key_bytes = decaps_key.encapsulation_key().as_bytes();
 
         Ok(Box::new(Active {
             decaps_key,
-            encaps_key_bytes: encaps_key.as_slice().to_vec(),
+            encaps_key_bytes,
         }))
     }
 
     fn start_and_complete(&self, client_share: &[u8]) -> Result<CompletedKeyExchange, Error> {
-        let encaps_key =
-            mlkem768::MlKem768PublicKey::try_from(client_share).map_err(|_| INVALID_KEY_SHARE)?;
+        let client_share_array = client_share.try_into().map_err(|_| INVALID_KEY_SHARE)?;
 
-        let (ciphertext, shared_secret) = mlkem768::encapsulate(&encaps_key, random_bytes()?);
+        let encaps_key =
+            mlkem768::EncapKey::from_bytes(client_share_array).map_err(|_| INVALID_KEY_SHARE)?;
+
+        let (shared_secret, ciphertext) = encaps_key
+            .encaps()
+            .map_err(|_| Error::FailedToGetRandomBytes)?;
 
         Ok(CompletedKeyExchange {
             group: self.name(),
             pub_key: Vec::from(ciphertext.as_ref()),
-            secret: SharedSecret::from(shared_secret.as_ref()),
+            secret: SharedSecret::from(shared_secret.as_ref().as_slice()),
         })
     }
 
@@ -50,17 +54,18 @@ impl SupportedKxGroup for MlKem768 {
 }
 
 struct Active {
-    decaps_key: mlkem768::MlKem768PrivateKey,
-    encaps_key_bytes: Vec<u8>,
+    decaps_key: mlkem768::DecapKey,
+    encaps_key_bytes: [u8; 1184],
 }
 
 impl ActiveKeyExchange for Active {
     fn complete(self: Box<Self>, peer_pub_key: &[u8]) -> Result<SharedSecret, Error> {
-        let ciphertext =
-            mlkem768::MlKem768Ciphertext::try_from(peer_pub_key).map_err(|_| INVALID_KEY_SHARE)?;
-        let shared_secret = mlkem768::decapsulate(&self.decaps_key, &ciphertext);
+        let peer_pub_key_array: [u8; 1088] =
+            peer_pub_key.try_into().map_err(|_| INVALID_KEY_SHARE)?;
+        let ciphertext = mlkem768::Ciphertext::from(peer_pub_key_array);
+        let shared_secret = self.decaps_key.decaps(&ciphertext);
 
-        Ok(SharedSecret::from(shared_secret.as_ref()))
+        Ok(SharedSecret::from(shared_secret.as_ref().as_slice()))
     }
 
     fn pub_key(&self) -> &[u8] {
@@ -74,12 +79,6 @@ impl ActiveKeyExchange for Active {
     fn group(&self) -> NamedGroup {
         NamedGroup::MLKEM768
     }
-}
-
-fn random_bytes<const L: usize>() -> Result<[u8; L], Error> {
-    let mut bytes = [0; L];
-    graviola::random::fill(&mut bytes).map_err(|_| rustls::crypto::GetRandomFailed)?;
-    Ok(bytes)
 }
 
 const INVALID_KEY_SHARE: Error = Error::PeerMisbehaved(PeerMisbehaved::InvalidKeyShare);
@@ -106,8 +105,7 @@ mod tests {
         // A key exchange with a valid peer public key should succeed.
         let active = key.start().unwrap();
         assert_eq!(active.ffdhe_group(), None);
-        let peer_key_pair = mlkem768::generate_key_pair(random_bytes().unwrap());
-        let peer_public_key = peer_key_pair.public_key().as_slice();
+        let peer_public_key = active.pub_key();
         assert!(key.start_and_complete(peer_public_key).is_ok());
     }
 }
