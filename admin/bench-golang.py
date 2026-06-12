@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-import subprocess
-import os
 import json
+import os
+import subprocess
 from os import path
 
 OUTPUT_PATH = "target/criterion"
@@ -56,6 +56,10 @@ x25519_ecdh, x25519_transcript = measure("crypto/ecdh", "BenchmarkECDH/X25519")
 p256_ecdh, p256_transcript = measure("crypto/ecdh", "BenchmarkECDH/P256")
 p384_ecdh, p384_transcript = measure("crypto/ecdh", "BenchmarkECDH/P384")
 
+mlkem768_keygen, mlkem768_keygen_transcript = measure("crypto/mlkem", "BenchmarkKeyGen")
+mlkem768_encaps, mlkem768_encaps_transcript = measure("crypto/mlkem", "BenchmarkEncaps")
+mlkem768_decaps, mlkem768_decaps_transcript = measure("crypto/mlkem", "BenchmarkDecaps")
+
 p256_sign, p256_sign_transcript = measure("crypto/ecdsa", "BenchmarkSign/P256")
 p384_sign, p384_sign_transcript = measure("crypto/ecdsa", "BenchmarkSign/P384")
 
@@ -101,6 +105,12 @@ with open(path.join(OUTPUT_PATH, "report", "golang.txt"), "w") as f:
 {p256_verify_transcript}
 
 {p384_verify_transcript}
+
+{mlkem768_keygen_transcript}
+
+{mlkem768_encaps_transcript}
+
+{mlkem768_decaps_transcript}
 """,
         file=f,
     )
