@@ -1007,7 +1007,7 @@ checksum = "0cc23270f6e1808e30a928bdc84dea0b9b4136a8bc82338574f23baf47bbd280"
 
 [[package]]
 name = "graviola"
-version = "0.3.4"
+version = "0.4.0"
 dependencies = [
  "aws-lc-rs",
  "cfg-if",
@@ -2235,7 +2235,7 @@ dependencies = [
 
 [[package]]
 name = "rustls-graviola"
-version = "0.3.4"
+version = "0.4.0"
 dependencies = [
  "env_logger",
  "graviola",
@@ -2244,7 +2244,6 @@ dependencies = [
  "hyper",
  "hyper-rustls",
  "hyper-util",
- "libcrux-ml-kem",
  "rustls",
  "tokio",
  "tokio-rustls",
