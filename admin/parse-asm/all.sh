@@ -1,5 +1,5 @@
 #!/bin/sh
 set -e
 for d in driver.*.py ; do
-  python $d
+  python3 $d
 done
