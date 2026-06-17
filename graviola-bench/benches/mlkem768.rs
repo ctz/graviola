@@ -37,6 +37,7 @@ fn mlkem768_keygen(c: &mut Criterion) {
     });
 }
 
+// server operation
 fn mlkem768_encaps(c: &mut Criterion) {
     let mut group = c.benchmark_group("mlkem768-encaps");
     group.throughput(Throughput::Elements(1));
@@ -92,6 +93,7 @@ fn mlkem768_encaps(c: &mut Criterion) {
     });
 }
 
+// client second operation
 fn mlkem768_decaps(c: &mut Criterion) {
     let mut group = c.benchmark_group("mlkem768-decaps");
     group.throughput(Throughput::Elements(1));
@@ -142,5 +144,64 @@ fn mlkem768_decaps(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, mlkem768_keygen, mlkem768_encaps, mlkem768_decaps);
+// combined operation: keygen, encaps-encode, encaps-decode, encaps, decaps
+fn mlkem768_combined(c: &mut Criterion) {
+    let mut group = c.benchmark_group("mlkem768-combined");
+    group.throughput(Throughput::Elements(1));
+
+    group.bench_function("aws-lc-rs", |b| {
+        use aws_lc_rs::kem;
+
+        b.iter(|| {
+            let decaps = kem::DecapsulationKey::generate(&kem::ML_KEM_768).unwrap();
+            let encaps_encoded = decaps.encapsulation_key().unwrap().key_bytes().unwrap();
+            let encaps =
+                kem::EncapsulationKey::new(&kem::ML_KEM_768, encaps_encoded.as_ref()).unwrap();
+            let (ciphertext, _secret) = encaps.encapsulate().unwrap();
+            black_box(decaps.decapsulate(ciphertext).unwrap())
+        })
+    });
+
+    group.bench_function("libcrux-ml-kem", |b| {
+        use libcrux_ml_kem::mlkem768;
+
+        b.iter(|| {
+            let mut rand = [0u8; 64];
+            rand_core::OsRng.fill_bytes(&mut rand);
+            let (decaps, encaps) = mlkem768::generate_key_pair(rand).into_parts();
+            let encaps_encoded = encaps.as_slice();
+            let encaps = mlkem768::MlKem768PublicKey::from(encaps_encoded);
+
+            let mut rand = [0u8; 32];
+            rand_core::OsRng.fill_bytes(&mut rand);
+            let (ciphertext, _secret) = mlkem768::encapsulate(&encaps, rand);
+            black_box(mlkem768::decapsulate(&decaps, &ciphertext));
+        });
+    });
+
+    group.bench_function("rustcrypto", |b| {
+        use ml_kem::{
+            EncodedSizeUser, KemCore, MlKem768, MlKem768Params, array, kem::Decapsulate,
+            kem::Encapsulate, kem::EncapsulationKey,
+        };
+
+        b.iter(|| {
+            let mut rng = rand_core::OsRng;
+            let (decaps, encaps) = MlKem768::generate(&mut rng);
+            let encaps_encoded = encaps.as_bytes();
+            let encaps = EncapsulationKey::<MlKem768Params>::from_bytes(&encaps_encoded);
+            let (ciphertext, _secret) = encaps.encapsulate(&mut rng).unwrap();
+            let ciphertext = array::Array::try_from(ciphertext.as_slice()).unwrap();
+            black_box(decaps.decapsulate(&ciphertext).unwrap());
+        });
+    });
+}
+
+criterion_group!(
+    benches,
+    mlkem768_keygen,
+    mlkem768_encaps,
+    mlkem768_decaps,
+    mlkem768_combined,
+);
 criterion_main!(benches);
