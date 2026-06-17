@@ -76,12 +76,17 @@ fn mlkem768_encaps(c: &mut Criterion) {
     });
 
     group.bench_function("rustcrypto", |b| {
-        use ml_kem::{KemCore, MlKem768, kem::Encapsulate};
+        use ml_kem::{
+            EncodedSizeUser, KemCore, MlKem768, MlKem768Params, kem::Encapsulate,
+            kem::EncapsulationKey,
+        };
 
         let mut rng = rand_core::OsRng;
         let (_decaps, encaps) = MlKem768::generate(&mut rng);
+        let encaps_bytes = encaps.as_bytes();
 
         b.iter(|| {
+            let encaps = EncapsulationKey::<MlKem768Params>::from_bytes(&encaps_bytes);
             black_box(encaps.encapsulate(&mut rng).unwrap());
         });
     });
