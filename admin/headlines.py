@@ -1,12 +1,13 @@
 #!/usr/bin/python
 
-from os import path
 import json
-import tomllib
 from io import StringIO
+from os import path
+
+import tomllib
 
 archs = "aarch64 x86_64".split()
-impls = "aws-lc-rs dalek ring graviola rustcrypto golang".split()
+impls = "aws-lc-rs dalek ring graviola rustcrypto golang libcrux-ml-kem".split()
 which = [
     {
         "key": "rsa2048-pkcs1-sha256-verify",
@@ -54,6 +55,11 @@ which = [
         "impl-alias": dict(rustcrypto="p384-rustcrypto"),
         "name": "P384 key agreement",
         "format": lambda v: "<data value='{0}'>{0:,.5g}</data> kx/sec".format(v),
+    },
+    {
+        "key": "mlkem768-combined",
+        "name": "<span title='combined KeyGen+Encaps+Decaps'>ML-KEM-768</span>",
+        "format": lambda v: "<data value='{0}'>{0:,.5g}</data> KEM/sec".format(v),
     },
     {
         "key": "aes256-gcm",
@@ -112,6 +118,7 @@ impl_versions = {
     "graviola": from_graviola_version,
     "dalek": from_cargo_lock("x25519-dalek", "curve25519-dalek"),
     "ring": from_cargo_lock("ring"),
+    "libcrux-ml-kem": from_cargo_lock("libcrux-ml-kem"),
     "golang": from_golang_log,
     "rustcrypto": from_cargo_lock("aes-gcm", "sha2", "p256", "p384", "rsa"),
 }
@@ -126,7 +133,7 @@ groups = [
         "Signature verification",
         ["rsa2048-pkcs1-sha256-verify", "p256-ecdsa-verify", "p384-ecdsa-verify"],
     ),
-    ("Key exchange", ["x25519-ecdh", "p256-ecdh", "p384-ecdh"]),
+    ("Key exchange", ["x25519-ecdh", "p256-ecdh", "p384-ecdh", "mlkem768-combined"]),
     ("Bulk encryption", ["aes256-gcm"]),
 ]
 
@@ -209,9 +216,9 @@ for line in html:
     if not skipping:
         out.write(line)
 
-    if line == "<!-- begin headlines -->\n":
+    if line.strip() == "<!-- begin headlines -->":
         skipping = True
         out.write(fragment.getvalue())
-    if skipping and line == "<!-- end headlines -->\n":
+    if skipping and line.strip() == "<!-- end headlines -->\n":
         skipping = False
         out.write(line)
