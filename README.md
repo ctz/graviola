@@ -41,7 +41,7 @@ but there is also a public API for general-purpose use.
 
 - `aarch64` requires `aes`, `sha2`, `pmull`, and `neon` CPU features.
   (This notably excludes Raspberry PI 4 and earlier, but covers Raspberry Pi 5.)
-- `x86_64` requires `aes`, `ssse3` `avx`, `avx2`, `adx`, `bmi2`, and `pclmulqdq` CPU features.
+- `x86_64` requires `aes`, `ssse3`, `avx`, `avx2`, `adx`, `bmi2`, and `pclmulqdq` CPU features.
   (This is most x86_64 CPUs made since around ~2014.)
 
 ## Building and Testing
@@ -71,6 +71,8 @@ We are grateful to:
 - [s2n-bignum]: formally verified assembler for
     - P256, P384, P521 field arithmetic and group operations
     - x25519
+    - ML-KEM-768 underlying arithmetic
+    - SHA-3 Keccak-f
     - Big integer arithmetic
 - [wycheproof]: collated test vectors for all algorithms.
 
@@ -96,7 +98,7 @@ We are grateful to:
 
 - [x] SHA256
 - [x] SHA384 & SHA512
-- [x] SHA3-256, SHA3-512, SHAKE128, and SHAKE256.
+- [x] SHA3-256, SHA3-512, SHAKE128, and SHAKE256
 - [x] HMAC
 - [x] HMAC-DRBG
 
@@ -105,6 +107,7 @@ We are grateful to:
 - [x] X25519
 - [x] P256
 - [x] P384
+- [x] ML-KEM-768
 
 ### AEADs
 
@@ -154,6 +157,15 @@ The code which selects a term from a table of points is non-verified,
 and is written in AVX2/Neon intrinsics.
 
 X25519 directly uses the s2n-bignum implementation.
+
+### ML-KEM-768
+The core polynomial arithmetic -- the NTT, inverse NTT, base multiplication
+and reduction -- is provided by s2n-bignum (contributed by the mlkem-native
+developers).  The surrounding FIPS-203 construction (key generation,
+encapsulation and decapsulation) is written in Rust.
+
+Compression and decompression are division-free, avoiding the variable-time
+division behind the KyberSlash attacks.
 
 ### Symmetric cryptography
 SHA256 has straightforward implementations using hashing intrinsics
