@@ -80,6 +80,13 @@ insert_criterion_result(p384_sign, "p384-ecdsa-sign/golang")
 insert_criterion_result(p256_verify, "p256-ecdsa-verify/golang")
 insert_criterion_result(p384_verify, "p384-ecdsa-verify/golang")
 
+insert_criterion_result(
+    mlkem768_keygen + mlkem768_encaps + mlkem768_decaps, "mlkem768-combined/golang"
+)
+insert_criterion_result(mlkem768_keygen, "mlkem768-keygen/golang")
+insert_criterion_result(mlkem768_encaps, "mlkem768-encaps/golang")
+insert_criterion_result(mlkem768_decaps, "mlkem768-decaps/golang")
+
 os.makedirs(path.join(OUTPUT_PATH, "report"), exist_ok=True)
 with open(path.join(OUTPUT_PATH, "report", "golang.txt"), "w") as f:
     print(
