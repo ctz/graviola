@@ -9,22 +9,50 @@ Average time (µs)
 Input Size (Bytes)
 </text>
 <polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="85,52 85,473 "/>
-<text x="76" y="404" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
-0.5
+<text x="76" y="456" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+0.2
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,404 85,404 "/>
-<text x="76" y="313" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,456 85,456 "/>
+<text x="76" y="418" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+0.4
+</text>
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,418 85,418 "/>
+<text x="76" y="380" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+0.6
+</text>
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,380 85,380 "/>
+<text x="76" y="341" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+0.8
+</text>
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,341 85,341 "/>
+<text x="76" y="303" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 1.0
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,313 85,313 "/>
-<text x="76" y="222" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
-1.5
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,303 85,303 "/>
+<text x="76" y="265" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+1.2
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,222 85,222 "/>
-<text x="76" y="132" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,265 85,265 "/>
+<text x="76" y="226" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+1.4
+</text>
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,226 85,226 "/>
+<text x="76" y="188" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+1.6
+</text>
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,188 85,188 "/>
+<text x="76" y="150" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+1.8
+</text>
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,150 85,150 "/>
+<text x="76" y="111" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 2.0
 </text>
-<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,132 85,132 "/>
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,111 85,111 "/>
+<text x="76" y="73" dy="0.5ex" text-anchor="end" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
+2.2
+</text>
+<polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="80,73 85,73 "/>
 <polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="86,474 933,474 "/>
 <text x="187" y="484" dy="0.76em" text-anchor="middle" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 2000.0
@@ -59,10 +87,10 @@ Input Size (Bytes)
 </text>
 <polyline fill="none" opacity="1" stroke="#000000" stroke-width="1" points="913,474 913,479 "/>
 <circle cx="86" cy="473" r="3" opacity="1" fill="#B22222" stroke="none" stroke-width="1"/>
-<circle cx="190" cy="425" r="3" opacity="1" fill="#B22222" stroke="none" stroke-width="1"/>
-<circle cx="508" cy="265" r="3" opacity="1" fill="#B22222" stroke="none" stroke-width="1"/>
+<circle cx="190" cy="423" r="3" opacity="1" fill="#B22222" stroke="none" stroke-width="1"/>
+<circle cx="508" cy="263" r="3" opacity="1" fill="#B22222" stroke="none" stroke-width="1"/>
 <circle cx="933" cy="52" r="3" opacity="1" fill="#B22222" stroke="none" stroke-width="1"/>
-<polyline fill="none" opacity="1" stroke="#B22222" stroke-width="1" points="86,473 190,425 508,265 933,52 "/>
+<polyline fill="none" opacity="1" stroke="#B22222" stroke-width="1" points="86,473 190,423 508,263 933,52 "/>
 <text x="131" y="67" dy="0.76em" text-anchor="start" font-family="sans-serif" font-size="9.67741935483871" opacity="1" fill="#000000">
 graviola
 </text>

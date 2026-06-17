@@ -1,14 +1,17 @@
 $ go version
-go version go1.23.1 darwin/arm64
+go version go1.26.4 darwin/arm64
 
 $ go test crypto/rsa -bench BenchmarkSignPKCS1v15/2048 -benchtime 5s
 goos: darwin
 goarch: arm64
 pkg: crypto/rsa
 cpu: Apple M2
-BenchmarkSignPKCS1v15/2048-8         	    7497	    799511 ns/op
+BenchmarkSignPKCS1v15/2048-8         	    6622	    906858 ns/op
+BenchmarkSignPKCS1v15/2048/noprecomp/OnlyD-8         	    2235	   2683307 ns/op
+BenchmarkSignPKCS1v15/2048/noprecomp/Primes-8        	    6602	    908259 ns/op
+BenchmarkSignPKCS1v15/2048/noprecomp/AllValues-8     	    6621	    909236 ns/op
 PASS
-ok  	crypto/rsa	7.095s
+ok  	crypto/rsa	27.059s
 
 
 $ go test crypto/rsa -bench BenchmarkVerifyPKCS1v15/2048 -benchtime 5s
@@ -16,9 +19,9 @@ goos: darwin
 goarch: arm64
 pkg: crypto/rsa
 cpu: Apple M2
-BenchmarkVerifyPKCS1v15/2048-8         	  233850	     25599 ns/op
+BenchmarkVerifyPKCS1v15/2048-8         	  213925	     27955 ns/op
 PASS
-ok  	crypto/rsa	7.228s
+ok  	crypto/rsa	10.288s
 
 
 $ go test crypto/cipher -bench BenchmarkAESGCM/Seal-256-8192 -benchtime 5s
@@ -26,9 +29,9 @@ goos: darwin
 goarch: arm64
 pkg: crypto/cipher
 cpu: Apple M2
-BenchmarkAESGCM/Seal-256-8192-8         	 4639508	      1294 ns/op	6332.10 MB/s	       0 B/op	       0 allocs/op
+BenchmarkAESGCM/Seal-256-8192-8         	 4561508	      1327 ns/op	6175.63 MB/s	       0 B/op	       0 allocs/op
 PASS
-ok  	crypto/cipher	7.629s
+ok  	crypto/cipher	9.059s
 
 
 $ go test crypto/ecdh -bench BenchmarkECDH/X25519 -benchtime 5s
@@ -36,9 +39,9 @@ goos: darwin
 goarch: arm64
 pkg: crypto/ecdh
 cpu: Apple M2
-BenchmarkECDH/X25519-8         	   80096	     74768 ns/op	     368 B/op	       9 allocs/op
+BenchmarkECDH/X25519-8         	   86676	     69070 ns/op	     384 B/op	       9 allocs/op
 PASS
-ok  	crypto/ecdh	7.282s
+ok  	crypto/ecdh	7.559s
 
 
 $ go test crypto/ecdh -bench BenchmarkECDH/P256 -benchtime 5s
@@ -46,9 +49,9 @@ goos: darwin
 goarch: arm64
 pkg: crypto/ecdh
 cpu: Apple M2
-BenchmarkECDH/P256-8         	  119289	     49305 ns/op	     752 B/op	      12 allocs/op
+BenchmarkECDH/P256-8         	  118710	     50288 ns/op	     960 B/op	      15 allocs/op
 PASS
-ok  	crypto/ecdh	6.934s
+ok  	crypto/ecdh	7.246s
 
 
 $ go test crypto/ecdh -bench BenchmarkECDH/P384 -benchtime 5s
@@ -56,9 +59,9 @@ goos: darwin
 goarch: arm64
 pkg: crypto/ecdh
 cpu: Apple M2
-BenchmarkECDH/P384-8         	   14893	    402702 ns/op	    1080 B/op	      21 allocs/op
+BenchmarkECDH/P384-8         	   14690	    407957 ns/op	    1320 B/op	      24 allocs/op
 PASS
-ok  	crypto/ecdh	10.617s
+ok  	crypto/ecdh	10.856s
 
 
 $ go test crypto/ecdsa -bench BenchmarkSign/P256 -benchtime 5s
@@ -66,9 +69,9 @@ goos: darwin
 goarch: arm64
 pkg: crypto/ecdsa
 cpu: Apple M2
-BenchmarkSign/P256-8         	  358824	     16633 ns/op	    2376 B/op	      30 allocs/op
+BenchmarkSign/P256-8         	  284103	     21014 ns/op	    6064 B/op	      59 allocs/op
 PASS
-ok  	crypto/ecdsa	6.550s
+ok  	crypto/ecdsa	6.717s
 
 
 $ go test crypto/ecdsa -bench BenchmarkSign/P384 -benchtime 5s
@@ -76,9 +79,9 @@ goos: darwin
 goarch: arm64
 pkg: crypto/ecdsa
 cpu: Apple M2
-BenchmarkSign/P384-8         	   42840	    139034 ns/op	    2544 B/op	      31 allocs/op
+BenchmarkSign/P384-8         	   40722	    146458 ns/op	    6200 B/op	      60 allocs/op
 PASS
-ok  	crypto/ecdsa	7.784s
+ok  	crypto/ecdsa	7.886s
 
 
 $ go test crypto/ecdsa -bench BenchmarkVerify/P256 -benchtime 5s
@@ -86,9 +89,9 @@ goos: darwin
 goarch: arm64
 pkg: crypto/ecdsa
 cpu: Apple M2
-BenchmarkVerify/P256-8         	  116145	     51520 ns/op	     432 B/op	       8 allocs/op
+BenchmarkVerify/P256-8         	  113853	     52373 ns/op	     576 B/op	      10 allocs/op
 PASS
-ok  	crypto/ecdsa	6.918s
+ok  	crypto/ecdsa	6.927s
 
 
 $ go test crypto/ecdsa -bench BenchmarkVerify/P384 -benchtime 5s
@@ -96,8 +99,38 @@ goos: darwin
 goarch: arm64
 pkg: crypto/ecdsa
 cpu: Apple M2
-BenchmarkVerify/P384-8         	   13896	    430973 ns/op	     592 B/op	      12 allocs/op
+BenchmarkVerify/P384-8         	   13779	    435169 ns/op	     808 B/op	      17 allocs/op
 PASS
-ok  	crypto/ecdsa	10.765s
+ok  	crypto/ecdsa	10.825s
+
+
+$ go test crypto/mlkem -bench BenchmarkKeyGen -benchtime 5s
+goos: darwin
+goarch: arm64
+pkg: crypto/mlkem
+cpu: Apple M2
+BenchmarkKeyGen-8   	  198380	     30260 ns/op
+PASS
+ok  	crypto/mlkem	8.176s
+
+
+$ go test crypto/mlkem -bench BenchmarkEncaps -benchtime 5s
+goos: darwin
+goarch: arm64
+pkg: crypto/mlkem
+cpu: Apple M2
+BenchmarkEncaps-8   	  163748	     36619 ns/op
+PASS
+ok  	crypto/mlkem	8.138s
+
+
+$ go test crypto/mlkem -bench BenchmarkDecaps -benchtime 5s
+goos: darwin
+goarch: arm64
+pkg: crypto/mlkem
+cpu: Apple M2
+BenchmarkDecaps-8   	  156828	     38375 ns/op
+PASS
+ok  	crypto/mlkem	8.172s
 
 
