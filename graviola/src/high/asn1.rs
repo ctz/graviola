@@ -703,7 +703,7 @@ impl<'a, 's> Parser<'a> {
             }
             0x82 => {
                 let len = ((self.one_byte()? as usize) << 8) | self.one_byte()? as usize;
-                if len < 0xff {
+                if len < 0x100 {
                     return Err(Error::NonCanonicalEncoding);
                 }
                 Ok(len)
@@ -1192,6 +1192,56 @@ mod tests {
     #[should_panic]
     fn test_encode_len_limit() {
         let _ = encoded_length_for(4294967296);
+    }
+
+    #[test]
+    fn test_canonical_length_requirements() {
+        fn take_len(input: &[u8]) -> Result<usize, Error> {
+            Parser::new(input).take_len()
+        }
+
+        // no length byte at all
+        assert_eq!(take_len(&[]), Err(Error::UnexpectedEof));
+
+        // short form
+        assert_eq!(take_len(&[0x00]), Ok(0x00));
+        assert_eq!(take_len(&[0x7f]), Ok(0x7f));
+
+        // 0x80 is the (unsupported) indefinite length form
+        assert_eq!(take_len(&[0x80]), Err(Error::UnsupportedLargeObjectLength));
+
+        // 0x81 long form: one length byte
+        assert_eq!(take_len(&[0x81]), Err(Error::UnexpectedEof));
+        // ... value < 0x80 should have used the short form
+        assert_eq!(take_len(&[0x81, 0x00]), Err(Error::NonCanonicalEncoding));
+        assert_eq!(take_len(&[0x81, 0x7f]), Err(Error::NonCanonicalEncoding));
+        // ... valid
+        assert_eq!(take_len(&[0x81, 0x80]), Ok(0x80));
+        assert_eq!(take_len(&[0x81, 0xff]), Ok(0xff));
+
+        // 0x82 long form: two length bytes
+        assert_eq!(take_len(&[0x82]), Err(Error::UnexpectedEof));
+        assert_eq!(take_len(&[0x82, 0x01]), Err(Error::UnexpectedEof));
+        // ... value <= 0xff should have used a shorter form
+        assert_eq!(
+            take_len(&[0x82, 0x00, 0x00]),
+            Err(Error::NonCanonicalEncoding)
+        );
+        assert_eq!(
+            take_len(&[0x82, 0x00, 0xfe]),
+            Err(Error::NonCanonicalEncoding)
+        );
+        assert_eq!(
+            take_len(&[0x82, 0x00, 0xff]),
+            Err(Error::NonCanonicalEncoding)
+        );
+        // ... valid
+        assert_eq!(take_len(&[0x82, 0x01, 0x00]), Ok(0x100));
+        assert_eq!(take_len(&[0x82, 0xff, 0xff]), Ok(0xffff));
+
+        // 0x83 and above: more than two length bytes, unsupported
+        assert_eq!(take_len(&[0x83]), Err(Error::UnsupportedLargeObjectLength));
+        assert_eq!(take_len(&[0xff]), Err(Error::UnsupportedLargeObjectLength));
     }
 
     #[test]
