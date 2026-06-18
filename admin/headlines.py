@@ -219,6 +219,6 @@ for line in html:
     if line.strip() == "<!-- begin headlines -->":
         skipping = True
         out.write(fragment.getvalue())
-    if skipping and line.strip() == "<!-- end headlines -->\n":
+    if skipping and line.strip() == "<!-- end headlines -->":
         skipping = False
         out.write(line)
