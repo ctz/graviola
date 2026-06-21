@@ -88,7 +88,7 @@ impl AesGcm {
     ///
     /// On success, `cipher_inout` contains the plaintext of the message,
     /// and `Ok(())` is returned.
-    /// Otherwise, `Ok(Error::DecryptFailed)` is returned and `cipher_inout`
+    /// Otherwise, `Err(Error::DecryptFailed)` is returned and `cipher_inout`
     /// is cleared.
     pub fn decrypt(
         &self,
