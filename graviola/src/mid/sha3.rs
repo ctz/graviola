@@ -5,7 +5,7 @@
 //!
 //! See <https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.202.pdf>
 
-use crate::low::{Blockwise, sha3_keccak_f1600};
+use crate::low::{Blockwise, sha3_keccak_f1600, sha3_keccak4_f1600};
 
 /// A context for incremental computation of SHA3-256.
 pub struct Sha3_256Context {
@@ -137,6 +137,54 @@ pub(crate) struct SqueezingSponge<const R: usize> {
 }
 
 impl<const R: usize> SqueezingSponge<R> {
+    /// Makes four new `SqueezingSponge`s by processing four SHAKE128 inputs.
+    ///
+    /// Each item of `input` shall be 40 bytes in length, which matches ML-KEM's requirements
+    /// of 34 bytes.  The 35th byte shall be `SHAKE_PAD_BYTE` and the remainder shall be zeroes.
+    pub(crate) fn shake128_new4(inputs: &[&[u8; 40]; 4]) -> [Self; 4] {
+        // This is gnarly, for the benefit of avoiding a SHAKE_128_R_BYTES-byte buffer which is
+        // mostly zeroes, and then decoding the buffer into 64-bit words.
+        let mut s = [0; 25];
+
+        s[20] = 0x8000_0000_0000_0000;
+
+        let mut r = [
+            {
+                for (i, inp) in inputs[0].chunks_exact(8).enumerate() {
+                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                }
+                s
+            },
+            {
+                for (i, inp) in inputs[1].chunks_exact(8).enumerate() {
+                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                }
+                s
+            },
+            {
+                for (i, inp) in inputs[2].chunks_exact(8).enumerate() {
+                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                }
+                s
+            },
+            {
+                for (i, inp) in inputs[3].chunks_exact(8).enumerate() {
+                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                }
+                s
+            },
+        ];
+
+        sha3_keccak4_f1600(&mut r, &RC);
+
+        [
+            SqueezingSponge { s: r[0] },
+            SqueezingSponge { s: r[1] },
+            SqueezingSponge { s: r[2] },
+            SqueezingSponge { s: r[3] },
+        ]
+    }
+
     /// Squeeze into `output`.
     pub(crate) fn squeeze(&mut self, output: &mut [u8]) {
         for chunk in output.chunks_mut(R) {
@@ -295,7 +343,7 @@ const SHA_PAD_BYTE: u8 = 0b0000_0110;
 ///
 /// `1111` is the SHAKE domain separation constant, `1` is the multi-rate
 /// padding bit.
-const SHAKE_PAD_BYTE: u8 = 0b0001_1111;
+pub(crate) const SHAKE_PAD_BYTE: u8 = 0b0001_1111;
 
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
