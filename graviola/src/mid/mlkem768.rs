@@ -468,28 +468,59 @@ impl Coeffs<{ K * K * N }, Ntt> {
         r
     }
 
-    fn _sample_poly_ntt_quad(rho: &[u8; 32], inputs: &[&[u8; 2]; 4], outputs: &mut [i16; 256 * 4]) {
-        let buf0 = prepare(rho, inputs[0]);
-        let buf1 = prepare(rho, inputs[1]);
-        let buf2 = prepare(rho, inputs[2]);
-        let buf3 = prepare(rho, inputs[3]);
+    fn _sample_poly_ntt_quad(rho: &[u8; 32], inputs: &[&[u8; 2]; 4], outputs: &mut [i16; N * 4]) {
+        let mut buf = [0; 40];
+        buf[..32].copy_from_slice(rho);
+        buf[34] = sha3::SHAKE_PAD_BYTE;
 
-        let [q0, q1, q2, q3] = sha3::SqueezingSponge::shake128_new4(&[&buf0, &buf1, &buf2, &buf3]);
-        let [o0, o1, o2, o3] = outputs.as_chunks_mut().0 else {
-            unreachable!()
-        };
+        let mut buf0 = buf;
+        buf0[32..34].clone_from_slice(inputs[0]);
+        let mut buf1 = buf;
+        buf1[32..34].clone_from_slice(inputs[1]);
+        let mut buf2 = buf;
+        buf2[32..34].clone_from_slice(inputs[2]);
+        let mut buf3 = buf;
+        buf3[32..34].clone_from_slice(inputs[3]);
 
-        Shake128ForMlKem { sponge: q0 }.sample_into(o0);
-        Shake128ForMlKem { sponge: q1 }.sample_into(o1);
-        Shake128ForMlKem { sponge: q2 }.sample_into(o2);
-        Shake128ForMlKem { sponge: q3 }.sample_into(o3);
+        let sponge_4x = sha3::SqueezingSponge4xShake128::new(&[&buf0, &buf1, &buf2, &buf3]);
+        let (output0, outputs) = outputs.split_at_mut(N);
+        let (output1, outputs) = outputs.split_at_mut(N);
+        let (output2, output3) = outputs.split_at_mut(N);
 
-        fn prepare(rho: &[u8; 32], inp: &[u8; 2]) -> [u8; 40] {
-            let mut buf = [0; 40];
-            buf[..32].copy_from_slice(rho);
-            buf[32..34].copy_from_slice(inp);
-            buf[34] = sha3::SHAKE_PAD_BYTE;
-            buf
+        let mut samples = [[0; sha3::SHAKE_128_R_BYTES * 3]; 4];
+        let [tsponge0, tsponge1, tsponge2, tsponge3] = sponge_4x.squeeze(&mut samples);
+
+        let tail0 = Shake128ForMlKem::sample(&samples[0], output0.try_into().unwrap());
+        let tail1 = Shake128ForMlKem::sample(&samples[1], output1.try_into().unwrap());
+        let tail2 = Shake128ForMlKem::sample(&samples[2], output2.try_into().unwrap());
+        let tail3 = Shake128ForMlKem::sample(&samples[3], output3.try_into().unwrap());
+
+        if !tail0.is_empty() {
+            Shake128ForMlKem {
+                sponge: tsponge0.restitute(),
+            }
+            .tail_case(tail0);
+        }
+
+        if !tail1.is_empty() {
+            Shake128ForMlKem {
+                sponge: tsponge1.restitute(),
+            }
+            .tail_case(tail1);
+        }
+
+        if !tail2.is_empty() {
+            Shake128ForMlKem {
+                sponge: tsponge2.restitute(),
+            }
+            .tail_case(tail2);
+        }
+
+        if !tail3.is_empty() {
+            Shake128ForMlKem {
+                sponge: tsponge3.restitute(),
+            }
+            .tail_case(tail3);
         }
     }
 
@@ -568,6 +599,8 @@ impl Coeffs<{ K * K * N }, Ntt> {
     }
 }
 
+/// Values for i and j (pre-transpose) plus start offset of N coefficients within
+/// a K * K * N matrix.
 const SAMPLE_POLY_WORK: &[(u8, u8, usize)] = &[
     (0, 0, 0), //
     (0, 1, N),
@@ -866,12 +899,12 @@ fn sample_cbd2(buf: &[u8; 128], out: &mut [i16; 256]) {
 }
 
 /// SHAKE128, but oriented at use in ML-KEM's `SampleNTT()`
-pub(crate) struct Shake128ForMlKem {
+struct Shake128ForMlKem {
     sponge: sha3::Shake128SqueezingSponge,
 }
 
 impl Shake128ForMlKem {
-    pub(crate) fn new(message: &[&[u8]]) -> Self {
+    fn new(message: &[&[u8]]) -> Self {
         Self {
             sponge: sha3::Shake128Sponge::new_for_message(message),
         }
@@ -880,26 +913,39 @@ impl Shake128ForMlKem {
     /// Extract 256 coefficients that are < Q by rejection sampling.
     ///
     /// Refer to FIPS-203 `SampleNTT()`.  This function is the inner rejection loop.
-    pub(crate) fn sample_into(self, output: &mut [i16; 256]) {
-        let Self { mut sponge } = self;
-
+    fn sample_into(mut self, output: &mut [i16; 256]) {
         // First, we squeeze three blocks.  Each block contributes up to 112 coefficients,
         // so we get 336 candidate coefficients.
         let mut initial_bytes = [0; sha3::SHAKE_128_R_BYTES * 3];
-        sponge.squeeze(&mut initial_bytes);
+        self.sponge.squeeze(&mut initial_bytes);
 
-        // Now do rejection sampling, en bloc.
-        let used = low::mlkem_rej_uniform_vartime(output, &initial_bytes) as usize;
+        let tail = Self::sample(&initial_bytes, output);
 
         // If we were unlucky, 336 candidate coeffients weren't enough.  That
         // happens with low but not negligible probability (1 in ~120).
-        if used < output.len() {
-            let output = &mut output[used..];
-            let tail_iterator = Shake128TwelveBitIterator::new(sponge).filter(|f| *f < Q);
+        if !tail.is_empty() {
+            self.tail_case(tail);
+        }
+    }
 
-            for (out, coeff) in output.iter_mut().zip(tail_iterator) {
-                *out = coeff;
-            }
+    /// Sample into `output` using the bytes `samples`
+    ///
+    /// Returns the _unwritten_ items in output.  Call `tail_case()` with this value if
+    /// non-empty.
+    #[must_use]
+    fn sample<'a>(
+        samples: &'_ [u8; sha3::SHAKE_128_R_BYTES * 3],
+        output: &'a mut [i16; 256],
+    ) -> &'a mut [i16] {
+        let used = low::mlkem_rej_uniform_vartime(output, samples) as usize;
+        output.split_at_mut(used).1
+    }
+
+    fn tail_case(self, output: &mut [i16]) {
+        let tail_iterator = Shake128TwelveBitIterator::new(self.sponge).filter(|f| *f < Q);
+
+        for (out, coeff) in output.iter_mut().zip(tail_iterator) {
+            *out = coeff;
         }
     }
 }

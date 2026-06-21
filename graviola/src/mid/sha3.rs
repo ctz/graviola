@@ -5,6 +5,8 @@
 //!
 //! See <https://nvlpubs.nist.gov/nistpubs/fips/nist.fips.202.pdf>
 
+use core::ops::Range;
+
 use crate::low::{Blockwise, sha3_keccak_f1600, sha3_keccak4_f1600};
 
 /// A context for incremental computation of SHA3-256.
@@ -137,54 +139,6 @@ pub(crate) struct SqueezingSponge<const R: usize> {
 }
 
 impl<const R: usize> SqueezingSponge<R> {
-    /// Makes four new `SqueezingSponge`s by processing four SHAKE128 inputs.
-    ///
-    /// Each item of `input` shall be 40 bytes in length, which matches ML-KEM's requirements
-    /// of 34 bytes.  The 35th byte shall be `SHAKE_PAD_BYTE` and the remainder shall be zeroes.
-    pub(crate) fn shake128_new4(inputs: &[&[u8; 40]; 4]) -> [Self; 4] {
-        // This is gnarly, for the benefit of avoiding a SHAKE_128_R_BYTES-byte buffer which is
-        // mostly zeroes, and then decoding the buffer into 64-bit words.
-        let mut s = [0; 25];
-
-        s[20] = 0x8000_0000_0000_0000;
-
-        let mut r = [
-            {
-                for (i, inp) in inputs[0].chunks_exact(8).enumerate() {
-                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
-                }
-                s
-            },
-            {
-                for (i, inp) in inputs[1].chunks_exact(8).enumerate() {
-                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
-                }
-                s
-            },
-            {
-                for (i, inp) in inputs[2].chunks_exact(8).enumerate() {
-                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
-                }
-                s
-            },
-            {
-                for (i, inp) in inputs[3].chunks_exact(8).enumerate() {
-                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
-                }
-                s
-            },
-        ];
-
-        sha3_keccak4_f1600(&mut r, &RC);
-
-        [
-            SqueezingSponge { s: r[0] },
-            SqueezingSponge { s: r[1] },
-            SqueezingSponge { s: r[2] },
-            SqueezingSponge { s: r[3] },
-        ]
-    }
-
     /// Squeeze into `output`.
     pub(crate) fn squeeze(&mut self, output: &mut [u8]) {
         for chunk in output.chunks_mut(R) {
@@ -231,6 +185,113 @@ impl<const R: usize> SqueezingSponge<R> {
             tail.copy_from_slice(&buffer[..chunk]);
             *buffer_offset = chunk;
         }
+    }
+}
+
+pub(crate) struct SqueezingSponge4xShake128 {
+    states: [[u64; 25]; 4],
+}
+
+impl SqueezingSponge4xShake128 {
+    /// Makes four new `SqueezingSponge`s by processing four SHAKE128 inputs.
+    ///
+    /// Each item of `input` shall be 40 bytes in length, which matches ML-KEM's requirements
+    /// of 34 bytes.  The 35th byte shall be `SHAKE_PAD_BYTE` and the remainder shall be zeroes.
+    pub(crate) fn new(inputs: &[&[u8; 40]; 4]) -> Self {
+        debug_assert!(inputs.iter().all(|inp| inp[34] == SHAKE_PAD_BYTE));
+
+        // This is gnarly, for the benefit of avoiding a SHAKE_128_R_BYTES-byte buffer which is
+        // mostly zeroes, and then decoding the buffer into 64-bit words.
+        let mut s = [0; 25];
+
+        s[SHAKE_128_R_BYTES / size_of::<u64>() - 1] = 0x8000_0000_0000_0000;
+
+        let mut states = [
+            {
+                for (i, inp) in inputs[0].chunks_exact(8).enumerate() {
+                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                }
+                s
+            },
+            {
+                for (i, inp) in inputs[1].chunks_exact(8).enumerate() {
+                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                }
+                s
+            },
+            {
+                for (i, inp) in inputs[2].chunks_exact(8).enumerate() {
+                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                }
+                s
+            },
+            {
+                for (i, inp) in inputs[3].chunks_exact(8).enumerate() {
+                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                }
+                s
+            },
+        ];
+
+        sha3_keccak4_f1600(&mut states, &RC);
+
+        Self { states }
+    }
+
+    pub(crate) fn squeeze(
+        mut self,
+        output: &mut [[u8; SHAKE_128_R_BYTES * 3]; 4],
+    ) -> [SqueezingSpongeObligation<SHAKE_128_R_BYTES>; 4] {
+        // nb. we're doing three blocks.  The states are post-absorb, so the sequence should be:
+        //
+        // - squeeze, keccak-f, squeeze, keccak-f, squeeze
+        //
+        // This leaves a trailing keccak-f owing; represented by `SqueezingSpongeObligation`.
+
+        fn squeeze_rate(
+            states: &[[u64; 25]; 4],
+            output: &mut [[u8; SHAKE_128_R_BYTES * 3]; 4],
+            span: Range<usize>,
+        ) {
+            for j in 0..4 {
+                for (i, ch) in output[j][span.clone()].chunks_mut(8).enumerate() {
+                    ch.copy_from_slice(&states[j][i].to_le_bytes());
+                }
+            }
+        }
+
+        squeeze_rate(&self.states, output, 0..SHAKE_128_R_BYTES);
+        sha3_keccak4_f1600(&mut self.states, &RC);
+        squeeze_rate(
+            &self.states,
+            output,
+            SHAKE_128_R_BYTES..SHAKE_128_R_BYTES * 2,
+        );
+        sha3_keccak4_f1600(&mut self.states, &RC);
+        squeeze_rate(
+            &self.states,
+            output,
+            SHAKE_128_R_BYTES * 2..SHAKE_128_R_BYTES * 3,
+        );
+
+        let [s0, s1, s2, s3] = self.states;
+        [
+            SqueezingSpongeObligation(s0),
+            SqueezingSpongeObligation(s1),
+            SqueezingSpongeObligation(s2),
+            SqueezingSpongeObligation(s3),
+        ]
+    }
+}
+
+/// A [`SqueezingSponge`] to which we owe a keccak-f application prior to further use.
+pub(crate) struct SqueezingSpongeObligation<const R: usize>([u64; 25]);
+
+impl<const R: usize> SqueezingSpongeObligation<R> {
+    /// Pay back the debt by applying keccak-f and return the underlying [`SqueezingSponge`]
+    pub(crate) fn restitute(mut self) -> SqueezingSponge<R> {
+        sha3_keccak_f1600(&mut self.0, &RC);
+        SqueezingSponge { s: self.0 }
     }
 }
 
