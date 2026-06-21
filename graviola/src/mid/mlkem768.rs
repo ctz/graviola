@@ -425,19 +425,52 @@ impl Coeffs<{ K * K * N }, Ntt> {
     fn _sample_poly_ntt<const TRANSPOSED: bool>(rho: &[u8; 32]) -> Self {
         let mut r = Coeffs::zero();
 
-        for (i, matrix_row) in r.0.chunks_exact_mut(K * N).enumerate() {
-            for (j, poly) in matrix_row.chunks_exact_mut(N).enumerate() {
-                let input = match TRANSPOSED {
-                    false => &[j as u8, i as u8],
-                    true => &[i as u8, j as u8],
-                };
-                Shake128ForMlKem::new(&[rho, input]).sample_into(poly.try_into().unwrap());
-            }
+        // We have K * K polynomials to generate.  In this case, K := 3, so 9.
+        // We have a by-4 keccak, so we can attack the problem in two
+        // sets of four, followed by one straggler.
+
+        let mut work_iter = SAMPLE_POLY_WORK.chunks_exact(4);
+
+        for c4 in work_iter.by_ref() {
+            let inputs = match TRANSPOSED {
+                false => &[
+                    &[c4[0].1, c4[0].0],
+                    &[c4[1].1, c4[1].0],
+                    &[c4[2].1, c4[2].0],
+                    &[c4[3].1, c4[3].0],
+                ],
+                true => &[
+                    &[c4[0].0, c4[0].1],
+                    &[c4[1].0, c4[1].1],
+                    &[c4[2].0, c4[2].1],
+                    &[c4[3].0, c4[3].1],
+                ],
+            };
+
+            Self::_sample_poly_ntt_quad(
+                rho,
+                inputs,
+                (&mut r.0[c4[0].2..c4[3].2 + N]).try_into().unwrap(),
+            );
+        }
+
+        for (i, j, offs) in work_iter.remainder() {
+            let input = match TRANSPOSED {
+                false => &[*j, *i],
+                true => &[*i, *j],
+            };
+            Shake128ForMlKem::new(&[rho, input])
+                .sample_into((&mut r.0[*offs..*offs + N]).try_into().unwrap());
         }
 
         r.reorder();
 
         r
+    }
+    fn _sample_poly_ntt_quad(rho: &[u8; 32], inputs: &[&[u8; 2]; 4], outputs: &mut [i16; 256 * 4]) {
+        for (input, output) in inputs.iter().zip(outputs.chunks_exact_mut(N)) {
+            Shake128ForMlKem::new(&[rho, *input]).sample_into(output.try_into().unwrap());
+        }
     }
 
     // a * s + e
@@ -514,6 +547,18 @@ impl Coeffs<{ K * K * N }, Ntt> {
         r.inverse_ntt()
     }
 }
+
+const SAMPLE_POLY_WORK: &[(u8, u8, usize)] = &[
+    (0, 0, 0), //
+    (0, 1, N),
+    (0, 2, N * 2),
+    (1, 0, K * N),
+    (1, 1, N + K * N),
+    (1, 2, N * 2 + K * N),
+    (2, 0, K * N * 2),
+    (2, 1, N + K * N * 2),
+    (2, 2, N * 2 + K * N * 2),
+];
 
 impl Coeffs<{ K * N }, Ntt> {
     /// This is `ByteDecode_12(bytes)`.
