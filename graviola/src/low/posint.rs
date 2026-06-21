@@ -377,6 +377,25 @@ impl<const N: usize> PosInt<N> {
         tmp
     }
 
+    /// Variant of `mont_sqr` that replaces `self` with the result
+    /// instead of creating a new object.
+    pub(crate) fn mont_sqr_in_place(&mut self, n: &Self, n0: u64) {
+        match (self.used, n.used) {
+            (16, 16) => return self.mont_sqr_1024_in_place(n, n0),
+            (32, 32) => return self.mont_sqr_2048_in_place(n, n0),
+            _ => {}
+        }
+
+        let mut tmp = Self::zero();
+        tmp.used = n.used;
+        low::bignum_montsqr(
+            tmp.as_mut_words(),
+            self.as_words_with_len_of(n),
+            n.as_words(),
+        );
+        *self = tmp;
+    }
+
     /// Return `self` * v in montgomery domain, self * v * M^-1 mod n.
     ///
     /// `n0` is `n.mont_neg_inverse()`.
@@ -425,6 +444,16 @@ impl<const N: usize> PosInt<N> {
         Self::mont_reduce8(&mut res, n, n0)
     }
 
+    /// Variant of `mont_sqr_1024` that replaces `self` with the result
+    /// instead of creating a new object.
+    fn mont_sqr_1024_in_place(&mut self, n: &Self, n0: u64) {
+        let mut tmp = [0u64; 24];
+        let mut res = [0u64; 32];
+        low::bignum_ksqr_16_32(&mut res, self.as_words(), &mut tmp);
+
+        self.mont_reduce8_in_place(&mut res, n, n0);
+    }
+
     /// Specialisation of `mont_sqr`, using 2048-bit karatsuba squaring
     fn mont_sqr_2048(&self, n: &Self, n0: u64) -> Self {
         let mut tmp = [0u64; 72];
@@ -432,6 +461,16 @@ impl<const N: usize> PosInt<N> {
         low::bignum_ksqr_32_64(&mut res, self.as_words(), &mut tmp);
 
         Self::mont_reduce8(&mut res, n, n0)
+    }
+
+    /// Variant of `mont_sqr_2048` that replaces `self` with the result
+    /// instead of creating a new object.
+    fn mont_sqr_2048_in_place(&mut self, n: &Self, n0: u64) {
+        let mut tmp = [0u64; 72];
+        let mut res = [0u64; 64];
+        low::bignum_ksqr_32_64(&mut res, self.as_words(), &mut tmp);
+
+        self.mont_reduce8_in_place(&mut res, n, n0);
     }
 
     /// Full montgomery reduction, specialised for multiples of 8 word reductions.
@@ -447,6 +486,17 @@ impl<const N: usize> PosInt<N> {
         low::bignum_optsub(result.as_mut_words(), reduced, n.as_words(), carry);
 
         result
+    }
+
+    /// Variant of `mont_reduce8` that replaces `self` with the result
+    /// instead of creating a new object.
+    fn mont_reduce8_in_place(&mut self, product: &mut [u64], n: &Self, n0: u64) {
+        let carry = low::bignum_emontredc_8n(product, n.as_words(), n0);
+        let (_, reduced) = product.split_at(product.len() / 2);
+        let carry = carry | low::bignum_cmp_lt(n.as_words(), reduced);
+
+        self.used = n.used;
+        low::bignum_optsub(self.as_mut_words(), reduced, n.as_words(), carry);
     }
 
     #[must_use]
@@ -598,11 +648,10 @@ impl<const N: usize> PosInt<N> {
         for bit in BitsMsbFirstIter::new(e.as_words()) {
             // for the first exponent bit, `accum` is 1M;
             // squaring this would be a waste of effort.
-            let tmp = if first {
+            if first {
                 first = false;
-                accum.clone()
             } else {
-                accum.mont_sqr(n, n_0)
+                accum.mont_sqr_in_place(n, n_0);
             };
 
             // accumulate exponent bits into the window.
@@ -623,11 +672,9 @@ impl<const N: usize> PosInt<N> {
                 );
 
                 // then multiply that in, mod n.
-                accum = tmp.mont_mul(&term, n, n_0);
+                accum = accum.mont_mul(&term, n, n_0);
                 wcount = 0;
                 window = 0;
-            } else {
-                accum = tmp;
             }
         }
 
