@@ -52,6 +52,7 @@ impl DecapKey {
     ///
     /// This fails only if random material generation fails.
     pub fn generate() -> Result<Self, Error> {
+        let _entry = low::Entry::new_secret();
         let mut seed = [0u8; 64];
         SystemRandom.fill(&mut seed)?;
         Ok(Self::keygen_internal(&seed))
@@ -59,11 +60,13 @@ impl DecapKey {
 
     /// Decapsulate ciphertext `c`, yielding a [`SharedSecret`].
     pub fn decaps(self, c: &Ciphertext) -> SharedSecret {
+        let _entry = low::Entry::new_secret();
         self.decaps_internal(c)
     }
 
     /// Return the corresponding [`EncapKey`].
     pub fn encapsulation_key(&self) -> EncapKey {
+        let _entry = low::Entry::new_public();
         self.ek_pke.clone()
     }
 
@@ -72,6 +75,7 @@ impl DecapKey {
     /// This is used for testing.
     #[doc(hidden)]
     pub fn as_bytes(&self) -> [u8; K * 768 + 96] {
+        let _entry = low::Entry::new_secret();
         let mut out = [0u8; K * 768 + 96];
         out[..K * 384].copy_from_slice(&self.dk_pke);
         out[K * 384..K * 768].copy_from_slice(&self.ek_pke.t_hat);
@@ -215,6 +219,7 @@ pub struct EncapKey {
 impl EncapKey {
     /// Create a new [`EncapKey`] from bytes.
     pub fn from_bytes(input: &[u8; K * 384 + 32]) -> Result<Self, Error> {
+        let _entry = low::Entry::new_public();
         let (t_hat, rho) = input.split_at(K * 384);
         let t_hat = t_hat.try_into().unwrap();
         let rho = rho.try_into().unwrap();
@@ -242,6 +247,7 @@ impl EncapKey {
     /// The ciphertext can be returned to the holder of the [`DecapKey`] who can then
     /// derive the same [`SharedSecret`].
     pub fn encaps(self) -> Result<(SharedSecret, Ciphertext), Error> {
+        let _entry = low::Entry::new_secret();
         let mut m = Message([0; 32]);
         SystemRandom.fill(&mut m.0)?;
         Ok(self.encaps_internal(m))
@@ -249,6 +255,7 @@ impl EncapKey {
 
     /// Encode the [`EncapKey`] as bytes.
     pub fn as_bytes(&self) -> [u8; K * 384 + 32] {
+        let _entry = low::Entry::new_public();
         let mut out = [0u8; K * 384 + 32];
         out[..K * 384].copy_from_slice(&self.t_hat);
         out[K * 384..].copy_from_slice(&self.rho);
