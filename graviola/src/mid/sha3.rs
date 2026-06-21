@@ -26,10 +26,10 @@ impl Sha3_256Context {
     }
 
     /// Complete the SHA3-256 computation, returning the hash output.
-    pub fn finish(mut self) -> [u8; Self::OUTPUT_SZ] {
-        self.sponge.absorb_final();
+    pub fn finish(self) -> [u8; Self::OUTPUT_SZ] {
+        let squeezing = self.sponge.absorb_final();
         let mut digest = [0u8; Self::OUTPUT_SZ];
-        self.sponge.into_single_squeeze(&mut digest);
+        squeezing.into_single_squeeze(&mut digest);
         digest
     }
 
@@ -56,10 +56,10 @@ impl Sha3_512Context {
     }
 
     /// Complete the SHA3-512 computation, returning the hash output.
-    pub fn finish(mut self) -> [u8; Self::OUTPUT_SZ] {
-        self.sponge.absorb_final();
+    pub fn finish(self) -> [u8; Self::OUTPUT_SZ] {
+        let sponge = self.sponge.absorb_final();
         let mut digest = [0u8; Self::OUTPUT_SZ];
-        self.sponge.into_single_squeeze(&mut digest);
+        sponge.into_single_squeeze(&mut digest);
         digest
     }
 
@@ -72,7 +72,7 @@ impl Sha3_512Context {
 /// This has one-shot input behaviour (all input must be provided to the
 /// constructor [`Shake128::new`]) and incremental output behaviour.
 pub struct Shake128 {
-    sponge: Sponge<SHAKE_128_R_BYTES, SHAKE_PAD_BYTE>,
+    sponge: SqueezingSponge<SHAKE_128_R_BYTES>,
     buffer: [u8; SHAKE_128_R_BYTES],
     buffer_offset: usize,
 }
@@ -83,7 +83,7 @@ impl Shake128 {
     /// The items of `message` are processed in order, as if concatenated.
     pub fn new(message: &[&[u8]]) -> Self {
         Self {
-            sponge: Sponge::new_for_message(message),
+            sponge: Sponge::<SHAKE_128_R_BYTES, SHAKE_PAD_BYTE>::new_for_message(message),
             buffer: [0u8; SHAKE_128_R_BYTES],
             buffer_offset: SHAKE_128_R_BYTES,
         }
@@ -99,13 +99,14 @@ impl Shake128 {
 }
 
 pub(crate) type Shake128Sponge = Sponge<SHAKE_128_R_BYTES, SHAKE_PAD_BYTE>;
+pub(crate) type Shake128SqueezingSponge = SqueezingSponge<SHAKE_128_R_BYTES>;
 
 /// This is SHAKE256.
 ///
 /// This has one-shot input behaviour (all input must be provided to the
 /// constructor [`Shake256::new`]) and incremental output behaviour.
 pub struct Shake256 {
-    sponge: Sponge<SHAKE_256_R_BYTES, SHAKE_PAD_BYTE>,
+    sponge: SqueezingSponge<SHAKE_256_R_BYTES>,
     buffer: [u8; SHAKE_256_R_BYTES],
     buffer_offset: usize,
 }
@@ -116,7 +117,7 @@ impl Shake256 {
     /// The items of `message` are processed in order, as if concatenated.
     pub fn new(message: &[&[u8]]) -> Self {
         Self {
-            sponge: Sponge::new_for_message(message),
+            sponge: Sponge::<SHAKE_256_R_BYTES, SHAKE_PAD_BYTE>::new_for_message(message),
             buffer: [0u8; SHAKE_256_R_BYTES],
             buffer_offset: SHAKE_256_R_BYTES,
         }
@@ -131,41 +132,29 @@ impl Shake256 {
     }
 }
 
-pub(crate) struct Sponge<const R: usize, const PAD: u8> {
+pub(crate) struct SqueezingSponge<const R: usize> {
     s: [u64; 25],
-    buffer: Blockwise<R>,
 }
 
-impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
-    const fn new() -> Self {
-        Self {
-            s: [0; 25],
-            buffer: Blockwise::new(),
+impl<const R: usize> SqueezingSponge<R> {
+    /// Squeeze into `output`.
+    pub(crate) fn squeeze(&mut self, output: &mut [u8]) {
+        for chunk in output.chunks_mut(R) {
+            self.squeeze_current(chunk);
+            sha3_keccak_f1600(&mut self.s, &RC);
         }
     }
 
-    pub(crate) fn new_for_message(message: &[&[u8]]) -> Self {
-        let mut s = Self::new();
-        for m in message {
-            s.absorb(m);
-        }
-        s.absorb_final();
-        s
+    /// Squeeze into `output`, which must be below `R` in length.
+    fn into_single_squeeze(mut self, output: &mut [u8]) {
+        debug_assert!(output.len() < R);
+        self.squeeze_current(output);
     }
 
-    fn absorb(&mut self, bytes: &[u8]) {
-        let bytes = self.buffer.add_leading(bytes);
-
-        if let Some(block) = self.buffer.take() {
-            self.absorb_block(&block);
+    fn squeeze_current(&mut self, output: &mut [u8]) {
+        for (i, ch) in output.chunks_mut(8).enumerate() {
+            ch.copy_from_slice(&self.s[i].to_le_bytes()[..ch.len()]);
         }
-
-        let (blocks, remainder) = bytes.as_chunks();
-        for block in blocks {
-            self.absorb_block(block);
-        }
-
-        self.buffer.add_trailing(remainder);
     }
 
     fn shake_read(&mut self, output: &mut [u8], buffer: &mut [u8; R], buffer_offset: &mut usize) {
@@ -195,28 +184,46 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
             *buffer_offset = chunk;
         }
     }
+}
 
-    /// Squeeze into `output`.
-    pub(crate) fn squeeze(&mut self, output: &mut [u8]) {
-        for chunk in output.chunks_mut(R) {
-            self.squeeze_current(chunk);
-            sha3_keccak_f1600(&mut self.s, &RC);
+pub(crate) struct Sponge<const R: usize, const PAD: u8> {
+    sponge: SqueezingSponge<R>,
+    buffer: Blockwise<R>,
+}
+
+impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
+    const fn new() -> Self {
+        Self {
+            sponge: SqueezingSponge { s: [0; _] },
+            buffer: Blockwise::new(),
         }
     }
 
-    /// Squeeze into `output`, which must be below `R` in length.
-    fn into_single_squeeze(mut self, output: &mut [u8]) {
-        debug_assert!(output.len() < R);
-        self.squeeze_current(output);
-    }
-
-    fn squeeze_current(&mut self, output: &mut [u8]) {
-        for (i, ch) in output.chunks_mut(8).enumerate() {
-            ch.copy_from_slice(&self.s[i].to_le_bytes()[..ch.len()]);
+    pub(crate) fn new_for_message(message: &[&[u8]]) -> SqueezingSponge<R> {
+        let mut s = Self::new();
+        for m in message {
+            s.absorb(m);
         }
+        s.absorb_final()
     }
 
-    fn absorb_final(&mut self) {
+    fn absorb(&mut self, bytes: &[u8]) {
+        let bytes = self.buffer.add_leading(bytes);
+
+        if let Some(block) = self.buffer.take() {
+            self.absorb_block(&block);
+        }
+
+        let (blocks, remainder) = bytes.as_chunks();
+        for block in blocks {
+            self.absorb_block(block);
+        }
+
+        self.buffer.add_trailing(remainder);
+    }
+
+    #[must_use]
+    fn absorb_final(mut self) -> SqueezingSponge<R> {
         match R - self.buffer.used() {
             1 => {
                 self.buffer.add_leading(&[PAD | 0x80]);
@@ -232,13 +239,14 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
         }
         let padded = self.buffer.take().unwrap();
         self.absorb_block(&padded);
+        self.sponge
     }
 
     fn absorb_block(&mut self, block: &[u8; R]) {
         for (i, block) in block.chunks_exact(8).enumerate() {
-            self.s[i] ^= u64::from_le_bytes(block.try_into().unwrap());
+            self.sponge.s[i] ^= u64::from_le_bytes(block.try_into().unwrap());
         }
-        sha3_keccak_f1600(&mut self.s, &RC);
+        sha3_keccak_f1600(&mut self.sponge.s, &RC);
     }
 }
 

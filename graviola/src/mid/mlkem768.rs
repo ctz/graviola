@@ -847,7 +847,7 @@ fn sample_cbd2(buf: &[u8; 128], out: &mut [i16; 256]) {
 
 /// SHAKE128, but oriented at use in ML-KEM's `SampleNTT()`
 pub(crate) struct Shake128ForMlKem {
-    sponge: sha3::Shake128Sponge,
+    sponge: sha3::Shake128SqueezingSponge,
 }
 
 impl Shake128ForMlKem {
@@ -886,13 +886,13 @@ impl Shake128ForMlKem {
 
 /// Iterates over 12-bit samples drawn from `sponge`.
 struct Shake128TwelveBitIterator {
-    sponge: sha3::Shake128Sponge,
+    sponge: sha3::Shake128SqueezingSponge,
     samples: [i16; Self::SAMPLE_COUNT],
     used: usize,
 }
 
 impl Shake128TwelveBitIterator {
-    fn new(sponge: sha3::Shake128Sponge) -> Self {
+    fn new(sponge: sha3::Shake128SqueezingSponge) -> Self {
         Self {
             sponge,
             samples: [0; Self::SAMPLE_COUNT],
