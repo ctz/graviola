@@ -467,9 +467,29 @@ impl Coeffs<{ K * K * N }, Ntt> {
 
         r
     }
+
     fn _sample_poly_ntt_quad(rho: &[u8; 32], inputs: &[&[u8; 2]; 4], outputs: &mut [i16; 256 * 4]) {
-        for (input, output) in inputs.iter().zip(outputs.chunks_exact_mut(N)) {
-            Shake128ForMlKem::new(&[rho, *input]).sample_into(output.try_into().unwrap());
+        let buf0 = prepare(rho, inputs[0]);
+        let buf1 = prepare(rho, inputs[1]);
+        let buf2 = prepare(rho, inputs[2]);
+        let buf3 = prepare(rho, inputs[3]);
+
+        let [q0, q1, q2, q3] = sha3::SqueezingSponge::shake128_new4(&[&buf0, &buf1, &buf2, &buf3]);
+        let [o0, o1, o2, o3] = outputs.as_chunks_mut().0 else {
+            unreachable!()
+        };
+
+        Shake128ForMlKem { sponge: q0 }.sample_into(o0);
+        Shake128ForMlKem { sponge: q1 }.sample_into(o1);
+        Shake128ForMlKem { sponge: q2 }.sample_into(o2);
+        Shake128ForMlKem { sponge: q3 }.sample_into(o3);
+
+        fn prepare(rho: &[u8; 32], inp: &[u8; 2]) -> [u8; 40] {
+            let mut buf = [0; 40];
+            buf[..32].copy_from_slice(rho);
+            buf[32..34].copy_from_slice(inp);
+            buf[34] = sha3::SHAKE_PAD_BYTE;
+            buf
         }
     }
 
