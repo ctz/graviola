@@ -191,7 +191,7 @@ impl DecapKey {
         let v_prime = Coeffs::decompress_from_bytes_dv_4(c_2.try_into().unwrap());
 
         // 5. s^ <- ByteDecode_12(dk_PKE)
-        let s_hat = Coeffs::from_bytes(self.dk_pke);
+        let s_hat = Coeffs::from_bytes(&self.dk_pke);
 
         // 6. w <- v' - NTT-1(transpose(s^) * NTT(u'))
         let w = v_prime.sub(&s_hat.mul_and_inverse_ntt(&u_prime.ntt()));
@@ -229,7 +229,7 @@ impl EncapKey {
         //   test <- ByteEncode_12(ByteDecode_12(ek[0 ∶ 384k]))
         //
         // If test != ek[0 ∶ 384k], then input checking failed.
-        if t_hat != Coeffs::from_bytes(t_hat).to_bytes() {
+        if t_hat != Coeffs::from_bytes(&t_hat).to_bytes() {
             return Err(Error::OutOfRange);
         }
 
@@ -285,7 +285,7 @@ impl EncapKey {
 
     fn kpke_encrypt(&self, m: Message, r: KpkeRandomness) -> Ciphertext {
         // 2. t^ <- ByteDecode12(ekPKE[0 ∶ 384k])
-        let t_hat = Coeffs::from_bytes(self.t_hat);
+        let t_hat = Coeffs::from_bytes(&self.t_hat);
 
         // 3. 𝜌 <- ekPKE[384k ∶ 384k + 32]
         //  - only required for a_hat expansion
@@ -615,7 +615,7 @@ const SAMPLE_POLY_WORK: &[(u8, u8, usize)] = &[
 
 impl Coeffs<{ K * N }, Ntt> {
     /// This is `ByteDecode_12(bytes)`.
-    fn from_bytes(bytes: [u8; 1152]) -> Self {
+    fn from_bytes(bytes: &[u8; 1152]) -> Self {
         let mut r = Coeffs::zero();
 
         let (r_chunks, _) = r.0.as_chunks_mut();
