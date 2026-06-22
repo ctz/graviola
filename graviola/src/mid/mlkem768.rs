@@ -28,7 +28,6 @@
 
 use core::fmt;
 use core::marker::PhantomData;
-use core::ops::Range;
 
 use crate::{Error, low};
 use crate::{
@@ -740,24 +739,45 @@ fn compress_1_x8(coeffs: &[i16; 8]) -> u8 {
 impl Coeffs<{ K * N }, Normal> {
     /// This is dual, K-wise `SamplePolyCBD`.
     ///
-    /// In other words, it produces two noise vectors.
+    /// In other words, it produces two noise vectors, diversifying the seed `sigma`
+    /// with indices from 0..2K.
     fn sample_poly_cbd_dual(sigma: &[u8; 32]) -> (Self, Self) {
-        (
-            Self::sample_poly_cbd(sigma, 0..K_BYTE),
-            Self::sample_poly_cbd(sigma, K_BYTE..K_BYTE * 2),
-        )
-    }
+        // We need 2 * K samples.
+        let mut samples = [[0; 128]; 6];
 
-    fn sample_poly_cbd(sigma: &[u8; 32], ns: Range<u8>) -> Self {
-        let mut r = Coeffs::zero();
-        let (rows, _) = r.0.as_chunks_mut();
-        let mut buf = [0u8; 128];
+        // Prepare 6 SHAKE256 inputs.
+        let mut buf = [0; 40];
+        buf[..32].copy_from_slice(sigma);
+        buf[33] = sha3::SHAKE_PAD_BYTE;
 
-        for (i, n) in ns.enumerate() {
-            sha3::Shake256::new(&[sigma, &[n]]).read(&mut buf);
-            sample_cbd2(&buf, &mut rows[i]);
+        let mut buf0 = buf;
+        let mut buf1 = buf;
+        let mut buf2 = buf;
+        let mut buf3 = buf;
+        let mut buf4 = buf;
+        let mut buf5 = buf;
+        buf0[32] = 0;
+        buf1[32] = 1;
+        buf2[32] = 2;
+        buf3[32] = 3;
+        buf4[32] = 4;
+        buf5[32] = 5;
+
+        sha3::Shake256::one_shot_sextet(&[&buf0, &buf1, &buf2, &buf3, &buf4, &buf5], &mut samples);
+
+        let mut a = Coeffs::zero();
+        let mut b = Coeffs::zero();
+
+        for (sample, poly) in samples.iter().zip(
+            a.0.as_chunks_mut()
+                .0
+                .iter_mut()
+                .chain(b.0.as_chunks_mut().0.iter_mut()),
+        ) {
+            sample_cbd2(sample, poly);
         }
-        r
+
+        (a, b)
     }
 
     /// K-wise NTT
