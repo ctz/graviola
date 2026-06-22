@@ -148,15 +148,13 @@ impl DecapKey {
         let g = g.finish();
         let (rho, sigma) = g.split_at(32);
         let rho: [u8; 32] = rho.try_into().unwrap();
+        let sigma = sigma.try_into().unwrap();
 
         // 3. - 7.
         let a_hat = Coeffs::sample_poly(&rho);
 
-        // 8. - 11.
-        let s = Coeffs::sample_poly_cbd(sigma, 0..K_BYTE);
-
-        // 12. - 15.
-        let e = Coeffs::sample_poly_cbd(sigma, K_BYTE..K_BYTE * 2);
+        // 8. - 15.
+        let (s, e) = Coeffs::sample_poly_cbd_dual(sigma);
 
         // 16. ŝ <- NTT(s)
         let mut s_hat = s.ntt();
@@ -292,10 +290,8 @@ impl EncapKey {
         // 4. - 8. rolled into self.transpose_a_hat.
 
         // 9. - 12.
-        let y = Coeffs::sample_poly_cbd(&r.0, 0..K_BYTE);
-
         // 13. - 16.
-        let e_1 = Coeffs::sample_poly_cbd(&r.0, K_BYTE..K_BYTE * 2);
+        let (y, e_1) = Coeffs::sample_poly_cbd_dual(&r.0);
 
         // 17. e_2 <- SamplePolyCBD(PRF (r, N))
         let mut buf = [0u8; 128];
@@ -742,12 +738,22 @@ fn compress_1_x8(coeffs: &[i16; 8]) -> u8 {
 }
 
 impl Coeffs<{ K * N }, Normal> {
-    fn sample_poly_cbd(sigma: &[u8], ns: Range<u8>) -> Self {
+    /// This is dual, K-wise `SamplePolyCBD`.
+    ///
+    /// In other words, it produces two noise vectors.
+    fn sample_poly_cbd_dual(sigma: &[u8; 32]) -> (Self, Self) {
+        (
+            Self::sample_poly_cbd(sigma, 0..K_BYTE),
+            Self::sample_poly_cbd(sigma, K_BYTE..K_BYTE * 2),
+        )
+    }
+
+    fn sample_poly_cbd(sigma: &[u8; 32], ns: Range<u8>) -> Self {
         let mut r = Coeffs::zero();
         let (rows, _) = r.0.as_chunks_mut();
+        let mut buf = [0u8; 128];
 
         for (i, n) in ns.enumerate() {
-            let mut buf = [0u8; 128];
             sha3::Shake256::new(&[sigma, &[n]]).read(&mut buf);
             sample_cbd2(&buf, &mut rows[i]);
         }
