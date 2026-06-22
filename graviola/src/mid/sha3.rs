@@ -562,6 +562,69 @@ mod tests {
     }
 
     #[test]
+    fn one_shot_sextet_matches_single() {
+        // build the six 40-byte inputs in the format `one_shot_sextet` requires:
+        // SEED || index || SHAKE_PAD_BYTE || zeroes
+        let mut inputs = [[0u8; 40]; 6];
+        for (n, inp) in inputs.iter_mut().enumerate() {
+            inp[..32].copy_from_slice(SEED);
+            inp[32] = n as u8;
+            inp[33] = SHAKE_PAD_BYTE;
+        }
+
+        let mut batched = [[0u8; 128]; 6];
+        Shake256::one_shot_sextet(
+            &[
+                &inputs[0], &inputs[1], &inputs[2], &inputs[3], &inputs[4], &inputs[5],
+            ],
+            &mut batched,
+        );
+
+        for (n, inp) in inputs.iter().enumerate() {
+            // the absorbed message is the 33 bytes preceding the pad byte
+            let mut single = [0u8; 128];
+            Shake256::new(&[&inp[..33]]).read(&mut single);
+            assert_eq!(batched[n], single);
+        }
+    }
+
+    #[test]
+    fn squeezing_sponge_4x_shake128_matches_single() {
+        // four 40-byte inputs: SEED || i || j || SHAKE_PAD_BYTE || zeroes, with each
+        // lane given a distinct message so any lane mix-up would be caught.
+        let mut inputs = [[0u8; 40]; 4];
+        for (n, inp) in inputs.iter_mut().enumerate() {
+            inp[..32].copy_from_slice(SEED);
+            inp[32] = n as u8;
+            inp[33] = (n as u8) ^ 0x5a;
+            inp[34] = SHAKE_PAD_BYTE;
+        }
+
+        // batched: three rate-blocks up front, then continue via the obligation.
+        let mut batched = [[0u8; SHAKE_128_R_BYTES * 3]; 4];
+        let obligations =
+            SqueezingSponge4xShake128::new(&[&inputs[0], &inputs[1], &inputs[2], &inputs[3]])
+                .squeeze(&mut batched);
+
+        const TAIL: usize = SHAKE_128_R_BYTES * 2;
+        for (n, (input, obligation)) in inputs.iter().zip(obligations).enumerate() {
+            // single reference: absorb the 34-byte message, read the same total length.
+            let mut single = [0u8; SHAKE_128_R_BYTES * 3 + TAIL];
+            Shake128::new(&[&input[..34]]).read(&mut single);
+
+            // the three eagerly-squeezed blocks must match
+            assert_eq!(&batched[n][..], &single[..SHAKE_128_R_BYTES * 3]);
+
+            // and paying off the deferred keccak-f must continue the same stream
+            let mut tail = [0u8; TAIL];
+            obligation.restitute().squeeze(&mut tail);
+            assert_eq!(&tail[..], &single[SHAKE_128_R_BYTES * 3..]);
+        }
+    }
+
+    const SEED: &[u8; 32] = b"Damn right its better than yours";
+
+    #[test]
     fn cavp_sha3() {
         #[derive(Debug)]
         enum Kind {
