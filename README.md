@@ -167,6 +167,11 @@ encapsulation and decapsulation) is written in Rust.
 Compression and decompression are division-free, avoiding the variable-time
 division behind the KyberSlash attacks.
 
+We achieve good performance by using a 4-wide Keccak-f permutation for
+`SampleNTT()` and `SamplePolyCBD()`.  On x86-64 this uses an AVX2 4-wide
+implementation, on aarch64 it uses a Neon+SHA3 2-wide implementation twice
+(for a bit of mechanical sympathy with ARM's limited vector size).
+
 ### Symmetric cryptography
 SHA256 has straightforward implementations using hashing intrinsics
 (aka "SHA-NI" on x86_64, "sha" extension on aarch64) with runtime fallback
