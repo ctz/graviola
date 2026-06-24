@@ -3,11 +3,42 @@
 //! Some of this is subject to whims of the compiler, and
 //! hand-written drop impls, so we test it here.
 //!
-//! Is this test sound? Well, it's a deliberate use-after-free,
+//! Is this test sound? Well, it's a deliberate use-after-drop,
 //! so no.
 //!
-//! Does it work? If you're reading this, it has probably
-//! broken, so also no.
+//! To make this work deterministically, we depend on two things:
+//!  1. The test checks for zeroisation after dropping
+//!     a value but before deallocating it. See the function
+//!     `check_zeroed_on_drop_bounded` for details.
+//!  2. The types whose zeroization is being tested must be
+//!     _completely_ filled with zero bytes upon drop, including
+//!     any padding bytes. If you have a type like this:
+//!     ```
+//!     #[repr(C)]
+//!     struct Key {
+//!         a: u8,
+//!         // Note: 7 bytes of padding here, due to the "repr(C)"
+//!         b: u64,
+//!     }
+//!     ```
+//!     its drop function can't just do a field-wise zeroing
+//!     ```
+//!     self.a = 0;
+//!     self.b = 0;
+//!     ```
+//!     because this test will check that the padding bytes between
+//!     `a` and `b` have been zeroised too.
+//!     Similarly, if the object is an enum wrapping different sized
+//!     types, like this:
+//!     ```
+//!     enum Key {
+//!         Key128([u8; 16]),
+//!         Key256([u8; 32]),
+//!     }
+//!     ```
+//!     this test will check that all `mem::size_of<Key>` bytes have
+//!     been zeroised upon drop, even if the value was a `Key::Key128`
+//!     that only initialized half of that space.
 
 #![cfg(any(target_os = "linux", target_os = "macos"))]
 
