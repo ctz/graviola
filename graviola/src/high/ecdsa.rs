@@ -16,13 +16,20 @@ use crate::mid::rng::{RandomSource, SystemRandom};
 ///
 /// You can make one of these by loading a key from a file
 /// with [`Self::from_pkcs8_der()`] or [`Self::from_sec1_der()`],
-/// or by generating a random key using [`Curve::generate_random_key()`].
+/// or by generating a random key using [`Self::generate()`].
 pub struct SigningKey<C: Curve> {
     /// The private key.
     pub private_key: C::PrivateKey,
 }
 
 impl<C: Curve> SigningKey<C> {
+    /// Generate a new random key.
+    pub fn generate() -> Result<Self, Error> {
+        let _entry = Entry::new_secret();
+        let private_key = C::generate_random_key(&mut SystemRandom)?;
+        Ok(Self { private_key })
+    }
+
     /// Load an ECDSA private key in PKCS#8 format.
     pub fn from_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
         let _entry = Entry::new_secret();
@@ -358,7 +365,6 @@ mod tests {
     use crate::high::curve::Curve;
     use crate::high::{curve, hash};
     use crate::mid::rng::SliceRandomSource;
-    use crate::mid::rng::SystemRandom;
     use crate::test::*;
 
     #[test]
@@ -420,11 +426,11 @@ mod tests {
 
     #[test]
     fn smoke_test_ecdsa_sign() {
-        let k = curve::P256::generate_random_key(&mut SystemRandom).unwrap();
-        check_sign_verify::<curve::P256>(k);
+        let k = SigningKey::<curve::P256>::generate().unwrap();
+        check_sign_verify::<curve::P256>(k.private_key);
 
-        let k = curve::P384::generate_random_key(&mut SystemRandom).unwrap();
-        check_sign_verify::<curve::P384>(k);
+        let k = SigningKey::<curve::P384>::generate().unwrap();
+        check_sign_verify::<curve::P384>(k.private_key);
     }
 
     fn check_sign_verify<C: Curve>(private_key: C::PrivateKey) {
