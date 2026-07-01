@@ -136,6 +136,7 @@ impl<C: Curve> SigningKey<C> {
     /// returned.  [`Error::WrongLength`] is returned if `output` is not sufficient
     /// to contain the full encoding.
     pub fn to_spki_der<'a>(&self, output: &'a mut [u8]) -> Result<&'a [u8], Error> {
+        let _entry = Entry::new_secret();
         let mut pub_key_buffer = [0u8; MAX_UNCOMPRESSED_PUBLIC_KEY_LEN];
         let pub_key_buffer = self
             .private_key
