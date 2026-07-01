@@ -181,6 +181,7 @@ impl StaticPrivateKey {
 
     /// Return a fixed-length encoding of this private key's value.
     pub fn as_bytes(&self) -> [u8; Scalar::BYTES] {
+        let _entry = low::Entry::new_secret();
         low::ct::into_public(self.0.scalar.as_bytes())
     }
 
