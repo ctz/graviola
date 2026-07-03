@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
 use core::arch::x86_64::*;
+use core::mem;
 
 pub(crate) fn enter_cpu_state() -> u32 {
     // DOIT: "Data Operand Independent Timing" -- turning this on
@@ -113,6 +114,19 @@ pub(in crate::low) unsafe fn ct_compare_bytes(a: *const u8, b: *const u8, len: u
         );
     }
     acc
+}
+
+/// Compare `a` and `b` in constant time, returning 0 if they are equal
+/// and some nonzero value if they are not equal.
+#[target_feature(enable = "sse2")]
+pub(in crate::low) fn ct_compare_u128(a: u128, b: u128) -> u64 {
+    // SAFETY: u128 and __m128i have compatible memory layouts.
+    let a: __m128i = unsafe { mem::transmute(a) };
+    // SAFETY: u128 and __m128i have compatible memory layouts.
+    let b: __m128i = unsafe { mem::transmute(b) };
+    let cmp = _mm_cmpeq_epi8(a, b);
+    let mask = _mm_movemask_epi8(cmp) as u16;
+    !mask as _
 }
 
 /// This macro interdicts is_x86_feature_detected to

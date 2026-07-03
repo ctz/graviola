@@ -206,7 +206,7 @@ impl<'a> Ghash<'a> {
 
         for chunk in whole_blocks.by_ref() {
             let u = u128::from_be_bytes(chunk.try_into().unwrap());
-            self.one_block(u128_to_m128i(u));
+            self.one_block(u);
         }
 
         let bytes = whole_blocks.remainder();
@@ -215,15 +215,22 @@ impl<'a> Ghash<'a> {
             block[..bytes.len()].copy_from_slice(bytes);
 
             let u = u128::from_be_bytes(block);
-            self.one_block(u128_to_m128i(u));
+            self.one_block(u);
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn into_bytes(self) -> [u8; 16] {
         // SAFETY: this crate requires the `sse2` and `ssse3` cpu features
         unsafe { self._into_bytes() }
     }
 
+    pub(crate) fn into_u128(self) -> u128 {
+        // SAFETY: sizeof(u128) == sizeof(__m128i), all bits have same meaning
+        unsafe { mem::transmute(self.current) }
+    }
+
+    #[cfg(test)]
     #[target_feature(enable = "sse2,ssse3")]
     fn _into_bytes(self) -> [u8; 16] {
         let mut out: i128 = 0;
@@ -233,7 +240,9 @@ impl<'a> Ghash<'a> {
         out.to_le_bytes()
     }
 
-    fn one_block(&mut self, block: __m128i) {
+    // Input the 16 bytes of `block` to the computation.
+    pub(crate) fn one_block(&mut self, block: u128) {
+        let block = u128_to_m128i(block);
         // SAFETY: this crate requires the `avx` and `pclmulqdq` cpu features
         unsafe {
             self.current = _mm_xor_si128(self.current, block);
