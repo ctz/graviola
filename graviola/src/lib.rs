@@ -166,8 +166,9 @@ pub mod signing {
 
 /// Cryptographic hash functions.
 pub mod hashing {
-    pub use super::high::hash::{Hash, HashContext, HashOutput, Sha256, Sha384, Sha512};
+    pub use super::high::hash::{Hash, HashContext, HashOutput, Sha1, Sha256, Sha384, Sha512};
     pub use super::high::hmac;
+    pub use super::mid::sha1;
     pub use super::mid::sha2;
     pub use super::mid::sha3;
 }
