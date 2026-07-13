@@ -1,7 +1,7 @@
 mod criterion;
 use std::hint::black_box;
 
-use criterion::{Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{Criterion, CustomMeasurement, Throughput, criterion_group, criterion_main};
 
 const PUBLIC_KEY: &[u8; 97] = &[
     0x04, 0x7a, 0x6e, 0xc8, 0xd3, 0x11, 0xd5, 0xca, 0x58, 0x8b, 0xae, 0xd4, 0x1b, 0xe3, 0xe9, 0x8f,
@@ -13,7 +13,7 @@ const PUBLIC_KEY: &[u8; 97] = &[
     0xc8,
 ];
 
-fn ecdh(c: &mut Criterion) {
+fn ecdh(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("p384-ecdh");
     group.throughput(Throughput::Elements(1));
 
@@ -89,7 +89,7 @@ fn ecdh(c: &mut Criterion) {
     });
 }
 
-fn keygen(c: &mut Criterion) {
+fn keygen(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("p384-keygen");
     group.throughput(Throughput::Elements(1));
 
@@ -132,7 +132,7 @@ fn keygen(c: &mut Criterion) {
     });
 }
 
-fn ecdsa_verify(c: &mut Criterion) {
+fn ecdsa_verify(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("p384-ecdsa-verify");
     group.throughput(Throughput::Elements(1));
 
@@ -201,7 +201,7 @@ fn ecdsa_verify(c: &mut Criterion) {
     });
 }
 
-fn ecdsa_sign(c: &mut Criterion) {
+fn ecdsa_sign(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("p384-ecdsa-sign");
     group.throughput(Throughput::Elements(1));
     let message = b"\x31\x32\x33\x34\x30\x30";
@@ -274,5 +274,5 @@ fn ecdsa_sign(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, ecdh, keygen, ecdsa_verify, ecdsa_sign);
+custom_benchmark_group!(benches, ecdh, keygen, ecdsa_verify, ecdsa_sign);
 criterion_main!(benches);

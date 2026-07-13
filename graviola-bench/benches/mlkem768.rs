@@ -1,11 +1,11 @@
 mod criterion;
 use std::hint::black_box;
 
-use criterion::{Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{Criterion, CustomMeasurement, Throughput, criterion_group, criterion_main};
 use rand_core::RngCore;
 
 // client first operation
-fn mlkem768_keygen(c: &mut Criterion) {
+fn mlkem768_keygen(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("mlkem768-keygen");
     group.throughput(Throughput::Elements(1));
 
@@ -46,7 +46,7 @@ fn mlkem768_keygen(c: &mut Criterion) {
 }
 
 // server operation
-fn mlkem768_encaps(c: &mut Criterion) {
+fn mlkem768_encaps(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("mlkem768-encaps");
     group.throughput(Throughput::Elements(1));
 
@@ -116,7 +116,7 @@ fn mlkem768_encaps(c: &mut Criterion) {
 }
 
 // client second operation
-fn mlkem768_decaps(c: &mut Criterion) {
+fn mlkem768_decaps(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("mlkem768-decaps");
     group.throughput(Throughput::Elements(1));
 
@@ -178,7 +178,7 @@ fn mlkem768_decaps(c: &mut Criterion) {
 }
 
 // combined operation: keygen, encaps-encode, encaps-decode, encaps, decaps
-fn mlkem768_combined(c: &mut Criterion) {
+fn mlkem768_combined(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("mlkem768-combined");
     group.throughput(Throughput::Elements(1));
 
@@ -242,7 +242,7 @@ fn mlkem768_combined(c: &mut Criterion) {
     });
 }
 
-criterion_group!(
+custom_benchmark_group!(
     benches,
     mlkem768_keygen,
     mlkem768_encaps,

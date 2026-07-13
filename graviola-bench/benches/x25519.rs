@@ -1,11 +1,11 @@
 mod criterion;
 use std::hint::black_box;
 
-use criterion::{Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{Criterion, CustomMeasurement, Throughput, criterion_group, criterion_main};
 
 const PUBLIC_KEY: &[u8; 32] = b"\xe6\xdb\x68\x67\x58\x30\x30\xdb\x35\x94\xc1\xa4\x24\xb1\x5f\x7c\x72\x66\x24\xec\x26\xb3\x35\x3b\x10\xa9\x03\xa6\xd0\xab\x1c\x4c";
 
-fn x25519(c: &mut Criterion) {
+fn x25519(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("x25519-ecdh");
     group.throughput(Throughput::Elements(1));
 
@@ -96,5 +96,5 @@ fn x25519(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, x25519);
+custom_benchmark_group!(benches, x25519);
 criterion_main!(benches);

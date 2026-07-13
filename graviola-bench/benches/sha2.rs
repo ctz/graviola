@@ -1,7 +1,9 @@
 mod criterion;
 use std::hint::black_box;
 
-use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{
+    BenchmarkId, Criterion, CustomMeasurement, Throughput, criterion_group, criterion_main,
+};
 use sha2::Digest;
 
 fn test_ring_sha256(data: &[u8]) {
@@ -52,7 +54,7 @@ fn test_graviola_sha512(data: &[u8]) {
     black_box(ctx.finish());
 }
 
-fn sha256(c: &mut Criterion) {
+fn sha256(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("sha256");
     for (size, size_name) in [(32, "32B"), (8192, "8KB"), (65536, "64KB")] {
         let input = vec![0u8; size];
@@ -79,7 +81,7 @@ fn sha256(c: &mut Criterion) {
     }
 }
 
-fn sha512(c: &mut Criterion) {
+fn sha512(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("sha512");
     for (size, size_name) in [(32, "32B"), (8192, "8KB"), (65536, "64KB")] {
         let input = vec![0u8; size];
@@ -106,5 +108,5 @@ fn sha512(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, sha256, sha512);
+custom_benchmark_group!(benches, sha256, sha512);
 criterion_main!(benches);

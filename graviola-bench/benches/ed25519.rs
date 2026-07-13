@@ -1,10 +1,11 @@
 mod criterion;
 use std::hint::black_box;
 
+use crate::criterion::CustomMeasurement;
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 
 // Generate a fresh key and make a PKCS8 document of it.
-fn keygen(c: &mut Criterion) {
+fn keygen(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("ed25519-keygen");
     group.throughput(Throughput::Elements(1));
 
@@ -53,7 +54,7 @@ fn keygen(c: &mut Criterion) {
     });
 }
 
-fn verify(c: &mut Criterion) {
+fn verify(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("ed25519-verify");
     group.throughput(Throughput::Elements(1));
 
@@ -102,7 +103,7 @@ fn verify(c: &mut Criterion) {
     });
 }
 
-fn sign(c: &mut Criterion) {
+fn sign(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("ed25519-sign");
     group.throughput(Throughput::Elements(1));
     let message = b"\x31\x32\x33\x34\x30\x30";
@@ -151,5 +152,5 @@ fn sign(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, keygen, verify, sign);
+custom_benchmark_group!(benches, keygen, verify, sign);
 criterion_main!(benches);

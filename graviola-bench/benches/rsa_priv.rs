@@ -1,9 +1,9 @@
 mod criterion;
 use std::hint::black_box;
 
-use criterion::{Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{Criterion, CustomMeasurement, Throughput, criterion_group, criterion_main};
 
-fn rsa2048_pkcs1_sha256_sign(c: &mut Criterion) {
+fn rsa2048_pkcs1_sha256_sign(c: &mut Criterion<CustomMeasurement>) {
     let private_key = include_bytes!("../../graviola/src/high/rsa/rsa2048.der");
     let message =
         b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00";
@@ -58,5 +58,5 @@ fn rsa2048_pkcs1_sha256_sign(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, rsa2048_pkcs1_sha256_sign);
+custom_benchmark_group!(benches, rsa2048_pkcs1_sha256_sign);
 criterion_main!(benches);

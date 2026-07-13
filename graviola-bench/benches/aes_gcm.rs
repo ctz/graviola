@@ -1,5 +1,7 @@
 mod criterion;
-use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{
+    BenchmarkId, Criterion, CustomMeasurement, Throughput, criterion_group, criterion_main,
+};
 
 fn test_ring_aes_gcm(key: &ring::aead::LessSafeKey, nonce: &[u8; 12], aad: &[u8], plain: &[u8]) {
     let mut ct = plain.to_vec();
@@ -46,7 +48,7 @@ fn test_graviola_aes_gcm(key: &graviola::aead::AesGcm, nonce: &[u8; 12], aad: &[
     key.encrypt(nonce, aad, &mut ct, &mut tag);
 }
 
-fn aes128_gcm(c: &mut Criterion) {
+fn aes128_gcm(c: &mut Criterion<CustomMeasurement>) {
     let key = [0u8; 16];
     let nonce = [0u8; 12];
     let aad = [0u8; 32];
@@ -92,7 +94,7 @@ fn aes128_gcm(c: &mut Criterion) {
     }
 }
 
-fn aes256_gcm(c: &mut Criterion) {
+fn aes256_gcm(c: &mut Criterion<CustomMeasurement>) {
     let key = [0u8; 32];
     let nonce = [0u8; 12];
     let aad = [0u8; 32];
@@ -138,5 +140,5 @@ fn aes256_gcm(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, aes128_gcm, aes256_gcm);
+custom_benchmark_group!(benches, aes128_gcm, aes256_gcm);
 criterion_main!(benches);

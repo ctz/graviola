@@ -1,9 +1,9 @@
 mod criterion;
 use std::hint::black_box;
 
-use criterion::{Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{Criterion, CustomMeasurement, Throughput, criterion_group, criterion_main};
 
-fn rsa_key_generation(c: &mut Criterion) {
+fn rsa_key_generation(c: &mut Criterion<CustomMeasurement>) {
     // All these are gated under `NOISY_BENCHMARKS` for the benefit of codspeed,
     // which runs each test once and expects deterministic results.  RSA key generation
     // certainly is not that.
@@ -39,5 +39,5 @@ fn rsa_key_generation(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, rsa_key_generation);
+custom_benchmark_group!(benches, rsa_key_generation);
 criterion_main!(benches);

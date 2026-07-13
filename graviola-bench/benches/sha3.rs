@@ -1,7 +1,9 @@
 mod criterion;
 use std::hint::black_box;
 
-use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use criterion::{
+    BenchmarkId, Criterion, CustomMeasurement, Throughput, criterion_group, criterion_main,
+};
 use sha3::Digest;
 use shake::{ExtendableOutput, XofReader};
 
@@ -39,7 +41,7 @@ fn test_graviola_shake128() {
     black_box(buf);
 }
 
-fn sha3_256(c: &mut Criterion) {
+fn sha3_256(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("sha3-256");
     for (size, size_name) in [(32, "32B"), (8192, "8KB"), (65536, "64KB")] {
         let input = vec![0u8; size];
@@ -63,13 +65,13 @@ fn sha3_256(c: &mut Criterion) {
     }
 }
 
-fn shake128(c: &mut Criterion) {
+fn shake128(c: &mut Criterion<CustomMeasurement>) {
     // nb: no SHAKE support in aws-lc-rs or ring
     c.bench_function("shake128/rustcrypto", |b| b.iter(test_rc_shake128));
     c.bench_function("shake128/graviola", |b| b.iter(test_graviola_shake128));
 }
 
-criterion_group!(benches, sha3_256, shake128);
+custom_benchmark_group!(benches, sha3_256, shake128);
 criterion_main!(benches);
 
 const SHAKE128_INPUT: &[u8] = &[0u8; 128];

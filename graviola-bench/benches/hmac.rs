@@ -1,6 +1,7 @@
 mod criterion;
 use std::hint::black_box;
 
+use crate::criterion::CustomMeasurement;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 use hmac::Mac;
 
@@ -60,7 +61,7 @@ fn test_graviola_sha384(key: &[u8], data: &[u8]) {
     black_box(ctx.finish());
 }
 
-fn sha256(c: &mut Criterion) {
+fn sha256(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("hmac-sha256");
     let key = [0xff; 48];
 
@@ -89,7 +90,7 @@ fn sha256(c: &mut Criterion) {
     }
 }
 
-fn sha384(c: &mut Criterion) {
+fn sha384(c: &mut Criterion<CustomMeasurement>) {
     let mut group = c.benchmark_group("hmac-sha384");
     let key = [0xff; 48];
 
@@ -118,5 +119,5 @@ fn sha384(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, sha256, sha384);
+custom_benchmark_group!(benches, sha256, sha384);
 criterion_main!(benches);

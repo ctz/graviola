@@ -36,6 +36,7 @@ openssl = "0.10"
 [features]
 __bench_openssl = []
 __bench_codspeed = ["dep:codspeed-criterion-compat"]
+__bench_cycles = []
 
 [[bench]]
 name = "x25519"

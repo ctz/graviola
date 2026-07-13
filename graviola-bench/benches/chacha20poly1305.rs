@@ -1,4 +1,5 @@
 mod criterion;
+use crate::criterion::CustomMeasurement;
 use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 
 fn test_ring_chacha(key: &ring::aead::LessSafeKey, nonce: &[u8; 12], aad: &[u8], plain: &[u8]) {
@@ -43,7 +44,7 @@ fn test_graviola_chacha(
     key.encrypt(nonce, aad, &mut ct, &mut tag);
 }
 
-fn bench_chacha20poly1305(c: &mut Criterion) {
+fn bench_chacha20poly1305(c: &mut Criterion<CustomMeasurement>) {
     let key = [0u8; 32];
     let nonce = [0u8; 12];
     let aad = [0u8; 32];
@@ -89,5 +90,5 @@ fn bench_chacha20poly1305(c: &mut Criterion) {
     }
 }
 
-criterion_group!(benches, bench_chacha20poly1305);
+custom_benchmark_group!(benches, bench_chacha20poly1305);
 criterion_main!(benches);
