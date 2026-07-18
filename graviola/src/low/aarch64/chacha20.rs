@@ -2,6 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 // Originally from cifra
 
+use core::arch::aarch64::{
+    uint8x16_t, uint32x4_t, vaddq_u32, veorq_u32, vextq_u32, vorrq_u32, vreinterpretq_u16_u32,
+    vreinterpretq_u32_u16, vrev32q_u16, vshlq_n_u32, vshrq_n_u32,
+};
+use core::mem;
+
 pub(crate) struct ChaCha20 {
     key0: [u32; 4],
     key1: [u32; 4],
@@ -27,13 +33,25 @@ impl ChaCha20 {
     }
 
     pub(crate) fn cipher(&mut self, buffer: &mut [u8]) {
-        for block in buffer.chunks_mut(64) {
+        let mut by4 = buffer.chunks_exact_mut(256);
+        for block_x4 in by4.by_ref() {
+            // SAFETY: this crate depends on the `neon` cpu feature.
+            unsafe {
+                core_x4(
+                    &self.key0,
+                    &self.key1,
+                    &self.nonce,
+                    block_x4.try_into().unwrap(),
+                )
+            };
+            self.nonce[0] = self.nonce[0].wrapping_add(4);
+        }
+        for block in by4.into_remainder().chunks_mut(64) {
             let mut stream = [0u8; 64];
             core(&self.key0, &self.key1, &self.nonce, &mut stream);
             for (out, key) in block.iter_mut().zip(stream.iter()) {
                 *out ^= *key;
             }
-
             self.nonce[0] = self.nonce[0].wrapping_add(1);
         }
     }
@@ -65,6 +83,38 @@ impl XChaCha20 {
     }
 }
 
+// Rotate each element of a uint32x4_t left by a specified number of bits.
+macro_rules! rotate_left {
+    ($reg:expr, 8) => {
+        {
+            const LEFT_SHIFT_8: uint8x16_t =
+                // SAFETY: the memory layout of [u8; 16] is compatible with uint8x16_t.
+                unsafe { mem::transmute::<[u8; 16], uint8x16_t>(
+                    [3, 0, 1, 2, 7, 4, 5, 6, 11, 8, 9, 10, 15, 12, 13, 14]
+                ) };
+
+            let mut result: uint32x4_t;
+            // SAFETY: this asm block operates only on registers.
+            unsafe {
+                core::arch::asm!(
+                    "tbl {result:v}.16B, {{ {n:v}.16B }}, {map:v}.16B",
+                    result = out(vreg) result,
+                    n = in(vreg) $reg,
+                    map = in(vreg) LEFT_SHIFT_8,
+                );
+            }
+            result
+        }
+    };
+    ($reg:expr, 16) => {
+        vreinterpretq_u32_u16(vrev32q_u16(vreinterpretq_u16_u32($reg)))
+    };
+    ($reg:expr, $rot:literal) => {
+        vorrq_u32(vshlq_n_u32($reg, $rot), vshrq_n_u32($reg, 32 - $rot))
+    };
+}
+
+// Process one ChaCha20 block and store the result in `out`.
 fn core(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 64]) {
     let [mut z0, mut z1, mut z2, mut z3] = SIGMA;
     let &[mut z4, mut z5, mut z6, mut z7] = key0;
@@ -134,6 +184,165 @@ fn core(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 64]) 
     out[60..64].copy_from_slice(&xf.to_le_bytes());
 }
 
+// Process four ChaCha20 blocks in an interleaved manner and exclusive-or
+// the result onto the contents of `out`.
+#[target_feature(enable = "neon")]
+fn core_x4(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 256]) {
+    const ONE: uint32x4_t = u32_slice_to_uint32x4_t(&[1, 0, 0, 0]);
+
+    let mut a0: uint32x4_t = u32_slice_to_uint32x4_t(&SIGMA);
+    let mut b0: uint32x4_t = u32_slice_to_uint32x4_t(key0);
+    let mut c0: uint32x4_t = u32_slice_to_uint32x4_t(key1);
+    let mut d0: uint32x4_t = u32_slice_to_uint32x4_t(nonce);
+    let mut a1: uint32x4_t = u32_slice_to_uint32x4_t(&SIGMA);
+    let mut b1: uint32x4_t = u32_slice_to_uint32x4_t(key0);
+    let mut c1: uint32x4_t = u32_slice_to_uint32x4_t(key1);
+    let mut d1: uint32x4_t = vaddq_u32(d0, ONE);
+    let mut a2: uint32x4_t = u32_slice_to_uint32x4_t(&SIGMA);
+    let mut b2: uint32x4_t = u32_slice_to_uint32x4_t(key0);
+    let mut c2: uint32x4_t = u32_slice_to_uint32x4_t(key1);
+    let mut d2: uint32x4_t = vaddq_u32(d1, ONE);
+    let mut a3: uint32x4_t = u32_slice_to_uint32x4_t(&SIGMA);
+    let mut b3: uint32x4_t = u32_slice_to_uint32x4_t(key0);
+    let mut c3: uint32x4_t = u32_slice_to_uint32x4_t(key1);
+    let mut d3: uint32x4_t = vaddq_u32(d2, ONE);
+
+    let a0_initial = a0;
+    let b0_initial = b0;
+    let c0_initial = c0;
+    let d0_initial = d0;
+    let a1_initial = a1;
+    let b1_initial = b1;
+    let c1_initial = c1;
+    let d1_initial = d1;
+    let a2_initial = a2;
+    let b2_initial = b2;
+    let c2_initial = c2;
+    let d2_initial = d2;
+    let a3_initial = a3;
+    let b3_initial = b3;
+    let c3_initial = c3;
+    let d3_initial = d3;
+
+    macro_rules! quarter_x4 {
+        ($a0:ident, $b0:ident, $c0:ident, $d0:ident,
+         $a1:ident, $b1:ident, $c1:ident, $d1:ident,
+         $a2:ident, $b2:ident, $c2:ident, $d2:ident,
+         $a3:ident, $b3:ident, $c3:ident, $d3:ident) => {
+            $a0 = vaddq_u32($a0, $b0);
+            $a1 = vaddq_u32($a1, $b1);
+            $a2 = vaddq_u32($a2, $b2);
+            $a3 = vaddq_u32($a3, $b3);
+            $d0 = rotate_left!(veorq_u32($d0, $a0), 16);
+            $d1 = rotate_left!(veorq_u32($d1, $a1), 16);
+            $d2 = rotate_left!(veorq_u32($d2, $a2), 16);
+            $d3 = rotate_left!(veorq_u32($d3, $a3), 16);
+            $c0 = vaddq_u32($c0, $d0);
+            $c1 = vaddq_u32($c1, $d1);
+            $c2 = vaddq_u32($c2, $d2);
+            $c3 = vaddq_u32($c3, $d3);
+            $b0 = rotate_left!(veorq_u32($b0, $c0), 12);
+            $b1 = rotate_left!(veorq_u32($b1, $c1), 12);
+            $b2 = rotate_left!(veorq_u32($b2, $c2), 12);
+            $b3 = rotate_left!(veorq_u32($b3, $c3), 12);
+            $a0 = vaddq_u32($a0, $b0);
+            $a1 = vaddq_u32($a1, $b1);
+            $a2 = vaddq_u32($a2, $b2);
+            $a3 = vaddq_u32($a3, $b3);
+            $d0 = rotate_left!(veorq_u32($d0, $a0), 8);
+            $d1 = rotate_left!(veorq_u32($d1, $a1), 8);
+            $d2 = rotate_left!(veorq_u32($d2, $a2), 8);
+            $d3 = rotate_left!(veorq_u32($d3, $a3), 8);
+            $c0 = vaddq_u32($c0, $d0);
+            $c1 = vaddq_u32($c1, $d1);
+            $c2 = vaddq_u32($c2, $d2);
+            $c3 = vaddq_u32($c3, $d3);
+            $b0 = rotate_left!(veorq_u32($b0, $c0), 7);
+            $b1 = rotate_left!(veorq_u32($b1, $c1), 7);
+            $b2 = rotate_left!(veorq_u32($b2, $c2), 7);
+            $b3 = rotate_left!(veorq_u32($b3, $c3), 7);
+        };
+    }
+
+    for _ in 0..10 {
+        quarter_x4!(
+            a0, b0, c0, d0, a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3
+        );
+        // For the next quarter-round, we need to rotate the order of
+        // the lanes in some of the vectors.
+        b0 = vextq_u32(b0, b0, 1);
+        c0 = vextq_u32(c0, c0, 2);
+        d0 = vextq_u32(d0, d0, 3);
+        b1 = vextq_u32(b1, b1, 1);
+        c1 = vextq_u32(c1, c1, 2);
+        d1 = vextq_u32(d1, d1, 3);
+        b2 = vextq_u32(b2, b2, 1);
+        c2 = vextq_u32(c2, c2, 2);
+        d2 = vextq_u32(d2, d2, 3);
+        b3 = vextq_u32(b3, b3, 1);
+        c3 = vextq_u32(c3, c3, 2);
+        d3 = vextq_u32(d3, d3, 3);
+        quarter_x4!(
+            a0, b0, c0, d0, a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3
+        );
+        // Rotate the lanes back into their original arrangement.
+        b0 = vextq_u32(b0, b0, 3);
+        c0 = vextq_u32(c0, c0, 2);
+        d0 = vextq_u32(d0, d0, 1);
+        b1 = vextq_u32(b1, b1, 3);
+        c1 = vextq_u32(c1, c1, 2);
+        d1 = vextq_u32(d1, d1, 1);
+        b2 = vextq_u32(b2, b2, 3);
+        c2 = vextq_u32(c2, c2, 2);
+        d2 = vextq_u32(d2, d2, 1);
+        b3 = vextq_u32(b3, b3, 3);
+        c3 = vextq_u32(c3, c3, 2);
+        d3 = vextq_u32(d3, d3, 1);
+    }
+
+    a0 = vaddq_u32(a0_initial, a0);
+    b0 = vaddq_u32(b0_initial, b0);
+    c0 = vaddq_u32(c0_initial, c0);
+    d0 = vaddq_u32(d0_initial, d0);
+    a1 = vaddq_u32(a1_initial, a1);
+    b1 = vaddq_u32(b1_initial, b1);
+    c1 = vaddq_u32(c1_initial, c1);
+    d1 = vaddq_u32(d1_initial, d1);
+    a2 = vaddq_u32(a2_initial, a2);
+    b2 = vaddq_u32(b2_initial, b2);
+    c2 = vaddq_u32(c2_initial, c2);
+    d2 = vaddq_u32(d2_initial, d2);
+    a3 = vaddq_u32(a3_initial, a3);
+    b3 = vaddq_u32(b3_initial, b3);
+    c3 = vaddq_u32(c3_initial, c3);
+    d3 = vaddq_u32(d3_initial, d3);
+
+    fn xor(value: uint32x4_t, dst: &mut [u8; 16]) {
+        // SAFETY: the memory layout of `uint32x4_t` is compatible with `u128`.
+        let value128: u128 = unsafe { mem::transmute(value) };
+        let current = u128::from_le_bytes(*dst);
+        let result = value128 ^ current;
+        dst.copy_from_slice(&result.to_le_bytes());
+    }
+
+    xor(a0, (&mut out[0..16]).try_into().unwrap());
+    xor(b0, (&mut out[16..32]).try_into().unwrap());
+    xor(c0, (&mut out[32..48]).try_into().unwrap());
+    xor(d0, (&mut out[48..64]).try_into().unwrap());
+    xor(a1, (&mut out[64..80]).try_into().unwrap());
+    xor(b1, (&mut out[80..96]).try_into().unwrap());
+    xor(c1, (&mut out[96..112]).try_into().unwrap());
+    xor(d1, (&mut out[112..128]).try_into().unwrap());
+    xor(a2, (&mut out[128..144]).try_into().unwrap());
+    xor(b2, (&mut out[144..160]).try_into().unwrap());
+    xor(c2, (&mut out[160..176]).try_into().unwrap());
+    xor(d2, (&mut out[176..192]).try_into().unwrap());
+    xor(a3, (&mut out[192..208]).try_into().unwrap());
+    xor(b3, (&mut out[208..224]).try_into().unwrap());
+    xor(c3, (&mut out[224..240]).try_into().unwrap());
+    xor(d3, (&mut out[240..256]).try_into().unwrap());
+}
+
 fn hchacha(key0: &mut [u32; 4], key1: &mut [u32; 4], nonce: &[u32; 4]) {
     let [mut z0, mut z1, mut z2, mut z3] = SIGMA;
     let &mut [mut z4, mut z5, mut z6, mut z7] = key0;
@@ -166,6 +375,11 @@ fn hchacha(key0: &mut [u32; 4], key1: &mut [u32; 4], nonce: &[u32; 4]) {
 
     *key0 = [z0, z1, z2, z3];
     *key1 = [zc, zd, ze, zf];
+}
+
+const fn u32_slice_to_uint32x4_t(value: &[u32; 4]) -> uint32x4_t {
+    // SAFETY: the memory layout of [u32; 4] is compatible with uint32x4_t.
+    unsafe { mem::transmute(*value) }
 }
 
 // b"expand 32-byte k" in little-endian
