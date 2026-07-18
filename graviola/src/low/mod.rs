@@ -11,8 +11,6 @@ pub mod inline_assembly_safety;
 
 mod generic {
     pub(super) mod blockwise;
-    #[cfg(target_arch = "aarch64")]
-    pub(crate) mod chacha20;
     pub(super) mod ct_copy;
     pub(super) mod ct_equal;
     #[cfg(test)]
@@ -203,7 +201,7 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::sha3_keccak4_f1600_mux::sha3_keccak4_f1600;
         pub(crate) use aarch64::sha3_keccak2of4_f1600::sha3_keccak2of4_f1600;
 
-        pub(crate) use generic::chacha20;
+        pub(crate) use aarch64::chacha20;
         pub(crate) use generic::sha512::sha512_compress_blocks;
         pub(crate) use generic::mlkem::{mlkem_frombytes, mlkem_unpack};
     } else {
