@@ -4,7 +4,7 @@ use std::io::BufReader;
 use graviola::Error;
 use graviola::aead::{AesGcm, ChaCha20Poly1305, XChaCha20Poly1305};
 use graviola::hashing::hmac::Hmac;
-use graviola::hashing::{Sha256, Sha384, Sha512};
+use graviola::hashing::{Sha1, Sha256, Sha384, Sha512};
 use graviola::key_agreement::{mlkem768, p256, p384, x25519};
 use graviola::signing::{ecdsa, eddsa, rsa};
 use serde::Deserialize;
@@ -148,6 +148,40 @@ impl Drop for Summary {
             self.started, passed, self.skipped
         );
         assert_ne!(self.started, self.skipped, "all tests were skipped");
+    }
+}
+
+#[test]
+fn hmac_sha1_tests() {
+    let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/hmac_sha1_test.json")
+        .expect("failed to open data file");
+
+    let reader = BufReader::new(data_file);
+    let tests: TestFile = serde_json::from_reader(reader).expect("invalid test JSON");
+    let mut summary = Summary::new();
+
+    for group in tests.groups {
+        summary.group(&group);
+        for test in group.tests {
+            summary.start(&test);
+
+            let mut ctx = Hmac::<Sha1>::new(test.key);
+            ctx.update(test.msg);
+            let result = match test.tag.len() {
+                20 => ctx.verify(&test.tag),
+                10 => match ctx.finish().truncated_ct_equal::<10>(&test.tag) {
+                    true => Ok(()),
+                    false => Err(Error::BadSignature),
+                },
+                other => todo!("unhandled truncated hmac {other:?}"),
+            };
+
+            match (test.result, result) {
+                (ExpectedResult::Valid, Ok(())) => {}
+                (ExpectedResult::Invalid, Err(Error::BadSignature)) => {}
+                _ => panic!("expected {:?} got {:?}", test.result, result),
+            }
+        }
     }
 }
 
