@@ -19,6 +19,7 @@ env:
   GRAVIOLA_CPU_DISABLE_avx512f: "1"
   GRAVIOLA_CPU_DISABLE_avx512bw: "1"
   GRAVIOLA_CPU_DISABLE_avx512vl: "1"
+  CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS: "true"
   # Fix AWS LC linking: https://github.com/rust-lang/rustc_codegen_cranelift/issues/1520
   AWS_LC_SYS_NO_U1_BINDINGS: "1"
 
