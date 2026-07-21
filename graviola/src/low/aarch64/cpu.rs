@@ -1,6 +1,9 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
+use core::arch::aarch64::{uint8x16_t, vgetq_lane_u64, vreinterpretq_u64_u8};
+use core::mem;
+
 pub(crate) fn enter_cpu_state() -> u32 {
     dit::maybe_enable()
 }
@@ -153,6 +156,20 @@ pub(in crate::low) unsafe fn ct_compare_bytes(a: *const u8, b: *const u8, len: u
         );
         acc
     }
+}
+
+/// Compare `a` and `b` in constant time, returning 0 if they are equal
+/// and some nonzero value if they are not equal.
+#[target_feature(enable = "neon")]
+pub(in crate::low) fn ct_compare_u128(a: u128, b: u128) -> u64 {
+    // SAFETY: u128 and uint8x16_t have the compatible memory layouts.
+    let a: uint8x16_t = unsafe { mem::transmute(a) };
+    let a = vreinterpretq_u64_u8(a);
+    // SAFETY: u128 and uint8x16_t have the compatible memory layouts.
+    let b: uint8x16_t = unsafe { mem::transmute(b) };
+    let b = vreinterpretq_u64_u8(b);
+    (vgetq_lane_u64::<0>(a) ^ vgetq_lane_u64::<0>(b))
+        | (vgetq_lane_u64::<1>(a) ^ vgetq_lane_u64::<1>(b))
 }
 
 /// This macro interdicts is_aarch64_feature_detected to allow testability.
