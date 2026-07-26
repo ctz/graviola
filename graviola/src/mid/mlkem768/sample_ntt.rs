@@ -15,99 +15,95 @@ fn _sample_ntt<const TRANSPOSED: bool>(rho: &[u8; 32]) -> [i16; K * K * N] {
     let mut r = [0; _];
 
     // We have K * K polynomials to generate.  In this case, K := 3, so 9.
-    // We have a by-4 keccak, so we can attack the problem in two
-    // sets of four, followed by one straggler.
+    // We attack this as one block of 8, followed by a stragger.
 
-    let mut work_iter = SAMPLE_POLY_WORK.chunks_exact(4);
+    let (output_8, output_tail) = r.split_at_mut(N * 8);
 
-    for c4 in work_iter.by_ref() {
-        let inputs = match TRANSPOSED {
-            false => &[
-                &[c4[0].1, c4[0].0],
-                &[c4[1].1, c4[1].0],
-                &[c4[2].1, c4[2].0],
-                &[c4[3].1, c4[3].0],
-            ],
-            true => &[
-                &[c4[0].0, c4[0].1],
-                &[c4[1].0, c4[1].1],
-                &[c4[2].0, c4[2].1],
-                &[c4[3].0, c4[3].1],
-            ],
-        };
+    let inputs = match TRANSPOSED {
+        false => &[
+            [0, 0],
+            [1, 0],
+            [2, 0],
+            [0, 1],
+            [1, 1],
+            [2, 1],
+            [0, 2],
+            [1, 2],
+        ],
+        true => &[
+            [0, 0],
+            [0, 1],
+            [0, 2],
+            [1, 0],
+            [1, 1],
+            [1, 2],
+            [2, 0],
+            [2, 1],
+        ],
+    };
 
-        _sample_poly_ntt_quad(
-            rho,
-            inputs,
-            (&mut r[c4[0].2..c4[3].2 + N]).try_into().unwrap(),
-        );
-    }
+    _sample_poly_ntt_8x(rho, inputs, output_8.try_into().unwrap());
 
-    for (i, j, offs) in work_iter.remainder() {
-        let input = match TRANSPOSED {
-            false => &[*j, *i],
-            true => &[*i, *j],
-        };
-        Shake128ForMlKem::new(&[rho, input])
-            .sample_into((&mut r[*offs..*offs + N]).try_into().unwrap());
-    }
+    Shake128ForMlKem::new(&[rho, &[2, 2]]).sample_into(output_tail.try_into().unwrap());
 
     r
 }
 
-fn _sample_poly_ntt_quad(rho: &[u8; 32], inputs: &[&[u8; 2]; 4], outputs: &mut [i16; N * 4]) {
+fn _sample_poly_ntt_8x(rho: &[u8; 32], inputs: &[[u8; 2]; 8], outputs: &mut [i16; N * 8]) {
     let mut buf = [0; 40];
     buf[..32].copy_from_slice(rho);
     buf[34] = sha3::SHAKE_PAD_BYTE;
 
-    let mut buf0 = buf;
-    buf0[32..34].clone_from_slice(inputs[0]);
-    let mut buf1 = buf;
-    buf1[32..34].clone_from_slice(inputs[1]);
-    let mut buf2 = buf;
-    buf2[32..34].clone_from_slice(inputs[2]);
-    let mut buf3 = buf;
-    buf3[32..34].clone_from_slice(inputs[3]);
+    for (inputs, outputs) in inputs.chunks_exact(4).zip(outputs.chunks_exact_mut(N * 4)) {
+        let mut buf0 = buf;
+        buf0[32..34].clone_from_slice(&inputs[0]);
+        let mut buf1 = buf;
+        buf1[32..34].clone_from_slice(&inputs[1]);
+        let mut buf2 = buf;
+        buf2[32..34].clone_from_slice(&inputs[2]);
+        let mut buf3 = buf;
+        buf3[32..34].clone_from_slice(&inputs[3]);
 
-    let sponge_4x = sha3::SqueezingSponge4xShake128::new(&[&buf0, &buf1, &buf2, &buf3]);
-    let (output0, outputs) = outputs.split_at_mut(N);
-    let (output1, outputs) = outputs.split_at_mut(N);
-    let (output2, output3) = outputs.split_at_mut(N);
+        let sponge_4x = sha3::SqueezingSponge4xShake128::new(&[&buf0, &buf1, &buf2, &buf3]);
+        let (output0, outputs) = outputs.split_at_mut(N);
+        let (output1, outputs) = outputs.split_at_mut(N);
+        let (output2, output3) = outputs.split_at_mut(N);
 
-    let mut samples = [[0; sha3::SHAKE_128_R_BYTES * 3]; 4];
-    let [tsponge0, tsponge1, tsponge2, tsponge3] = sponge_4x.squeeze(&mut samples);
+        let mut samples = [[0; sha3::SHAKE_128_R_BYTES * 3]; 4];
+        let [tsponge0, tsponge1, tsponge2, tsponge3] = sponge_4x.squeeze(&mut samples);
 
-    let tail0 = Shake128ForMlKem::sample(&samples[0], output0.try_into().unwrap());
-    let tail1 = Shake128ForMlKem::sample(&samples[1], output1.try_into().unwrap());
-    let tail2 = Shake128ForMlKem::sample(&samples[2], output2.try_into().unwrap());
-    let tail3 = Shake128ForMlKem::sample(&samples[3], output3.try_into().unwrap());
+        let tail0 = Shake128ForMlKem::sample(&samples[0], output0.try_into().unwrap());
+        let tail1 = Shake128ForMlKem::sample(&samples[1], output1.try_into().unwrap());
+        let tail2 = Shake128ForMlKem::sample(&samples[2], output2.try_into().unwrap());
+        let tail3 = Shake128ForMlKem::sample(&samples[3], output3.try_into().unwrap());
 
-    if !tail0.is_empty() {
-        Shake128ForMlKem {
-            sponge: tsponge0.restitute(),
+        if !tail0.is_empty() {
+            Shake128ForMlKem {
+                sponge: tsponge0.restitute(),
+            }
+            .tail_case(tail0);
         }
-        .tail_case(tail0);
-    }
 
-    if !tail1.is_empty() {
-        Shake128ForMlKem {
-            sponge: tsponge1.restitute(),
+        if !tail1.is_empty() {
+            Shake128ForMlKem {
+                sponge: tsponge1.restitute(),
+            }
+            .tail_case(tail1);
         }
-        .tail_case(tail1);
-    }
 
-    if !tail2.is_empty() {
-        Shake128ForMlKem {
-            sponge: tsponge2.restitute(),
+        if !tail2.is_empty() {
+            Shake128ForMlKem {
+                sponge: tsponge2.restitute(),
+            }
+            .tail_case(tail2);
         }
-        .tail_case(tail2);
-    }
 
-    if !tail3.is_empty() {
-        Shake128ForMlKem {
-            sponge: tsponge3.restitute(),
+        if !tail3.is_empty() {
+            Shake128ForMlKem {
+                sponge: tsponge3.restitute(),
+            }
+            .tail_case(tail3);
         }
-        .tail_case(tail3);
     }
 }
 
@@ -204,17 +200,3 @@ impl Iterator for Shake128TwelveBitIterator {
         Some(item)
     }
 }
-
-/// Values for i and j (pre-transpose) plus start offset of N coefficients within
-/// a K * K * N matrix.
-const SAMPLE_POLY_WORK: &[(u8, u8, usize)] = &[
-    (0, 0, 0), //
-    (0, 1, N),
-    (0, 2, N * 2),
-    (1, 0, K * N),
-    (1, 1, N + K * N),
-    (1, 2, N * 2 + K * N),
-    (2, 0, K * N * 2),
-    (2, 1, N + K * N * 2),
-    (2, 2, N * 2 + K * N * 2),
-];
