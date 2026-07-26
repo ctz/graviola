@@ -154,6 +154,12 @@ macro_rules! have_cpu_feature {
     ("avx512vl") => {
         crate::low::x86_64::cpu::test_toggle("avx512vl", is_x86_feature_detected!("avx512vl"))
     };
+    ("avx512vbmi") => {
+        crate::low::x86_64::cpu::test_toggle("avx512vbmi", is_x86_feature_detected!("avx512vbmi"))
+    };
+    ("avx512vbmi2") => {
+        crate::low::x86_64::cpu::test_toggle("avx512vbmi2", is_x86_feature_detected!("avx512vbmi2"))
+    };
     ("sha") => {
         crate::low::x86_64::cpu::test_toggle("sha", is_x86_feature_detected!("sha"))
     };
@@ -172,6 +178,25 @@ impl HaveAvx512ForAesGcm {
             && have_cpu_feature!("avx512vl")
             && have_cpu_feature!("vpclmulqdq")
             && have_cpu_feature!("vaes")
+        {
+            true => Some(Self(())),
+            false => None,
+        }
+    }
+}
+
+/// Token type reflecting the check for CPU features needed for AVX512-ML-KEM
+///
+/// A value of this type is proof that the CPU dynamic feature check has happened.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct HaveAvx512ForMlKem(());
+
+impl HaveAvx512ForMlKem {
+    pub(crate) fn check() -> Option<Self> {
+        match have_cpu_feature!("avx512f")
+            && have_cpu_feature!("avx512bw")
+            && have_cpu_feature!("avx512vbmi")
+            && have_cpu_feature!("avx512vbmi2")
         {
             true => Some(Self(())),
             false => None,
