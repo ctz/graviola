@@ -64,44 +64,22 @@ fn _sample_poly_ntt_8x(rho: &[u8; 32], inputs: &[[u8; 2]; 8], outputs: &mut [i16
 
     for (inputs, outputs) in inputs.chunks_exact(4).zip(outputs.chunks_exact_mut(N * 4)) {
         let sponge_4x = sha3::SqueezingSponge4xShake128::new(&inputs.try_into().unwrap());
-        let (output0, outputs) = outputs.split_at_mut(N);
-        let (output1, outputs) = outputs.split_at_mut(N);
-        let (output2, output3) = outputs.split_at_mut(N);
 
         let mut samples = [[0; sha3::SHAKE_128_R_BYTES * 3]; 4];
-        let [tsponge0, tsponge1, tsponge2, tsponge3] = sponge_4x.squeeze(&mut samples);
+        let tail_sponges = sponge_4x.squeeze(&mut samples);
 
-        let tail0 = Shake128ForMlKem::sample(&samples[0], output0.try_into().unwrap());
-        let tail1 = Shake128ForMlKem::sample(&samples[1], output1.try_into().unwrap());
-        let tail2 = Shake128ForMlKem::sample(&samples[2], output2.try_into().unwrap());
-        let tail3 = Shake128ForMlKem::sample(&samples[3], output3.try_into().unwrap());
-
-        if !tail0.is_empty() {
-            Shake128ForMlKem {
-                sponge: tsponge0.restitute(),
+        for ((output, samples), tail_sponge) in outputs
+            .chunks_exact_mut(N)
+            .zip(samples.iter())
+            .zip(tail_sponges)
+        {
+            let tail = Shake128ForMlKem::sample(samples, output.try_into().unwrap());
+            if !tail.is_empty() {
+                Shake128ForMlKem {
+                    sponge: tail_sponge.restitute(),
+                }
+                .tail_case(tail);
             }
-            .tail_case(tail0);
-        }
-
-        if !tail1.is_empty() {
-            Shake128ForMlKem {
-                sponge: tsponge1.restitute(),
-            }
-            .tail_case(tail1);
-        }
-
-        if !tail2.is_empty() {
-            Shake128ForMlKem {
-                sponge: tsponge2.restitute(),
-            }
-            .tail_case(tail2);
-        }
-
-        if !tail3.is_empty() {
-            Shake128ForMlKem {
-                sponge: tsponge3.restitute(),
-            }
-            .tail_case(tail3);
         }
     }
 }
