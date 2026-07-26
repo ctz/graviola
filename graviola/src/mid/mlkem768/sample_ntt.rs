@@ -1,7 +1,11 @@
 // Written for Graviola by Joe Birr-Pixton, 2026.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
-use crate::{low, mid::sha3};
+use super::{K, N, Q};
+use crate::{
+    low,
+    mid::sha3::{self, SqueezingSpongeObligation},
+};
 
 pub(super) fn sample_ntt(rho: &[u8; 32]) -> [i16; K * K * N] {
     _sample_ntt::<false>(rho)
@@ -42,14 +46,14 @@ fn _sample_ntt<const TRANSPOSED: bool>(rho: &[u8; 32]) -> [i16; K * K * N] {
         ],
     };
 
-    _sample_poly_ntt_8x(rho, inputs, output_8.try_into().unwrap());
+    sample_poly_ntt_8x(rho, inputs, output_8.try_into().unwrap());
 
     Shake128ForMlKem::new(&[rho, &[2, 2]]).sample_into(output_tail.try_into().unwrap());
 
     r
 }
 
-fn _sample_poly_ntt_8x(rho: &[u8; 32], inputs: &[[u8; 2]; 8], outputs: &mut [i16; N * 8]) {
+fn sample_poly_ntt_8x(rho: &[u8; 32], inputs: &[[u8; 2]; 8], outputs: &mut [i16; N * 8]) {
     let mut buf = [0; 40];
     buf[..32].copy_from_slice(rho);
     buf[34] = sha3::SHAKE_PAD_BYTE;
@@ -62,6 +66,10 @@ fn _sample_poly_ntt_8x(rho: &[u8; 32], inputs: &[[u8; 2]; 8], outputs: &mut [i16
         buf_ij
     });
 
+    low::mlkem768_sample_poly_ntt_8x(&inputs, outputs, _sample_poly_ntt_8x, _sample_poly_ntt_tail)
+}
+
+fn _sample_poly_ntt_8x(inputs: &[[u8; 40]; 8], outputs: &mut [i16; N * 8]) {
     for (inputs, outputs) in inputs.chunks_exact(4).zip(outputs.chunks_exact_mut(N * 4)) {
         let sponge_4x = sha3::SqueezingSponge4xShake128::new(&inputs.try_into().unwrap());
 
@@ -82,6 +90,13 @@ fn _sample_poly_ntt_8x(rho: &[u8; 32], inputs: &[[u8; 2]; 8], outputs: &mut [i16
             }
         }
     }
+}
+
+fn _sample_poly_ntt_tail(tail_sponge: &mut [u64; 25], tail: &mut [i16]) {
+    Shake128ForMlKem {
+        sponge: SqueezingSpongeObligation(*tail_sponge).restitute(),
+    }
+    .tail_case(tail);
 }
 
 /// SHAKE128, but oriented at use in ML-KEM's `SampleNTT()`

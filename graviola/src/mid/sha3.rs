@@ -361,7 +361,7 @@ impl SqueezingSponge4xShake128 {
 }
 
 /// A [`SqueezingSponge`] to which we owe a keccak-f application prior to further use.
-pub(crate) struct SqueezingSpongeObligation<const R: usize>([u64; 25]);
+pub(crate) struct SqueezingSpongeObligation<const R: usize>(pub(crate) [u64; 25]);
 
 impl<const R: usize> SqueezingSpongeObligation<R> {
     /// Pay back the debt by applying keccak-f and return the underlying [`SqueezingSponge`]
