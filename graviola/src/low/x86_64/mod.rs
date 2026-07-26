@@ -62,6 +62,8 @@ pub(crate) mod edwards25519_scalarmulbase;
 pub(crate) mod edwards25519_scalarmuldouble;
 pub(crate) mod ghash;
 pub(crate) mod mlkem;
+#[cfg(not(cranelift))]
+pub(crate) mod mlkem768_sample_poly_ntt_8x;
 pub(crate) mod mlkem_basemul_k3;
 pub(crate) mod mlkem_frombytes;
 pub(crate) mod mlkem_intt;

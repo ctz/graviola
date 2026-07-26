@@ -19,6 +19,7 @@ mod generic {
     pub(crate) mod ghash;
     #[cfg(target_arch = "aarch64")]
     pub(crate) mod mlkem;
+    #[cfg(any(cranelift, target_arch = "aarch64"))]
     pub(crate) mod mlkem768;
     pub(crate) mod poly1305;
     #[cfg(target_arch = "x86_64")]
@@ -115,6 +116,12 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::mlkem_tobytes::mlkem_tobytes;
         pub(crate) use x86_64::mlkem_tomont::mlkem_tomont;
         pub(crate) use x86_64::mlkem_unpack::mlkem_unpack;
+        #[cfg(not(cranelift))]
+        pub(crate) use x86_64::mlkem768_sample_poly_ntt_8x::mlkem768_sample_poly_ntt_8x;
+
+        #[cfg(cranelift)]
+        pub(crate) use generic::mlkem768::mlkem768_sample_poly_ntt_8x;
+
         pub(crate) use x86_64::p256_montjadd::p256_montjadd;
         pub(crate) use x86_64::p256_montjdouble::p256_montjdouble;
         pub(crate) use x86_64::p256_montjmixadd::p256_montjmixadd;
@@ -126,7 +133,6 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::sha3_keccak4_f1600_shim::sha3_keccak4_f1600;
         pub(crate) use x86_64::sha3_keccak2of4_f1600::sha3_keccak2of4_f1600;
 
-        pub(crate) use generic::mlkem768::mlkem768_sample_poly_ntt_8x;
     } else if #[cfg(target_arch = "aarch64")] {
         mod aarch64;
 
