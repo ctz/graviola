@@ -3,7 +3,7 @@
 
 use core::{arch::x86_64::*, ops::Range};
 
-use super::cpu::HaveAvx512ForAesGcm;
+use super::cpu::HaveAvx512ForMlKem;
 
 pub(crate) fn mlkem768_sample_poly_ntt_8x(
     inputs: &[[u8; 40]; 8],
@@ -11,8 +11,8 @@ pub(crate) fn mlkem768_sample_poly_ntt_8x(
     fallback_fn: fn(&[[u8; 40]; 8], &mut [i16; 256 * 8]),
     tail_fn: fn(&mut [u64; 25], &mut [i16]),
 ) {
-    match HaveAvx512ForAesGcm::check() {
-        // SAFETY: `HaveAvx512ForAesGcm` checks for required target features
+    match HaveAvx512ForMlKem::check() {
+        // SAFETY: `HaveAvx512ForMlKem` checks for required target features
         Some(proof) => unsafe { sample_poly_ntt_8x_avx512(inputs, outputs, tail_fn, proof) },
         None => fallback_fn(inputs, outputs),
     }
@@ -23,7 +23,7 @@ unsafe fn sample_poly_ntt_8x_avx512(
     inputs: &[[u8; 40]; 8],
     outputs: &mut [i16; 256 * 8],
     tail_fn: fn(&mut [u64; 25], &mut [i16]),
-    _proof: HaveAvx512ForAesGcm,
+    _proof: HaveAvx512ForMlKem,
 ) {
     let mut keccak_states = [_mm512_setzero_si512(); 25];
 
