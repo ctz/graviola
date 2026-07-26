@@ -54,17 +54,16 @@ fn _sample_poly_ntt_8x(rho: &[u8; 32], inputs: &[[u8; 2]; 8], outputs: &mut [i16
     buf[..32].copy_from_slice(rho);
     buf[34] = sha3::SHAKE_PAD_BYTE;
 
-    for (inputs, outputs) in inputs.chunks_exact(4).zip(outputs.chunks_exact_mut(N * 4)) {
-        let mut buf0 = buf;
-        buf0[32..34].clone_from_slice(&inputs[0]);
-        let mut buf1 = buf;
-        buf1[32..34].clone_from_slice(&inputs[1]);
-        let mut buf2 = buf;
-        buf2[32..34].clone_from_slice(&inputs[2]);
-        let mut buf3 = buf;
-        buf3[32..34].clone_from_slice(&inputs[3]);
+    // Expand the indices `inputs` into the prefix of SHAKE inputs, by prepending `rho` and
+    // appending `SHAKE_PAD_BYTE`.
+    let inputs = inputs.map(|ij| {
+        let mut buf_ij = buf;
+        buf_ij[32..34].clone_from_slice(&ij);
+        buf_ij
+    });
 
-        let sponge_4x = sha3::SqueezingSponge4xShake128::new(&[&buf0, &buf1, &buf2, &buf3]);
+    for (inputs, outputs) in inputs.chunks_exact(4).zip(outputs.chunks_exact_mut(N * 4)) {
+        let sponge_4x = sha3::SqueezingSponge4xShake128::new(&inputs.try_into().unwrap());
         let (output0, outputs) = outputs.split_at_mut(N);
         let (output1, outputs) = outputs.split_at_mut(N);
         let (output2, output3) = outputs.split_at_mut(N);
