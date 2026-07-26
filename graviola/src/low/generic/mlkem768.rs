@@ -1,3 +1,6 @@
+// Written for Graviola by Joe Birr-Pixton, 2026.
+// SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
+
 /// This does `SampleNTT()` for MLKEM768, yielding 8 polynomials worth of coefficients.
 ///
 /// `inputs` are eight pre-formatted SHAKE inputs (already containing the domain separation bits.
