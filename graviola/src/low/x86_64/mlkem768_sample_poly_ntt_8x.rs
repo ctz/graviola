@@ -18,7 +18,7 @@ pub(crate) fn mlkem768_sample_poly_ntt_8x(
     }
 }
 
-#[target_feature(enable = "avx512f")]
+#[target_feature(enable = "avx512f,avx512bw,avx512vbmi,avx512vbmi2")]
 unsafe fn sample_poly_ntt_8x_avx512(
     inputs: &[[u8; 40]; 8],
     outputs: &mut [i16; 256 * 8],
@@ -192,18 +192,29 @@ fn extract_state(states: &[__m512i; 25], index: usize) -> [u64; 25] {
 ///
 /// `left` indicates how many items in each polynomial in `output` remains unwritten.
 /// It should be updated to indicate how many were written.
-#[target_feature(enable = "avx512f")]
+#[target_feature(enable = "avx512f,avx512bw,avx512vbmi,avx512vbmi2")]
 fn _squeeze_rate_and_reject(
     state: &[__m512i; 25],
     output: &mut [i16; 256 * 8],
     left: &mut [usize; 8],
 ) {
-    // De-interleave the rate lanes, so `rate[lane][i]` is `lane` of the `i`th state.
     let mut rate = [[0u64; 8]; RATE_WORDS];
     for (lane, out) in rate.iter_mut().enumerate() {
         // SAFETY: `out` is 8 * 8 = 64 bytes, exactly the width of one `__m512i`.
         unsafe { _mm512_storeu_si512(out.as_mut_ptr().cast(), state[lane]) };
     }
+
+    // SAFETY: `SPREAD` is 64 bytes, exactly the width of one `__m512i`.
+    let spread = unsafe { _mm512_loadu_si512(SPREAD.as_ptr().cast()) };
+
+    let q = _mm512_set1_epi16(Q as i16);
+    let twelve_bits = _mm512_set1_epi16(0x0fff);
+
+    // Within each pair of 16-bit lanes, the first candidate needs no shift and the
+    // second needs to lose the four bits it shares with the first.
+    let shifts = _mm512_set1_epi32(0x0004_0000);
+
+    let mut bytes = [0u8; RATE_BYTES + 64];
 
     for (i, (left, poly)) in left
         .iter_mut()
@@ -215,35 +226,56 @@ fn _squeeze_rate_and_reject(
         }
 
         // Collect this state's rate bytes.  Candidates straddle the 64-bit lanes,
-        // so it is simplest to linearise them first.
-        let mut bytes = [0u8; RATE_WORDS * 8];
-        for (lane, chunk) in bytes.chunks_exact_mut(8).enumerate() {
+        // so it is simplest to linearise them first.  The trailing padding means a
+        // 64-byte load from anywhere within the rate stays in bounds.
+        for (lane, chunk) in bytes[..RATE_BYTES].chunks_exact_mut(8).enumerate() {
             chunk.copy_from_slice(&rate[lane][i].to_le_bytes());
         }
 
-        // Rejection sample, per FIPS-203 `SampleNTT()`: each three bytes give two
-        // 12-bit candidates, each accepted if less than Q.
         let mut used = 256 - *left;
 
-        for triple in bytes.chunks_exact(3) {
+        for offset in (0..RATE_BYTES).step_by(GROUP_BYTES) {
             if used == 256 {
                 break;
             }
 
-            let d1 = u16::from(triple[0]) | (u16::from(triple[1] & 0x0f) << 8);
-            if d1 < Q {
-                poly[used] = d1 as i16;
-                used += 1;
+            // Rejection sample, per FIPS-203 `SampleNTT()`: each three bytes give two
+            // 12-bit candidates.  `SPREAD` gathers each three-byte group into a pair
+            // of 16-bit lanes, which are then reduced to the candidates themselves.
+            // SAFETY: `bytes` is padded to allow a 64-byte load from `offset`.
+            let raw = unsafe { _mm512_loadu_si512(bytes[offset..].as_ptr().cast()) };
+            let candidates = _mm512_and_si512(
+                _mm512_srlv_epi16(_mm512_permutexvar_epi8(spread, raw), shifts),
+                twelve_bits,
+            );
+
+            // Accept candidates less than Q.  Lanes past the end of the rate read as
+            // zero, which would otherwise be accepted, so discard them.
+            let mut accept = _mm512_cmplt_epu16_mask(candidates, q);
+            let valid = ((RATE_BYTES - offset) / 3 * 2).min(GROUP_CANDIDATES);
+            if valid < GROUP_CANDIDATES {
+                accept &= (1u32 << valid) - 1;
             }
 
-            if used == 256 {
-                break;
-            }
+            let accepted = accept.count_ones() as usize;
 
-            let d2 = (u16::from(triple[1]) >> 4) | (u16::from(triple[2]) << 4);
-            if d2 < Q {
-                poly[used] = d2 as i16;
-                used += 1;
+            if used + GROUP_CANDIDATES <= 256 {
+                // Compaction cannot overrun `poly`, so write straight into it.
+                // SAFETY: `accepted` is at most `GROUP_CANDIDATES`, which fits.
+                unsafe {
+                    _mm512_mask_compressstoreu_epi16(poly[used..].as_mut_ptr(), accept, candidates)
+                };
+                used += accepted;
+            } else {
+                // Otherwise compact aside, and take only as much as fits.
+                let mut scratch = [0i16; GROUP_CANDIDATES];
+                // SAFETY: `accepted` is at most `GROUP_CANDIDATES`, the size of `scratch`.
+                unsafe {
+                    _mm512_mask_compressstoreu_epi16(scratch.as_mut_ptr(), accept, candidates)
+                };
+                let take = accepted.min(256 - used);
+                poly[used..used + take].copy_from_slice(&scratch[..take]);
+                used += take;
             }
         }
 
@@ -253,6 +285,34 @@ fn _squeeze_rate_and_reject(
 
 /// SHAKE128's rate, in 64-bit words: 168 bytes.
 const RATE_WORDS: usize = (1600 - 256) / 64;
+
+/// SHAKE128's rate, in bytes.
+const RATE_BYTES: usize = RATE_WORDS * 8;
+
+/// Candidates produced by one vector pass.
+const GROUP_CANDIDATES: usize = 32;
+
+/// Bytes consumed by one vector pass; three bytes give two candidates.
+const GROUP_BYTES: usize = GROUP_CANDIDATES / 2 * 3;
+
+/// Byte permutation spreading `GROUP_BYTES` packed bytes into 32 16-bit lanes.
+///
+/// Lane `k` (where `j = k / 2`) takes bytes `3j` and `3j + 1` when `k` is even,
+/// or `3j + 1` and `3j + 2` when it is odd.
+static SPREAD: [u8; 64] = {
+    let mut r = [0u8; 64];
+    let mut k = 0;
+    while k < GROUP_CANDIDATES {
+        let low = match k % 2 {
+            0 => 3 * (k / 2),
+            _ => 3 * (k / 2) + 1,
+        };
+        r[k * 2] = low as u8;
+        r[k * 2 + 1] = (low + 1) as u8;
+        k += 1;
+    }
+    r
+};
 
 /// The ML-KEM prime.
 const Q: u16 = 3329;
