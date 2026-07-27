@@ -330,7 +330,8 @@ impl SqueezingSponge4xShake128 {
             span: Range<usize>,
         ) {
             for j in 0..4 {
-                for (i, ch) in output[j][span.clone()].chunks_mut(8).enumerate() {
+                debug_assert!(span.len().is_multiple_of(8));
+                for (i, ch) in output[j][span.clone()].chunks_exact_mut(8).enumerate() {
                     ch.copy_from_slice(&states[j][i].to_le_bytes());
                 }
             }
