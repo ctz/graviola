@@ -213,7 +213,8 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::sha3_shake256_8x_one_block::sha3_shake256_8x_one_block;
 
         pub(crate) use aarch64::chacha20;
-        pub(crate) use generic::sha512::sha512_compress_blocks;
+        pub(crate) use aarch64::sha512_mux::sha512_compress_blocks;
+
         pub(crate) use generic::mlkem::{mlkem_frombytes, mlkem_unpack};
         pub(crate) use generic::mlkem768::mlkem768_sample_poly_ntt_8x;
     } else {
