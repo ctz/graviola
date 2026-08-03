@@ -273,7 +273,7 @@ impl SqueezingSponge4xShake128 {
     ///
     /// Each item of `input` shall be 40 bytes in length, which matches ML-KEM's requirements
     /// of 34 bytes.  The 35th byte shall be `SHAKE_PAD_BYTE` and the remainder shall be zeroes.
-    pub(crate) fn new(inputs: &[&[u8; 40]; 4]) -> Self {
+    pub(crate) fn new(inputs: &[[u8; 40]; 4]) -> Self {
         debug_assert!(inputs.iter().all(|inp| inp[34] == SHAKE_PAD_BYTE));
 
         // This is gnarly, for the benefit of avoiding a SHAKE_128_R_BYTES-byte buffer which is
@@ -362,7 +362,7 @@ impl SqueezingSponge4xShake128 {
 }
 
 /// A [`SqueezingSponge`] to which we owe a keccak-f application prior to further use.
-pub(crate) struct SqueezingSpongeObligation<const R: usize>([u64; 25]);
+pub(crate) struct SqueezingSpongeObligation<const R: usize>(pub(crate) [u64; 25]);
 
 impl<const R: usize> SqueezingSpongeObligation<R> {
     /// Pay back the debt by applying keccak-f and return the underlying [`SqueezingSponge`]
@@ -604,7 +604,7 @@ mod tests {
         // batched: three rate-blocks up front, then continue via the obligation.
         let mut batched = [[0u8; SHAKE_128_R_BYTES * 3]; 4];
         let obligations =
-            SqueezingSponge4xShake128::new(&[&inputs[0], &inputs[1], &inputs[2], &inputs[3]])
+            SqueezingSponge4xShake128::new(&[inputs[0], inputs[1], inputs[2], inputs[3]])
                 .squeeze(&mut batched);
 
         const TAIL: usize = SHAKE_128_R_BYTES * 2;
