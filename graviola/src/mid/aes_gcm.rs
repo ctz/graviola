@@ -3,7 +3,7 @@
 
 use crate::Error;
 use crate::low::ghash::{Ghash, GhashTable};
-use crate::low::{AesKey, Entry, aes_gcm, ct_equal};
+use crate::low::{AesKey, Entry, aes_gcm, ct_equal_u128};
 
 /// An AES-GCM key.
 ///
@@ -66,16 +66,13 @@ impl AesGcm {
         // computations. see low::generic::aes_gcm for model version.
         aes_gcm::encrypt(&self.key, &mut ghash, &counter, aad, cipher_inout);
 
-        let mut lengths = [0u8; 16];
-        lengths[..8].copy_from_slice(&((aad.len() * 8) as u64).to_be_bytes());
-        lengths[8..].copy_from_slice(&((cipher_inout.len() * 8) as u64).to_be_bytes());
-        ghash.add(&lengths);
+        let lengths: u128 = Self::pack_bit_lengths(aad, cipher_inout);
+        ghash.one_block(lengths);
 
-        let final_xi = ghash.into_bytes();
-
-        for ((out, x), e) in tag_out.iter_mut().zip(final_xi.iter()).zip(e_y0.iter()) {
-            *out = *x ^ *e;
-        }
+        let final_xi = ghash.into_u128();
+        let e = u128::from_be_bytes(e_y0);
+        let tag = final_xi ^ e;
+        tag_out.copy_from_slice(&tag.to_be_bytes());
     }
 
     /// Decrypts and verifies the given message.
@@ -107,23 +104,26 @@ impl AesGcm {
 
         aes_gcm::decrypt(&self.key, &mut ghash, &counter, aad, cipher_inout);
 
-        let mut lengths = [0u8; 16];
-        lengths[..8].copy_from_slice(&((aad.len() * 8) as u64).to_be_bytes());
-        lengths[8..].copy_from_slice(&((cipher_inout.len() * 8) as u64).to_be_bytes());
-        ghash.add(&lengths);
+        let lengths: u128 = Self::pack_bit_lengths(aad, cipher_inout);
+        ghash.one_block(lengths);
 
-        let mut actual_tag = ghash.into_bytes();
-        for (out, e) in actual_tag.iter_mut().zip(e_y0.iter()) {
-            *out ^= *e;
-        }
-
-        if ct_equal(&actual_tag, tag) {
+        let actual_tag = ghash.into_u128() ^ u128::from_be_bytes(e_y0);
+        let tag: Result<[u8; 16], _> = tag.try_into();
+        if let Ok(tag) = tag
+            && ct_equal_u128(u128::from_be_bytes(tag), actual_tag)
+        {
             Ok(())
         } else {
             // avoid unauthenticated plaintext leak
             cipher_inout.fill(0x00);
             Err(Error::DecryptFailed)
         }
+    }
+
+    fn pack_bit_lengths(high: &[u8], low: &[u8]) -> u128 {
+        let lengths = (high.len() * 8) as u128;
+        let lengths = lengths << 64;
+        lengths | ((low.len() * 8) as u128)
     }
 
     fn nonce_to_y0(&self, nonce: &[u8; 12]) -> [u8; 16] {

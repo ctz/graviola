@@ -102,11 +102,18 @@ impl<'a> Ghash<'a> {
         }
     }
 
-    pub(crate) fn into_bytes(self) -> [u8; 16] {
-        to_u128(self.current).to_be_bytes()
+    #[cfg(test)]
+    fn into_bytes(self) -> [u8; 16] {
+        self.into_u128().to_be_bytes()
     }
 
-    fn one_block(&mut self, block: u128) {
+    pub(crate) fn into_u128(self) -> u128 {
+        // SAFETY: u128 and uint64x2_t have the same size and meaning of bits
+        unsafe { mem::transmute(self.current) }
+    }
+
+    // Input the 16 bytes of `block` to the computation.
+    pub(crate) fn one_block(&mut self, block: u128) {
         // SAFETY: this crate requires the `neon` cpu feature
         self.current = unsafe { veorq_u64(self.current, from_u128(block)) };
         self.current = mul(self.current, self.table.powers[0]);
@@ -322,12 +329,6 @@ fn zero() -> uint64x2_t {
 
 #[inline]
 fn from_u128(u: u128) -> uint64x2_t {
-    // SAFETY: u128 and uint64x2_t have the same size and meaning of bits
-    unsafe { mem::transmute(u) }
-}
-
-#[inline]
-fn to_u128(u: uint64x2_t) -> u128 {
     // SAFETY: u128 and uint64x2_t have the same size and meaning of bits
     unsafe { mem::transmute(u) }
 }
