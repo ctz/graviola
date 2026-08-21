@@ -63,7 +63,7 @@ fn sha256(state: &mut [u32; 8], blocks: &[u8]) {
     let k14 = k!(14);
     let k15 = k!(15);
 
-    for block in blocks.chunks_exact(64) {
+    for block in blocks.as_chunks::<64>().0 {
         let state0_prev = state0;
         let state1_prev = state1;
 

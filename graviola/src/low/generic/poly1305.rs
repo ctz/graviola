@@ -55,12 +55,12 @@ impl Poly1305 {
             self.process_whole_block(&block);
         }
 
-        let mut full_blocks = bytes.chunks_exact(16);
-        for block in full_blocks.by_ref() {
-            self.process_whole_block(block.try_into().unwrap());
+        let (full_blocks, remainder) = bytes.as_chunks::<16>();
+        for block in full_blocks {
+            self.process_whole_block(block);
         }
 
-        self.bw.add_trailing(full_blocks.remainder());
+        self.bw.add_trailing(remainder);
     }
 
     pub(crate) fn finish(mut self) -> [u8; 16] {

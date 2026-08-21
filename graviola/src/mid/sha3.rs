@@ -148,26 +148,26 @@ impl Shake256 {
 
         let mut states = [
             {
-                for (i, inp) in inputs[0].chunks_exact(8).enumerate() {
-                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                for (i, inp) in inputs[0].as_chunks::<8>().0.iter().enumerate() {
+                    s[i] = u64::from_le_bytes(*inp);
                 }
                 s
             },
             {
-                for (i, inp) in inputs[1].chunks_exact(8).enumerate() {
-                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                for (i, inp) in inputs[1].as_chunks::<8>().0.iter().enumerate() {
+                    s[i] = u64::from_le_bytes(*inp);
                 }
                 s
             },
             {
-                for (i, inp) in inputs[2].chunks_exact(8).enumerate() {
-                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                for (i, inp) in inputs[2].as_chunks::<8>().0.iter().enumerate() {
+                    s[i] = u64::from_le_bytes(*inp);
                 }
                 s
             },
             {
-                for (i, inp) in inputs[3].chunks_exact(8).enumerate() {
-                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                for (i, inp) in inputs[3].as_chunks::<8>().0.iter().enumerate() {
+                    s[i] = u64::from_le_bytes(*inp);
                 }
                 s
             },
@@ -185,14 +185,14 @@ impl Shake256 {
         // by-4 keccak permutation, which is quicker on x86-64 than two by-1 keccak
         // permutations!
         states[0] = {
-            for (i, inp) in inputs[4].chunks_exact(8).enumerate() {
-                s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+            for (i, inp) in inputs[4].as_chunks::<8>().0.iter().enumerate() {
+                s[i] = u64::from_le_bytes(*inp);
             }
             s
         };
         states[1] = {
-            for (i, inp) in inputs[5].chunks_exact(8).enumerate() {
-                s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+            for (i, inp) in inputs[5].as_chunks::<8>().0.iter().enumerate() {
+                s[i] = u64::from_le_bytes(*inp);
             }
             s
         };
@@ -284,26 +284,26 @@ impl SqueezingSponge4xShake128 {
 
         let mut states = [
             {
-                for (i, inp) in inputs[0].chunks_exact(8).enumerate() {
-                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                for (i, inp) in inputs[0].as_chunks::<8>().0.iter().enumerate() {
+                    s[i] = u64::from_le_bytes(*inp);
                 }
                 s
             },
             {
-                for (i, inp) in inputs[1].chunks_exact(8).enumerate() {
-                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                for (i, inp) in inputs[1].as_chunks::<8>().0.iter().enumerate() {
+                    s[i] = u64::from_le_bytes(*inp);
                 }
                 s
             },
             {
-                for (i, inp) in inputs[2].chunks_exact(8).enumerate() {
-                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                for (i, inp) in inputs[2].as_chunks::<8>().0.iter().enumerate() {
+                    s[i] = u64::from_le_bytes(*inp);
                 }
                 s
             },
             {
-                for (i, inp) in inputs[3].chunks_exact(8).enumerate() {
-                    s[i] = u64::from_le_bytes(inp.try_into().unwrap());
+                for (i, inp) in inputs[3].as_chunks::<8>().0.iter().enumerate() {
+                    s[i] = u64::from_le_bytes(*inp);
                 }
                 s
             },
@@ -428,8 +428,8 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
     }
 
     fn absorb_block(&mut self, block: &[u8; R]) {
-        for (i, block) in block.chunks_exact(8).enumerate() {
-            self.sponge.s[i] ^= u64::from_le_bytes(block.try_into().unwrap());
+        for (i, block) in block.as_chunks::<8>().0.iter().enumerate() {
+            self.sponge.s[i] ^= u64::from_le_bytes(*block);
         }
         sha3_keccak_f1600(&mut self.sponge.s, &RC);
     }

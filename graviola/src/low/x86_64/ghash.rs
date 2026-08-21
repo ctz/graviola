@@ -81,9 +81,9 @@ impl GhashTableAvx {
     }
 
     fn add_wide<'a>(&self, bytes: &'a [u8], mut current: __m128i) -> (__m128i, &'a [u8]) {
-        let mut eight_blocks = bytes.chunks_exact(128);
+        let (eight_blocks, remainder) = bytes.as_chunks::<128>();
 
-        for chunk8 in eight_blocks.by_ref() {
+        for chunk8 in eight_blocks {
             let u1 = u128::from_be_bytes(chunk8[0..16].try_into().unwrap());
             let u2 = u128::from_be_bytes(chunk8[16..32].try_into().unwrap());
             let u3 = u128::from_be_bytes(chunk8[32..48].try_into().unwrap());
@@ -109,7 +109,7 @@ impl GhashTableAvx {
             }
         }
 
-        (current, eight_blocks.remainder())
+        (current, remainder)
     }
 }
 
@@ -152,8 +152,8 @@ impl GhashTableAvx512 {
     fn add_wide<'a>(&self, bytes: &'a [u8], mut current: __m128i) -> (__m128i, &'a [u8]) {
         let bswap_mask = _mm512_broadcast_i32x4(BYTESWAP);
 
-        let mut by_16_blocks = bytes.chunks_exact(256);
-        for chunk16 in by_16_blocks.by_ref() {
+        let (by_16_blocks, remainder) = bytes.as_chunks::<256>();
+        for chunk16 in by_16_blocks {
             // SAFETY: `chunk16` is 256 bytes and readable, via `chunks_exact`
             let (m0123, m4567, m89ab, mcdef) = unsafe {
                 (
@@ -175,7 +175,7 @@ impl GhashTableAvx512 {
             current = _mul16(self, m0123, m4567, m89ab, mcdef);
         }
 
-        (current, by_16_blocks.remainder())
+        (current, remainder)
     }
 }
 
@@ -202,14 +202,13 @@ impl<'a> Ghash<'a> {
             GhashTable::Avx512(avx512) => unsafe { avx512.add_wide(bytes, self.current) },
         };
 
-        let mut whole_blocks = bytes.chunks_exact(16);
+        let (whole_blocks, bytes) = bytes.as_chunks::<16>();
 
-        for chunk in whole_blocks.by_ref() {
-            let u = u128::from_be_bytes(chunk.try_into().unwrap());
+        for chunk in whole_blocks {
+            let u = u128::from_be_bytes(*chunk);
             self.one_block(u128_to_m128i(u));
         }
 
-        let bytes = whole_blocks.remainder();
         if !bytes.is_empty() {
             let mut block = [0u8; 16];
             block[..bytes.len()].copy_from_slice(bytes);

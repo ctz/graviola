@@ -63,10 +63,10 @@ fn _cipher<const ENC: bool>(
     let (rk_first, rks, rk_last) = key.round_keys();
 
     let mut counter = Counter::new(initial_counter);
-    let mut by8_iter = cipher_inout.chunks_exact_mut(128);
+    let (by8_blocks, cipher_inout) = cipher_inout.as_chunks_mut::<128>();
     let avx_ghash_table = ghash.table.avx();
 
-    for blocks in by8_iter.by_ref() {
+    for blocks in by8_blocks {
         // prefetch to avoid any stall later
         super::cpu::prefetch(blocks, 64);
 
@@ -162,15 +162,13 @@ fn _cipher<const ENC: bool>(
         ghash.current = ghash::_mul8(avx_ghash_table, a1, a2, a3, a4, a5, a6, a7, a8);
     }
 
-    let cipher_inout = by8_iter.into_remainder();
-
     if !ENC {
         ghash.add(cipher_inout);
     }
 
     {
-        let mut blocks_iter = cipher_inout.chunks_exact_mut(16);
-        for block in blocks_iter.by_ref() {
+        let (blocks, cipher_inout) = cipher_inout.as_chunks_mut::<16>();
+        for block in blocks {
             let c1 = counter.next();
 
             let mut c1 = _mm_xor_si128(c1, rk_first);
@@ -189,7 +187,6 @@ fn _cipher<const ENC: bool>(
             unsafe { _mm_storeu_si128(block.as_mut_ptr().cast(), c1) };
         }
 
-        let cipher_inout = blocks_iter.into_remainder();
         if !cipher_inout.is_empty() {
             let mut block = [0u8; 16];
             let len = cipher_inout.len();
@@ -240,14 +237,14 @@ fn _cipher_avx512<const ENC: bool>(
     let (rk_first, rks, rk_last) = round_keys.split();
 
     let mut counter = Counter512::new(initial_counter);
-    let mut by16_iter = cipher_inout.chunks_exact_mut(AVX512_MINIMUM_CIPHER_LEN);
+    let (by16_blocks, cipher_inout) = cipher_inout.as_chunks_mut::<AVX512_MINIMUM_CIPHER_LEN>();
 
     let ghash_avx512 = match ghash.table {
         GhashTable::Avx512(ghash_avx512) => ghash_avx512,
         _ => panic!("unexpected ghash table variant"),
     };
 
-    for blocks in by16_iter.by_ref() {
+    for blocks in by16_blocks {
         // prefetch to avoid any stall later
         super::cpu::prefetch(blocks, 256);
 
@@ -313,7 +310,6 @@ fn _cipher_avx512<const ENC: bool>(
         ghash.current = ghash::_mul16(ghash_avx512, a0123, a4567, a89ab, acdef);
     }
 
-    let cipher_inout = by16_iter.into_remainder();
     let mut counter = counter.into_128();
 
     if !ENC {
@@ -321,9 +317,9 @@ fn _cipher_avx512<const ENC: bool>(
     }
 
     {
-        let mut blocks_iter = cipher_inout.chunks_exact_mut(16);
+        let (blocks, cipher_inout) = cipher_inout.as_chunks_mut::<16>();
         let (rk_first, rks, rk_last) = key.round_keys();
-        for block in blocks_iter.by_ref() {
+        for block in blocks {
             let c1 = counter.next();
 
             let mut c1 = _mm_xor_si128(c1, rk_first);
@@ -344,7 +340,6 @@ fn _cipher_avx512<const ENC: bool>(
             }
         }
 
-        let cipher_inout = blocks_iter.into_remainder();
         if !cipher_inout.is_empty() {
             let mut block = [0u8; 16];
             let len = cipher_inout.len();

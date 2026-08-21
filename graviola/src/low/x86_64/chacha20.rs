@@ -16,16 +16,16 @@ impl ChaCha20 {
     }
 
     pub(crate) fn cipher(&mut self, buffer: &mut [u8]) {
-        let mut by8 = buffer.chunks_exact_mut(512);
+        let (by8, buffer) = buffer.as_chunks_mut::<512>();
 
-        for block in by8.by_ref() {
+        for block in by8 {
             // SAFETY: this crate requires the `avx2` cpu feature
             unsafe {
                 core_8x(self.z07, &mut self.z8f, block);
             }
         }
 
-        for block in by8.into_remainder().chunks_mut(128) {
+        for block in buffer.chunks_mut(128) {
             // SAFETY: this crate requires the `avx2` cpu feature
             unsafe {
                 core_2x(self.z07, &mut self.z8f, block);

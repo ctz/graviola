@@ -37,7 +37,7 @@ fn _bignum_copy_row_from_table_8n_avx2(z: &mut [u64], table: &[u64], width: u64,
         let mask = _mm256_cmpeq_epi64(index, desired_index);
         index = _mm256_add_epi64(index, ones);
 
-        for (i, zz) in z.chunks_exact_mut(8).enumerate() {
+        for (i, zz) in z.as_chunks_mut::<8>().0.iter_mut().enumerate() {
             // SAFETY: `row` is a multiple of 8 words in length
             let (row0, row1) = unsafe {
                 (

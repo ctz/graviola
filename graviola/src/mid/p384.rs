@@ -360,7 +360,7 @@ impl AffineMontPoint {
 
         let mut t = [0; 288];
 
-        for (out, rr) in t.chunks_exact_mut(18).zip(r) {
+        for (out, rr) in t.as_chunks_mut::<18>().0.iter_mut().zip(r) {
             out.copy_from_slice(&rr.xyz);
         }
 
@@ -1130,7 +1130,7 @@ mod tests {
         println!(
             "pub(super) static CURVE_GENERATOR_PRECOMP_W5: super::JacobianMontPointTableW5 = ["
         );
-        for (i, point) in (1..).zip(precomp.chunks_exact(18)) {
+        for (i, point) in (1..).zip(precomp.as_chunks::<18>().0) {
             println!("// {i}G");
             for p in point {
                 println!("            0x{p:016x}, ");

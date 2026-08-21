@@ -34,7 +34,7 @@ fn _bignum_copy_row_from_table_16_avx2(z: &mut [u64], table: &[u64], index: u64)
     let ones = _mm_set1_epi64x(1);
     let ones = _mm256_setr_m128i(ones, ones);
 
-    for row in table.chunks_exact(16) {
+    for row in table.as_chunks::<16>().0 {
         let mask = _mm256_cmpeq_epi64(index, desired_index);
         index = _mm256_add_epi64(index, ones);
 

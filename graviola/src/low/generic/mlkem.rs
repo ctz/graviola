@@ -8,7 +8,12 @@
 /// This accepts an array of 384 bytes and unpacks them into 256 16-bit numbers
 /// in the range 0 <= a[i] < 2^12 (typically they will be < 3329, the ML-KEM prime).
 pub(crate) fn mlkem_frombytes(r: &mut [i16; 256], a: &[u8; 384]) {
-    for (r, a) in r.chunks_exact_mut(2).zip(a.chunks_exact(3)) {
+    for (r, a) in r
+        .as_chunks_mut::<2>()
+        .0
+        .iter_mut()
+        .zip(a.as_chunks::<3>().0)
+    {
         r[0] = (a[0] as i16) | (((a[1] & 0x0f) as i16) << 8);
         r[1] = ((a[1] >> 4) as i16) | ((a[2] as i16) << 4);
     }

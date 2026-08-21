@@ -97,9 +97,10 @@ fn sha256_compress_block(state: &mut [u32; 8], block: &[u8]) {
 }
 
 pub(crate) fn sha256_compress_blocks(state: &mut [u32; 8], blocks: &[u8]) {
-    debug_assert!(blocks.len().is_multiple_of(64));
+    let (blocks, remainder) = blocks.as_chunks::<64>();
+    debug_assert!(remainder.is_empty());
 
-    for block in blocks.chunks_exact(64) {
+    for block in blocks {
         sha256_compress_block(state, block);
     }
 }

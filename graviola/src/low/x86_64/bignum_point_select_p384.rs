@@ -29,7 +29,7 @@ fn _select_jac_p384(z: &mut [u64; 18], table: &[u64], index: u8) {
 
     let ones = index;
 
-    for point in table.chunks_exact(18) {
+    for point in table.as_chunks::<18>().0 {
         // SAFETY: `point` is 18 words due to `chunks_exact` and readable.
         let (row0, row1, row2, row3) = unsafe {
             (

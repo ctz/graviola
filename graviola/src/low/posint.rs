@@ -75,15 +75,14 @@ impl<const N: usize> PosInt<N> {
             return Err(Error::OutOfRange);
         }
 
-        let mut words = bytes.rchunks_exact(8);
+        let (remainder, words) = bytes.as_rchunks::<8>();
 
-        for word_bytes in words.by_ref() {
-            r.push_word(u64::from_be_bytes(word_bytes.try_into().unwrap()))?;
+        for word_bytes in words.iter().rev() {
+            r.push_word(u64::from_be_bytes(*word_bytes))?;
         }
 
-        let remainder = words.remainder();
         let mut final_word = 0;
-        for byte in remainder.iter() {
+        for byte in remainder {
             final_word = (final_word << 8) | (*byte as u64);
         }
 
@@ -98,7 +97,13 @@ impl<const N: usize> PosInt<N> {
         let required_bytes = self.used * 8;
         let out = out.get_mut(..required_bytes).ok_or(Error::OutOfRange)?;
 
-        for (chunk, word) in out.chunks_exact_mut(8).rev().zip(self.as_words().iter()) {
+        for (chunk, word) in out
+            .as_chunks_mut::<8>()
+            .0
+            .iter_mut()
+            .rev()
+            .zip(self.as_words().iter())
+        {
             chunk.copy_from_slice(&word.to_be_bytes());
         }
 
@@ -117,7 +122,13 @@ impl<const N: usize> PosInt<N> {
         {
             let (_, val) = out.split_at_mut(1);
 
-            for (chunk, word) in val.chunks_exact_mut(8).rev().zip(self.as_words().iter()) {
+            for (chunk, word) in val
+                .as_chunks_mut::<8>()
+                .0
+                .iter_mut()
+                .rev()
+                .zip(self.as_words().iter())
+            {
                 chunk.copy_from_slice(&word.to_be_bytes());
             }
         }

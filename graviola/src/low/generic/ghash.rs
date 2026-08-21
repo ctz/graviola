@@ -27,14 +27,13 @@ impl<'a> Ghash<'a> {
     ///
     /// `bytes` is zero-padded, if required.
     pub(crate) fn add(&mut self, bytes: &[u8]) {
-        let mut whole_blocks = bytes.chunks_exact(16);
+        let (whole_blocks, bytes) = bytes.as_chunks::<16>();
 
-        for chunk in whole_blocks.by_ref() {
-            let u = u128::from_be_bytes(chunk.try_into().unwrap());
+        for chunk in whole_blocks {
+            let u = u128::from_be_bytes(*chunk);
             self.one_block(u);
         }
 
-        let bytes = whole_blocks.remainder();
         if !bytes.is_empty() {
             let mut block = [0u8; 16];
             block[..bytes.len()].copy_from_slice(bytes);
