@@ -36,24 +36,24 @@ macro_rules! Label {
 
 /// Plasters over the difference between ELF and Mach-O relocation
 /// syntax, for page-aligned items.  (Only makes sense on aarch64).
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 macro_rules! PageRef {
     ($sym:literal) => { Q!( "{" $sym "}@PAGE" ) }
 }
 
-#[cfg(target_os = "macos")]
+#[cfg(target_vendor = "apple")]
 macro_rules! PageOffRef {
     ($sym:literal) => { Q!( "{" $sym "}@PAGEOFF" ) }
 }
 
 #[allow(unused_macros)]
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(target_vendor = "apple"))]
 macro_rules! PageRef {
     ($sym:literal) => { Q!( "{" $sym "}" ) }
 }
 
 #[allow(unused_macros)]
-#[cfg(not(target_os = "macos"))]
+#[cfg(not(target_vendor = "apple"))]
 macro_rules! PageOffRef {
     ($sym:literal) => { Q!( ":lo12:" "{" $sym "}" ) }
 }
