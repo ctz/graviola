@@ -1,0 +1,39 @@
+name: asan
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 18 * * *"
+
+env:
+  CARGO_TERM_COLOR: always
+  # Some of the crate dependencies compile C code. Using
+  # "-Zexternal-clangrt" keeps the Rust and C object files
+  # from ending up with dependencies on conflicting versions
+  # of the ASAN runtime.
+  RUSTFLAGS: "-Zsanitizer=address -Zexternal-clangrt -lasan"
+  ASAN_OPTIONS: halt_on_error=0
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: ubuntu-24.04-arm
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          persist-credentials: false
+
+      - name: Install nightly toolchain
+        uses: dtolnay/rust-toolchain@nightly
+
+      - name: ASAN tests (release)
+        # Specify the target so the -Zsanitizer setting doesn't break
+        # proc macro compilation in any of the crate dependencies.
+        run: cargo test --release --target=$(rustc --print host-tuple)
