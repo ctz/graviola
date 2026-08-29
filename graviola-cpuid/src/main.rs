@@ -1,6 +1,6 @@
-#[cfg(not(target_arch = "x86_64"))]
+#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
 fn main() {
-    println!("only for x86_64 architectures");
+    println!("only for x86_64 and aarch64 architectures");
 }
 
 #[cfg(target_arch = "x86_64")]
@@ -46,5 +46,26 @@ fn main() {
         vpclmulqdq as u8,
         compatible as u8,
         avx512_aes_gcm as u8,
+    );
+}
+
+#[cfg(target_arch = "aarch64")]
+fn main() {
+    use std::arch::is_aarch64_feature_detected;
+
+    let aes = is_aarch64_feature_detected!("aes");
+    let dit = is_aarch64_feature_detected!("dit");
+    let neon = is_aarch64_feature_detected!("neon");
+    let pmull = is_aarch64_feature_detected!("pmull");
+    let sha2 = is_aarch64_feature_detected!("sha2");
+    let sha3 = is_aarch64_feature_detected!("sha3");
+
+    let compatible = aes && neon && pmull && sha2;
+
+    println!(
+        "{{ \"cpuid\": {{ \"aes\": {}, \"dit\": {}, \"neon\": {}, \"pmull\": {}, \
+        \"sha2\": {}, \"sha3\": {} }}, \
+        \"compatible\": {} }}",
+        aes as u8, dit as u8, neon as u8, pmull as u8, sha2 as u8, sha3 as u8, compatible as u8,
     );
 }

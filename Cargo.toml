@@ -3,9 +3,9 @@ resolver = "2"
 members = [
   "graviola",
   "graviola-bench",
+  "graviola-cpuid",
   "rustls-graviola",
-  "fuzz",
-  "x86-cpuid"
+  "fuzz"
 ]
 
 [profile.bench]

@@ -1051,6 +1051,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "graviola-cpuid"
+version = "0.1.0"
+
+[[package]]
 name = "graviola-fuzz"
 version = "0.0.0"
 dependencies = [
@@ -3086,10 +3090,6 @@ dependencies = [
  "serde",
  "zeroize",
 ]
-
-[[package]]
-name = "x86-cpuid"
-version = "0.1.0"
 
 [[package]]
 name = "zerocopy"

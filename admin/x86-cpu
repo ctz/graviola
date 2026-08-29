@@ -51,7 +51,7 @@ if mode == "sde-scan":
     for i, (flag, name) in enumerate(KNOWN_CPUS):
         env["CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER"] = "sde {} --".format(flag)
         out = subprocess.check_output(
-            ["cargo", "run", "--bin", "x86-cpuid"], env=env, encoding="utf-8"
+            ["cargo", "run", "--bin", "graviola-cpuid"], env=env, encoding="utf-8"
         )
         js = json.loads(out)
         json.dump(

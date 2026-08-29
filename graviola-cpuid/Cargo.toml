@@ -1,5 +1,5 @@
 [package]
-name = "x86-cpuid"
+name = "graviola-cpuid"
 version = "0.1.0"
 edition = "2024"
 
