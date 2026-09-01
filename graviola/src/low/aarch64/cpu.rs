@@ -204,6 +204,24 @@ impl HaveSha3 {
     }
 }
 
+/// Token type reflecting the check for the SHA512 CPU feature
+///
+/// A value of this type is proof that the CPU dynamic feature check has happened.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct HaveSha512(());
+
+impl HaveSha512 {
+    pub(crate) fn check() -> Option<Self> {
+        // `have_cpu_feature!("sha3")` checks for the presence of
+        // `FEAT_SHA512 & FEAT_SHA3`:
+        // https://doc.rust-lang.org/stable/std/arch/macro.is_aarch64_feature_detected.html
+        match have_cpu_feature!("sha3") {
+            true => Some(Self(())),
+            false => None,
+        }
+    }
+}
+
 pub(crate) fn verify_cpu_features() {
     assert!(
         have_cpu_feature!("neon"),

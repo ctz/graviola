@@ -202,9 +202,9 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::sha3_keccak_f1600_mux::sha3_keccak_f1600;
         pub(crate) use aarch64::sha3_keccak4_f1600_mux::sha3_keccak4_f1600;
         pub(crate) use aarch64::sha3_keccak2of4_f1600::sha3_keccak2of4_f1600;
+        pub(crate) use aarch64::sha512_mux::sha512_compress_blocks;
 
         pub(crate) use generic::chacha20;
-        pub(crate) use generic::sha512::sha512_compress_blocks;
         pub(crate) use generic::mlkem::{mlkem_frombytes, mlkem_unpack};
     } else {
         compile_error!("This crate only supports x86_64 or aarch64");
