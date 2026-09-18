@@ -9,7 +9,11 @@ fn x25519(c: &mut Criterion) {
     let mut group = c.benchmark_group("x25519-ecdh");
     group.throughput(Throughput::Elements(1));
 
-    #[cfg(feature = "__bench_openssl")]
+    #[cfg(all(
+        feature = "__bench_openssl",
+        target_arch = "x86_64",
+        target_os = "linux"
+    ))]
     group.bench_function("openssl", |b| {
         b.iter(|| {
             use openssl::derive::Deriver;

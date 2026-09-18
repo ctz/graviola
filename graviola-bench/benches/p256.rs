@@ -11,7 +11,11 @@ fn ecdh(c: &mut Criterion) {
     let mut group = c.benchmark_group("p256-ecdh");
     group.throughput(Throughput::Elements(1));
 
-    #[cfg(feature = "__bench_openssl")]
+    #[cfg(all(
+        feature = "__bench_openssl",
+        target_arch = "x86_64",
+        target_os = "linux"
+    ))]
     group.bench_function("openssl", |b| {
         use openssl::bn::BigNumContext;
         use openssl::derive::Deriver;
@@ -113,7 +117,11 @@ fn keygen(c: &mut Criterion) {
     let mut group = c.benchmark_group("p256-keygen");
     group.throughput(Throughput::Elements(1));
 
-    #[cfg(feature = "__bench_openssl")]
+    #[cfg(all(
+        feature = "__bench_openssl",
+        target_arch = "x86_64",
+        target_os = "linux"
+    ))]
     group.bench_function("openssl", |b| {
         use openssl::pkey::PKey;
 
