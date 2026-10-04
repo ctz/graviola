@@ -604,6 +604,33 @@ if __name__ == "__main__":
         parse_file(input, d)
 
     with (
+        open("../../thirdparty/s2n-bignum/arm/fastmul/bignum_emontredc_8n_cdiff.S") as input,
+        open("../../graviola/src/low/aarch64/bignum_emontredc_8n_cdiff.rs", "w") as output,
+    ):
+        d = RustDriver(output, Architecture_aarch64)
+        d.emit_rust_function(
+            "bignum_emontredc_8n_cdiff",
+            parameter_map=[
+                ("inout", "m.len() => ret"),
+                ("inout", "z.as_mut_ptr() => _"),
+                ("inout", "m.as_ptr() => _"),
+                ("inout", "w => _"),
+                ("inout", "m_precalc.as_mut_ptr() => _"),
+            ],
+            return_value=["u64", "ret", "ret"],
+            assertions=[
+                "z.len() == m.len() * 2",
+                "m.len().is_multiple_of(8)",
+                "m.len() >= 16",
+                "m_precalc.len() == 12 * (m.len() / 4 - 1)",
+            ],
+            rust_decl="fn bignum_emontredc_8n_cdiff(z: &mut [u64], m: &[u64], w: u64, m_precalc: &mut [u64]) -> u64",
+        )
+
+        input = assemble_and_disassemble(input, tool_prefix="aarch64-linux-gnu-")
+        parse_file(input, d)
+
+    with (
         open("../../thirdparty/s2n-bignum/arm/generic/bignum_optsub.S") as input,
         open("../../graviola/src/low/aarch64/bignum_optsub.rs", "w") as output,
     ):
