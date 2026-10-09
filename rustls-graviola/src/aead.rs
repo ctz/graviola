@@ -1,23 +1,23 @@
 use graviola::aead::{AesGcm, ChaCha20Poly1305};
+use rustls::ConnectionTrafficSecrets;
 use rustls::crypto::cipher::{
-    AeadKey, InboundOpaqueMessage, InboundPlainMessage, Iv, KeyBlockShape, MessageDecrypter,
-    MessageEncrypter, NONCE_LEN, Nonce, OutboundOpaqueMessage, OutboundPlainMessage,
-    PrefixedPayload, Tls12AeadAlgorithm, Tls13AeadAlgorithm, UnsupportedOperationError,
-    make_tls12_aad, make_tls13_aad,
+    AeadKey, InboundOpaque, Iv, KeyBlockShape, NONCE_LEN, Nonce, OutboundPlain, Record,
+    RecordDecrypter, RecordEncrypter, Tls12AeadAlgorithm, Tls13AeadAlgorithm,
+    UnsupportedOperationError, encode_record_header, make_tls12_aad, make_tls13_aad,
 };
-use rustls::{ConnectionTrafficSecrets, ContentType, ProtocolVersion};
+use rustls::enums::ContentType;
 
 pub struct Chacha20Poly1305;
 
 impl Tls13AeadAlgorithm for Chacha20Poly1305 {
-    fn encrypter(&self, key: AeadKey, iv: Iv) -> Box<dyn MessageEncrypter> {
+    fn encrypter(&self, key: AeadKey, iv: Iv) -> Box<dyn RecordEncrypter> {
         Box::new(ChaChaTls13Cipher(
             ChaCha20Poly1305::new(key.as_ref().try_into().unwrap()),
             iv,
         ))
     }
 
-    fn decrypter(&self, key: AeadKey, iv: Iv) -> Box<dyn MessageDecrypter> {
+    fn decrypter(&self, key: AeadKey, iv: Iv) -> Box<dyn RecordDecrypter> {
         Box::new(ChaChaTls13Cipher(
             ChaCha20Poly1305::new(key.as_ref().try_into().unwrap()),
             iv,
@@ -38,17 +38,17 @@ impl Tls13AeadAlgorithm for Chacha20Poly1305 {
 }
 
 impl Tls12AeadAlgorithm for Chacha20Poly1305 {
-    fn encrypter(&self, key: AeadKey, iv: &[u8], _: &[u8]) -> Box<dyn MessageEncrypter> {
+    fn encrypter(&self, key: AeadKey, iv: &[u8], _: &[u8]) -> Box<dyn RecordEncrypter> {
         Box::new(ChaChaTls12Cipher(
             ChaCha20Poly1305::new(key.as_ref().try_into().unwrap()),
-            Iv::copy(iv),
+            Iv::new(iv).expect("IV length validated by key_block_shape"),
         ))
     }
 
-    fn decrypter(&self, key: AeadKey, iv: &[u8]) -> Box<dyn MessageDecrypter> {
+    fn decrypter(&self, key: AeadKey, iv: &[u8]) -> Box<dyn RecordDecrypter> {
         Box::new(ChaChaTls12Cipher(
             ChaCha20Poly1305::new(key.as_ref().try_into().unwrap()),
-            Iv::copy(iv),
+            Iv::new(iv).expect("IV length validated by key_block_shape"),
         ))
     }
 
@@ -70,36 +70,36 @@ impl Tls12AeadAlgorithm for Chacha20Poly1305 {
         debug_assert_eq!(NONCE_LEN, iv.len());
         Ok(ConnectionTrafficSecrets::Chacha20Poly1305 {
             key,
-            iv: Iv::new(iv[..].try_into().unwrap()),
+            iv: Iv::new(iv).expect("IV length validated by key_block_shape"),
         })
     }
 }
 
 struct ChaChaTls13Cipher(ChaCha20Poly1305, Iv);
 
-impl MessageEncrypter for ChaChaTls13Cipher {
+impl RecordEncrypter for ChaChaTls13Cipher {
     fn encrypt(
         &mut self,
-        m: OutboundPlainMessage<'_>,
+        record: Record<OutboundPlain<'_>>,
         seq: u64,
-    ) -> Result<OutboundOpaqueMessage, rustls::Error> {
-        let total_len = self.encrypted_payload_len(m.payload.len());
-        let mut payload = PrefixedPayload::with_capacity(total_len);
+        out: &mut Vec<u8>,
+    ) -> Result<(), rustls::Error> {
+        let total_len = self.encrypted_payload_len(record.payload.len());
+        let typ = ContentType::ApplicationData;
+        let header = encode_record_header(typ, record.version, total_len as u16);
+        out.reserve(header.len() + total_len);
+        out.extend_from_slice(&header);
 
-        payload.extend_from_chunks(&m.payload);
-        payload.extend_from_slice(&m.typ.to_array());
-        let nonce = Nonce::new(&self.1, seq);
-        let aad = make_tls13_aad(total_len);
+        let nonce = Nonce::new(&self.1, seq).to_array()?;
+        let aad = make_tls13_aad(typ, record.version.encode(), total_len);
+        let start = out.len();
+        record.payload.copy_to_vec(out);
+        out.extend_from_slice(&record.typ.to_array());
+
         let mut tag = [0u8; CHACHAPOLY1305_OVERHEAD];
-
-        self.0.encrypt(&nonce.0, &aad, payload.as_mut(), &mut tag);
-        payload.extend_from_slice(&tag);
-
-        Ok(OutboundOpaqueMessage::new(
-            ContentType::ApplicationData,
-            ProtocolVersion::TLSv1_2,
-            payload,
-        ))
+        self.0.encrypt(&nonce, &aad, &mut out[start..], &mut tag);
+        out.extend_from_slice(&tag);
+        Ok(())
     }
 
     fn encrypted_payload_len(&self, payload_len: usize) -> usize {
@@ -107,50 +107,59 @@ impl MessageEncrypter for ChaChaTls13Cipher {
     }
 }
 
-impl MessageDecrypter for ChaChaTls13Cipher {
+impl RecordDecrypter for ChaChaTls13Cipher {
     fn decrypt<'a>(
         &mut self,
-        mut m: InboundOpaqueMessage<'a>,
+        mut record: Record<InboundOpaque<'a>>,
         seq: u64,
-    ) -> Result<InboundPlainMessage<'a>, rustls::Error> {
-        let payload = &mut m.payload;
-        let nonce = Nonce::new(&self.1, seq);
-        let aad = make_tls13_aad(payload.len());
+    ) -> Result<Record<&'a [u8]>, rustls::Error> {
+        let payload = &mut record.payload;
         if payload.len() < CHACHAPOLY1305_OVERHEAD {
             return Err(rustls::Error::DecryptError);
         }
+
+        let nonce = Nonce::new(&self.1, seq).to_array()?;
+        let aad = make_tls13_aad(record.typ, record.version.version(), payload.len());
         let cipher_len = payload.len() - CHACHAPOLY1305_OVERHEAD;
-        let (payload, tag) = payload.split_at_mut(cipher_len);
+        let (cipher, tag) = payload.split_at_mut(cipher_len);
 
         self.0
-            .decrypt(&nonce.0, &aad, payload.as_mut(), tag)
+            .decrypt(&nonce, &aad, cipher, tag)
             .map_err(|_| rustls::Error::DecryptError)?;
 
-        m.payload.truncate(cipher_len);
-        m.into_tls13_unpadded_message()
+        payload.truncate(cipher_len);
+        record.into_tls13_unpadded_record()
     }
 }
 
 struct ChaChaTls12Cipher(ChaCha20Poly1305, Iv);
 
-impl MessageEncrypter for ChaChaTls12Cipher {
+impl RecordEncrypter for ChaChaTls12Cipher {
     fn encrypt(
         &mut self,
-        m: OutboundPlainMessage<'_>,
+        record: Record<OutboundPlain<'_>>,
         seq: u64,
-    ) -> Result<OutboundOpaqueMessage, rustls::Error> {
-        let total_len = self.encrypted_payload_len(m.payload.len());
-        let mut payload = PrefixedPayload::with_capacity(total_len);
+        out: &mut Vec<u8>,
+    ) -> Result<(), rustls::Error> {
+        let total_len = self.encrypted_payload_len(record.payload.len());
+        let header = encode_record_header(record.typ, record.version, total_len as u16);
+        out.reserve(header.len() + total_len);
+        out.extend_from_slice(&header);
 
-        payload.extend_from_chunks(&m.payload);
-        let nonce = Nonce::new(&self.1, seq);
-        let aad = make_tls12_aad(seq, m.typ, m.version, m.payload.len());
+        let nonce = Nonce::new(&self.1, seq).to_array()?;
+        let aad = make_tls12_aad(
+            seq,
+            record.typ,
+            record.version.encode(),
+            record.payload.len(),
+        );
+        let start = out.len();
+        record.payload.copy_to_vec(out);
+
         let mut tag = [0u8; CHACHAPOLY1305_OVERHEAD];
-
-        self.0.encrypt(&nonce.0, &aad, payload.as_mut(), &mut tag);
-        payload.extend_from_slice(&tag);
-
-        Ok(OutboundOpaqueMessage::new(m.typ, m.version, payload))
+        self.0.encrypt(&nonce, &aad, &mut out[start..], &mut tag);
+        out.extend_from_slice(&tag);
+        Ok(())
     }
 
     fn encrypted_payload_len(&self, payload_len: usize) -> usize {
@@ -158,38 +167,43 @@ impl MessageEncrypter for ChaChaTls12Cipher {
     }
 }
 
-impl MessageDecrypter for ChaChaTls12Cipher {
+impl RecordDecrypter for ChaChaTls12Cipher {
     fn decrypt<'a>(
         &mut self,
-        mut m: InboundOpaqueMessage<'a>,
+        mut record: Record<InboundOpaque<'a>>,
         seq: u64,
-    ) -> Result<InboundPlainMessage<'a>, rustls::Error> {
-        let payload = &m.payload;
-        let nonce = Nonce::new(&self.1, seq);
+    ) -> Result<Record<&'a [u8]>, rustls::Error> {
+        let payload = &mut record.payload;
         if payload.len() < CHACHAPOLY1305_OVERHEAD {
             return Err(rustls::Error::DecryptError);
         }
+
+        let nonce = Nonce::new(&self.1, seq).to_array()?;
         let cipher_len = payload.len() - CHACHAPOLY1305_OVERHEAD;
-        let aad = make_tls12_aad(seq, m.typ, m.version, cipher_len);
-        let (payload, tag) = m.payload.split_at_mut(cipher_len);
+        let aad = make_tls12_aad(seq, record.typ, record.version.version(), cipher_len);
+        let (cipher, tag) = payload.split_at_mut(cipher_len);
 
         self.0
-            .decrypt(&nonce.0, &aad, payload, tag)
+            .decrypt(&nonce, &aad, cipher, tag)
             .map_err(|_| rustls::Error::DecryptError)?;
 
-        m.payload.truncate(cipher_len);
-        Ok(m.into_plain_message())
+        if cipher_len > MAX_FRAGMENT_LEN {
+            return Err(rustls::Error::PeerSentOversizedRecord);
+        }
+
+        payload.truncate(cipher_len);
+        Ok(record.into_plain_record())
     }
 }
 
 pub struct TlsAesGcm(pub usize);
 
 impl Tls13AeadAlgorithm for TlsAesGcm {
-    fn encrypter(&self, key: AeadKey, iv: Iv) -> Box<dyn MessageEncrypter> {
+    fn encrypter(&self, key: AeadKey, iv: Iv) -> Box<dyn RecordEncrypter> {
         Box::new(GcmTls13Cipher(AesGcm::new(key.as_ref()), iv))
     }
 
-    fn decrypter(&self, key: AeadKey, iv: Iv) -> Box<dyn MessageDecrypter> {
+    fn decrypter(&self, key: AeadKey, iv: Iv) -> Box<dyn RecordDecrypter> {
         Box::new(GcmTls13Cipher(AesGcm::new(key.as_ref()), iv))
     }
 
@@ -216,12 +230,12 @@ impl Tls12AeadAlgorithm for TlsAesGcm {
         key: AeadKey,
         write_iv: &[u8],
         explicit: &[u8],
-    ) -> Box<dyn MessageEncrypter> {
+    ) -> Box<dyn RecordEncrypter> {
         let iv = gcm_iv(write_iv, explicit);
         Box::new(GcmTls12MessageEncrypter(AesGcm::new(key.as_ref()), iv))
     }
 
-    fn decrypter(&self, key: AeadKey, iv: &[u8]) -> Box<dyn MessageDecrypter> {
+    fn decrypter(&self, key: AeadKey, iv: &[u8]) -> Box<dyn RecordDecrypter> {
         Box::new(GcmTls12MessageDecrypter(
             AesGcm::new(key.as_ref()),
             iv.try_into().unwrap(),
@@ -253,13 +267,13 @@ impl Tls12AeadAlgorithm for TlsAesGcm {
 
 struct GcmTls12MessageDecrypter(AesGcm, [u8; 4]);
 
-impl MessageDecrypter for GcmTls12MessageDecrypter {
+impl RecordDecrypter for GcmTls12MessageDecrypter {
     fn decrypt<'a>(
         &mut self,
-        mut msg: InboundOpaqueMessage<'a>,
+        mut record: Record<InboundOpaque<'a>>,
         seq: u64,
-    ) -> Result<InboundPlainMessage<'a>, rustls::Error> {
-        let payload = &msg.payload;
+    ) -> Result<Record<&'a [u8]>, rustls::Error> {
+        let payload = &record.payload;
         if payload.len() < AESGCM_OVERHEAD {
             return Err(rustls::Error::DecryptError);
         }
@@ -272,9 +286,9 @@ impl MessageDecrypter for GcmTls12MessageDecrypter {
         };
 
         let plain_len = payload.len() - AESGCM_OVERHEAD;
-        let aad = make_tls12_aad(seq, msg.typ, msg.version, plain_len);
+        let aad = make_tls12_aad(seq, record.typ, record.version.version(), plain_len);
 
-        let payload = &mut msg.payload;
+        let payload = &mut record.payload;
         let (_explicit_iv, cipher) = payload.split_at_mut(AESGCM_EXPLICIT_NONCE_LEN);
         let (cipher, tag) = cipher.split_at_mut(cipher.len() - AESGCM_TAG);
         self.0
@@ -285,7 +299,7 @@ impl MessageDecrypter for GcmTls12MessageDecrypter {
             return Err(rustls::Error::PeerSentOversizedRecord);
         }
 
-        Ok(msg.into_plain_message_range(
+        Ok(record.into_plain_record_range(
             AESGCM_EXPLICIT_NONCE_LEN..AESGCM_EXPLICIT_NONCE_LEN + plain_len,
         ))
     }
@@ -293,30 +307,33 @@ impl MessageDecrypter for GcmTls12MessageDecrypter {
 
 struct GcmTls12MessageEncrypter(AesGcm, Iv);
 
-impl MessageEncrypter for GcmTls12MessageEncrypter {
+impl RecordEncrypter for GcmTls12MessageEncrypter {
     fn encrypt(
         &mut self,
-        msg: OutboundPlainMessage<'_>,
+        record: Record<OutboundPlain<'_>>,
         seq: u64,
-    ) -> Result<OutboundOpaqueMessage, rustls::Error> {
-        let total_len = self.encrypted_payload_len(msg.payload.len());
-        let mut payload = PrefixedPayload::with_capacity(total_len);
+        out: &mut Vec<u8>,
+    ) -> Result<(), rustls::Error> {
+        let total_len = self.encrypted_payload_len(record.payload.len());
+        let header = encode_record_header(record.typ, record.version, total_len as u16);
+        out.reserve(header.len() + total_len);
+        out.extend_from_slice(&header);
 
-        let nonce = Nonce::new(&self.1, seq);
-        let aad = make_tls12_aad(seq, msg.typ, msg.version, msg.payload.len());
-        payload.extend_from_slice(&nonce.0[4..]);
-        payload.extend_from_chunks(&msg.payload);
+        let nonce = Nonce::new(&self.1, seq).to_array()?;
+        let aad = make_tls12_aad(
+            seq,
+            record.typ,
+            record.version.encode(),
+            record.payload.len(),
+        );
+        out.extend_from_slice(&nonce[4..]);
+        let start = out.len();
+        record.payload.copy_to_vec(out);
 
         let mut tag = [0u8; AESGCM_TAG];
-        self.0.encrypt(
-            &nonce.0,
-            &aad,
-            &mut payload.as_mut()[AESGCM_EXPLICIT_NONCE_LEN..],
-            &mut tag,
-        );
-        payload.extend_from_slice(&tag);
-
-        Ok(OutboundOpaqueMessage::new(msg.typ, msg.version, payload))
+        self.0.encrypt(&nonce, &aad, &mut out[start..], &mut tag);
+        out.extend_from_slice(&tag);
+        Ok(())
     }
 
     fn encrypted_payload_len(&self, payload_len: usize) -> usize {
@@ -326,29 +343,29 @@ impl MessageEncrypter for GcmTls12MessageEncrypter {
 
 struct GcmTls13Cipher(AesGcm, Iv);
 
-impl MessageEncrypter for GcmTls13Cipher {
+impl RecordEncrypter for GcmTls13Cipher {
     fn encrypt(
         &mut self,
-        msg: OutboundPlainMessage<'_>,
+        record: Record<OutboundPlain<'_>>,
         seq: u64,
-    ) -> Result<OutboundOpaqueMessage, rustls::Error> {
-        let total_len = self.encrypted_payload_len(msg.payload.len());
-        let mut payload = PrefixedPayload::with_capacity(total_len);
+        out: &mut Vec<u8>,
+    ) -> Result<(), rustls::Error> {
+        let total_len = self.encrypted_payload_len(record.payload.len());
+        let typ = ContentType::ApplicationData;
+        let header = encode_record_header(typ, record.version, total_len as u16);
+        out.reserve(header.len() + total_len);
+        out.extend_from_slice(&header);
 
-        let nonce = Nonce::new(&self.1, seq);
-        let aad = make_tls13_aad(total_len);
-        payload.extend_from_chunks(&msg.payload);
-        payload.extend_from_slice(&msg.typ.to_array());
+        let nonce = Nonce::new(&self.1, seq).to_array()?;
+        let aad = make_tls13_aad(typ, record.version.encode(), total_len);
+        let start = out.len();
+        record.payload.copy_to_vec(out);
+        out.extend_from_slice(&record.typ.to_array());
 
         let mut tag = [0u8; AESGCM_TAG];
-        self.0.encrypt(&nonce.0, &aad, payload.as_mut(), &mut tag);
-        payload.extend_from_slice(&tag);
-
-        Ok(OutboundOpaqueMessage::new(
-            ContentType::ApplicationData,
-            ProtocolVersion::TLSv1_2, // sic
-            payload,
-        ))
+        self.0.encrypt(&nonce, &aad, &mut out[start..], &mut tag);
+        out.extend_from_slice(&tag);
+        Ok(())
     }
 
     fn encrypted_payload_len(&self, payload_len: usize) -> usize {
@@ -356,27 +373,27 @@ impl MessageEncrypter for GcmTls13Cipher {
     }
 }
 
-impl MessageDecrypter for GcmTls13Cipher {
+impl RecordDecrypter for GcmTls13Cipher {
     fn decrypt<'a>(
         &mut self,
-        mut msg: InboundOpaqueMessage<'a>,
+        mut record: Record<InboundOpaque<'a>>,
         seq: u64,
-    ) -> Result<InboundPlainMessage<'a>, rustls::Error> {
-        let payload = &mut msg.payload;
+    ) -> Result<Record<&'a [u8]>, rustls::Error> {
+        let payload = &mut record.payload;
         if payload.len() < AESGCM_TAG {
             return Err(rustls::Error::DecryptError);
         }
 
-        let nonce = Nonce::new(&self.1, seq);
-        let aad = make_tls13_aad(payload.len());
+        let nonce = Nonce::new(&self.1, seq).to_array()?;
+        let aad = make_tls13_aad(record.typ, record.version.version(), payload.len());
         let plain_len = payload.len() - AESGCM_TAG;
         let (cipher, tag) = payload.split_at_mut(plain_len);
         self.0
-            .decrypt(&nonce.0, &aad, cipher, tag)
+            .decrypt(&nonce, &aad, cipher, tag)
             .map_err(|_| rustls::Error::DecryptError)?;
 
         payload.truncate(plain_len);
-        msg.into_tls13_unpadded_message()
+        record.into_tls13_unpadded_record()
     }
 }
 
@@ -395,7 +412,7 @@ fn gcm_iv(write_iv: &[u8], explicit: &[u8]) -> Iv {
     iv[..4].copy_from_slice(write_iv);
     iv[4..].copy_from_slice(explicit);
 
-    Iv::new(iv)
+    Iv::from(iv)
 }
 
 const CHACHAPOLY1305_OVERHEAD: usize = 16;

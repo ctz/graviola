@@ -9,9 +9,10 @@ This crate provides an integration between [rustls](https://github.com/rustls/ru
 Use it like:
 
 ```rust
-rustls_graviola::default_provider()
-    .install_default()
-    .unwrap();
+use std::sync::Arc;
+
+let provider = Arc::new(rustls_graviola::default_provider());
+let config_builder = rustls::ClientConfig::builder(provider);
 ```
 
 And then use rustls as normal.

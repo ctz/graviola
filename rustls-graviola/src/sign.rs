@@ -3,8 +3,9 @@ use std::sync::Arc;
 
 use graviola::hashing;
 use graviola::signing::{ecdsa, eddsa, rsa};
+use rustls::crypto::{SignatureScheme, Signer, SigningKey};
+use rustls::pki_types;
 use rustls::pki_types::SubjectPublicKeyInfoDer;
-use rustls::{SignatureScheme, pki_types, sign};
 
 #[derive(Debug)]
 pub(super) struct Provider;
@@ -13,7 +14,7 @@ impl rustls::crypto::KeyProvider for Provider {
     fn load_private_key(
         &self,
         key_der: pki_types::PrivateKeyDer<'static>,
-    ) -> Result<Arc<dyn sign::SigningKey>, rustls::Error> {
+    ) -> Result<Box<dyn SigningKey>, rustls::Error> {
         match key_der {
             pki_types::PrivateKeyDer::Pkcs8(p8) => load_pkcs8(p8),
             pki_types::PrivateKeyDer::Pkcs1(p1) => load_pkcs1(p1),
@@ -25,23 +26,23 @@ impl rustls::crypto::KeyProvider for Provider {
 
 fn load_pkcs8(
     key_der: pki_types::PrivatePkcs8KeyDer<'static>,
-) -> Result<Arc<dyn sign::SigningKey>, rustls::Error> {
+) -> Result<Box<dyn SigningKey>, rustls::Error> {
     if let Ok(rsa) = rsa::SigningKey::from_pkcs8_der(key_der.secret_pkcs8_der()) {
-        return Ok(Arc::new(Rsa(Arc::new(rsa))));
+        return Ok(Box::new(Rsa(Arc::new(rsa))));
     }
 
     if let Ok(ecp256) = ecdsa::SigningKey::<ecdsa::P256>::from_pkcs8_der(key_der.secret_pkcs8_der())
     {
-        return Ok(Arc::new(EcdsaP256(Arc::new(ecp256))));
+        return Ok(Box::new(EcdsaP256(Arc::new(ecp256))));
     }
 
     if let Ok(ecp384) = ecdsa::SigningKey::<ecdsa::P384>::from_pkcs8_der(key_der.secret_pkcs8_der())
     {
-        return Ok(Arc::new(EcdsaP384(Arc::new(ecp384))));
+        return Ok(Box::new(EcdsaP384(Arc::new(ecp384))));
     }
 
     if let Ok(ed25519) = eddsa::Ed25519SigningKey::from_pkcs8_der(key_der.secret_pkcs8_der()) {
-        return Ok(Arc::new(Ed25519(Arc::new(ed25519))));
+        return Ok(Box::new(Ed25519(Arc::new(ed25519))));
     }
 
     Err(rustls::Error::General("unhandled pkcs8 format".to_string()))
@@ -49,22 +50,22 @@ fn load_pkcs8(
 
 fn load_pkcs1(
     key_der: pki_types::PrivatePkcs1KeyDer<'static>,
-) -> Result<Arc<dyn sign::SigningKey>, rustls::Error> {
+) -> Result<Box<dyn SigningKey>, rustls::Error> {
     let rsa = rsa::SigningKey::from_pkcs1_der(key_der.secret_pkcs1_der())
         .map_err(|err| rustls::Error::General(format!("cannot parse RSA key: {err:?}")))?;
 
-    Ok(Arc::new(Rsa(Arc::new(rsa))))
+    Ok(Box::new(Rsa(Arc::new(rsa))))
 }
 
 fn load_sec1(
     key_der: pki_types::PrivateSec1KeyDer<'static>,
-) -> Result<Arc<dyn sign::SigningKey>, rustls::Error> {
+) -> Result<Box<dyn SigningKey>, rustls::Error> {
     if let Ok(ecp256) = ecdsa::SigningKey::<ecdsa::P256>::from_sec1_der(key_der.secret_sec1_der()) {
-        return Ok(Arc::new(EcdsaP256(Arc::new(ecp256))));
+        return Ok(Box::new(EcdsaP256(Arc::new(ecp256))));
     }
 
     if let Ok(ecp384) = ecdsa::SigningKey::<ecdsa::P384>::from_sec1_der(key_der.secret_sec1_der()) {
-        return Ok(Arc::new(EcdsaP384(Arc::new(ecp384))));
+        return Ok(Box::new(EcdsaP384(Arc::new(ecp384))));
     }
 
     Err(rustls::Error::General(
@@ -74,11 +75,8 @@ fn load_sec1(
 
 struct Rsa(Arc<rsa::SigningKey>);
 
-impl sign::SigningKey for Rsa {
-    fn choose_scheme(
-        &self,
-        schemes: &[SignatureScheme],
-    ) -> Option<Box<dyn sign::Signer + 'static>> {
+impl SigningKey for Rsa {
+    fn choose_scheme(&self, schemes: &[SignatureScheme]) -> Option<Box<dyn Signer>> {
         if schemes.contains(&SignatureScheme::RSA_PSS_SHA512) {
             Some(Box::new(RsaSigner {
                 key: Arc::clone(&self.0),
@@ -114,11 +112,7 @@ impl sign::SigningKey for Rsa {
         }
     }
 
-    fn algorithm(&self) -> rustls::SignatureAlgorithm {
-        rustls::SignatureAlgorithm::RSA
-    }
-
-    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'_>> {
         let size = self.0.modulus_len_bytes() + 64;
         let mut buffer = vec![0u8; size];
 
@@ -141,8 +135,8 @@ struct RsaSigner {
     scheme: SignatureScheme,
 }
 
-impl sign::Signer for RsaSigner {
-    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
+impl Signer for RsaSigner {
+    fn sign(self: Box<Self>, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
         let mut sig = vec![0u8; self.key.modulus_len_bytes()];
         match self.scheme {
             SignatureScheme::RSA_PKCS1_SHA256 => self.key.sign_pkcs1_sha256(&mut sig, message),
@@ -171,11 +165,8 @@ impl fmt::Debug for RsaSigner {
 
 struct EcdsaP256(Arc<ecdsa::SigningKey<ecdsa::P256>>);
 
-impl sign::SigningKey for EcdsaP256 {
-    fn choose_scheme(
-        &self,
-        schemes: &[SignatureScheme],
-    ) -> Option<Box<dyn sign::Signer + 'static>> {
+impl SigningKey for EcdsaP256 {
+    fn choose_scheme(&self, schemes: &[SignatureScheme]) -> Option<Box<dyn Signer>> {
         if schemes.contains(&SignatureScheme::ECDSA_NISTP256_SHA256) {
             Some(Box::new(Self(self.0.clone())))
         } else {
@@ -183,11 +174,7 @@ impl sign::SigningKey for EcdsaP256 {
         }
     }
 
-    fn algorithm(&self) -> rustls::SignatureAlgorithm {
-        rustls::SignatureAlgorithm::ECDSA
-    }
-
-    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'_>> {
         let mut buffer = vec![0u8; 128];
 
         let used = self.0.to_spki_der(&mut buffer).ok()?.len();
@@ -197,8 +184,8 @@ impl sign::SigningKey for EcdsaP256 {
     }
 }
 
-impl sign::Signer for EcdsaP256 {
-    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
+impl Signer for EcdsaP256 {
+    fn sign(self: Box<Self>, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
         let mut sig_buffer = [0u8; 128];
         let sig = self
             .0
@@ -221,11 +208,8 @@ impl fmt::Debug for EcdsaP256 {
 
 struct EcdsaP384(Arc<ecdsa::SigningKey<ecdsa::P384>>);
 
-impl sign::SigningKey for EcdsaP384 {
-    fn choose_scheme(
-        &self,
-        schemes: &[SignatureScheme],
-    ) -> Option<Box<dyn sign::Signer + 'static>> {
+impl SigningKey for EcdsaP384 {
+    fn choose_scheme(&self, schemes: &[SignatureScheme]) -> Option<Box<dyn Signer>> {
         if schemes.contains(&SignatureScheme::ECDSA_NISTP384_SHA384) {
             Some(Box::new(Self(self.0.clone())))
         } else {
@@ -233,11 +217,7 @@ impl sign::SigningKey for EcdsaP384 {
         }
     }
 
-    fn algorithm(&self) -> rustls::SignatureAlgorithm {
-        rustls::SignatureAlgorithm::ECDSA
-    }
-
-    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'_>> {
         let mut buffer = vec![0u8; 128];
 
         let used = self.0.to_spki_der(&mut buffer).ok()?.len();
@@ -247,8 +227,8 @@ impl sign::SigningKey for EcdsaP384 {
     }
 }
 
-impl sign::Signer for EcdsaP384 {
-    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
+impl Signer for EcdsaP384 {
+    fn sign(self: Box<Self>, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
         let mut sig_buffer = [0u8; 128];
         let sig = self
             .0
@@ -271,11 +251,8 @@ impl fmt::Debug for EcdsaP384 {
 
 struct Ed25519(Arc<eddsa::Ed25519SigningKey>);
 
-impl sign::SigningKey for Ed25519 {
-    fn choose_scheme(
-        &self,
-        schemes: &[SignatureScheme],
-    ) -> Option<Box<dyn sign::Signer + 'static>> {
+impl SigningKey for Ed25519 {
+    fn choose_scheme(&self, schemes: &[SignatureScheme]) -> Option<Box<dyn Signer>> {
         if schemes.contains(&SignatureScheme::ED25519) {
             Some(Box::new(Self(self.0.clone())))
         } else {
@@ -283,11 +260,7 @@ impl sign::SigningKey for Ed25519 {
         }
     }
 
-    fn algorithm(&self) -> rustls::SignatureAlgorithm {
-        rustls::SignatureAlgorithm::ED25519
-    }
-
-    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'static>> {
+    fn public_key(&self) -> Option<SubjectPublicKeyInfoDer<'_>> {
         let mut buffer = [0; 64];
         self.0
             .public_key()
@@ -297,8 +270,8 @@ impl sign::SigningKey for Ed25519 {
     }
 }
 
-impl sign::Signer for Ed25519 {
-    fn sign(&self, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
+impl Signer for Ed25519 {
+    fn sign(self: Box<Self>, message: &[u8]) -> Result<Vec<u8>, rustls::Error> {
         Ok(self.0.sign(message).to_vec())
     }
 
@@ -322,7 +295,6 @@ mod tests {
     use graviola::signing::eddsa::Ed25519SigningKey;
     use graviola::signing::rsa;
     use rustls::crypto::KeyProvider;
-    use rustls::sign::{Signer, SigningKey};
 
     use super::*;
 
@@ -382,7 +354,6 @@ mod tests {
         let signing_key = Arc::new(rsa::SigningKey::generate(rsa::KeySize::Rsa2048).unwrap());
         let rsa = Rsa(signing_key.clone());
         println!("{:?}", rsa);
-        assert_eq!(rsa.algorithm(), rustls::SignatureAlgorithm::RSA);
 
         // If multiple schemes are specified, choose PSS over PKCS#1 and then longest specified hash length.
         assert!(rsa.choose_scheme(&[]).is_none());
@@ -466,8 +437,8 @@ mod tests {
                 key: signing_key.clone(),
                 scheme,
             };
-            assert!(signer.sign(&message).is_ok());
             println!("{:?}", signer);
+            assert!(Box::new(signer).sign(&message).is_ok());
         }
         #[cfg(panic = "unwind")]
         for scheme in [
@@ -482,7 +453,7 @@ mod tests {
                 key: signing_key.clone(),
                 scheme,
             };
-            assert!(panic::catch_unwind(|| signer.sign(&message)).is_err());
+            assert!(panic::catch_unwind(|| Box::new(signer).sign(&message)).is_err());
         }
     }
 
@@ -496,7 +467,6 @@ mod tests {
         );
         let ecdsa = EcdsaP256(signing_key.clone());
         println!("{:?}", ecdsa);
-        assert_eq!(ecdsa.algorithm(), rustls::SignatureAlgorithm::ECDSA);
 
         // Choose only a matching scheme.
         assert!(ecdsa.choose_scheme(&[]).is_none());
@@ -543,7 +513,6 @@ mod tests {
         );
         let ecdsa = EcdsaP384(signing_key.clone());
         println!("{:?}", ecdsa);
-        assert_eq!(ecdsa.algorithm(), rustls::SignatureAlgorithm::ECDSA);
 
         // Choose only a matching scheme.
         assert!(ecdsa.choose_scheme(&[]).is_none());
@@ -584,7 +553,6 @@ mod tests {
     fn test_ed25519_signing_key() {
         let signing_key = Arc::new(Ed25519SigningKey::generate().unwrap());
         let ed25519 = Ed25519(signing_key.clone());
-        assert_eq!(ed25519.algorithm(), rustls::SignatureAlgorithm::ED25519);
         assert!(ed25519.choose_scheme(&[]).is_none());
         assert_eq!(format!("{ed25519:?}"), "Ed25519 { .. }");
     }
