@@ -11,18 +11,16 @@ readme = "README.md"
 
 [dependencies]
 graviola = { version = "0.4.0", path = "../graviola" }
-rustls = { version = "0.23.18", default-features = false, features = ["std", "tls12"] }
+rustls = { git = "https://github.com/rustls/rustls", branch = "jbp-encrypt-interface-sketch", default-features = false }
 
 [dev-dependencies]
 env_logger = "0.11"
 http = "1"
-http-body-util = "0.1"
-hyper = { version = "1", default-features = false }
-hyper-rustls = { version = "0.27", default-features = false, features = ["native-tokio", "http1", "tls12", "logging"] }
-hyper-util = { version = "0.1", default-features = false, features = ["server-auto"] }
-rustls = { version = "0.23.23", default-features = false, features = ["aws-lc-rs", "ring"] }
-tokio = { version = "1.0", features = ["io-std", "macros", "net", "rt-multi-thread"] }
-tokio-rustls = { version = "0.26", default-features = false }
+rustls = { git = "https://github.com/rustls/rustls", branch = "jbp-encrypt-interface-sketch", features = ["webpki"] }
+rustls-aws-lc-rs = { git = "https://github.com/rustls/rustls", branch = "jbp-encrypt-interface-sketch" }
+rustls-ring = { git = "https://github.com/rustls/rustls", branch = "jbp-encrypt-interface-sketch" }
+rustls-util = { git = "https://github.com/rustls/rustls", branch = "jbp-encrypt-interface-sketch" }
+webpki-roots = "1"
 
 [features]
 default = []

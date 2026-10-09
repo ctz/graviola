@@ -1,13 +1,13 @@
-use std::io::{Read, Write};
+use std::borrow::Cow;
 use std::sync::Arc;
 
-use rustls::crypto::{CryptoProvider, SupportedKxGroup};
-use rustls::crypto::{aws_lc_rs, ring};
+use rustls::crypto::kx::SupportedKxGroup;
+use rustls::crypto::{Credentials, CryptoProvider, Identity};
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
-use rustls::sign::CertifiedKey;
 use rustls::{
-    ClientConfig, ClientConnection, HandshakeKind, RootCertStore, ServerConfig, ServerConnection,
+    ClientConfig, Connection, HandshakeKind, RootCertStore, ServerConfig, ServerConnection,
+    Tls12CipherSuite, Tls13CipherSuite, VecInput,
 };
 
 #[test]
@@ -15,9 +15,9 @@ fn all_suites() {
     let _ = env_logger::try_init();
 
     for key_type in KeyType::ALL {
-        test_suite(rustls_graviola::suites::TLS13_AES_256_GCM_SHA384, *key_type);
-        test_suite(rustls_graviola::suites::TLS13_AES_128_GCM_SHA256, *key_type);
-        test_suite(
+        test_tls13_suite(rustls_graviola::suites::TLS13_AES_256_GCM_SHA384, *key_type);
+        test_tls13_suite(rustls_graviola::suites::TLS13_AES_128_GCM_SHA256, *key_type);
+        test_tls13_suite(
             rustls_graviola::suites::TLS13_CHACHA20_POLY1305_SHA256,
             *key_type,
         );
@@ -25,30 +25,30 @@ fn all_suites() {
     }
 
     for key_type in KeyType::RSA {
-        test_suite(
+        test_tls12_suite(
             rustls_graviola::suites::TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
             *key_type,
         );
-        test_suite(
+        test_tls12_suite(
             rustls_graviola::suites::TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
             *key_type,
         );
-        test_suite(
+        test_tls12_suite(
             rustls_graviola::suites::TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
             *key_type,
         );
     }
 
     for key_type in KeyType::ECDSA {
-        test_suite(
+        test_tls12_suite(
             rustls_graviola::suites::TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
             *key_type,
         );
-        test_suite(
+        test_tls12_suite(
             rustls_graviola::suites::TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
             *key_type,
         );
-        test_suite(
+        test_tls12_suite(
             rustls_graviola::suites::TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
             *key_type,
         );
@@ -71,7 +71,7 @@ fn all_key_exchanges() {
 
 fn test_key_exchange(kx: &'static dyn SupportedKxGroup, other: OtherProvider, key_type: KeyType) {
     let provider: Arc<_> = CryptoProvider {
-        kx_groups: vec![kx],
+        kx_groups: Cow::Owned(vec![kx]),
         ..rustls_graviola::default_provider()
     }
     .into();
@@ -79,12 +79,30 @@ fn test_key_exchange(kx: &'static dyn SupportedKxGroup, other: OtherProvider, ke
     test_server(provider, other, key_type);
 }
 
-fn test_suite(suite: rustls::SupportedCipherSuite, key_type: KeyType) {
-    let provider: Arc<_> = CryptoProvider {
-        cipher_suites: vec![suite],
-        ..rustls_graviola::default_provider()
-    }
-    .into();
+fn test_tls13_suite(suite: &'static Tls13CipherSuite, key_type: KeyType) {
+    test_provider(
+        CryptoProvider {
+            tls12_cipher_suites: Cow::Owned(vec![]),
+            tls13_cipher_suites: Cow::Owned(vec![suite]),
+            ..rustls_graviola::default_provider()
+        },
+        key_type,
+    );
+}
+
+fn test_tls12_suite(suite: &'static Tls12CipherSuite, key_type: KeyType) {
+    test_provider(
+        CryptoProvider {
+            tls12_cipher_suites: Cow::Owned(vec![suite]),
+            tls13_cipher_suites: Cow::Owned(vec![]),
+            ..rustls_graviola::default_provider()
+        },
+        key_type,
+    );
+}
+
+fn test_provider(provider: CryptoProvider, key_type: KeyType) {
+    let provider = Arc::new(provider);
     for other in OtherProvider::OTHERS {
         test_client(provider.clone(), *other, key_type);
         test_server(provider.clone(), *other, key_type);
@@ -126,63 +144,79 @@ fn test_server(provider: Arc<CryptoProvider>, other: OtherProvider, key_type: Ke
 }
 
 fn server_config(provider: Arc<CryptoProvider>, key_type: KeyType) -> Arc<ServerConfig> {
-    ServerConfig::builder_with_provider(provider)
-        .with_safe_default_protocol_versions()
-        .unwrap()
+    ServerConfig::builder(provider)
         .with_no_client_auth()
-        .with_single_cert(key_type.cert_chain(), key_type.key())
+        .with_single_cert(key_type.identity(), key_type.key())
         .unwrap()
         .into()
 }
 
 fn client_config(provider: Arc<CryptoProvider>, key_type: KeyType) -> Arc<ClientConfig> {
-    ClientConfig::builder_with_provider(provider)
-        .with_safe_default_protocol_versions()
-        .unwrap()
+    ClientConfig::builder(provider)
         .with_root_certificates(key_type.ca_certs())
         .with_no_client_auth()
+        .unwrap()
         .into()
 }
 
 fn exercise(client_config: Arc<ClientConfig>, server_config: Arc<ServerConfig>) -> HandshakeKind {
-    let mut client = ClientConnection::new(client_config, "localhost".try_into().unwrap()).unwrap();
+    let (mut client_input, mut client_output, mut client_received) =
+        (VecInput::default(), Vec::new(), Vec::new());
+    let (mut server_input, mut server_output, mut server_received) =
+        (VecInput::default(), Vec::new(), Vec::new());
+
+    let mut client = client_config
+        .connect("localhost".try_into().unwrap())
+        .build(&mut client_output)
+        .unwrap();
     let mut server = ServerConnection::new(server_config).unwrap();
 
-    while client.is_handshaking() && server.is_handshaking() {
-        let mut buf = [0u8; 1024];
-        let wr = client.write_tls(&mut &mut buf[..]).unwrap();
-        server.read_tls(&mut &buf[..wr]).unwrap();
-        server.process_new_packets().unwrap();
+    while client.is_handshaking() || server.is_handshaking() {
+        transfer(&mut client_output, &mut server_input);
+        server
+            .read_tls(&mut server_input, &mut server_output)
+            .handle_all(&mut server_received)
+            .unwrap();
 
-        let wr = server.write_tls(&mut &mut buf[..]).unwrap();
-        client.read_tls(&mut &buf[..wr]).unwrap();
-        client.process_new_packets().unwrap();
+        transfer(&mut server_output, &mut client_input);
+        client
+            .read_tls(&mut client_input, &mut client_output)
+            .handle_all(&mut client_received)
+            .unwrap();
     }
 
-    let _ = client.writer().write(b"hello world").unwrap();
-    client.send_close_notify();
-    let mut buf = [0u8; 1024];
-    let wr = client.write_tls(&mut &mut buf[..]).unwrap();
-    server.read_tls(&mut &buf[..wr]).unwrap();
-    server.process_new_packets().unwrap();
+    client
+        .write(b"hello world".into(), &mut client_output)
+        .unwrap();
+    client.send_close_notify(&mut client_output).unwrap();
+    transfer(&mut client_output, &mut server_input);
+    server
+        .read_tls(&mut server_input, &mut server_output)
+        .handle_all(&mut server_received)
+        .unwrap();
+    assert_eq!(server_received, b"hello world");
 
-    let mut out = vec![];
-    server.reader().read_to_end(&mut out).unwrap();
-    assert_eq!(out, b"hello world");
-
-    let _ = server.writer().write(b"goodbye").unwrap();
-    let wr = server.write_tls(&mut &mut buf[..]).unwrap();
-    client.read_tls(&mut &buf[..wr]).unwrap();
-    client.process_new_packets().unwrap();
+    server.write(b"goodbye".into(), &mut server_output).unwrap();
+    transfer(&mut server_output, &mut client_input);
+    client
+        .read_tls(&mut client_input, &mut client_output)
+        .handle_all(&mut client_received)
+        .unwrap();
+    assert_eq!(client_received, b"goodbye");
 
     server.handshake_kind().unwrap()
 }
 
+fn transfer(output: &mut Vec<u8>, input: &mut VecInput) {
+    let mut offs = 0;
+    while offs < output.len() {
+        offs += input.read(&mut &output[offs..]).unwrap();
+    }
+    output.clear();
+}
+
 fn test_keys_match(provider: &CryptoProvider, key_type: KeyType) {
-    CertifiedKey::from_der(key_type.cert_chain(), key_type.key(), provider)
-        .unwrap()
-        .keys_match()
-        .unwrap();
+    Credentials::from_der(key_type.identity(), key_type.key(), provider).unwrap();
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -218,11 +252,13 @@ impl KeyType {
         }
     }
 
-    fn cert_chain(self) -> Vec<CertificateDer<'static>> {
-        CertificateDer::pem_file_iter(format!("tests/keys/{}/end.fullchain", self.slug()))
-            .unwrap()
-            .collect::<Result<Vec<_>, _>>()
-            .unwrap()
+    fn identity(self) -> Arc<Identity<'static>> {
+        let chain =
+            CertificateDer::pem_file_iter(format!("tests/keys/{}/end.fullchain", self.slug()))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+        Arc::new(Identity::from_cert_chain(chain).unwrap())
     }
 
     fn key(self) -> PrivateKeyDer<'static> {
@@ -251,8 +287,8 @@ enum OtherProvider {
 impl OtherProvider {
     fn into_provider(self) -> Arc<CryptoProvider> {
         match self {
-            Self::BaselineRing => ring::default_provider().into(),
-            Self::BaselineAwsLcRs => aws_lc_rs::default_provider().into(),
+            Self::BaselineRing => rustls_ring::DEFAULT_PROVIDER.into(),
+            Self::BaselineAwsLcRs => rustls_aws_lc_rs::DEFAULT_PROVIDER.into(),
             Self::SelfTest => rustls_graviola::default_provider().into(),
         }
     }

@@ -1,10 +1,10 @@
 use core::sync::atomic::{AtomicUsize, Ordering};
+use core::time::Duration;
 use std::fmt;
 use std::sync::Arc;
 
 use graviola::{aead, random};
-use rustls::crypto::GetRandomFailed;
-use rustls::server::ProducesTickets;
+use rustls::crypto::{GetRandomFailed, TicketProducer};
 use rustls::{Error, TicketRotator};
 
 /// The default ticketer.
@@ -16,22 +16,22 @@ impl Ticketer {
     /// Tickets are encrypted with XChaCha20Poly1305.
     /// Ticket keys are rotated every 6 hours.
     #[allow(clippy::new_ret_no_self)]
-    pub fn new() -> Result<Arc<dyn ProducesTickets>, Error> {
+    pub fn new() -> Result<Arc<dyn TicketProducer>, Error> {
         Ok(Arc::new(TicketRotator::new(
-            ONE_TICKET_LIFETIME_SECS,
+            ONE_TICKET_LIFETIME,
             make_ticket_generator,
         )?))
     }
 }
 
-fn make_ticket_generator() -> Result<Box<dyn ProducesTickets>, GetRandomFailed> {
+fn make_ticket_generator() -> Result<Box<dyn TicketProducer>, Error> {
     Ok(Box::new(XChaCha20Ticketer::new()?))
 }
 
 struct XChaCha20Ticketer {
     key: aead::XChaCha20Poly1305,
     key_name: [u8; 16],
-    lifetime: u32,
+    lifetime: Duration,
     maximum_ciphertext_len: AtomicUsize,
 }
 
@@ -48,18 +48,14 @@ impl XChaCha20Ticketer {
         Ok(Self {
             key,
             key_name,
-            lifetime: ONE_TICKET_LIFETIME_SECS,
+            lifetime: ONE_TICKET_LIFETIME,
             maximum_ciphertext_len: AtomicUsize::new(0),
         })
     }
 }
 
-impl ProducesTickets for XChaCha20Ticketer {
-    fn enabled(&self) -> bool {
-        true
-    }
-
-    fn lifetime(&self) -> u32 {
+impl TicketProducer for XChaCha20Ticketer {
+    fn lifetime(&self) -> Duration {
         self.lifetime
     }
 
@@ -136,7 +132,7 @@ impl fmt::Debug for XChaCha20Ticketer {
     }
 }
 
-const ONE_TICKET_LIFETIME_SECS: u32 = 6 * 60 * 60;
+const ONE_TICKET_LIFETIME: Duration = Duration::from_secs(6 * 60 * 60);
 
 #[cfg(test)]
 mod tests {
@@ -148,16 +144,14 @@ mod tests {
         let ehello = t.encrypt(b"hello").unwrap();
         assert_eq!(t.decrypt(&ehello).unwrap(), b"hello");
 
-        assert!(t.enabled());
-        assert_eq!(t.lifetime(), ONE_TICKET_LIFETIME_SECS * 2);
+        assert_eq!(t.lifetime(), ONE_TICKET_LIFETIME);
         println!("{t:?}");
     }
 
     #[test]
     fn make_generator() {
         let g = make_ticket_generator().unwrap();
-        assert!(g.enabled());
-        assert_eq!(g.lifetime(), ONE_TICKET_LIFETIME_SECS);
+        assert_eq!(g.lifetime(), ONE_TICKET_LIFETIME);
         println!("{g:?}");
     }
 

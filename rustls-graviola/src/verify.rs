@@ -1,13 +1,12 @@
 use graviola::hashing;
 use graviola::signing::{ecdsa, eddsa, rsa};
-use rustls::SignatureScheme;
-use rustls::crypto::WebPkiSupportedAlgorithms;
+use rustls::crypto::{SignatureScheme, WebPkiSupportedAlgorithms};
 use rustls::pki_types::{
     AlgorithmIdentifier, InvalidSignature, SignatureVerificationAlgorithm, alg_id,
 };
 
-pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorithms {
-    all: &[
+pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = match WebPkiSupportedAlgorithms::new(
+    &[
         ECDSA_P256_SHA512,
         ECDSA_P256_SHA384,
         ECDSA_P256_SHA256,
@@ -22,7 +21,7 @@ pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorit
         RSA_PKCS1_SHA384,
         RSA_PKCS1_SHA256,
     ],
-    mapping: &[
+    &[
         (
             SignatureScheme::ECDSA_NISTP256_SHA256,
             &[ECDSA_P256_SHA256, ECDSA_P384_SHA256],
@@ -39,6 +38,9 @@ pub(crate) static ALGORITHMS: WebPkiSupportedAlgorithms = WebPkiSupportedAlgorit
         (SignatureScheme::RSA_PKCS1_SHA384, &[RSA_PKCS1_SHA384]),
         (SignatureScheme::RSA_PKCS1_SHA256, &[RSA_PKCS1_SHA256]),
     ],
+) {
+    Ok(algs) => algs,
+    Err(_) => panic!("bad WebPkiSupportedAlgorithms"),
 };
 
 static ECDSA_P256_SHA256: &dyn SignatureVerificationAlgorithm = &EcdsaP256Verify {

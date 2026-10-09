@@ -1,5 +1,5 @@
 use graviola::hashing::sha2;
-use rustls::crypto::hash;
+use rustls::crypto::{HashAlgorithm, hash};
 
 pub struct Sha256;
 
@@ -15,8 +15,8 @@ impl hash::Hash for Sha256 {
         hash::Output::new(ctx.finish().as_ref())
     }
 
-    fn algorithm(&self) -> hash::HashAlgorithm {
-        hash::HashAlgorithm::SHA256
+    fn algorithm(&self) -> HashAlgorithm {
+        HashAlgorithm::SHA256
     }
 
     fn output_len(&self) -> usize {
@@ -58,8 +58,8 @@ impl hash::Hash for Sha384 {
         hash::Output::new(ctx.finish().as_ref())
     }
 
-    fn algorithm(&self) -> hash::HashAlgorithm {
-        hash::HashAlgorithm::SHA384
+    fn algorithm(&self) -> HashAlgorithm {
+        HashAlgorithm::SHA384
     }
 
     fn output_len(&self) -> usize {
@@ -96,7 +96,7 @@ mod test {
     #[test]
     fn test_sha256() {
         let hash = Sha256;
-        assert_eq!(hash.algorithm(), hash::HashAlgorithm::SHA256);
+        assert_eq!(hash.algorithm(), HashAlgorithm::SHA256);
         assert_eq!(hash.output_len(), 32);
         let input = b"graviola";
         assert_eq!(hash.hash(input).as_ref(),
@@ -107,7 +107,7 @@ mod test {
     #[test]
     fn test_sha384() {
         let hash = Sha384;
-        assert_eq!(hash.algorithm(), hash::HashAlgorithm::SHA384);
+        assert_eq!(hash.algorithm(), HashAlgorithm::SHA384);
         assert_eq!(hash.output_len(), 48);
         let input = b"graviola";
         assert_eq!(hash.hash(input).as_ref(),

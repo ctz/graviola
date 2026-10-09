@@ -1,7 +1,9 @@
 use graviola::key_agreement::mlkem768;
-use rustls::crypto::{ActiveKeyExchange, CompletedKeyExchange, SharedSecret, SupportedKxGroup};
-use rustls::ffdhe_groups::FfdheGroup;
-use rustls::{Error, NamedGroup, PeerMisbehaved, ProtocolVersion};
+use rustls::crypto::kx::{
+    ActiveKeyExchange, CompletedKeyExchange, NamedGroup, SharedSecret, StartedKeyExchange,
+    SupportedKxGroup,
+};
+use rustls::error::{Error, PeerMisbehaved};
 
 #[derive(Debug)]
 pub(super) struct MlKem768;
@@ -12,15 +14,15 @@ impl MlKem768 {
 }
 
 impl SupportedKxGroup for MlKem768 {
-    fn start(&self) -> Result<Box<dyn ActiveKeyExchange>, Error> {
+    fn start(&self) -> Result<StartedKeyExchange, Error> {
         let decaps_key =
             mlkem768::DecapKey::generate().map_err(|_| Error::FailedToGetRandomBytes)?;
         let encaps_key_bytes = decaps_key.encapsulation_key().as_bytes();
 
-        Ok(Box::new(Active {
+        Ok(StartedKeyExchange::Single(Box::new(Active {
             decaps_key,
             encaps_key_bytes,
-        }))
+        })))
     }
 
     fn start_and_complete(&self, client_share: &[u8]) -> Result<CompletedKeyExchange, Error> {
@@ -40,16 +42,8 @@ impl SupportedKxGroup for MlKem768 {
         })
     }
 
-    fn ffdhe_group(&self) -> Option<FfdheGroup<'static>> {
-        None
-    }
-
     fn name(&self) -> NamedGroup {
         NamedGroup::MLKEM768
-    }
-
-    fn usable_for_version(&self, version: ProtocolVersion) -> bool {
-        version == ProtocolVersion::TLSv1_3
     }
 }
 
@@ -72,10 +66,6 @@ impl ActiveKeyExchange for Active {
         &self.encaps_key_bytes
     }
 
-    fn ffdhe_group(&self) -> Option<FfdheGroup<'static>> {
-        None
-    }
-
     fn group(&self) -> NamedGroup {
         NamedGroup::MLKEM768
     }
@@ -85,7 +75,7 @@ const INVALID_KEY_SHARE: Error = Error::PeerMisbehaved(PeerMisbehaved::InvalidKe
 
 #[cfg(test)]
 mod tests {
-    use rustls::ProtocolVersion;
+    use rustls::enums::ProtocolVersion;
 
     use super::*;
 
@@ -94,17 +84,15 @@ mod tests {
         // Create a private key and verify its metadata.
         let key = MlKem768;
         assert_eq!(key.name(), NamedGroup::MLKEM768);
-        assert_eq!(key.ffdhe_group(), None);
-        assert!(!key.usable_for_version(ProtocolVersion::TLSv1_2));
-        assert!(key.usable_for_version(ProtocolVersion::TLSv1_3));
+        assert!(!key.name().usable_for_version(ProtocolVersion::TLSv1_2));
+        assert!(key.name().usable_for_version(ProtocolVersion::TLSv1_3));
         assert_eq!(key.start().unwrap().group(), NamedGroup::MLKEM768);
 
         // A key exchange with an invalid peer public key should fail.
         assert!(key.start_and_complete(&[0u8]).is_err());
 
         // A key exchange with a valid peer public key should succeed.
-        let active = key.start().unwrap();
-        assert_eq!(active.ffdhe_group(), None);
+        let active = key.start().unwrap().into_single();
         let peer_public_key = active.pub_key();
         assert!(key.start_and_complete(peer_public_key).is_ok());
     }

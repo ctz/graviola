@@ -1,25 +1,18 @@
-//! Simple HTTPS echo service based on hyper_util and rustls
+//! Simple HTTPS server, which echoes back the request it received.
 //!
-//! First parameter is the mandatory port to use.
-//! Certificate and private key are hardcoded to sample files.
-//! hyper will automatically use HTTP/2 if a client starts talking HTTP/2,
-//! otherwise HTTP/1.1 will be used.
+//! Parameters are the port to use, and the certificate chain and private key
+//! files.
 
-use std::net::{Ipv4Addr, SocketAddr};
+use std::io::{BufRead, Write};
+use std::net::{Ipv4Addr, SocketAddr, TcpListener, TcpStream};
 use std::sync::Arc;
-use std::{env, io};
+use std::{env, io, thread};
 
-use http::{Method, Request, Response, StatusCode};
-use http_body_util::{BodyExt, Full};
-use hyper::body::{Bytes, Incoming};
-use hyper::service::service_fn;
-use hyper_util::rt::{TokioExecutor, TokioIo};
-use hyper_util::server::conn::auto::Builder;
-use rustls::ServerConfig;
+use rustls::crypto::Identity;
 use rustls::pki_types::pem::PemObject;
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
-use tokio::net::TcpListener;
-use tokio_rustls::TlsAcceptor;
+use rustls::{Connection, ServerConfig, ServerConnection};
+use rustls_util::StreamOwned;
 
 fn main() {
     // Serve an echo service over HTTPS, with proper error handling.
@@ -33,14 +26,7 @@ fn error(err: String) -> io::Error {
     io::Error::other(err)
 }
 
-#[tokio::main]
-async fn run_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    // Set a process wide default crypto provider.
-    rustls_graviola::default_provider()
-        .install_default()
-        .unwrap();
-
-    // First parameter is port number (optional, defaults to 1337)
+fn run_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut args = env::args();
     args.next();
     let (port, cert_file, key_file) = match (args.next(), args.next(), args.next()) {
@@ -57,60 +43,54 @@ async fn run_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Load private key.
     let key = PrivateKeyDer::from_pem_file(&key_file)?;
 
-    println!("Starting to serve on https://{addr}");
-
-    // Create a TCP listener via tokio.
-    let incoming = TcpListener::bind(&addr).await?;
-
     // Build TLS configuration.
-    let mut server_config = ServerConfig::builder()
+    let server_config = ServerConfig::builder(Arc::new(rustls_graviola::default_provider()))
         .with_no_client_auth()
-        .with_single_cert(certs, key)
+        .with_single_cert(Arc::new(Identity::from_cert_chain(certs)?), key)
         .map_err(|e| error(e.to_string()))?;
-    server_config.alpn_protocols = vec![b"h2".to_vec(), b"http/1.1".to_vec(), b"http/1.0".to_vec()];
-    let tls_acceptor = TlsAcceptor::from(Arc::new(server_config));
+    let server_config = Arc::new(server_config);
 
-    let service = service_fn(echo);
+    println!("Starting to serve on https://{addr}");
+    let incoming = TcpListener::bind(addr)?;
 
-    loop {
-        let (tcp_stream, _remote_addr) = incoming.accept().await?;
-
-        let tls_acceptor = tls_acceptor.clone();
-        tokio::spawn(async move {
-            let tls_stream = match tls_acceptor.accept(tcp_stream).await {
-                Ok(tls_stream) => tls_stream,
-                Err(err) => {
-                    eprintln!("failed to perform tls handshake: {err:#}");
-                    return;
-                }
-            };
-            if let Err(err) = Builder::new(TokioExecutor::new())
-                .serve_connection(TokioIo::new(tls_stream), service)
-                .await
-            {
+    for tcp_stream in incoming.incoming() {
+        let tcp_stream = tcp_stream?;
+        let server_config = server_config.clone();
+        thread::spawn(move || {
+            if let Err(err) = serve_connection(server_config, tcp_stream) {
                 eprintln!("failed to serve connection: {err:#}");
             }
         });
     }
+
+    Ok(())
 }
 
-// Custom echo service, handling two different routes and a
-// catch-all 404 responder.
-async fn echo(req: Request<Incoming>) -> Result<Response<Full<Bytes>>, hyper::Error> {
-    let mut response = Response::new(Full::default());
-    match (req.method(), req.uri().path()) {
-        // Help route.
-        (&Method::GET, "/") => {
-            *response.body_mut() = Full::from("Try POST /echo\n");
+/// Read a HTTP request head, and send it back as the response body.
+fn serve_connection(server_config: Arc<ServerConfig>, tcp_stream: TcpStream) -> io::Result<()> {
+    let conn = ServerConnection::new(server_config).map_err(io::Error::other)?;
+    let mut tls = StreamOwned::new(conn, tcp_stream, Vec::new());
+
+    let mut request = Vec::new();
+    loop {
+        let len = tls.read_until(b'\n', &mut request)?;
+        if len == 0 || request.ends_with(b"\r\n\r\n") {
+            break;
         }
-        // Echo service route.
-        (&Method::POST, "/echo") => {
-            *response.body_mut() = Full::from(req.into_body().collect().await?.to_bytes());
-        }
-        // Catch-all 404.
-        _ => {
-            *response.status_mut() = StatusCode::NOT_FOUND;
-        }
-    };
-    Ok(response)
+    }
+
+    write!(
+        tls,
+        "HTTP/1.1 200 OK\r\n\
+         Content-Type: text/plain\r\n\
+         Content-Length: {}\r\n\
+         Connection: close\r\n\
+         \r\n",
+        request.len()
+    )?;
+    tls.write_all(&request)?;
+    tls.conn
+        .send_close_notify(&mut tls.output)
+        .map_err(io::Error::other)?;
+    tls.flush()
 }

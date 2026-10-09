@@ -6,14 +6,18 @@
 //! Use it like:
 //!
 //! ```rust
-//! rustls_graviola::default_provider()
-//!     .install_default()
-//!     .unwrap();
+//! use std::sync::Arc;
+//!
+//! let provider = Arc::new(rustls_graviola::default_provider());
+//! let config_builder = rustls::ClientConfig::builder(provider);
 //! ```
 //!
 //! And then use rustls as normal.
 
-use rustls::crypto::CryptoProvider;
+use std::borrow::Cow;
+use std::sync::Arc;
+
+use rustls::crypto::{CryptoProvider, TicketProducer, TicketerFactory};
 
 mod aead;
 mod hash;
@@ -36,11 +40,13 @@ pub use ticketer::Ticketer;
 /// provider, which are interoperable and safe defaults for modern TLS.
 pub fn default_provider() -> CryptoProvider {
     CryptoProvider {
-        cipher_suites: suites::ALL_CIPHER_SUITES.to_vec(),
-        kx_groups: kx::ALL_KX_GROUPS.to_vec(),
+        tls12_cipher_suites: Cow::Borrowed(suites::ALL_TLS12_CIPHER_SUITES),
+        tls13_cipher_suites: Cow::Borrowed(suites::ALL_TLS13_CIPHER_SUITES),
+        kx_groups: Cow::Borrowed(kx::ALL_KX_GROUPS),
         signature_verification_algorithms: verify::ALGORITHMS,
         secure_random: &RngProvider,
         key_provider: &sign::Provider,
+        ticketer_factory: &TicketerProvider,
     }
 }
 
@@ -50,5 +56,14 @@ struct RngProvider;
 impl rustls::crypto::SecureRandom for RngProvider {
     fn fill(&self, bytes: &mut [u8]) -> Result<(), rustls::crypto::GetRandomFailed> {
         graviola::random::fill(bytes).map_err(|_| rustls::crypto::GetRandomFailed)
+    }
+}
+
+#[derive(Debug)]
+struct TicketerProvider;
+
+impl TicketerFactory for TicketerProvider {
+    fn ticketer(&self) -> Result<Arc<dyn TicketProducer>, rustls::Error> {
+        Ticketer::new()
     }
 }
