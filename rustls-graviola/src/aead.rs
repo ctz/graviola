@@ -327,12 +327,9 @@ impl RecordEncrypter for GcmTls12MessageEncrypter {
             record.payload.len(),
         );
         out.extend_from_slice(&nonce[4..]);
-        let start = out.len();
-        record.payload.copy_to_vec(out);
 
-        let mut tag = [0u8; AESGCM_TAG];
-        self.0.encrypt(&nonce, &aad, &mut out[start..], &mut tag);
-        out.extend_from_slice(&tag);
+        self.0
+            .encrypt_copy(&nonce, &aad, record.payload.chunks(), out);
         Ok(())
     }
 
