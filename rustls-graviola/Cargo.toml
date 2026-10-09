@@ -14,6 +14,7 @@ graviola = { version = "0.4.0", path = "../graviola" }
 rustls = { version = "=0.24.0-dev.3", default-features = false, features = ["std"] }
 
 [dev-dependencies]
+criterion = "0.8"
 env_logger = "0.11"
 http = "1"
 rustls = { version = "=0.24.0-dev.3", features = ["webpki"] }
@@ -21,6 +22,10 @@ rustls-aws-lc-rs = { version = "=0.24.0-dev.3" }
 rustls-ring = { version = "=0.24.0-dev.3" }
 rustls-util = { version = "=0.24.0-dev.3" }
 webpki-roots = "1"
+
+[[bench]]
+name = "bulk"
+harness = false
 
 [features]
 default = []
