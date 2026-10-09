@@ -2079,6 +2079,7 @@ dependencies = [
 name = "rustls-graviola"
 version = "0.4.0"
 dependencies = [
+ "criterion",
  "env_logger",
  "graviola",
  "http",

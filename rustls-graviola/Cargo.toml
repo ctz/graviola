@@ -14,6 +14,7 @@ graviola = { version = "0.4.0", path = "../graviola" }
 rustls = { git = "https://github.com/rustls/rustls", branch = "jbp-encrypt-interface-sketch", default-features = false }
 
 [dev-dependencies]
+criterion = "0.8"
 env_logger = "0.11"
 http = "1"
 rustls = { git = "https://github.com/rustls/rustls", branch = "jbp-encrypt-interface-sketch", features = ["webpki"] }
@@ -21,6 +22,10 @@ rustls-aws-lc-rs = { git = "https://github.com/rustls/rustls", branch = "jbp-enc
 rustls-ring = { git = "https://github.com/rustls/rustls", branch = "jbp-encrypt-interface-sketch" }
 rustls-util = { git = "https://github.com/rustls/rustls", branch = "jbp-encrypt-interface-sketch" }
 webpki-roots = "1"
+
+[[bench]]
+name = "bulk"
+harness = false
 
 [features]
 default = []
