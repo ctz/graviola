@@ -42,6 +42,7 @@ pub(crate) use generic::sha3::KECCAK_RC;
 full_platform! {
     mod entry;
     mod posint;
+    pub(crate) mod ptr;
 
     pub(crate) use entry::Entry;
     pub(crate) use generic::zeroise::{zeroise, zeroise_value};

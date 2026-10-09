@@ -7,7 +7,7 @@ use crate::low::AesKey;
 use crate::low::aarch64::cpu;
 use crate::low::ghash::Ghash;
 
-pub(crate) fn encrypt(
+pub(crate) fn encrypt_in_place(
     key: &AesKey,
     ghash: &mut Ghash<'_>,
     initial_counter: &[u8; 16],
@@ -16,6 +16,20 @@ pub(crate) fn encrypt(
 ) {
     // SAFETY: this crate requires the `aes` & `neon` cpu features
     unsafe { _cipher::<true>(key, ghash, initial_counter, aad, cipher_inout) }
+}
+
+pub(crate) fn encrypt_copy(
+    key: &AesKey,
+    ghash: &mut Ghash<'_>,
+    initial_counter: &[u8; 16],
+    aad: &[u8],
+    input: &[u8],
+    output: &mut Vec<u8>,
+) {
+    // This implementation is in-place only, so first copy the input to the output.
+    let start = output.len();
+    output.extend_from_slice(input);
+    encrypt_in_place(key, ghash, initial_counter, aad, &mut output[start..]);
 }
 
 pub(crate) fn decrypt(

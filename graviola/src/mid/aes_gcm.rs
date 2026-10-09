@@ -3,7 +3,7 @@
 
 use crate::Error;
 use crate::low::ghash::{Ghash, GhashTable};
-use crate::low::{AesKey, Entry, aes_gcm, ct_equal};
+use crate::low::{AesKey, Blockwise, Entry, aes_gcm, ct_equal};
 
 /// An AES-GCM key.
 ///
@@ -64,7 +64,7 @@ impl AesGcm {
 
         // give low-level code opportunity to stitch gf128 and aes
         // computations. see low::generic::aes_gcm for model version.
-        aes_gcm::encrypt(&self.key, &mut ghash, &counter, aad, cipher_inout);
+        aes_gcm::encrypt_in_place(&self.key, &mut ghash, &counter, aad, cipher_inout);
 
         let mut lengths = [0u8; 16];
         lengths[..8].copy_from_slice(&((aad.len() * 8) as u64).to_be_bytes());
@@ -76,6 +76,101 @@ impl AesGcm {
         for ((out, x), e) in tag_out.iter_mut().zip(final_xi.iter()).zip(e_y0.iter()) {
             *out = *x ^ *e;
         }
+    }
+
+    /// Encrypts a message gathered from several slices, appending it to `cipher_out`.
+    ///
+    /// On entry, the plaintext of the message is the concatenation of the
+    /// slices yielded by `plain_chunks`.  Chunks may have any length,
+    /// including zero.
+    /// `nonce` contains the nonce, which must be unique for a given key.
+    /// `aad` is the additionally-authenticated data.  It may be empty.
+    ///
+    /// On exit, the ciphertext of the message followed by the tag has
+    /// been appended to `cipher_out`.
+    ///
+    /// The plaintext is copied into `cipher_out` as a side effect of
+    /// encrypting it, rather than in a separate pass.  (A partial block
+    /// at a chunk boundary is first gathered into a 16-byte buffer.
+    /// On aarch64, a separate copy pass is still made.)
+    pub fn encrypt_copy<'a>(
+        &self,
+        nonce: &[u8; 12],
+        aad: &[u8],
+        plain_chunks: impl IntoIterator<Item = &'a [u8]>,
+        cipher_out: &mut Vec<u8>,
+    ) {
+        let _entry = Entry::new_secret();
+        let mut ghash = Ghash::new(&self.gh);
+
+        let y0 = self.nonce_to_y0(nonce);
+
+        let mut e_y0 = y0;
+        self.key.encrypt_block(&mut e_y0);
+
+        // The low-level code processes a contiguous run of plaintext,
+        // starting with `ghash.add(aad)`.  Because GHASH state carries across
+        // calls, and its only padding is of the final partial block, we
+        // can call it repeatedly provided every run except the last is a
+        // whole number of blocks, `aad` is supplied only to the first,
+        // and each run starts with the counter advanced by the
+        // number of blocks already processed.
+        let mut aad_pending = aad;
+        let mut blocks_done = 0u32;
+        let mut plain_len = 0usize;
+        let mut carry = Blockwise::<16>::new();
+
+        // `input` must be a whole number of blocks, except for the final run.
+        let mut process = |input: &[u8]| {
+            let counter = counter_add(&y0, blocks_done);
+            aes_gcm::encrypt_copy(
+                &self.key,
+                &mut ghash,
+                &counter,
+                aad_pending,
+                input,
+                cipher_out,
+            );
+            aad_pending = &[];
+            blocks_done = blocks_done.wrapping_add((input.len() / 16) as u32);
+        };
+
+        for chunk in plain_chunks {
+            plain_len += chunk.len();
+
+            let chunk = carry.add_leading(chunk);
+            if let Some(block) = carry.take() {
+                process(&block);
+            }
+
+            let (blocks, tail) = chunk.split_at(chunk.len() & !15);
+            if !blocks.is_empty() {
+                process(blocks);
+            }
+            carry.add_trailing(tail);
+        }
+
+        // final run: the partial block, if any.  this also covers
+        // the case of a message with aad but no plaintext (which is
+        // the only case where no earlier run has absorbed the aad).
+        match carry.peek_remaining() {
+            Some(partial) => process(partial),
+            None if plain_len == 0 && !aad.is_empty() => process(&[]),
+            None => {}
+        }
+
+        let mut lengths = [0u8; 16];
+        lengths[..8].copy_from_slice(&((aad.len() * 8) as u64).to_be_bytes());
+        lengths[8..].copy_from_slice(&((plain_len * 8) as u64).to_be_bytes());
+        ghash.add(&lengths);
+
+        let final_xi = ghash.into_bytes();
+
+        let mut tag_out = [0; 16];
+        for ((out, x), e) in tag_out.iter_mut().zip(final_xi.iter()).zip(e_y0.iter()) {
+            *out = *x ^ *e;
+        }
+        cipher_out.extend_from_slice(&tag_out);
     }
 
     /// Decrypts and verifies the given message.
@@ -134,11 +229,131 @@ impl AesGcm {
     }
 }
 
+/// Returns `counter` with its low 32 bits (big-endian) advanced by `blocks`.
+///
+/// This matches GCM's `inc32` function, applied `blocks` times.
+fn counter_add(counter: &[u8; 16], blocks: u32) -> [u8; 16] {
+    let mut r = *counter;
+    let low = u32::from_be_bytes(counter[12..].try_into().unwrap()).wrapping_add(blocks);
+    r[12..].copy_from_slice(&low.to_be_bytes());
+    r
+}
+
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::test::*;
+
+    #[test]
+    fn encrypt_copy_matches_encrypt() {
+        let t = AesGcm::new(&[0x42; 16]);
+        let nonce = [0x11; 12];
+
+        // a selection of splits that hit: empty chunks, chunks
+        // that fill the carry block exactly, chunks smaller than
+        // the carry gap, chunks spanning many blocks, and the
+        // TLS1.3 shape of payload + 1-byte trailer.
+        let split_patterns: &[&[usize]] = &[
+            &[],
+            &[0],
+            &[1],
+            &[15],
+            &[16],
+            &[17],
+            &[0, 0, 0],
+            &[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+            &[3, 13],
+            &[5, 5, 5, 5],
+            &[7, 0, 9, 0],
+            &[15, 1, 15, 1],
+            &[16, 16],
+            &[17, 15],
+            &[100],
+            &[129],
+            &[256, 1],
+            &[300, 4, 1],
+        ];
+
+        for aad in [&b""[..], b"aad", &[0xaa; 17]] {
+            for len in [
+                0, 1, 15, 16, 17, 31, 32, 33, 127, 128, 129, 255, 256, 257, 300, 1023, 1024, 1029,
+            ] {
+                let plain: Vec<u8> = (0..len).map(|i| i as u8).collect();
+
+                let mut expect = plain.clone();
+                let mut tag = [0u8; 16];
+                t.encrypt(&nonce, aad, &mut expect, &mut tag);
+                expect.extend_from_slice(&tag);
+
+                for pattern in split_patterns {
+                    // split `plain` per `pattern`, with the remainder as the final chunk
+                    let mut chunks = vec![];
+                    let mut rest = &plain[..];
+                    for &n in pattern.iter() {
+                        let (head, tail) = rest.split_at(n.min(rest.len()));
+                        chunks.push(head);
+                        rest = tail;
+                    }
+                    chunks.push(rest);
+
+                    let mut out = vec![0xff; 3];
+                    t.encrypt_copy(&nonce, aad, chunks.iter().copied(), &mut out);
+                    assert_eq!(&out[..3], &[0xff; 3], "prefix clobbered");
+                    assert_eq!(
+                        &out[3..],
+                        &expect[..],
+                        "mismatch at aad={aad:?} len={len} pattern={pattern:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn counter_add_wraps_low_32_bits() {
+        let c = [0xff; 16];
+        let mut expect = [0xff; 16];
+        expect[12..].copy_from_slice(&[0, 0, 0, 1]);
+        assert_eq!(counter_add(&c, 2), expect);
+        assert_eq!(counter_add(&c, 0), c);
+    }
+
+    #[test]
+    fn out_of_place_encrypt_matches_in_place() {
+        let t = AesGcm::new(&[0x42; 16]);
+        let counter = t.nonce_to_y0(&[0x11; 12]);
+        let aad = b"aad";
+
+        // covers the 256-, 128- and 16-byte chunk paths, and partial tails
+        for len in [
+            0, 1, 15, 16, 17, 127, 128, 129, 255, 256, 257, 300, 1023, 1024, 1029,
+        ] {
+            let plain: Vec<u8> = (0..len).map(|i| i as u8).collect();
+
+            let mut in_place = plain.clone();
+            let mut gh_in = Ghash::new(&t.gh);
+            aes_gcm::encrypt_in_place(&t.key, &mut gh_in, &counter, aad, &mut in_place);
+
+            let mut out_of_place = vec![];
+            let mut gh_out = Ghash::new(&t.gh);
+            aes_gcm::encrypt_copy(
+                &t.key,
+                &mut gh_out,
+                &counter,
+                aad,
+                &plain,
+                &mut out_of_place,
+            );
+
+            assert_eq!(in_place, out_of_place, "ciphertext differs at len {len}");
+            assert_eq!(
+                gh_in.into_bytes(),
+                gh_out.into_bytes(),
+                "ghash differs at len {len}"
+            );
+        }
+    }
 
     #[test]
     fn smoketest() {

@@ -10,25 +10,73 @@ use super::aes::AesKey;
 use super::cpu::HaveAvx512ForAesGcm;
 use super::ghash::{self, Ghash};
 use crate::low::ghash::{GhashTable, GhashTableAvx512};
+use crate::low::ptr;
 
-pub(crate) fn encrypt(
+pub(crate) fn encrypt_in_place(
     key: &AesKey,
     ghash: &mut Ghash<'_>,
     initial_counter: &[u8; 16],
     aad: &[u8],
     cipher_inout: &mut [u8],
 ) {
+    encrypt(
+        key,
+        ghash,
+        initial_counter,
+        aad,
+        cipher_inout.as_ptr(),
+        cipher_inout.as_mut_ptr(),
+        cipher_inout.len(),
+    );
+}
+
+pub(crate) fn encrypt_copy(
+    key: &AesKey,
+    ghash: &mut Ghash<'_>,
+    initial_counter: &[u8; 16],
+    aad: &[u8],
+    input: &[u8],
+    output: &mut Vec<u8>,
+) {
+    output.reserve(input.len());
+    encrypt(
+        key,
+        ghash,
+        initial_counter,
+        aad,
+        input.as_ptr(),
+        output.spare_capacity_mut().as_mut_ptr().cast(),
+        input.len(),
+    );
+    // SAFETY: we have written, via spare_capacity_mut(), len bytes
+    unsafe {
+        output.set_len(output.len() + input.len());
+    }
+}
+
+// nb: `input` may be aliased by `output`; both are `len` bytes
+fn encrypt(
+    key: &AesKey,
+    ghash: &mut Ghash<'_>,
+    initial_counter: &[u8; 16],
+    aad: &[u8],
+    input: *const u8,
+    output: *mut u8,
+    len: usize,
+) {
     if let (true, GhashTable::Avx512(GhashTableAvx512 { token, .. })) =
-        (cipher_inout.len() >= AVX512_MINIMUM_CIPHER_LEN, ghash.table)
+        (len >= AVX512_MINIMUM_CIPHER_LEN, ghash.table)
     {
         // SAFETY: this crate requires the `aes`, `sse3`, `ssse3`, `pclmulqdq`, `avx` and `avx2` cpu features;
         // `token` proves the remaining features were dynamically checked
-        unsafe { _cipher_avx512::<true>(key, ghash, initial_counter, aad, cipher_inout, *token) };
+        unsafe {
+            _cipher_avx512::<true>(key, ghash, initial_counter, aad, input, output, len, *token)
+        };
         return;
     }
 
     // SAFETY: this crate requires the `aes`, `ssse3`, `pclmulqdq` and `avx` cpu features
-    unsafe { _cipher::<true>(key, ghash, initial_counter, aad, cipher_inout) }
+    unsafe { _cipher::<true>(key, ghash, initial_counter, aad, input, output, len) }
 }
 
 pub(crate) fn decrypt(
@@ -38,16 +86,38 @@ pub(crate) fn decrypt(
     aad: &[u8],
     cipher_inout: &mut [u8],
 ) {
+    let inout = cipher_inout.as_mut_ptr();
     if let (true, GhashTable::Avx512(GhashTableAvx512 { token, .. })) =
         (cipher_inout.len() >= AVX512_MINIMUM_CIPHER_LEN, ghash.table)
     {
         // SAFETY: this crate requires the `aes`, `sse3`, `ssse3`, `pclmulqdq`, `avx` and `avx2` cpu features;
         // `token` proves the remaining features were dynamically checked
-        unsafe { _cipher_avx512::<false>(key, ghash, initial_counter, aad, cipher_inout, *token) };
+        unsafe {
+            _cipher_avx512::<false>(
+                key,
+                ghash,
+                initial_counter,
+                aad,
+                inout,
+                inout,
+                cipher_inout.len(),
+                *token,
+            )
+        };
         return;
     }
     // SAFETY: this crate requires the `aes`, `ssse3`, `pclmulqdq` and `avx` cpu features
-    unsafe { _cipher::<false>(key, ghash, initial_counter, aad, cipher_inout) }
+    unsafe {
+        _cipher::<false>(
+            key,
+            ghash,
+            initial_counter,
+            aad,
+            inout,
+            inout,
+            cipher_inout.len(),
+        )
+    }
 }
 
 #[target_feature(enable = "aes,ssse3,pclmulqdq,avx")]
@@ -56,19 +126,24 @@ fn _cipher<const ENC: bool>(
     ghash: &mut Ghash<'_>,
     initial_counter: &[u8; 16],
     aad: &[u8],
-    cipher_inout: &mut [u8],
+    input: *const u8,
+    output: *mut u8,
+    len: usize,
 ) {
     ghash.add(aad);
 
     let (rk_first, rks, rk_last) = key.round_keys();
 
     let mut counter = Counter::new(initial_counter);
-    let (by8_iter, remainder) = cipher_inout.as_chunks_mut::<128>();
+    // SAFETY: caller guarantees `input`/`output` are valid for `len` bytes
+    // and either equal or disjoint
+    let remainder = unsafe { ptr::InOut::new(input, output, len) };
+    let (by8_iter, remainder) = ptr::ChunksIter::<128>::new(remainder);
     let avx_ghash_table = ghash.table.avx();
 
-    for blocks in by8_iter {
+    for block in by8_iter {
         // prefetch to avoid any stall later
-        super::cpu::prefetch(blocks, 64);
+        super::cpu::prefetch_ptr(block.read, 64);
 
         let c1 = counter.next();
         let c2 = counter.next();
@@ -111,14 +186,14 @@ fn _cipher<const ENC: bool>(
         // SAFETY: `blocks` is 128 bytes and readable
         let (p1, p2, p3, p4, p5, p6, p7, p8) = unsafe {
             (
-                _mm_loadu_si128(blocks.as_ptr().add(0).cast()),
-                _mm_loadu_si128(blocks.as_ptr().add(16).cast()),
-                _mm_loadu_si128(blocks.as_ptr().add(32).cast()),
-                _mm_loadu_si128(blocks.as_ptr().add(48).cast()),
-                _mm_loadu_si128(blocks.as_ptr().add(64).cast()),
-                _mm_loadu_si128(blocks.as_ptr().add(80).cast()),
-                _mm_loadu_si128(blocks.as_ptr().add(96).cast()),
-                _mm_loadu_si128(blocks.as_ptr().add(112).cast()),
+                _mm_loadu_si128(block.read.add(0).cast()),
+                _mm_loadu_si128(block.read.add(16).cast()),
+                _mm_loadu_si128(block.read.add(32).cast()),
+                _mm_loadu_si128(block.read.add(48).cast()),
+                _mm_loadu_si128(block.read.add(64).cast()),
+                _mm_loadu_si128(block.read.add(80).cast()),
+                _mm_loadu_si128(block.read.add(96).cast()),
+                _mm_loadu_si128(block.read.add(112).cast()),
             )
         };
 
@@ -133,14 +208,14 @@ fn _cipher<const ENC: bool>(
 
         // SAFETY: `blocks` is 128 bytes and writable, due to `as_chunks_mut`
         unsafe {
-            _mm_storeu_si128(blocks.as_mut_ptr().add(0).cast(), c1);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(16).cast(), c2);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(32).cast(), c3);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(48).cast(), c4);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(64).cast(), c5);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(80).cast(), c6);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(96).cast(), c7);
-            _mm_storeu_si128(blocks.as_mut_ptr().add(112).cast(), c8);
+            _mm_storeu_si128(block.write.add(0).cast(), c1);
+            _mm_storeu_si128(block.write.add(16).cast(), c2);
+            _mm_storeu_si128(block.write.add(32).cast(), c3);
+            _mm_storeu_si128(block.write.add(48).cast(), c4);
+            _mm_storeu_si128(block.write.add(64).cast(), c5);
+            _mm_storeu_si128(block.write.add(80).cast(), c6);
+            _mm_storeu_si128(block.write.add(96).cast(), c7);
+            _mm_storeu_si128(block.write.add(112).cast(), c8);
         }
 
         let (a1, a2, a3, a4, a5, a6, a7, a8) = if ENC {
@@ -162,14 +237,12 @@ fn _cipher<const ENC: bool>(
         ghash.current = ghash::_mul8(avx_ghash_table, a1, a2, a3, a4, a5, a6, a7, a8);
     }
 
-    let cipher_inout = remainder;
-
     if !ENC {
-        ghash.add(cipher_inout);
+        ghash.add(remainder.read_slice());
     }
 
     {
-        let (blocks_iter, remainder) = cipher_inout.as_chunks_mut::<16>();
+        let (blocks_iter, remainder) = ptr::ChunksIter::<16>::new(remainder);
         for block in blocks_iter {
             let c1 = counter.next();
 
@@ -181,20 +254,19 @@ fn _cipher<const ENC: bool>(
 
             let c1 = _mm_aesenclast_si128(c1, rk_last);
 
-            // SAFETY: `block` is 16 bytes due to `as_chunks_mut`
-            let p1 = unsafe { _mm_loadu_si128(block.as_ptr().cast()) };
+            // SAFETY: `block.read` is 16 bytes due to `ChunksIter`
+            let p1 = unsafe { _mm_loadu_si128(block.read.cast()) };
             let c1 = _mm_xor_si128(c1, p1);
 
-            // SAFETY: `block` is 16 bytes and writable, due to `as_chunks_mut`
-            unsafe { _mm_storeu_si128(block.as_mut_ptr().cast(), c1) };
+            // SAFETY: `block.write` is 16 bytes and writable, due to `ChunksIter`
+            unsafe { _mm_storeu_si128(block.write.cast(), c1) };
         }
 
-        let cipher_inout = remainder;
-        if !cipher_inout.is_empty() {
+        if !remainder.is_empty() {
             let mut block = [0u8; 16];
-            let len = cipher_inout.len();
+            let len = remainder.len;
             debug_assert!(len < 16);
-            block[..len].copy_from_slice(cipher_inout);
+            block[..len].copy_from_slice(remainder.read_slice());
 
             let c1 = counter.next();
             let mut c1 = _mm_xor_si128(c1, rk_first);
@@ -214,12 +286,12 @@ fn _cipher<const ENC: bool>(
                 _mm_storeu_si128(block.as_mut_ptr().cast(), c1);
             }
 
-            cipher_inout.copy_from_slice(&block[..len]);
+            remainder.write_from(&block[..len]);
         }
     }
 
     if ENC {
-        ghash.add(cipher_inout);
+        ghash.add(remainder.write_slice());
     }
 }
 
@@ -231,7 +303,9 @@ fn _cipher_avx512<const ENC: bool>(
     ghash: &mut Ghash<'_>,
     initial_counter: &[u8; 16],
     aad: &[u8],
-    cipher_inout: &mut [u8],
+    input: *const u8,
+    output: *mut u8,
+    len: usize,
     _feature_token: HaveAvx512ForAesGcm,
 ) {
     ghash.add(aad);
@@ -240,16 +314,19 @@ fn _cipher_avx512<const ENC: bool>(
     let (rk_first, rks, rk_last) = round_keys.split();
 
     let mut counter = Counter512::new(initial_counter);
-    let (by16_iter, remainder) = cipher_inout.as_chunks_mut::<AVX512_MINIMUM_CIPHER_LEN>();
+    // SAFETY: caller guarantees `input`/`output` are valid for `len` bytes
+    // and either equal or disjoint
+    let remainder = unsafe { ptr::InOut::new(input, output, len) };
+    let (by16_iter, remainder) = ptr::ChunksIter::<AVX512_MINIMUM_CIPHER_LEN>::new(remainder);
 
     let ghash_avx512 = match ghash.table {
         GhashTable::Avx512(ghash_avx512) => ghash_avx512,
         _ => panic!("unexpected ghash table variant"),
     };
 
-    for blocks in by16_iter {
+    for block in by16_iter {
         // prefetch to avoid any stall later
-        super::cpu::prefetch(blocks, 256);
+        super::cpu::prefetch_ptr(block.read, 256);
 
         let c0123 = counter.next4();
         let c4567 = counter.next4();
@@ -276,10 +353,10 @@ fn _cipher_avx512<const ENC: bool>(
         // SAFETY: `blocks` is 256 bytes due to `as_chunks_mut`
         let (p0123, p4567, p89ab, pcdef) = unsafe {
             (
-                _mm512_loadu_si512(blocks.as_ptr().add(0).cast()),
-                _mm512_loadu_si512(blocks.as_ptr().add(64).cast()),
-                _mm512_loadu_si512(blocks.as_ptr().add(128).cast()),
-                _mm512_loadu_si512(blocks.as_ptr().add(192).cast()),
+                _mm512_loadu_si512(block.read.add(0).cast()),
+                _mm512_loadu_si512(block.read.add(64).cast()),
+                _mm512_loadu_si512(block.read.add(128).cast()),
+                _mm512_loadu_si512(block.read.add(192).cast()),
             )
         };
 
@@ -290,10 +367,10 @@ fn _cipher_avx512<const ENC: bool>(
 
         // SAFETY: `blocks` is 256 bytes and writable due to `as_chunks_mut`
         unsafe {
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(0).cast(), c0123);
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(64).cast(), c4567);
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(128).cast(), c89ab);
-            _mm512_storeu_si512(blocks.as_mut_ptr().add(192).cast(), ccdef);
+            _mm512_storeu_si512(block.write.add(0).cast(), c0123);
+            _mm512_storeu_si512(block.write.add(64).cast(), c4567);
+            _mm512_storeu_si512(block.write.add(128).cast(), c89ab);
+            _mm512_storeu_si512(block.write.add(192).cast(), ccdef);
         }
 
         let (a0123, a4567, a89ab, acdef) = if ENC {
@@ -313,15 +390,14 @@ fn _cipher_avx512<const ENC: bool>(
         ghash.current = ghash::_mul16(ghash_avx512, a0123, a4567, a89ab, acdef);
     }
 
-    let cipher_inout = remainder;
     let mut counter = counter.into_128();
 
     if !ENC {
-        ghash.add(cipher_inout);
+        ghash.add(remainder.read_slice());
     }
 
     {
-        let (blocks_iter, remainder) = cipher_inout.as_chunks_mut::<16>();
+        let (blocks_iter, remainder) = ptr::ChunksIter::<16>::new(remainder);
         let (rk_first, rks, rk_last) = key.round_keys();
         for block in blocks_iter {
             let c1 = counter.next();
@@ -334,22 +410,21 @@ fn _cipher_avx512<const ENC: bool>(
 
             let c1 = _mm_aesenclast_si128(c1, rk_last);
 
-            // SAFETY: `block` is 16 bytes and writable.
-            let p1 = unsafe { _mm_loadu_si128(block.as_ptr().cast()) };
+            // SAFETY: `block.read` is 16 bytes and readable.
+            let p1 = unsafe { _mm_loadu_si128(block.read.cast()) };
             let c1 = _mm_xor_si128(c1, p1);
 
-            // SAFETY: `block` is 16 bytes and writable.
+            // SAFETY: `block.write` is 16 bytes and writable.
             unsafe {
-                _mm_storeu_si128(block.as_mut_ptr().cast(), c1);
+                _mm_storeu_si128(block.write.cast(), c1);
             }
         }
 
-        let cipher_inout = remainder;
-        if !cipher_inout.is_empty() {
+        if !remainder.is_empty() {
             let mut block = [0u8; 16];
-            let len = cipher_inout.len();
+            let len = remainder.len;
             debug_assert!(len < 16);
-            block[..len].copy_from_slice(cipher_inout);
+            block[..len].copy_from_slice(remainder.read_slice());
 
             let c1 = counter.next();
             let mut c1 = _mm_xor_si128(c1, rk_first);
@@ -369,12 +444,12 @@ fn _cipher_avx512<const ENC: bool>(
                 _mm_storeu_si128(block.as_mut_ptr().cast(), c1);
             }
 
-            cipher_inout.copy_from_slice(&block[..len]);
+            remainder.write_from(&block[..len]);
         }
     }
 
     if ENC {
-        ghash.add(cipher_inout);
+        ghash.add(remainder.write_slice());
     }
 }
 
