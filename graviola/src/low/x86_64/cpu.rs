@@ -273,9 +273,18 @@ pub(crate) fn verify_cpu_features() {
 #[target_feature(enable = "sse")]
 #[inline]
 pub(crate) fn prefetch<T>(table: &[T], stride: usize) {
-    // SAFETY: prefetches do not fault and are not architecturally visible
-    unsafe {
-        _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
-        _mm_prefetch(table.as_ptr().add(stride).cast(), _MM_HINT_T0);
-    }
+    prefetch_ptr(table.as_ptr(), stride)
+}
+
+/// Prefetch both `table` and `table` + `stride`
+///
+/// `table[stride]` is not range checked, as prefetching doesn't need a valid
+/// pointer.
+#[target_feature(enable = "sse")]
+#[inline]
+pub(crate) fn prefetch_ptr<T>(table: *const T, stride: usize) {
+    // nb. prefetches do not fault and are not architecturally visible, so
+    // `wrapping_add` is fine (and avoids `add`'s in-bounds requirement).
+    _mm_prefetch(table.cast(), _MM_HINT_T0);
+    _mm_prefetch(table.wrapping_add(stride).cast(), _MM_HINT_T0);
 }

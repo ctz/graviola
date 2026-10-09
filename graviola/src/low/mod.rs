@@ -28,6 +28,7 @@ mod generic {
 
 mod entry;
 mod posint;
+pub(crate) mod ptr;
 
 pub(crate) use entry::Entry;
 pub(crate) use generic::blockwise::Blockwise;

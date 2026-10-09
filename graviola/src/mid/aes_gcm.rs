@@ -64,7 +64,7 @@ impl AesGcm {
 
         // give low-level code opportunity to stitch gf128 and aes
         // computations. see low::generic::aes_gcm for model version.
-        aes_gcm::encrypt(&self.key, &mut ghash, &counter, aad, cipher_inout);
+        aes_gcm::encrypt_in_place(&self.key, &mut ghash, &counter, aad, cipher_inout);
 
         let mut lengths = [0u8; 16];
         lengths[..8].copy_from_slice(&((aad.len() * 8) as u64).to_be_bytes());
@@ -76,6 +76,48 @@ impl AesGcm {
         for ((out, x), e) in tag_out.iter_mut().zip(final_xi.iter()).zip(e_y0.iter()) {
             *out = *x ^ *e;
         }
+    }
+
+    /// Encrypts the given message, copying it into `cipher_out`.
+    ///
+    /// On entry, `plain_in` contains the plaintext of the message.
+    /// `nonce` contains the nonce, which must be unique for a given key.
+    /// `aad` is the additionally-authenticated data.  It may be empty.
+    ///
+    /// On exit, `cipher_out` contains the ciphertext of the message followed by the tag.
+    pub fn encrypt_copy(
+        &self,
+        nonce: &[u8; 12],
+        aad: &[u8],
+        plain_in: &[u8],
+        cipher_out: &mut Vec<u8>,
+    ) {
+        let _entry = Entry::new_secret();
+        cipher_out.reserve(plain_in.len() + 16);
+
+        let mut ghash = Ghash::new(&self.gh);
+
+        let counter = self.nonce_to_y0(nonce);
+
+        let mut e_y0 = counter;
+        self.key.encrypt_block(&mut e_y0);
+
+        // give low-level code opportunity to stitch gf128 and aes
+        // computations. see low::generic::aes_gcm for model version.
+        aes_gcm::encrypt_copy(&self.key, &mut ghash, &counter, aad, plain_in, cipher_out);
+
+        let mut lengths = [0u8; 16];
+        lengths[..8].copy_from_slice(&((aad.len() * 8) as u64).to_be_bytes());
+        lengths[8..].copy_from_slice(&((plain_in.len() * 8) as u64).to_be_bytes());
+        ghash.add(&lengths);
+
+        let final_xi = ghash.into_bytes();
+
+        let mut tag_out = [0; 16];
+        for ((out, x), e) in tag_out.iter_mut().zip(final_xi.iter()).zip(e_y0.iter()) {
+            *out = *x ^ *e;
+        }
+        cipher_out.extend_from_slice(&tag_out);
     }
 
     /// Decrypts and verifies the given message.
@@ -139,6 +181,42 @@ impl AesGcm {
 mod tests {
     use super::*;
     use crate::test::*;
+
+    #[test]
+    fn out_of_place_encrypt_matches_in_place() {
+        let t = AesGcm::new(&[0x42; 16]);
+        let counter = t.nonce_to_y0(&[0x11; 12]);
+        let aad = b"aad";
+
+        // covers the 256-, 128- and 16-byte chunk paths, and partial tails
+        for len in [
+            0, 1, 15, 16, 17, 127, 128, 129, 255, 256, 257, 300, 1023, 1024, 1029,
+        ] {
+            let plain: Vec<u8> = (0..len).map(|i| i as u8).collect();
+
+            let mut in_place = plain.clone();
+            let mut gh_in = Ghash::new(&t.gh);
+            aes_gcm::encrypt_in_place(&t.key, &mut gh_in, &counter, aad, &mut in_place);
+
+            let mut out_of_place = vec![];
+            let mut gh_out = Ghash::new(&t.gh);
+            aes_gcm::encrypt_copy(
+                &t.key,
+                &mut gh_out,
+                &counter,
+                aad,
+                &plain,
+                &mut out_of_place,
+            );
+
+            assert_eq!(in_place, out_of_place, "ciphertext differs at len {len}");
+            assert_eq!(
+                gh_in.into_bytes(),
+                gh_out.into_bytes(),
+                "ghash differs at len {len}"
+            );
+        }
+    }
 
     #[test]
     fn smoketest() {

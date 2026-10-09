@@ -12,8 +12,21 @@ pub(crate) fn encrypt(
     ghash: &mut Ghash<'_>,
     initial_counter: &[u8; 16],
     aad: &[u8],
-    cipher_inout: &mut [u8],
+    input: *const u8,
+    output: *mut u8,
+    len: usize,
 ) {
+    // nb: `input` may be aliased by `output`; both are `len` bytes.
+    // This implementation is in-place only, so first move the input to the output.
+    // SAFETY: caller guarantees `input` is readable and `output` is writable for
+    // `len` bytes; `ptr::copy` permits overlap.
+    let cipher_inout = unsafe {
+        if input != output.cast_const() {
+            core::ptr::copy(input, output, len);
+        }
+        core::slice::from_raw_parts_mut(output, len)
+    };
+
     // SAFETY: this crate requires the `aes` & `neon` cpu features
     unsafe { _cipher::<true>(key, ghash, initial_counter, aad, cipher_inout) }
 }
