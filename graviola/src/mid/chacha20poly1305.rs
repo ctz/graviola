@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
 use crate::Error;
-use crate::low::chacha20::ChaCha20;
+use crate::low::chacha20::ChaCha;
 use crate::low::poly1305::Poly1305;
 use crate::low::{Entry, ct_equal, zeroise};
 
@@ -84,7 +84,7 @@ impl ChaCha20Poly1305 {
         // First, generate the Poly1305 key by running ChaCha20 with the
         // given key and a zero counter.  The first half of the
         // 64-byte output is the key. */
-        let mut chacha = ChaCha20::new(&self.key, &full_nonce);
+        let mut chacha = ChaCha::<20>::new(&self.key, &full_nonce);
         let mut polykey = [0u8; 32];
         chacha.cipher(&mut polykey);
 

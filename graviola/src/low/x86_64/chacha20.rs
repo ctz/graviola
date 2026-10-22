@@ -4,12 +4,13 @@
 
 use core::arch::x86_64::*;
 
-pub(crate) struct ChaCha20 {
+/// `ROUNDS` must be a multiple of 2.
+pub(crate) struct ChaCha<const ROUNDS: usize> {
     z07: __m256i,
     z8f: __m256i,
 }
 
-impl ChaCha20 {
+impl<const ROUNDS: usize> ChaCha<ROUNDS> {
     pub(crate) fn new(key: &[u8; 32], nonce: &[u8; 16]) -> Self {
         // SAFETY: this crate requires the `avx2` and `ssse3` cpu features
         unsafe { format_key(key, nonce) }
@@ -21,20 +22,20 @@ impl ChaCha20 {
         for block in by8 {
             // SAFETY: this crate requires the `avx2` cpu feature
             unsafe {
-                core_8x(self.z07, &mut self.z8f, block);
+                core_8x::<ROUNDS>(self.z07, &mut self.z8f, block);
             }
         }
 
         for block in remainder.chunks_mut(128) {
             // SAFETY: this crate requires the `avx2` cpu feature
             unsafe {
-                core_2x(self.z07, &mut self.z8f, block);
+                core_2x::<ROUNDS>(self.z07, &mut self.z8f, block);
             }
         }
     }
 }
 
-pub(crate) struct XChaCha20(ChaCha20);
+pub(crate) struct XChaCha20(ChaCha<20>);
 
 impl XChaCha20 {
     pub(crate) fn new(key: &[u8; 32], nonce: &[u8; 24]) -> Self {
@@ -97,7 +98,7 @@ macro_rules! rotate_left_128 {
 }
 
 #[target_feature(enable = "ssse3,avx2")]
-fn format_key(key: &[u8; 32], nonce: &[u8; 16]) -> ChaCha20 {
+fn format_key<const ROUNDS: usize>(key: &[u8; 32], nonce: &[u8; 16]) -> ChaCha<ROUNDS> {
     // SAFETY: `SIGMA` `key`, and `nonce` are all readable
     unsafe {
         let z07 = _mm256_set_m128i(
@@ -109,13 +110,13 @@ fn format_key(key: &[u8; 32], nonce: &[u8; 16]) -> ChaCha20 {
             _mm_lddqu_si128(nonce.as_ptr().cast()),
         );
 
-        ChaCha20 { z07, z8f }
+        ChaCha { z07, z8f }
     }
 }
 
 /// Computes 8 blocks.  Does _NOT_ handle ragged output.
 #[target_feature(enable = "avx2")]
-fn core_8x(t07: __m256i, z8f: &mut __m256i, xor_out_512: &mut [u8]) {
+fn core_8x<const ROUNDS: usize>(t07: __m256i, z8f: &mut __m256i, xor_out_512: &mut [u8]) {
     let t8f = *z8f;
     *z8f = _mm256_add_epi32(*z8f, _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, 8));
 
@@ -139,7 +140,7 @@ fn core_8x(t07: __m256i, z8f: &mut __m256i, xor_out_512: &mut [u8]) {
     zcf_zcf[2] = _mm256_add_epi32(zcf_zcf[2], _mm256_set_epi32(0, 0, 0, 2, 0, 0, 0, 6));
     zcf_zcf[3] = _mm256_add_epi32(zcf_zcf[3], _mm256_set_epi32(0, 0, 0, 3, 0, 0, 0, 7));
 
-    for _ in 0..10 {
+    for _ in 0..ROUNDS / 2 {
         for i in 0..4 {
             z03_z03[i] = _mm256_add_epi32(z03_z03[i], z47_z47[i]);
         }
@@ -358,7 +359,7 @@ fn core_8x(t07: __m256i, z8f: &mut __m256i, xor_out_512: &mut [u8]) {
 /// Computes 2 blocks, but also handles ragged output (ie, xor_out may
 /// be 0..64 bytes).
 #[target_feature(enable = "avx2")]
-fn core_2x(t07: __m256i, z8f: &mut __m256i, xor_out: &mut [u8]) {
+fn core_2x<const ROUNDS: usize>(t07: __m256i, z8f: &mut __m256i, xor_out: &mut [u8]) {
     let t8f = *z8f;
     let blocks_used = if xor_out.len() > 32 { 2 } else { 1 };
     *z8f = _mm256_add_epi32(*z8f, _mm256_set_epi32(0, 0, 0, 0, 0, 0, 0, blocks_used));
@@ -375,7 +376,7 @@ fn core_2x(t07: __m256i, z8f: &mut __m256i, xor_out: &mut [u8]) {
     let save_z8b = z8b_z8b;
     let save_zcf = zcf_zcf;
 
-    for _ in 0..10 {
+    for _ in 0..ROUNDS / 2 {
         z03_z03 = _mm256_add_epi32(z03_z03, z47_z47);
         zcf_zcf = _mm256_xor_si256(zcf_zcf, z03_z03);
         zcf_zcf = rotate_left!(zcf_zcf, 16);
@@ -467,7 +468,7 @@ fn core_2x(t07: __m256i, z8f: &mut __m256i, xor_out: &mut [u8]) {
 }
 
 #[target_feature(enable = "ssse3,avx2")]
-fn hchacha(key: &[u8; 32], nonce: &[u8; 24]) -> ChaCha20 {
+fn hchacha<const ROUNDS: usize>(key: &[u8; 32], nonce: &[u8; 24]) -> ChaCha<ROUNDS> {
     // SAFETY: `SIGMA`, `key` and `nonce` are all readable
     let (mut z03, mut z47, mut z8b, mut zcf) = unsafe {
         (
@@ -478,7 +479,7 @@ fn hchacha(key: &[u8; 32], nonce: &[u8; 24]) -> ChaCha20 {
         )
     };
 
-    for _ in 0..10 {
+    for _ in 0..ROUNDS / 2 {
         z03 = _mm_add_epi32(z03, z47);
         zcf = _mm_xor_si128(zcf, z03);
         zcf = rotate_left_128!(zcf, 16);
@@ -530,7 +531,7 @@ fn hchacha(key: &[u8; 32], nonce: &[u8; 24]) -> ChaCha20 {
         _mm_lddqu_si128(chacha_nonce.as_ptr().cast())
     });
 
-    ChaCha20 { z07, z8f }
+    ChaCha { z07, z8f }
 }
 
 const SIGMA: [u8; 16] = *b"expand 32-byte k";
@@ -543,7 +544,7 @@ mod tests {
     #[test]
     fn test_vectors() {
         // From draft-agl-tls-chacha20poly1305-04 section 7
-        let mut c = ChaCha20::new(&[0u8; 32], &[0u8; 16]);
+        let mut c = ChaCha::<20>::new(&[0u8; 32], &[0u8; 16]);
         let mut block = [0u8; 64];
         c.cipher(&mut block);
         assert_eq!(
@@ -559,7 +560,7 @@ mod tests {
 
         let mut key = [0u8; 32];
         key[31] = 0x01;
-        let mut c = ChaCha20::new(&key, &[0u8; 16]);
+        let mut c = ChaCha::<20>::new(&key, &[0u8; 16]);
         let mut block = [0u8; 64];
         c.cipher(&mut block);
         assert_eq!(
@@ -575,7 +576,7 @@ mod tests {
 
         let mut nonce = [0u8; 16];
         nonce[15] = 0x01;
-        let mut c = ChaCha20::new(&[0u8; 32], &nonce);
+        let mut c = ChaCha::<20>::new(&[0u8; 32], &nonce);
         let mut block = [0u8; 64];
         c.cipher(&mut block);
         assert_eq!(
@@ -591,7 +592,7 @@ mod tests {
 
         let mut nonce = [0u8; 16];
         nonce[8] = 0x01;
-        let mut c = ChaCha20::new(&[0u8; 32], &nonce);
+        let mut c = ChaCha::<20>::new(&[0u8; 32], &nonce);
         let mut block = [0u8; 64];
         c.cipher(&mut block);
         assert_eq!(
@@ -605,7 +606,7 @@ mod tests {
             ]
         );
 
-        let mut c = ChaCha20::new(
+        let mut c = ChaCha::<20>::new(
             &[
                 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
                 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,

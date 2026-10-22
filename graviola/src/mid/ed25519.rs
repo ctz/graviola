@@ -346,7 +346,7 @@ fn ed25519_digest(x1: &[u8], x2: &[u8], x3: &[u8]) -> [u8; 64] {
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod test {
     use super::*;
-    use crate::{low::chacha20::ChaCha20, mid};
+    use crate::{low::chacha20::ChaCha, mid};
 
     /// `p := 2^255 - 19`
     const P_25519: [u64; 4] = [
@@ -438,7 +438,7 @@ mod test {
     }
 
     struct TestRng {
-        chacha: ChaCha20,
+        chacha: ChaCha<20>,
     }
 
     impl TestRng {
@@ -449,7 +449,7 @@ mod test {
                 ctx.finish()
             };
             let nonce = [0; 16];
-            let chacha = ChaCha20::new(&seed, &nonce);
+            let chacha = ChaCha::<20>::new(&seed, &nonce);
             Self { chacha }
         }
 

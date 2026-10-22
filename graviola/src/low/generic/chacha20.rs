@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 // Originally from cifra
 
-pub(crate) struct ChaCha20 {
+/// `ROUNDS` must be a multiple of 2.
+pub(crate) struct ChaCha<const ROUNDS: usize> {
     key0: [u32; 4],
     key1: [u32; 4],
     nonce: [u32; 4],
@@ -17,7 +18,7 @@ fn four(b: &[u8; 16]) -> [u32; 4] {
     ]
 }
 
-impl ChaCha20 {
+impl<const ROUNDS: usize> ChaCha<ROUNDS> {
     pub(crate) fn new(key: &[u8; 32], nonce: &[u8; 16]) -> Self {
         Self {
             key0: four(key[0..16].try_into().unwrap()),
@@ -29,7 +30,7 @@ impl ChaCha20 {
     pub(crate) fn cipher(&mut self, buffer: &mut [u8]) {
         for block in buffer.chunks_mut(64) {
             let mut stream = [0u8; 64];
-            core(&self.key0, &self.key1, &self.nonce, &mut stream);
+            core::<ROUNDS>(&self.key0, &self.key1, &self.nonce, &mut stream);
             for (out, key) in block.iter_mut().zip(stream.iter()) {
                 *out ^= *key;
             }
@@ -39,7 +40,7 @@ impl ChaCha20 {
     }
 }
 
-pub(crate) struct XChaCha20(ChaCha20);
+pub(crate) struct XChaCha20(ChaCha<20>);
 
 impl XChaCha20 {
     pub(crate) fn new(key: &[u8; 32], nonce: &[u8; 24]) -> Self {
@@ -53,7 +54,7 @@ impl XChaCha20 {
         chacha_nonce[8..16].copy_from_slice(&nonce[16..24]);
         let chacha_nonce = four(&chacha_nonce);
 
-        Self(ChaCha20 {
+        Self(ChaCha {
             key0,
             key1,
             nonce: chacha_nonce,
@@ -65,7 +66,12 @@ impl XChaCha20 {
     }
 }
 
-fn core(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 64]) {
+fn core<const ROUNDS: usize>(
+    key0: &[u32; 4],
+    key1: &[u32; 4],
+    nonce: &[u32; 4],
+    out: &mut [u8; 64],
+) {
     let [mut z0, mut z1, mut z2, mut z3] = SIGMA;
     let &[mut z4, mut z5, mut z6, mut z7] = key0;
     let &[mut z8, mut z9, mut za, mut zb] = key1;
@@ -88,7 +94,7 @@ fn core(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 64]) 
         };
     }
 
-    for _ in 0..10 {
+    for _ in 0..ROUNDS / 2 {
         quarter!(z0, z4, z8, zc);
         quarter!(z1, z5, z9, zd);
         quarter!(z2, z6, za, ze);
@@ -179,7 +185,7 @@ mod tests {
     #[test]
     fn test_vectors() {
         // From draft-agl-tls-chacha20poly1305-04 section 7
-        let mut c = ChaCha20::new(&[0u8; 32], &[0u8; 16]);
+        let mut c = ChaCha::<20>::new(&[0u8; 32], &[0u8; 16]);
         let mut block = [0u8; 64];
         c.cipher(&mut block);
         assert_eq!(
@@ -195,7 +201,7 @@ mod tests {
 
         let mut key = [0u8; 32];
         key[31] = 0x01;
-        let mut c = ChaCha20::new(&key, &[0u8; 16]);
+        let mut c = ChaCha::<20>::new(&key, &[0u8; 16]);
         let mut block = [0u8; 64];
         c.cipher(&mut block);
         assert_eq!(
@@ -211,7 +217,7 @@ mod tests {
 
         let mut nonce = [0u8; 16];
         nonce[15] = 0x01;
-        let mut c = ChaCha20::new(&[0u8; 32], &nonce);
+        let mut c = ChaCha::<20>::new(&[0u8; 32], &nonce);
         let mut block = [0u8; 64];
         c.cipher(&mut block);
         assert_eq!(
@@ -227,7 +233,7 @@ mod tests {
 
         let mut nonce = [0u8; 16];
         nonce[8] = 0x01;
-        let mut c = ChaCha20::new(&[0u8; 32], &nonce);
+        let mut c = ChaCha::<20>::new(&[0u8; 32], &nonce);
         let mut block = [0u8; 64];
         c.cipher(&mut block);
         assert_eq!(
@@ -241,7 +247,7 @@ mod tests {
             ]
         );
 
-        let mut c = ChaCha20::new(
+        let mut c = ChaCha::<20>::new(
             &[
                 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d,
                 0x0e, 0x0f, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b,
