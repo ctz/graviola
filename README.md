@@ -188,6 +188,10 @@ and GHASH.  It uses dynamic CPU feature detection, so AVX-512 is not required at
 
 On aarch64 we have a stitched by-8 AES-CTR and by-8 GHASH (not currently interleaved).
 
+For ChaCha20, we have a by-8 AVX2 implementation on x86_64 and a non-SIMD, pure-Rust
+implementation on aarch64. On both architectures, we have a pure-Rust implementation
+of Poly1305 (not currently stitched with the ChaCha20).
+
 ## Architecture
 
 We have broadly three module layers:
