@@ -3,9 +3,10 @@
 // Originally from cifra
 
 use core::arch::aarch64::{
-    uint8x16_t, uint32x4_t, vaddq_u32, veorq_u32, vextq_u32, vorrq_u32, vqtbl1q_u8,
+    uint8x16_t, uint32x4_t, vaddq_u32, vdupq_n_u32, veorq_u32, vorrq_u32, vqtbl1q_u8,
     vreinterpretq_u8_u32, vreinterpretq_u16_u32, vreinterpretq_u32_u8, vreinterpretq_u32_u16,
-    vrev32q_u16, vshlq_n_u32, vshrq_n_u32,
+    vreinterpretq_u32_u64, vreinterpretq_u64_u32, vrev32q_u16, vshlq_n_u32, vshrq_n_u32,
+    vzip1q_u32, vzip1q_u64, vzip2q_u32, vzip2q_u64,
 };
 use core::mem;
 
@@ -171,134 +172,125 @@ fn core(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 64]) 
 // the result onto the contents of `out`.
 #[target_feature(enable = "neon")]
 fn core_x4(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 256]) {
-    const ONE: uint32x4_t = u32_slice_to_uint32x4_t(&[1, 0, 0, 0]);
+    // Each block is computed from four inputs, all of which are [u32; 4]
+    // a = SIGMA
+    // b = key0
+    // c = key1
+    // d = 32-bit block counter and 96-bit nonce
+    //
+    // The ChaCha20 computation has two properties that facilitate SIMD parallelization:
+    // 1. Within a block, all operations happen on individual elements within each
+    //    of those [u32; 4] arrays, with no carry from one element to the next.
+    // 2. The computation of a block does not depend on the result of any
+    //    previous block. The only input that varies among blocks is d, and it
+    //    can be calculated from the nonce and the block's sequence number.
+    //
+    // This implementation operates on four blocks at a time. Initially, the blocks are:
+    //
+    // Block 0:
+    //  a0_0, a0_1, a0_2, a0_3 = SIGMA
+    //  b0_0, b0_1, b0_2, b0_3 = key0
+    //  c0_0, c0_1, c0_2, c0_3 = key1
+    //  d0_0, d0_1, d0_2, d0_3 = nonce
+    //
+    // ...
+    //
+    // Block 3:
+    //  a3_0, a3_1, a3_2, a3_3 = SIGMA
+    //  b3_0, b3_1, b3_2, b3_3 = key0
+    //  c3_0, c3_1, c3_2, c3_3 = key1
+    //  d3_0, d3_1, d3_2, d3_3 = block counter and nonce, where d3_0 = d0_0.wrapping_add(3)
+    //
+    // We group these into 16 vertical columns, each of which fits in a uint32x4_t vector register.
+    // col_a_0 = [ a0_0, a1_0, a2_0, a3_0]
+    // col_a_1 = [ a0_1, a1_1, a2_1, a3_1]
+    // ...
+    // col_b_2 = [ b0_2, b1_2, b2_2, b3_2]
+    // ...
+    let mut col_a_0 = vdupq_n_u32(SIGMA[0]);
+    let mut col_a_1 = vdupq_n_u32(SIGMA[1]);
+    let mut col_a_2 = vdupq_n_u32(SIGMA[2]);
+    let mut col_a_3 = vdupq_n_u32(SIGMA[3]);
 
-    let mut a0: uint32x4_t = u32_slice_to_uint32x4_t(&SIGMA);
-    let mut b0: uint32x4_t = u32_slice_to_uint32x4_t(key0);
-    let mut c0: uint32x4_t = u32_slice_to_uint32x4_t(key1);
-    let mut d0: uint32x4_t = u32_slice_to_uint32x4_t(nonce);
-    let mut a1: uint32x4_t = u32_slice_to_uint32x4_t(&SIGMA);
-    let mut b1: uint32x4_t = u32_slice_to_uint32x4_t(key0);
-    let mut c1: uint32x4_t = u32_slice_to_uint32x4_t(key1);
-    let mut d1: uint32x4_t = vaddq_u32(d0, ONE);
-    let mut a2: uint32x4_t = u32_slice_to_uint32x4_t(&SIGMA);
-    let mut b2: uint32x4_t = u32_slice_to_uint32x4_t(key0);
-    let mut c2: uint32x4_t = u32_slice_to_uint32x4_t(key1);
-    let mut d2: uint32x4_t = vaddq_u32(d1, ONE);
-    let mut a3: uint32x4_t = u32_slice_to_uint32x4_t(&SIGMA);
-    let mut b3: uint32x4_t = u32_slice_to_uint32x4_t(key0);
-    let mut c3: uint32x4_t = u32_slice_to_uint32x4_t(key1);
-    let mut d3: uint32x4_t = vaddq_u32(d2, ONE);
+    let mut col_b_0 = vdupq_n_u32(key0[0]);
+    let mut col_b_1 = vdupq_n_u32(key0[1]);
+    let mut col_b_2 = vdupq_n_u32(key0[2]);
+    let mut col_b_3 = vdupq_n_u32(key0[3]);
 
-    let a0_initial = a0;
-    let b0_initial = b0;
-    let c0_initial = c0;
-    let d0_initial = d0;
-    let a1_initial = a1;
-    let b1_initial = b1;
-    let c1_initial = c1;
-    let d1_initial = d1;
-    let a2_initial = a2;
-    let b2_initial = b2;
-    let c2_initial = c2;
-    let d2_initial = d2;
-    let a3_initial = a3;
-    let b3_initial = b3;
-    let c3_initial = c3;
-    let d3_initial = d3;
+    let mut col_c_0 = vdupq_n_u32(key1[0]);
+    let mut col_c_1 = vdupq_n_u32(key1[1]);
+    let mut col_c_2 = vdupq_n_u32(key1[2]);
+    let mut col_c_3 = vdupq_n_u32(key1[3]);
 
-    macro_rules! quarter_x4 {
-        ($a0:ident, $b0:ident, $c0:ident, $d0:ident,
-         $a1:ident, $b1:ident, $c1:ident, $d1:ident,
-         $a2:ident, $b2:ident, $c2:ident, $d2:ident,
-         $a3:ident, $b3:ident, $c3:ident, $d3:ident) => {
-            $a0 = vaddq_u32($a0, $b0);
-            $a1 = vaddq_u32($a1, $b1);
-            $a2 = vaddq_u32($a2, $b2);
-            $a3 = vaddq_u32($a3, $b3);
-            $d0 = rotate_left!(veorq_u32($d0, $a0), 16);
-            $d1 = rotate_left!(veorq_u32($d1, $a1), 16);
-            $d2 = rotate_left!(veorq_u32($d2, $a2), 16);
-            $d3 = rotate_left!(veorq_u32($d3, $a3), 16);
-            $c0 = vaddq_u32($c0, $d0);
-            $c1 = vaddq_u32($c1, $d1);
-            $c2 = vaddq_u32($c2, $d2);
-            $c3 = vaddq_u32($c3, $d3);
-            $b0 = rotate_left!(veorq_u32($b0, $c0), 12);
-            $b1 = rotate_left!(veorq_u32($b1, $c1), 12);
-            $b2 = rotate_left!(veorq_u32($b2, $c2), 12);
-            $b3 = rotate_left!(veorq_u32($b3, $c3), 12);
-            $a0 = vaddq_u32($a0, $b0);
-            $a1 = vaddq_u32($a1, $b1);
-            $a2 = vaddq_u32($a2, $b2);
-            $a3 = vaddq_u32($a3, $b3);
-            $d0 = rotate_left!(veorq_u32($d0, $a0), 8);
-            $d1 = rotate_left!(veorq_u32($d1, $a1), 8);
-            $d2 = rotate_left!(veorq_u32($d2, $a2), 8);
-            $d3 = rotate_left!(veorq_u32($d3, $a3), 8);
-            $c0 = vaddq_u32($c0, $d0);
-            $c1 = vaddq_u32($c1, $d1);
-            $c2 = vaddq_u32($c2, $d2);
-            $c3 = vaddq_u32($c3, $d3);
-            $b0 = rotate_left!(veorq_u32($b0, $c0), 7);
-            $b1 = rotate_left!(veorq_u32($b1, $c1), 7);
-            $b2 = rotate_left!(veorq_u32($b2, $c2), 7);
-            $b3 = rotate_left!(veorq_u32($b3, $c3), 7);
+    let mut col_d_0 = u32_slice_to_uint32x4_t(&[
+        nonce[0],
+        nonce[0].wrapping_add(1),
+        nonce[0].wrapping_add(2),
+        nonce[0].wrapping_add(3),
+    ]);
+    let mut col_d_1 = vdupq_n_u32(nonce[1]);
+    let mut col_d_2 = vdupq_n_u32(nonce[2]);
+    let mut col_d_3 = vdupq_n_u32(nonce[3]);
+
+    let col_a_0_initial = col_a_0;
+    let col_a_1_initial = col_a_1;
+    let col_a_2_initial = col_a_2;
+    let col_a_3_initial = col_a_3;
+    let col_b_0_initial = col_b_0;
+    let col_b_1_initial = col_b_1;
+    let col_b_2_initial = col_b_2;
+    let col_b_3_initial = col_b_3;
+    let col_c_0_initial = col_c_0;
+    let col_c_1_initial = col_c_1;
+    let col_c_2_initial = col_c_2;
+    let col_c_3_initial = col_c_3;
+    let col_d_0_initial = col_d_0;
+    let col_d_1_initial = col_d_1;
+    let col_d_2_initial = col_d_2;
+    let col_d_3_initial = col_d_3;
+
+    macro_rules! quarter_column {
+        ($a:ident, $b:ident, $c:ident, $d:ident) => {
+            $a = vaddq_u32($a, $b);
+            $d = rotate_left!(veorq_u32($d, $a), 16);
+            $c = vaddq_u32($c, $d);
+            $b = rotate_left!(veorq_u32($b, $c), 12);
+            $a = vaddq_u32($a, $b);
+            $d = rotate_left!(veorq_u32($d, $a), 8);
+            $c = vaddq_u32($c, $d);
+            $b = rotate_left!(veorq_u32($b, $c), 7);
         };
     }
 
+    // Compute 20 rounds of ChaCha20.
     for _ in 0..10 {
-        quarter_x4!(
-            a0, b0, c0, d0, a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3
-        );
-        // For the next quarter-round, we need to rotate the order of
-        // the lanes in some of the vectors.
-        b0 = vextq_u32(b0, b0, 1);
-        c0 = vextq_u32(c0, c0, 2);
-        d0 = vextq_u32(d0, d0, 3);
-        b1 = vextq_u32(b1, b1, 1);
-        c1 = vextq_u32(c1, c1, 2);
-        d1 = vextq_u32(d1, d1, 3);
-        b2 = vextq_u32(b2, b2, 1);
-        c2 = vextq_u32(c2, c2, 2);
-        d2 = vextq_u32(d2, d2, 3);
-        b3 = vextq_u32(b3, b3, 1);
-        c3 = vextq_u32(c3, c3, 2);
-        d3 = vextq_u32(d3, d3, 3);
-        quarter_x4!(
-            a0, b0, c0, d0, a1, b1, c1, d1, a2, b2, c2, d2, a3, b3, c3, d3
-        );
-        // Rotate the lanes back into their original arrangement.
-        b0 = vextq_u32(b0, b0, 3);
-        c0 = vextq_u32(c0, c0, 2);
-        d0 = vextq_u32(d0, d0, 1);
-        b1 = vextq_u32(b1, b1, 3);
-        c1 = vextq_u32(c1, c1, 2);
-        d1 = vextq_u32(d1, d1, 1);
-        b2 = vextq_u32(b2, b2, 3);
-        c2 = vextq_u32(c2, c2, 2);
-        d2 = vextq_u32(d2, d2, 1);
-        b3 = vextq_u32(b3, b3, 3);
-        c3 = vextq_u32(c3, c3, 2);
-        d3 = vextq_u32(d3, d3, 1);
+        quarter_column!(col_a_0, col_b_0, col_c_0, col_d_0);
+        quarter_column!(col_a_1, col_b_1, col_c_1, col_d_1);
+        quarter_column!(col_a_2, col_b_2, col_c_2, col_d_2);
+        quarter_column!(col_a_3, col_b_3, col_c_3, col_d_3);
+
+        quarter_column!(col_a_0, col_b_1, col_c_2, col_d_3);
+        quarter_column!(col_a_1, col_b_2, col_c_3, col_d_0);
+        quarter_column!(col_a_2, col_b_3, col_c_0, col_d_1);
+        quarter_column!(col_a_3, col_b_0, col_c_1, col_d_2);
     }
 
-    a0 = vaddq_u32(a0_initial, a0);
-    b0 = vaddq_u32(b0_initial, b0);
-    c0 = vaddq_u32(c0_initial, c0);
-    d0 = vaddq_u32(d0_initial, d0);
-    a1 = vaddq_u32(a1_initial, a1);
-    b1 = vaddq_u32(b1_initial, b1);
-    c1 = vaddq_u32(c1_initial, c1);
-    d1 = vaddq_u32(d1_initial, d1);
-    a2 = vaddq_u32(a2_initial, a2);
-    b2 = vaddq_u32(b2_initial, b2);
-    c2 = vaddq_u32(c2_initial, c2);
-    d2 = vaddq_u32(d2_initial, d2);
-    a3 = vaddq_u32(a3_initial, a3);
-    b3 = vaddq_u32(b3_initial, b3);
-    c3 = vaddq_u32(c3_initial, c3);
-    d3 = vaddq_u32(d3_initial, d3);
+    col_a_0 = vaddq_u32(col_a_0, col_a_0_initial);
+    col_a_1 = vaddq_u32(col_a_1, col_a_1_initial);
+    col_a_2 = vaddq_u32(col_a_2, col_a_2_initial);
+    col_a_3 = vaddq_u32(col_a_3, col_a_3_initial);
+    col_b_0 = vaddq_u32(col_b_0, col_b_0_initial);
+    col_b_1 = vaddq_u32(col_b_1, col_b_1_initial);
+    col_b_2 = vaddq_u32(col_b_2, col_b_2_initial);
+    col_b_3 = vaddq_u32(col_b_3, col_b_3_initial);
+    col_c_0 = vaddq_u32(col_c_0, col_c_0_initial);
+    col_c_1 = vaddq_u32(col_c_1, col_c_1_initial);
+    col_c_2 = vaddq_u32(col_c_2, col_c_2_initial);
+    col_c_3 = vaddq_u32(col_c_3, col_c_3_initial);
+    col_d_0 = vaddq_u32(col_d_0, col_d_0_initial);
+    col_d_1 = vaddq_u32(col_d_1, col_d_1_initial);
+    col_d_2 = vaddq_u32(col_d_2, col_d_2_initial);
+    col_d_3 = vaddq_u32(col_d_3, col_d_3_initial);
 
     fn xor(value: uint32x4_t, dst: &mut [u8; 16]) {
         // SAFETY: the memory layout of `uint32x4_t` is compatible with `u128`.
@@ -308,22 +300,64 @@ fn core_x4(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 25
         dst.copy_from_slice(&result.to_le_bytes());
     }
 
-    xor(a0, (&mut out[0..16]).try_into().unwrap());
-    xor(b0, (&mut out[16..32]).try_into().unwrap());
-    xor(c0, (&mut out[32..48]).try_into().unwrap());
-    xor(d0, (&mut out[48..64]).try_into().unwrap());
-    xor(a1, (&mut out[64..80]).try_into().unwrap());
-    xor(b1, (&mut out[80..96]).try_into().unwrap());
-    xor(c1, (&mut out[96..112]).try_into().unwrap());
-    xor(d1, (&mut out[112..128]).try_into().unwrap());
-    xor(a2, (&mut out[128..144]).try_into().unwrap());
-    xor(b2, (&mut out[144..160]).try_into().unwrap());
-    xor(c2, (&mut out[160..176]).try_into().unwrap());
-    xor(d2, (&mut out[176..192]).try_into().unwrap());
-    xor(a3, (&mut out[192..208]).try_into().unwrap());
-    xor(b3, (&mut out[208..224]).try_into().unwrap());
-    xor(c3, (&mut out[224..240]).try_into().unwrap());
-    xor(d3, (&mut out[240..256]).try_into().unwrap());
+    // Transpose four adjacent column vectors into row vectors.
+    #[target_feature(enable = "neon")]
+    fn cols_to_rows(
+        c0: uint32x4_t,
+        c1: uint32x4_t,
+        c2: uint32x4_t,
+        c3: uint32x4_t,
+    ) -> (uint32x4_t, uint32x4_t, uint32x4_t, uint32x4_t) {
+        let zip0 = vzip1q_u32(c0, c1);
+        let zip1 = vzip1q_u32(c2, c3);
+        let row0 = vreinterpretq_u32_u64(vzip1q_u64(
+            vreinterpretq_u64_u32(zip0),
+            vreinterpretq_u64_u32(zip1),
+        ));
+        let row1 = vreinterpretq_u32_u64(vzip2q_u64(
+            vreinterpretq_u64_u32(zip0),
+            vreinterpretq_u64_u32(zip1),
+        ));
+
+        let zip0 = vzip2q_u32(c0, c1);
+        let zip1 = vzip2q_u32(c2, c3);
+        let row2 = vreinterpretq_u32_u64(vzip1q_u64(
+            vreinterpretq_u64_u32(zip0),
+            vreinterpretq_u64_u32(zip1),
+        ));
+        let row3 = vreinterpretq_u32_u64(vzip2q_u64(
+            vreinterpretq_u64_u32(zip0),
+            vreinterpretq_u64_u32(zip1),
+        ));
+        (row0, row1, row2, row3)
+    }
+
+    // The column vectors now contain the result of the ChaCha20 computation on
+    // four successive blocks. We transpose them into rows to XOR the result onto
+    // the output buffer.
+    let (row0, row1, row2, row3) = cols_to_rows(col_a_0, col_a_1, col_a_2, col_a_3);
+    xor(row0, (&mut out[0..16]).try_into().unwrap());
+    xor(row1, (&mut out[64..80]).try_into().unwrap());
+    xor(row2, (&mut out[128..144]).try_into().unwrap());
+    xor(row3, (&mut out[192..208]).try_into().unwrap());
+
+    let (row0, row1, row2, row3) = cols_to_rows(col_b_0, col_b_1, col_b_2, col_b_3);
+    xor(row0, (&mut out[16..32]).try_into().unwrap());
+    xor(row1, (&mut out[80..96]).try_into().unwrap());
+    xor(row2, (&mut out[144..160]).try_into().unwrap());
+    xor(row3, (&mut out[208..224]).try_into().unwrap());
+
+    let (row0, row1, row2, row3) = cols_to_rows(col_c_0, col_c_1, col_c_2, col_c_3);
+    xor(row0, (&mut out[32..48]).try_into().unwrap());
+    xor(row1, (&mut out[96..112]).try_into().unwrap());
+    xor(row2, (&mut out[160..176]).try_into().unwrap());
+    xor(row3, (&mut out[224..240]).try_into().unwrap());
+
+    let (row0, row1, row2, row3) = cols_to_rows(col_d_0, col_d_1, col_d_2, col_d_3);
+    xor(row0, (&mut out[48..64]).try_into().unwrap());
+    xor(row1, (&mut out[112..128]).try_into().unwrap());
+    xor(row2, (&mut out[176..192]).try_into().unwrap());
+    xor(row3, (&mut out[240..256]).try_into().unwrap());
 }
 
 fn hchacha(key0: &mut [u32; 4], key1: &mut [u32; 4], nonce: &[u32; 4]) {
