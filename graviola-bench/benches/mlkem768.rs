@@ -130,10 +130,10 @@ fn mlkem768_keygen(c: &mut Criterion) {
     });
 
     group.bench_function("rustcrypto", |b| {
-        use ml_kem::{KemCore, MlKem768};
+        use ml_kem::{Kem, MlKem768};
 
         b.iter(|| {
-            black_box(MlKem768::generate(&mut rand_core::OsRng));
+            black_box(MlKem768::generate_keypair());
         });
     });
 
@@ -206,18 +206,14 @@ fn mlkem768_encaps(c: &mut Criterion) {
     });
 
     group.bench_function("rustcrypto", |b| {
-        use ml_kem::{
-            EncodedSizeUser, KemCore, MlKem768, MlKem768Params, kem::Encapsulate,
-            kem::EncapsulationKey,
-        };
+        use ml_kem::{Encapsulate, Kem, KeyExport, MlKem768, ml_kem_768::EncapsulationKey};
 
-        let mut rng = rand_core::OsRng;
-        let (_decaps, encaps) = MlKem768::generate(&mut rng);
-        let encaps_bytes = encaps.as_bytes();
+        let (_decaps, encaps) = MlKem768::generate_keypair();
+        let encaps_bytes = encaps.to_bytes();
 
         b.iter(|| {
-            let encaps = EncapsulationKey::<MlKem768Params>::from_bytes(&encaps_bytes);
-            black_box(encaps.encapsulate(&mut rng).unwrap());
+            let encaps = EncapsulationKey::new(&encaps_bytes).unwrap();
+            black_box(encaps.encapsulate());
         });
     });
 
@@ -283,16 +279,14 @@ fn mlkem768_decaps(c: &mut Criterion) {
     });
 
     group.bench_function("rustcrypto", |b| {
-        use ml_kem::{KemCore, MlKem768, array, kem::Decapsulate, kem::Encapsulate};
+        use ml_kem::{Decapsulate, Encapsulate, Kem, MlKem768};
 
-        let mut rng = rand_core::OsRng;
-        let (decaps, encaps) = MlKem768::generate(&mut rng);
-        let (ciphertext, _secret) = encaps.encapsulate(&mut rng).unwrap();
+        let (decaps, encaps) = MlKem768::generate_keypair();
+        let (ciphertext, _secret) = encaps.encapsulate();
         let ciphertext = ciphertext.as_slice().to_vec();
 
         b.iter(|| {
-            let ciphertext = array::Array::try_from(ciphertext.as_slice()).unwrap();
-            black_box(decaps.decapsulate(&ciphertext).unwrap());
+            black_box(decaps.decapsulate_slice(&ciphertext).unwrap());
         });
     });
 
@@ -366,18 +360,15 @@ fn mlkem768_combined(c: &mut Criterion) {
 
     group.bench_function("rustcrypto", |b| {
         use ml_kem::{
-            EncodedSizeUser, KemCore, MlKem768, MlKem768Params, array, kem::Decapsulate,
-            kem::Encapsulate, kem::EncapsulationKey,
+            Decapsulate, Encapsulate, Kem, KeyExport, MlKem768, ml_kem_768::EncapsulationKey,
         };
 
         b.iter(|| {
-            let mut rng = rand_core::OsRng;
-            let (decaps, encaps) = MlKem768::generate(&mut rng);
-            let encaps_encoded = encaps.as_bytes();
-            let encaps = EncapsulationKey::<MlKem768Params>::from_bytes(&encaps_encoded);
-            let (ciphertext, _secret) = encaps.encapsulate(&mut rng).unwrap();
-            let ciphertext = array::Array::try_from(ciphertext.as_slice()).unwrap();
-            black_box(decaps.decapsulate(&ciphertext).unwrap());
+            let (decaps, encaps) = MlKem768::generate_keypair();
+            let encaps_encoded = encaps.to_bytes();
+            let encaps = EncapsulationKey::new(&encaps_encoded).unwrap();
+            let (ciphertext, _secret) = encaps.encapsulate();
+            black_box(decaps.decapsulate(&ciphertext));
         });
     });
 
