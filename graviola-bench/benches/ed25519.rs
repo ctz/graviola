@@ -37,9 +37,10 @@ fn keygen(c: &mut Criterion) {
     group.bench_function("dalek", |b| {
         use ed25519_dalek::SigningKey;
         use ed25519_dalek::pkcs8::EncodePrivateKey;
+        use getrandom::{SysRng, rand_core::UnwrapErr};
 
         b.iter(|| {
-            let key = SigningKey::generate(&mut rand_core::OsRng);
+            let key = SigningKey::generate(&mut UnwrapErr(SysRng));
             black_box(key.to_pkcs8_der().unwrap());
         });
     });
@@ -133,7 +134,8 @@ fn sign(c: &mut Criterion) {
 
     group.bench_function("dalek", |b| {
         use ed25519_dalek::{Signature, Signer, SigningKey};
-        let signing_key = SigningKey::generate(&mut rand_core::OsRng);
+        use getrandom::{SysRng, rand_core::UnwrapErr};
+        let signing_key = SigningKey::generate(&mut UnwrapErr(SysRng));
 
         b.iter(|| {
             let _sig: Signature = signing_key.sign(message);

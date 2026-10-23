@@ -7,10 +7,10 @@ fn test_rc_chacha(
     aad: &[u8],
     plain: &[u8],
 ) {
-    use chacha20poly1305::AeadInPlace;
+    use chacha20poly1305::AeadInOut;
     let mut ct = plain.to_vec();
     let _tag = key
-        .encrypt_in_place_detached(nonce.into(), aad, &mut ct)
+        .encrypt_inout_detached(nonce.into(), aad, ct.as_mut_slice().into())
         .unwrap();
 }
 

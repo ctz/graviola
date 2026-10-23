@@ -84,9 +84,10 @@ fn ecdh(c: &mut Criterion) {
     group.bench_function("p256-rustcrypto", |b| {
         use p256::PublicKey;
         use p256::ecdh::EphemeralSecret;
+        use p256::elliptic_curve::Generate;
 
         b.iter(|| {
-            let our_private_key = EphemeralSecret::random(&mut rand_core::OsRng);
+            let our_private_key = EphemeralSecret::generate();
             black_box(our_private_key.public_key());
 
             let peer = PublicKey::from_sec1_bytes(PUBLIC_KEY).unwrap();
@@ -147,9 +148,10 @@ fn keygen(c: &mut Criterion) {
 
     group.bench_function("p256-rustcrypto", |b| {
         use p256::ecdh::EphemeralSecret;
+        use p256::elliptic_curve::Generate;
 
         b.iter(|| {
-            let our_private_key = EphemeralSecret::random(&mut rand_core::OsRng);
+            let our_private_key = EphemeralSecret::generate();
             black_box(our_private_key.public_key());
         });
     });
@@ -265,7 +267,8 @@ fn ecdsa_sign(c: &mut Criterion) {
 
     group.bench_function("rustcrypto", |b| {
         use p256::ecdsa::{Signature, SigningKey, signature::Signer};
-        let signing_key = SigningKey::random(&mut rand_core::OsRng);
+        use p256::elliptic_curve::Generate;
+        let signing_key = SigningKey::generate();
 
         b.iter(|| {
             let _sig: Signature = signing_key.sign(message);

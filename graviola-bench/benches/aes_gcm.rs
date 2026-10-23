@@ -25,18 +25,18 @@ fn test_aws_aes_gcm(
 }
 
 fn test_rc_aes128_gcm(key: &aes_gcm::Aes128Gcm, nonce: &[u8; 12], aad: &[u8], plain: &[u8]) {
-    use aes_gcm::AeadInPlace;
+    use aes_gcm::AeadInOut;
     let mut ct = plain.to_vec();
     let _tag = key
-        .encrypt_in_place_detached(nonce.into(), aad, &mut ct)
+        .encrypt_inout_detached(nonce.into(), aad, ct.as_mut_slice().into())
         .unwrap();
 }
 
 fn test_rc_aes256_gcm(key: &aes_gcm::Aes256Gcm, nonce: &[u8; 12], aad: &[u8], plain: &[u8]) {
-    use aes_gcm::AeadInPlace;
+    use aes_gcm::AeadInOut;
     let mut ct = plain.to_vec();
     let _tag = key
-        .encrypt_in_place_detached(nonce.into(), aad, &mut ct)
+        .encrypt_inout_detached(nonce.into(), aad, ct.as_mut_slice().into())
         .unwrap();
 }
 
