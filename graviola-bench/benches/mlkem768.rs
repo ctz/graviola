@@ -2,7 +2,6 @@ mod criterion;
 use std::hint::black_box;
 
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
-use rand_core::RngCore;
 
 #[cfg(all(feature = "__bench_openssl", target_family = "unix"))]
 mod ossl {
@@ -124,7 +123,7 @@ fn mlkem768_keygen(c: &mut Criterion) {
 
         b.iter(|| {
             let mut rand = [0u8; 64];
-            rand_core::OsRng.fill_bytes(&mut rand);
+            getrandom::fill(&mut rand).unwrap();
             black_box(mlkem768::generate_key_pair(rand).into_parts());
         });
     });
@@ -193,14 +192,14 @@ fn mlkem768_encaps(c: &mut Criterion) {
         use libcrux_ml_kem::mlkem768;
 
         let mut rand = [0u8; 64];
-        rand_core::OsRng.fill_bytes(&mut rand);
+        getrandom::fill(&mut rand).unwrap();
         let (_, encaps) = mlkem768::generate_key_pair(rand).into_parts();
         let encaps_bytes = encaps.as_slice().to_vec();
 
         b.iter(|| {
             let encaps = mlkem768::MlKem768PublicKey::try_from(encaps_bytes.as_slice()).unwrap();
             let mut rand = [0u8; 32];
-            rand_core::OsRng.fill_bytes(&mut rand);
+            getrandom::fill(&mut rand).unwrap();
             black_box(mlkem768::encapsulate(&encaps, rand))
         });
     });
@@ -264,11 +263,11 @@ fn mlkem768_decaps(c: &mut Criterion) {
         use libcrux_ml_kem::mlkem768;
 
         let mut rand = [0u8; 64];
-        rand_core::OsRng.fill_bytes(&mut rand);
+        getrandom::fill(&mut rand).unwrap();
         let (decaps, encaps) = mlkem768::generate_key_pair(rand).into_parts();
 
         let mut rand = [0u8; 32];
-        rand_core::OsRng.fill_bytes(&mut rand);
+        getrandom::fill(&mut rand).unwrap();
         let (ciphertext, _secret) = mlkem768::encapsulate(&encaps, rand);
         let ciphertext = ciphertext.as_slice().to_vec();
 
@@ -346,13 +345,13 @@ fn mlkem768_combined(c: &mut Criterion) {
 
         b.iter(|| {
             let mut rand = [0u8; 64];
-            rand_core::OsRng.fill_bytes(&mut rand);
+            getrandom::fill(&mut rand).unwrap();
             let (decaps, encaps) = mlkem768::generate_key_pair(rand).into_parts();
             let encaps_encoded = encaps.as_slice();
             let encaps = mlkem768::MlKem768PublicKey::from(encaps_encoded);
 
             let mut rand = [0u8; 32];
-            rand_core::OsRng.fill_bytes(&mut rand);
+            getrandom::fill(&mut rand).unwrap();
             let (ciphertext, _secret) = mlkem768::encapsulate(&encaps, rand);
             black_box(mlkem768::decapsulate(&decaps, &ciphertext));
         });

@@ -71,7 +71,7 @@ fn x25519(c: &mut Criterion) {
 
     group.bench_function("dalek", |b| {
         b.iter(|| {
-            let our_priv = x25519_dalek::EphemeralSecret::random_from_rng(rand_core::OsRng);
+            let our_priv = x25519_dalek::EphemeralSecret::random();
             let our_pub: x25519_dalek::PublicKey = (&our_priv).into();
             black_box(our_pub);
 

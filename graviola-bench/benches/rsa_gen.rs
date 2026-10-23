@@ -31,10 +31,11 @@ fn rsa_key_generation(c: &mut Criterion) {
     });
 
     group.bench_function("rustcrypto", |b| {
+        use getrandom::{SysRng, rand_core::UnwrapErr};
         use rsa::RsaPrivateKey;
 
         b.iter(|| {
-            black_box(RsaPrivateKey::new(&mut rand_core::OsRng, 2048).unwrap());
+            black_box(RsaPrivateKey::new(&mut UnwrapErr(SysRng), 2048).unwrap());
         })
     });
 }
