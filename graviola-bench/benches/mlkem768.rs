@@ -4,10 +4,111 @@ use std::hint::black_box;
 use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 use rand_core::RngCore;
 
+#[cfg(all(feature = "__bench_openssl", target_family = "unix"))]
+mod ossl {
+    //! The openssl crate does not yet wrap ML-KEM keygen/encaps/decaps.
+
+    use std::ptr;
+
+    use foreign_types::ForeignType;
+    use openssl::pkey::{HasPrivate, HasPublic, PKey, Private};
+    use openssl::pkey_ctx::PkeyCtx;
+
+    pub const CIPHERTEXT_LEN: usize = 1088;
+    pub const SECRET_LEN: usize = 32;
+
+    /// ML-KEM requires OpenSSL 3.5 or later at runtime.
+    pub fn available() -> bool {
+        let ok = openssl::version::number() >= 0x3050_0000;
+        if !ok {
+            eprintln!(
+                "skipping openssl ML-KEM benchmark: {} is too old",
+                openssl::version::version()
+            );
+        }
+        ok
+    }
+
+    pub fn keygen() -> PKey<Private> {
+        unsafe {
+            let ctx = openssl_sys::EVP_PKEY_CTX_new_from_name(
+                ptr::null_mut(),
+                c"ML-KEM-768".as_ptr(),
+                ptr::null(),
+            );
+            assert!(!ctx.is_null());
+            let mut ctx = PkeyCtx::<()>::from_ptr(ctx);
+            ctx.keygen_init().unwrap();
+            ctx.keygen().unwrap()
+        }
+    }
+
+    pub fn encaps<T: HasPublic>(key: &PKey<T>) -> ([u8; CIPHERTEXT_LEN], [u8; SECRET_LEN]) {
+        let ctx = PkeyCtx::new(key).unwrap();
+        let mut ciphertext = [0u8; CIPHERTEXT_LEN];
+        let mut secret = [0u8; SECRET_LEN];
+        let mut ciphertext_len = ciphertext.len();
+        let mut secret_len = secret.len();
+        unsafe {
+            assert_eq!(
+                openssl_sys::EVP_PKEY_encapsulate_init(ctx.as_ptr(), ptr::null()),
+                1
+            );
+            assert_eq!(
+                openssl_sys::EVP_PKEY_encapsulate(
+                    ctx.as_ptr(),
+                    ciphertext.as_mut_ptr(),
+                    &mut ciphertext_len,
+                    secret.as_mut_ptr(),
+                    &mut secret_len,
+                ),
+                1
+            );
+        }
+        assert_eq!(ciphertext_len, CIPHERTEXT_LEN);
+        assert_eq!(secret_len, SECRET_LEN);
+        (ciphertext, secret)
+    }
+
+    pub fn decaps<T: HasPrivate>(key: &PKey<T>, ciphertext: &[u8]) -> [u8; SECRET_LEN] {
+        let ctx = PkeyCtx::new(key).unwrap();
+        let mut secret = [0u8; SECRET_LEN];
+        let mut secret_len = secret.len();
+        unsafe {
+            assert_eq!(
+                openssl_sys::EVP_PKEY_decapsulate_init(ctx.as_ptr(), ptr::null()),
+                1
+            );
+            assert_eq!(
+                openssl_sys::EVP_PKEY_decapsulate(
+                    ctx.as_ptr(),
+                    secret.as_mut_ptr(),
+                    &mut secret_len,
+                    ciphertext.as_ptr(),
+                    ciphertext.len(),
+                ),
+                1
+            );
+        }
+        assert_eq!(secret_len, SECRET_LEN);
+        secret
+    }
+}
+
 // client first operation
 fn mlkem768_keygen(c: &mut Criterion) {
     let mut group = c.benchmark_group("mlkem768-keygen");
     group.throughput(Throughput::Elements(1));
+
+    #[cfg(all(feature = "__bench_openssl", target_family = "unix"))]
+    if ossl::available() {
+        group.bench_function("openssl", |b| {
+            b.iter(|| {
+                let decaps = ossl::keygen();
+                black_box(decaps.raw_public_key().unwrap())
+            })
+        });
+    }
 
     group.bench_function("aws-lc-rs", |b| {
         use aws_lc_rs::kem;
@@ -49,6 +150,26 @@ fn mlkem768_keygen(c: &mut Criterion) {
 fn mlkem768_encaps(c: &mut Criterion) {
     let mut group = c.benchmark_group("mlkem768-encaps");
     group.throughput(Throughput::Elements(1));
+
+    #[cfg(all(feature = "__bench_openssl", target_family = "unix"))]
+    if ossl::available() {
+        group.bench_function("openssl", |b| {
+            use openssl::pkey::{KeyType, PKey};
+
+            let encaps_bytes = ossl::keygen().raw_public_key().unwrap();
+
+            b.iter(|| {
+                let encaps = PKey::public_key_from_raw_bytes_ex(
+                    None,
+                    KeyType::ML_KEM_768,
+                    None,
+                    &encaps_bytes,
+                )
+                .unwrap();
+                black_box(ossl::encaps(&encaps))
+            })
+        });
+    }
 
     group.bench_function("aws-lc-rs", |b| {
         use aws_lc_rs::kem;
@@ -120,6 +241,16 @@ fn mlkem768_decaps(c: &mut Criterion) {
     let mut group = c.benchmark_group("mlkem768-decaps");
     group.throughput(Throughput::Elements(1));
 
+    #[cfg(all(feature = "__bench_openssl", target_family = "unix"))]
+    if ossl::available() {
+        group.bench_function("openssl", |b| {
+            let decaps = ossl::keygen();
+            let (ciphertext, _secret) = ossl::encaps(&decaps);
+
+            b.iter(|| black_box(ossl::decaps(&decaps, &ciphertext)))
+        });
+    }
+
     group.bench_function("aws-lc-rs", |b| {
         use aws_lc_rs::kem;
 
@@ -181,6 +312,27 @@ fn mlkem768_decaps(c: &mut Criterion) {
 fn mlkem768_combined(c: &mut Criterion) {
     let mut group = c.benchmark_group("mlkem768-combined");
     group.throughput(Throughput::Elements(1));
+
+    #[cfg(all(feature = "__bench_openssl", target_family = "unix"))]
+    if ossl::available() {
+        group.bench_function("openssl", |b| {
+            use openssl::pkey::{KeyType, PKey};
+
+            b.iter(|| {
+                let decaps = ossl::keygen();
+                let encaps_encoded = decaps.raw_public_key().unwrap();
+                let encaps = PKey::public_key_from_raw_bytes_ex(
+                    None,
+                    KeyType::ML_KEM_768,
+                    None,
+                    &encaps_encoded,
+                )
+                .unwrap();
+                let (ciphertext, _secret) = ossl::encaps(&encaps);
+                black_box(ossl::decaps(&decaps, &ciphertext))
+            })
+        });
+    }
 
     group.bench_function("aws-lc-rs", |b| {
         use aws_lc_rs::kem;
