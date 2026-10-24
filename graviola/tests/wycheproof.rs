@@ -716,7 +716,8 @@ fn test_ed25519_verify() {
 
             let result = key.verify(&test.sig, &test.msg);
             match (test.result, result) {
-                (ExpectedResult::Valid, Ok(())) => {}
+                // "acceptable" cases are small- and mixed-order public keys
+                (ExpectedResult::Valid | ExpectedResult::Acceptable, Ok(())) => {}
                 (
                     ExpectedResult::Invalid | ExpectedResult::Acceptable,
                     Err(Error::BadSignature),
