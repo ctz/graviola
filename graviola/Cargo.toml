@@ -15,7 +15,7 @@ __ctgrind = ["dep:crabgrind"]
 
 [dependencies]
 cfg-if = "1"
-getrandom = "0.3"
+getrandom = "0.4"
 crabgrind = { version = "0.2.6", optional = true }
 
 [dev-dependencies]
