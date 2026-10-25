@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 graviola = { path = "../graviola" }
-codspeed-criterion-compat = { optional = true, version = "4" }
+codspeed-criterion-compat = { optional = true, version = "6" }
 
 [dev-dependencies]
 aes-gcm = "0.11"
