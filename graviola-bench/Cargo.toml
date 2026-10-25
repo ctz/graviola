@@ -16,7 +16,7 @@ ed25519-dalek = { version = "3", features = ["alloc", "pkcs8", "rand_core"] }
 getrandom = { version = "0.4", features = ["sys_rng"] }
 hex = { version = "0.4", features = ["serde"] }
 hmac = "0.13"
-libcrux-ml-kem = { version = "0.0.9", default-features = false, features = ["mlkem768", "alloc"] }
+libcrux-ml-kem = { version = "0.0.11", default-features = false, features = ["mlkem768", "alloc"] }
 ml-kem = { version = "0.3", features = ["getrandom"] }
 p256 = { version = "0.14", features = ["ecdh", "getrandom"] }
 p384 = { version = "0.14", features = ["ecdh", "getrandom"] }
