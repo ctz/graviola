@@ -104,12 +104,19 @@ impl ChaCha20Poly1305 {
         poly.add_bytes(aad);
         pad(&mut poly, aad.len());
 
-        if encrypt {
-            chacha.cipher(cipher_inout);
-            poly.add_bytes(cipher_inout);
-        } else {
-            poly.add_bytes(cipher_inout);
-            chacha.cipher(cipher_inout);
+        // Progress through the input in chunks, computing ChaCha20 and Poly1305
+        // for each chunk for better cache locality. The chunk size is somewhat
+        // large to accommodate implementations such as the x86_64 ChaCha20 that
+        // are optimised to do SIMD processing of multiple rounds at a time.
+        const CHUNK_SIZE: usize = 512;
+        for chunk in cipher_inout.chunks_mut(CHUNK_SIZE) {
+            if encrypt {
+                chacha.cipher(chunk);
+                poly.add_bytes(chunk);
+            } else {
+                poly.add_bytes(chunk);
+                chacha.cipher(chunk);
+            }
         }
         pad(&mut poly, cipher_inout.len());
 
