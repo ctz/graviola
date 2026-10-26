@@ -167,10 +167,14 @@ encapsulation and decapsulation) is written in Rust.
 Compression and decompression are division-free, avoiding the variable-time
 division behind the KyberSlash attacks.
 
-We achieve good performance by using a 4-wide Keccak-f permutation for
-`SampleNTT()` and `SamplePolyCBD()`.  On x86-64 this uses an AVX2 4-wide
-implementation, on aarch64 it uses a Neon+SHA3 2-wide implementation twice
-(for a bit of mechanical sympathy with ARM's limited vector size).
+For sampling, which is a significant factor in ML-KEM performance, we
+have some different options depending on CPU features:
+
+- We have a `SampleNTT()` which does 8-wide Keccak-f permutation followed by
+  rejection sampling using AVX-512 (F, BW, VBMI, VBMI2) on x86-64.
+- We have a 4-wide Keccak-f using AVX2 on x86-64.
+- We have a 2-wide Keccak-f using Neon+SHA3 on aarch64.
+- We have a basic Keccak-f using scalar instructions on aarch64.
 
 ### Symmetric cryptography
 SHA256 has straightforward implementations using hashing intrinsics
