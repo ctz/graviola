@@ -4,6 +4,7 @@
 use core::ops::{Deref, DerefMut};
 
 use crate::low::ct_equal;
+use crate::mid::sha1;
 use crate::mid::sha2;
 
 /// Output from a hash function.
@@ -11,6 +12,8 @@ use crate::mid::sha2;
 /// This has one variant per supported hash function.
 #[derive(Clone, Debug)]
 pub enum HashOutput {
+    /// Output from SHA1
+    Sha1([u8; sha1::Sha1Context::OUTPUT_SZ]),
     /// Output from SHA256
     Sha256([u8; sha2::Sha256Context::OUTPUT_SZ]),
     /// Output from SHA384
@@ -43,6 +46,7 @@ impl HashOutput {
 impl PartialEq for HashOutput {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
+            (Self::Sha1(s), Self::Sha1(o)) => ct_equal(s, o),
             (Self::Sha256(s), Self::Sha256(o)) => ct_equal(s, o),
             (Self::Sha384(s), Self::Sha384(o)) => ct_equal(s, o),
             (Self::Sha512(s), Self::Sha512(o)) => ct_equal(s, o),
@@ -54,6 +58,7 @@ impl PartialEq for HashOutput {
 impl AsRef<[u8]> for HashOutput {
     fn as_ref(&self) -> &[u8] {
         match self {
+            Self::Sha1(v) => v,
             Self::Sha256(v) => v,
             Self::Sha384(v) => v,
             Self::Sha512(v) => v,
@@ -64,6 +69,7 @@ impl AsRef<[u8]> for HashOutput {
 impl AsMut<[u8]> for HashOutput {
     fn as_mut(&mut self) -> &mut [u8] {
         match self {
+            Self::Sha1(v) => v,
             Self::Sha256(v) => v,
             Self::Sha384(v) => v,
             Self::Sha512(v) => v,
@@ -259,11 +265,86 @@ impl HashContext for Sha512Context {
     }
 }
 
+/// This is SHA1.
+///
+/// Do not use SHA1 for new applications or for applications involving signatures.
+///
+/// This is described in [FIPS180-1](https://nvlpubs.nist.gov/nistpubs/Legacy/FIPS/fipspub180-1.pdf).
+#[derive(Clone)]
+pub struct Sha1;
+
+impl Hash for Sha1 {
+    type Context = Sha1Context;
+
+    fn new() -> Self::Context {
+        Sha1Context(sha1::Sha1Context::new())
+    }
+
+    fn hash(bytes: &[u8]) -> HashOutput {
+        let mut ctx = Self::new();
+        ctx.update(bytes);
+        ctx.finish()
+    }
+
+    fn zeroed_block() -> HashBlock {
+        HashBlock::new(sha1::Sha1Context::BLOCK_SZ)
+    }
+
+    fn zeroed_output() -> HashOutput {
+        HashOutput::Sha1([0u8; sha1::Sha1Context::OUTPUT_SZ])
+    }
+}
+
+#[derive(Clone)]
+pub struct Sha1Context(sha1::Sha1Context);
+
+impl HashContext for Sha1Context {
+    fn update(&mut self, bytes: &[u8]) {
+        self.0.update(bytes)
+    }
+
+    fn finish(self) -> HashOutput {
+        HashOutput::Sha1(self.0.finish())
+    }
+}
+
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::test::*;
+
+    #[test]
+    fn equality() {
+        let s1a = Sha1::hash(b"a");
+        let s1b = Sha1::hash(b"b");
+        let s256a = Sha256::hash(b"a");
+        let s256b = Sha256::hash(b"b");
+        let s384a = Sha384::hash(b"a");
+        let s384b = Sha384::hash(b"b");
+        let s512a = Sha512::hash(b"a");
+        let s512b = Sha512::hash(b"b");
+
+        assert_eq!(s1a, Sha1::hash(b"a"));
+        for other in [&s1b, &s256a, &s384a, &s512a] {
+            assert_ne!(&s1a, other);
+        }
+
+        assert_eq!(s256a, Sha256::hash(b"a"));
+        for other in [&s1a, &s256b, &s384a, &s512a] {
+            assert_ne!(&s256a, other);
+        }
+
+        assert_eq!(s384a, Sha384::hash(b"a"));
+        for other in [&s1a, &s256a, &s384b, &s512a] {
+            assert_ne!(&s384a, other);
+        }
+
+        assert_eq!(s512a, Sha512::hash(b"a"));
+        for other in [&s1a, &s256a, &s384a, &s512b] {
+            assert_ne!(&s512a, other);
+        }
+    }
 
     #[test]
     fn cavp() {
