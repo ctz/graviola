@@ -23,7 +23,7 @@ unsafe fn sample_poly_ntt_8x_avx512(
     inputs: &[[u8; 40]; 8],
     outputs: &mut [i16; 256 * 8],
     tail_fn: fn(&mut [u64; 25], &mut [i16]),
-    _proof: HaveAvx512ForMlKem,
+    proof: HaveAvx512ForMlKem,
 ) {
     let mut keccak_states = [_mm512_setzero_si512(); 25];
 
@@ -51,12 +51,12 @@ unsafe fn sample_poly_ntt_8x_avx512(
     // Like the generic version, we generate three squeezes of data to
     // sample coefficients from.  This gives up to 336 candidates for 256 output
     // coefficients.
-    _sha3_keccak8_f1600(&mut keccak_states, &RC);
-    _squeeze_rate_and_reject(&keccak_states, outputs, &mut left);
-    _sha3_keccak8_f1600(&mut keccak_states, &RC);
-    _squeeze_rate_and_reject(&keccak_states, outputs, &mut left);
-    _sha3_keccak8_f1600(&mut keccak_states, &RC);
-    _squeeze_rate_and_reject(&keccak_states, outputs, &mut left);
+    _sha3_keccak8_f1600(&mut keccak_states, &RC, proof);
+    _squeeze_rate_and_reject(&keccak_states, outputs, &mut left, proof);
+    _sha3_keccak8_f1600(&mut keccak_states, &RC, proof);
+    _squeeze_rate_and_reject(&keccak_states, outputs, &mut left, proof);
+    _sha3_keccak8_f1600(&mut keccak_states, &RC, proof);
+    _squeeze_rate_and_reject(&keccak_states, outputs, &mut left, proof);
 
     for (i, (left, output)) in left
         .iter()
@@ -71,7 +71,11 @@ unsafe fn sample_poly_ntt_8x_avx512(
 }
 
 #[target_feature(enable = "avx512f")]
-pub(super) fn _sha3_keccak8_f1600(state: &mut [__m512i; 25], rc: &[u64; 24]) {
+pub(super) fn _sha3_keccak8_f1600(
+    state: &mut [__m512i; 25],
+    rc: &[u64; 24],
+    _proof: HaveAvx512ForMlKem,
+) {
     for round_constant in rc {
         // Theta step.
         //
@@ -209,6 +213,7 @@ fn _squeeze_rate_and_reject(
     state: &[__m512i; 25],
     output: &mut [i16; 256 * 8],
     left: &mut [usize; 8],
+    _proof: HaveAvx512ForMlKem,
 ) {
     let mut rate = [[0u64; 8]; RATE_WORDS];
     for (lane, out) in rate.iter_mut().enumerate() {

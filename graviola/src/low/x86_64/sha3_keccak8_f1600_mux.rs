@@ -12,7 +12,7 @@ use super::cpu::HaveAvx512ForMlKem;
 pub(crate) fn sha3_keccak8_f1600(a: &mut [[u64; 25]; 8], rc: &[u64; 24]) {
     match HaveAvx512ForMlKem::check() {
         // SAFETY: `HaveAvx512ForMlKem` checks for required target features
-        Some(_) => unsafe { sha3_keccak8_f1600_avx512(a, rc) },
+        Some(proof) => unsafe { sha3_keccak8_f1600_avx512(a, rc, proof) },
         None => {
             for a in a.as_chunks_mut::<4>().0.iter_mut() {
                 super::sha3_keccak4_f1600_shim::sha3_keccak4_f1600(a, rc);
@@ -22,7 +22,7 @@ pub(crate) fn sha3_keccak8_f1600(a: &mut [[u64; 25]; 8], rc: &[u64; 24]) {
 }
 
 #[target_feature(enable = "avx512f")]
-fn sha3_keccak8_f1600_avx512(a: &mut [[u64; 25]; 8], rc: &[u64; 24]) {
+fn sha3_keccak8_f1600_avx512(a: &mut [[u64; 25]; 8], rc: &[u64; 24], proof: HaveAvx512ForMlKem) {
     // Transpose into one register per lane, holding that lane for all eight states.
     let mut states = [_mm512_setzero_si512(); 25];
     for (lane, state) in states.iter_mut().enumerate() {
@@ -38,7 +38,7 @@ fn sha3_keccak8_f1600_avx512(a: &mut [[u64; 25]; 8], rc: &[u64; 24]) {
         );
     }
 
-    super::mlkem768_sample_poly_ntt_8x::_sha3_keccak8_f1600(&mut states, rc);
+    super::mlkem768_sample_poly_ntt_8x::_sha3_keccak8_f1600(&mut states, rc, proof);
 
     for (lane, state) in states.iter().enumerate() {
         let mut words = [0u64; 8];
