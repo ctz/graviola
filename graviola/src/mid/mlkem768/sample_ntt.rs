@@ -8,14 +8,14 @@ use crate::{
 };
 
 pub(super) fn sample_ntt(rho: &[u8; 32]) -> [i16; K * K * N] {
-    _sample_ntt::<false>(rho)
+    sample_ntt_internal::<false>(rho)
 }
 
 pub(super) fn sample_ntt_transposed(rho: &[u8; 32]) -> [i16; K * K * N] {
-    _sample_ntt::<true>(rho)
+    sample_ntt_internal::<true>(rho)
 }
 
-fn _sample_ntt<const TRANSPOSED: bool>(rho: &[u8; 32]) -> [i16; K * K * N] {
+fn sample_ntt_internal<const TRANSPOSED: bool>(rho: &[u8; 32]) -> [i16; K * K * N] {
     let mut r = [0; _];
 
     // We have K * K polynomials to generate.  In this case, K := 3, so 9.
@@ -66,10 +66,15 @@ fn sample_poly_ntt_8x(rho: &[u8; 32], inputs: &[[u8; 2]; 8], outputs: &mut [i16;
         buf_ij
     });
 
-    low::mlkem768_sample_poly_ntt_8x(&inputs, outputs, _sample_poly_ntt_8x, _sample_poly_ntt_tail)
+    low::mlkem768_sample_poly_ntt_8x(
+        &inputs,
+        outputs,
+        sample_poly_ntt_8x_fallback,
+        sample_poly_ntt_tail,
+    )
 }
 
-fn _sample_poly_ntt_8x(inputs: &[[u8; 40]; 8], outputs: &mut [i16; N * 8]) {
+fn sample_poly_ntt_8x_fallback(inputs: &[[u8; 40]; 8], outputs: &mut [i16; N * 8]) {
     let (input_quads, _) = inputs.as_chunks::<4>();
     let (output_quads, _) = outputs.as_chunks_mut::<{ N * 4 }>();
     for (inputs, outputs) in input_quads.iter().zip(output_quads.iter_mut()) {
@@ -96,7 +101,7 @@ fn _sample_poly_ntt_8x(inputs: &[[u8; 40]; 8], outputs: &mut [i16; N * 8]) {
     }
 }
 
-fn _sample_poly_ntt_tail(tail_sponge: &mut [u64; 25], tail: &mut [i16]) {
+fn sample_poly_ntt_tail(tail_sponge: &mut [u64; 25], tail: &mut [i16]) {
     Shake128ForMlKem {
         sponge: SqueezingSpongeObligation(*tail_sponge).restitute(),
     }
