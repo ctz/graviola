@@ -21,6 +21,23 @@ pub(crate) fn sha3_keccak8_f1600(a: &mut [[u64; 25]; 8], rc: &[u64; 24]) {
     }
 }
 
+/// Compute Keccak-f1600 on the first six states in `a`.
+///
+/// This uses AVX-512 where available, otherwise falls back to a 4-way permutation
+/// and a 2-of-4-way permutation.
+#[inline]
+pub(crate) fn sha3_keccak6of8_f1600(a: &mut [[u64; 25]; 8], rc: &[u64; 24]) {
+    match HaveAvx512ForMlKem::check() {
+        // SAFETY: `HaveAvx512ForMlKem` checks for required target features
+        Some(proof) => unsafe { sha3_keccak8_f1600_avx512(a, rc, proof) },
+        None => {
+            let (first, second) = a.split_at_mut(4);
+            super::sha3_keccak4_f1600_shim::sha3_keccak4_f1600(first.try_into().unwrap(), rc);
+            super::sha3_keccak2of4_f1600::sha3_keccak2of4_f1600(second.try_into().unwrap(), rc);
+        }
+    }
+}
+
 #[target_feature(enable = "avx512f")]
 fn sha3_keccak8_f1600_avx512(a: &mut [[u64; 25]; 8], rc: &[u64; 24], proof: HaveAvx512ForMlKem) {
     // Transpose into one register per lane, holding that lane for all eight states.
