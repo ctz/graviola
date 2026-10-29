@@ -24,8 +24,8 @@ impl PublicKey {
     /// Create an P-256 [`PublicKey`] from a byte slice.
     ///
     /// This must be exactly 65 bytes in length, using the X9.62
-    /// uncompressed encoding.  An error is returned if the point is
-    /// not on the curve.
+    /// uncompressed encoding.  An error is returned if a coordinate
+    /// is not below the field prime, or the point is not on the curve.
     pub fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         let _entry = low::Entry::new_public();
         let point = AffineMontPoint::from_x962_uncompressed(bytes)?;
@@ -261,10 +261,17 @@ impl AffineMontPoint {
         let (_, xy) = bytes.split_at(1);
         let (x, y) = xy.split_at(FieldElement::BYTES);
 
-        let point = Self::from_xy(
-            FieldElement(util::big_endian_slice_to_u64x4(x).unwrap()).as_mont(),
-            FieldElement(util::big_endian_slice_to_u64x4(y).unwrap()).as_mont(),
-        );
+        let x = FieldElement(util::big_endian_slice_to_u64x4(x).unwrap());
+        let y = FieldElement(util::big_endian_slice_to_u64x4(y).unwrap());
+        let (x_mont, y_mont) = (x.as_mont(), y.as_mont());
+
+        // Conversion to montgomery form reduces mod p, so a coordinate at or
+        // above p would otherwise give the point a second encoding.
+        if !x_mont.demont().public_eq(&x) || !y_mont.demont().public_eq(&y) {
+            return Err(Error::NotOnCurve);
+        }
+
+        let point = Self::from_xy(x_mont, y_mont);
 
         if !point.on_curve() {
             return Err(Error::NotOnCurve);
@@ -1127,6 +1134,35 @@ mod tests {
         println!("{CURVE_GENERATOR:x?}");
         assert!(CURVE_GENERATOR.on_curve());
         println!("demont {:x?}", CURVE_GENERATOR.as_bytes_uncompressed());
+    }
+
+    #[test]
+    fn public_key_coordinates_below_p() {
+        // each pair is (reduced, unreduced): the reduced point is on the curve,
+        // so only the range check rejects the unreduced encoding
+        for (reduced, unreduced) in [
+            // x = p, reduces to x = 0
+            (
+                "04000000000000000000000000000000000000000000000000000000000000000066485c780e2f83d72433bd5d84a06bb6541c2af31dae871728bf856a174f93f4",
+                "04ffffffff00000001000000000000000000000000ffffffffffffffffffffffff66485c780e2f83d72433bd5d84a06bb6541c2af31dae871728bf856a174f93f4",
+            ),
+            // x = p + 5, reduces to x = 5
+            (
+                "040000000000000000000000000000000000000000000000000000000000000005459243b9aa581806fe913bce99817ade11ca503c64d9a3c533415c083248fbcc",
+                "04ffffffff00000001000000000000000000000001000000000000000000000004459243b9aa581806fe913bce99817ade11ca503c64d9a3c533415c083248fbcc",
+            ),
+            // y = p + 5, reduces to y = 5
+            (
+                "04d7325d7646cd60d80a92738ceb345f844cffaf35841022cab176f692de8de1d70000000000000000000000000000000000000000000000000000000000000005",
+                "04d7325d7646cd60d80a92738ceb345f844cffaf35841022cab176f692de8de1d7ffffffff00000001000000000000000000000001000000000000000000000004",
+            ),
+        ] {
+            PublicKey::from_x962_uncompressed(&hex::decode(reduced).unwrap()).unwrap();
+            assert_eq!(
+                PublicKey::from_x962_uncompressed(&hex::decode(unreduced).unwrap()).unwrap_err(),
+                Error::NotOnCurve
+            );
+        }
     }
 
     #[test]

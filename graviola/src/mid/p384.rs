@@ -24,8 +24,8 @@ impl PublicKey {
     /// Create an P-384 [`PublicKey`] from a byte slice.
     ///
     /// This must be exactly 97 bytes in length, using the X9.62
-    /// uncompressed encoding.  An error is returned if the point is
-    /// not on the curve.
+    /// uncompressed encoding.  An error is returned if a coordinate
+    /// is not below the field prime, or the point is not on the curve.
     pub fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error> {
         let _entry = low::Entry::new_public();
         let point = AffineMontPoint::from_x962_uncompressed(bytes)?;
@@ -261,10 +261,17 @@ impl AffineMontPoint {
         let (_, xy) = bytes.split_at(1);
         let (x, y) = xy.split_at(FieldElement::BYTES);
 
-        let point = Self::from_xy(
-            FieldElement(util::big_endian_slice_to_u64x6(x).unwrap()).as_mont(),
-            FieldElement(util::big_endian_slice_to_u64x6(y).unwrap()).as_mont(),
-        );
+        let x = FieldElement(util::big_endian_slice_to_u64x6(x).unwrap());
+        let y = FieldElement(util::big_endian_slice_to_u64x6(y).unwrap());
+        let (x_mont, y_mont) = (x.as_mont(), y.as_mont());
+
+        // Conversion to montgomery form reduces mod p, so a coordinate at or
+        // above p would otherwise give the point a second encoding.
+        if !x_mont.demont().public_eq(&x) || !y_mont.demont().public_eq(&y) {
+            return Err(Error::NotOnCurve);
+        }
+
+        let point = Self::from_xy(x_mont, y_mont);
 
         if !point.on_curve() {
             return Err(Error::NotOnCurve);
@@ -971,6 +978,35 @@ mod tests {
         println!("{CURVE_GENERATOR:x?}");
         assert!(CURVE_GENERATOR.on_curve());
         println!("demont {:x?}", CURVE_GENERATOR.as_bytes_uncompressed());
+    }
+
+    #[test]
+    fn public_key_coordinates_below_p() {
+        // each pair is (reduced, unreduced): the reduced point is on the curve,
+        // so only the range check rejects the unreduced encoding
+        for (reduced, unreduced) in [
+            // x = p, reduces to x = 0
+            (
+                "04000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000c306610fb0ae5a159cf45c06069f22a6c5eb3641c602d42dea2c4b4f75550793406d80d2b91ad54f9048bd487af1ade1",
+                "04fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000ffffffffc306610fb0ae5a159cf45c06069f22a6c5eb3641c602d42dea2c4b4f75550793406d80d2b91ad54f9048bd487af1ade1",
+            ),
+            // x = p + 2, reduces to x = 2
+            (
+                "040000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000028cdeadbbd04911a3c1931e26df3fa6439dca9c7eb286fbd46fc319f0e2bb780232baf57825fc0c1912ada2fefe84024c",
+                "04fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000001000000018cdeadbbd04911a3c1931e26df3fa6439dca9c7eb286fbd46fc319f0e2bb780232baf57825fc0c1912ada2fefe84024c",
+            ),
+            // y = p + 1, reduces to y = 1
+            (
+                "042261b2bf605c22f2f3aef6338719b2c486388ad5240719a5257315969ef01ba27f0a104c89704773a81fdabee6ab5c78000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001",
+                "042261b2bf605c22f2f3aef6338719b2c486388ad5240719a5257315969ef01ba27f0a104c89704773a81fdabee6ab5c78fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff000000000000000100000000",
+            ),
+        ] {
+            PublicKey::from_x962_uncompressed(&hex::decode(reduced).unwrap()).unwrap();
+            assert_eq!(
+                PublicKey::from_x962_uncompressed(&hex::decode(unreduced).unwrap()).unwrap_err(),
+                Error::NotOnCurve
+            );
+        }
     }
 
     #[test]

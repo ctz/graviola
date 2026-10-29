@@ -70,7 +70,8 @@ pub trait PublicKey<C: Curve + ?Sized> {
     /// `bytes` must be precisely `LEN_BYTES` in length.
     ///
     /// An error is returned for the wrong length, wrong indicator
-    /// byte, or if the resulting point is not on the curve.
+    /// byte, a coordinate not below the field prime, or if the
+    /// resulting point is not on the curve.
     fn from_x962_uncompressed(bytes: &[u8]) -> Result<Self, Error>
     where
         Self: Sized;
