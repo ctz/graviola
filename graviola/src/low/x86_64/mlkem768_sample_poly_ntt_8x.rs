@@ -5,6 +5,7 @@ use core::{arch::x86_64::*, ops::Range};
 
 use super::cpu::HaveAvx512ForMlKem;
 use super::sha3_keccak8_f1600::sha3_keccak8_f1600;
+use crate::low::KECCAK_RC;
 
 pub(crate) fn mlkem768_sample_poly_ntt_8x(
     inputs: &[[u8; 40]; 8],
@@ -52,11 +53,11 @@ unsafe fn sample_poly_ntt_8x_avx512(
     // Like the generic version, we generate three squeezes of data to
     // sample coefficients from.  This gives up to 336 candidates for 256 output
     // coefficients.
-    sha3_keccak8_f1600(&mut keccak_states, &RC, proof);
+    sha3_keccak8_f1600(&mut keccak_states, &KECCAK_RC, proof);
     squeeze_rate_and_reject(&keccak_states, outputs, &mut left, proof);
-    sha3_keccak8_f1600(&mut keccak_states, &RC, proof);
+    sha3_keccak8_f1600(&mut keccak_states, &KECCAK_RC, proof);
     squeeze_rate_and_reject(&keccak_states, outputs, &mut left, proof);
-    sha3_keccak8_f1600(&mut keccak_states, &RC, proof);
+    sha3_keccak8_f1600(&mut keccak_states, &KECCAK_RC, proof);
     squeeze_rate_and_reject(&keccak_states, outputs, &mut left, proof);
 
     for (i, (left, output)) in left
@@ -70,33 +71,6 @@ unsafe fn sample_poly_ntt_8x_avx512(
         }
     }
 }
-
-const RC: [u64; 24] = [
-    0x00000000_00000001,
-    0x00000000_00008082,
-    0x80000000_0000808A,
-    0x80000000_80008000,
-    0x00000000_0000808B,
-    0x00000000_80000001,
-    0x80000000_80008081,
-    0x80000000_00008009,
-    0x00000000_0000008A,
-    0x00000000_00000088,
-    0x00000000_80008009,
-    0x00000000_8000000A,
-    0x00000000_8000808B,
-    0x80000000_0000008B,
-    0x80000000_00008089,
-    0x80000000_00008003,
-    0x80000000_00008002,
-    0x80000000_00000080,
-    0x00000000_0000800A,
-    0x80000000_8000000A,
-    0x80000000_80008081,
-    0x80000000_00008080,
-    0x00000000_80000001,
-    0x80000000_80008008,
-];
 
 /// Extract a single keccak state from the 8-way `states`, where `index` is in `0..8`.
 ///
