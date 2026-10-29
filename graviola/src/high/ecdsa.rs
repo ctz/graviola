@@ -31,14 +31,31 @@ impl<C: Curve> SigningKey<C> {
     }
 
     /// Load an ECDSA private key in PKCS#8 format.
+    ///
+    /// This supports PKCS#8 v1 (RFC 5208) and v2 (RFC 5958, which may include the public key).
+    /// If the encoding includes the alleged public key, this is checked against the actual one.
     pub fn from_pkcs8_der(bytes: &[u8]) -> Result<Self, Error> {
         let _entry = Entry::new_secret();
-        pkcs8::Key::decode(
+        let p8 = pkcs8::Key::decode(
             bytes,
             &asn1::oid::id_ecPublicKey,
             Some(asn1::Any::ObjectId(C::oid())),
-        )
-        .and_then(|k| Self::from_sec1_der(k.private_key()))
+        )?;
+
+        let key = Self::from_sec1_der(p8.private_key())?;
+
+        if let Some(alleged_public_key) = p8.public_key() {
+            let mut actual_public_key_buf = [0u8; MAX_UNCOMPRESSED_PUBLIC_KEY_LEN];
+            let actual_public_key = key
+                .private_key
+                .public_key_encode_uncompressed(&mut actual_public_key_buf)?;
+
+            if alleged_public_key != actual_public_key {
+                return Err(KeyFormatError::MismatchedPkcs8PublicKey.into());
+            }
+        }
+
+        Ok(key)
     }
 
     /// Encode this private key in PKCS#8 DER format.
@@ -403,6 +420,21 @@ mod tests {
             ))
             .err(),
             Some(Error::Asn1Error(asn1::Error::UnhandledEnumValue)),
+        );
+
+        let pkcs8_v2 = include_bytes!("ecdsa/secp256r1.pkcs8v2.der");
+        check_sign_verify::<curve::P256>(
+            SigningKey::<curve::P256>::from_pkcs8_der(pkcs8_v2)
+                .unwrap()
+                .private_key,
+        );
+        let mut wrong_public_key = pkcs8_v2.to_vec();
+        *wrong_public_key.last_mut().unwrap() ^= 0x01;
+        assert_eq!(
+            SigningKey::<curve::P256>::from_pkcs8_der(&wrong_public_key).err(),
+            Some(Error::KeyFormatError(
+                KeyFormatError::MismatchedPkcs8PublicKey
+            )),
         );
 
         check_sign_verify::<curve::P384>(
