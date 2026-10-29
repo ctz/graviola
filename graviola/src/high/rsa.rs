@@ -139,6 +139,10 @@ impl VerifyingKey {
         digest_info: &[u8],
         hash: &[u8],
     ) -> Result<(), Error> {
+        // RFC8017 8.2.2 step 1: the signature must be exactly `k` octets.
+        if signature.len() != self.0.modulus_len_bytes() {
+            return Err(Error::BadSignature);
+        }
         let c = PosInt::from_bytes(signature).map_err(|_| Error::BadSignature)?;
         let m = self.0.public_op(c).map_err(|_| Error::BadSignature)?;
 
@@ -212,7 +216,8 @@ impl VerifyingKey {
     fn _verify_pss<H: Hash>(&self, signature: &[u8], message: &[u8]) -> Result<(), Error> {
         let hash = H::hash(message);
 
-        if signature.len() > self.0.modulus_len_bytes() {
+        // RFC8017 8.1.2 step 1: the signature must be exactly `k` octets.
+        if signature.len() != self.0.modulus_len_bytes() {
             return Err(Error::BadSignature);
         }
         let c = PosInt::from_bytes(signature).map_err(|_| Error::BadSignature)?;
@@ -576,6 +581,48 @@ mod tests {
         let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa2048.der")).unwrap();
 
         check_all_algs(&mut [0u8; 256], &private_key, &private_key.public_key());
+    }
+
+    #[test]
+    fn signature_must_be_modulus_length() {
+        let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa2048.der")).unwrap();
+        let public_key = private_key.public_key();
+
+        // this signature happens to start with a zero byte
+        let mut buf = [0u8; 256];
+        let sig = private_key
+            .sign_pkcs1_sha256(&mut buf, b"message 651")
+            .unwrap();
+        assert_eq!(sig[0], 0x00);
+        public_key.verify_pkcs1_sha256(sig, b"message 651").unwrap();
+        assert_eq!(
+            public_key
+                .verify_pkcs1_sha256(&sig[1..], b"message 651")
+                .unwrap_err(),
+            Error::BadSignature
+        );
+        assert_eq!(
+            public_key
+                .verify_pkcs1_sha256(&[&[0x00], sig].concat(), b"message 651")
+                .unwrap_err(),
+            Error::BadSignature
+        );
+
+        // likewise
+        let sig = hex::decode("002865f20380212218334539ddbb9b1a2a151eadfd446f873e470e1aefc15e89a6f677c7ed82c64c16d248eb1601988c6c1349bf86a770235ab27a179b7e0640eb7135f9f24ae1c98b87e9d185988653553fe663c7f192b1f90a5f7e3229693163d005b9145a8b6d2648b5ed7db75f688130c0b4111bbd30bd8c3a49e51927ab0cca026b9fea8092facc43bf73b026c7c913c9fcdbf8ca45a8afb18ed3bc4b69b65888bcb9e8cb7ab2eceecde921bc3587803aa846bb747bb159c8fa4947e69cdb5dd48009f99a91f5cb1afbee278a03fd27a5f568a5c3790e7bc6cf7a54777994596c00e27b00260c79f4c36ded8a5ac544a16e35c903b81f4697c4eab9a945").unwrap();
+        public_key.verify_pss_sha256(&sig, b"hello").unwrap();
+        assert_eq!(
+            public_key
+                .verify_pss_sha256(&sig[1..], b"hello")
+                .unwrap_err(),
+            Error::BadSignature
+        );
+        assert_eq!(
+            public_key
+                .verify_pss_sha256(&[&[0x00], &sig[..]].concat(), b"hello")
+                .unwrap_err(),
+            Error::BadSignature
+        );
     }
 
     #[test]
