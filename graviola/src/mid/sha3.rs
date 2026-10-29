@@ -8,7 +8,8 @@
 use core::ops::Range;
 
 use crate::low::{
-    Blockwise, sha3_keccak_f1600, sha3_keccak2of4_f1600, sha3_keccak4_f1600, sha3_keccak8_f1600,
+    Blockwise, KECCAK_RC, sha3_keccak_f1600, sha3_keccak2of4_f1600, sha3_keccak4_f1600,
+    sha3_keccak8_f1600,
 };
 
 /// A context for incremental computation of SHA3-256.
@@ -172,7 +173,7 @@ impl Shake256 {
             }
         }
 
-        sha3_keccak8_f1600(&mut states, &RC);
+        sha3_keccak8_f1600(&mut states, &KECCAK_RC);
 
         for (state, output) in states.iter().zip(outputs.iter_mut()) {
             for (ch, s) in output.as_chunks_mut::<8>().0.iter_mut().zip(state) {
@@ -227,7 +228,7 @@ impl Shake256 {
             },
         ];
 
-        sha3_keccak4_f1600(&mut states, &RC);
+        sha3_keccak4_f1600(&mut states, &KECCAK_RC);
         squeeze(&states[0], &mut outputs[0]);
         squeeze(&states[1], &mut outputs[1]);
         squeeze(&states[2], &mut outputs[2]);
@@ -253,7 +254,7 @@ impl Shake256 {
             s
         };
 
-        sha3_keccak2of4_f1600(&mut states, &RC);
+        sha3_keccak2of4_f1600(&mut states, &KECCAK_RC);
         squeeze(&states[0], &mut outputs[4]);
         squeeze(&states[1], &mut outputs[5]);
 
@@ -275,7 +276,7 @@ impl<const R: usize> SqueezingSponge<R> {
     pub(crate) fn squeeze(&mut self, output: &mut [u8]) {
         for chunk in output.chunks_mut(R) {
             self.squeeze_current(chunk);
-            sha3_keccak_f1600(&mut self.s, &RC);
+            sha3_keccak_f1600(&mut self.s, &KECCAK_RC);
         }
     }
 
@@ -369,7 +370,7 @@ impl SqueezingSponge4xShake128 {
             },
         ];
 
-        sha3_keccak4_f1600(&mut states, &RC);
+        sha3_keccak4_f1600(&mut states, &KECCAK_RC);
 
         Self { states }
     }
@@ -399,13 +400,13 @@ impl SqueezingSponge4xShake128 {
         }
 
         squeeze_rate(&self.states, output, 0..SHAKE_128_R_BYTES);
-        sha3_keccak4_f1600(&mut self.states, &RC);
+        sha3_keccak4_f1600(&mut self.states, &KECCAK_RC);
         squeeze_rate(
             &self.states,
             output,
             SHAKE_128_R_BYTES..SHAKE_128_R_BYTES * 2,
         );
-        sha3_keccak4_f1600(&mut self.states, &RC);
+        sha3_keccak4_f1600(&mut self.states, &KECCAK_RC);
         squeeze_rate(
             &self.states,
             output,
@@ -428,7 +429,7 @@ pub(crate) struct SqueezingSpongeObligation<const R: usize>(pub(crate) [u64; 25]
 impl<const R: usize> SqueezingSpongeObligation<R> {
     /// Pay back the debt by applying keccak-f and return the underlying [`SqueezingSponge`]
     pub(crate) fn restitute(mut self) -> SqueezingSponge<R> {
-        sha3_keccak_f1600(&mut self.0, &RC);
+        sha3_keccak_f1600(&mut self.0, &KECCAK_RC);
         SqueezingSponge { s: self.0 }
     }
 }
@@ -502,36 +503,9 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
         for (i, block) in chunks.iter().enumerate() {
             self.sponge.s[i] ^= u64::from_le_bytes(*block);
         }
-        sha3_keccak_f1600(&mut self.sponge.s, &RC);
+        sha3_keccak_f1600(&mut self.sponge.s, &KECCAK_RC);
     }
 }
-
-const RC: [u64; 24] = [
-    0x00000000_00000001,
-    0x00000000_00008082,
-    0x80000000_0000808A,
-    0x80000000_80008000,
-    0x00000000_0000808B,
-    0x00000000_80000001,
-    0x80000000_80008081,
-    0x80000000_00008009,
-    0x00000000_0000008A,
-    0x00000000_00000088,
-    0x00000000_80008009,
-    0x00000000_8000000A,
-    0x00000000_8000808B,
-    0x80000000_0000008B,
-    0x80000000_00008089,
-    0x80000000_00008003,
-    0x80000000_00008002,
-    0x80000000_00000080,
-    0x00000000_0000800A,
-    0x80000000_8000000A,
-    0x80000000_80008081,
-    0x80000000_00008080,
-    0x00000000_80000001,
-    0x80000000_80008008,
-];
 
 const R_ZEROES: [u8; SHAKE_128_R_BYTES] = [0; SHAKE_128_R_BYTES];
 

@@ -22,6 +22,7 @@ mod generic {
     pub(crate) mod poly1305;
     #[cfg(target_arch = "x86_64")]
     pub(super) mod sha256;
+    pub(super) mod sha3;
     pub(super) mod sha512;
     pub(super) mod zeroise;
 }
@@ -34,6 +35,7 @@ pub(crate) use generic::blockwise::Blockwise;
 pub(crate) use generic::ct_copy::{ct_copy, ct_select_i16};
 pub(crate) use generic::ct_equal::ct_equal;
 pub(crate) use generic::poly1305;
+pub(crate) use generic::sha3::KECCAK_RC;
 pub(crate) use generic::zeroise::{zeroise, zeroise_value};
 pub(crate) use posint::{PosInt, SecretPosInt};
 
