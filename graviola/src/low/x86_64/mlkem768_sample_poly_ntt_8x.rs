@@ -51,12 +51,12 @@ unsafe fn sample_poly_ntt_8x_avx512(
     // Like the generic version, we generate three squeezes of data to
     // sample coefficients from.  This gives up to 336 candidates for 256 output
     // coefficients.
-    _sha3_keccak8_f1600(&mut keccak_states, &RC, proof);
-    _squeeze_rate_and_reject(&keccak_states, outputs, &mut left, proof);
-    _sha3_keccak8_f1600(&mut keccak_states, &RC, proof);
-    _squeeze_rate_and_reject(&keccak_states, outputs, &mut left, proof);
-    _sha3_keccak8_f1600(&mut keccak_states, &RC, proof);
-    _squeeze_rate_and_reject(&keccak_states, outputs, &mut left, proof);
+    sha3_keccak8_f1600(&mut keccak_states, &RC, proof);
+    squeeze_rate_and_reject(&keccak_states, outputs, &mut left, proof);
+    sha3_keccak8_f1600(&mut keccak_states, &RC, proof);
+    squeeze_rate_and_reject(&keccak_states, outputs, &mut left, proof);
+    sha3_keccak8_f1600(&mut keccak_states, &RC, proof);
+    squeeze_rate_and_reject(&keccak_states, outputs, &mut left, proof);
 
     for (i, (left, output)) in left
         .iter()
@@ -71,7 +71,7 @@ unsafe fn sample_poly_ntt_8x_avx512(
 }
 
 #[target_feature(enable = "avx512f")]
-pub(super) fn _sha3_keccak8_f1600(
+pub(super) fn sha3_keccak8_f1600(
     state: &mut [__m512i; 25],
     rc: &[u64; 24],
     _proof: HaveAvx512ForMlKem,
@@ -209,7 +209,7 @@ fn extract_state(states: &[__m512i; 25], index: usize) -> [u64; 25] {
 /// `left` indicates how many items in each polynomial in `output` remains unwritten.
 /// It should be updated to indicate how many were written.
 #[target_feature(enable = "avx512f,avx512bw,avx512vbmi,avx512vbmi2")]
-fn _squeeze_rate_and_reject(
+fn squeeze_rate_and_reject(
     state: &[__m512i; 25],
     output: &mut [i16; 256 * 8],
     left: &mut [usize; 8],

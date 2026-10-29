@@ -38,7 +38,7 @@ fn sha3_keccak8_f1600_avx512(a: &mut [[u64; 25]; 8], rc: &[u64; 24], proof: Have
         );
     }
 
-    super::mlkem768_sample_poly_ntt_8x::_sha3_keccak8_f1600(&mut states, rc, proof);
+    super::mlkem768_sample_poly_ntt_8x::sha3_keccak8_f1600(&mut states, rc, proof);
 
     for (lane, state) in states.iter().enumerate() {
         let mut words = [0u64; 8];
