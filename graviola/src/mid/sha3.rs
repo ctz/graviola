@@ -8,7 +8,7 @@
 use core::ops::Range;
 
 use crate::low::{
-    Blockwise, KECCAK_RC, sha3_keccak_f1600, sha3_keccak2of4_f1600, sha3_keccak4_f1600,
+    Blockwise, KECCAK_RC, sha3_keccak_f1600, sha3_keccak4_f1600, sha3_keccak6of8_f1600,
     sha3_keccak8_f1600,
 };
 
@@ -192,76 +192,19 @@ impl Shake256 {
     pub(crate) fn one_shot_sextet(inputs: &[&[u8; 40]; 6], outputs: &mut [[u8; 128]; 6]) {
         debug_assert!(inputs.iter().all(|inp| inp[33] == SHAKE_PAD_BYTE));
 
-        let mut s = [0; 25];
-        s[SHAKE_256_R_BYTES / size_of::<u64>() - 1] = 0x8000_0000_0000_0000;
-
-        // First, arrange a by-4 step.
-
-        let mut states = [
-            {
-                let (chunks, _) = inputs[0].as_chunks::<8>();
-                for (i, inp) in chunks.iter().enumerate() {
-                    s[i] = u64::from_le_bytes(*inp);
-                }
-                s
-            },
-            {
-                let (chunks, _) = inputs[1].as_chunks::<8>();
-                for (i, inp) in chunks.iter().enumerate() {
-                    s[i] = u64::from_le_bytes(*inp);
-                }
-                s
-            },
-            {
-                let (chunks, _) = inputs[2].as_chunks::<8>();
-                for (i, inp) in chunks.iter().enumerate() {
-                    s[i] = u64::from_le_bytes(*inp);
-                }
-                s
-            },
-            {
-                let (chunks, _) = inputs[3].as_chunks::<8>();
-                for (i, inp) in chunks.iter().enumerate() {
-                    s[i] = u64::from_le_bytes(*inp);
-                }
-                s
-            },
-        ];
-
-        sha3_keccak4_f1600(&mut states, &KECCAK_RC);
-        squeeze(&states[0], &mut outputs[0]);
-        squeeze(&states[1], &mut outputs[1]);
-        squeeze(&states[2], &mut outputs[2]);
-        squeeze(&states[3], &mut outputs[3]);
-
-        // Now, complete with a by-2.
-        //
-        // Note that states[2] and states[3] are unused.  This allows reuse of the
-        // by-4 keccak permutation, which is quicker on x86-64 than two by-1 keccak
-        // permutations!
-        states[0] = {
-            let (chunks, _) = inputs[4].as_chunks::<8>();
-            for (i, inp) in chunks.iter().enumerate() {
-                s[i] = u64::from_le_bytes(*inp);
+        let mut states = [[0u64; 25]; 8];
+        for (state, input) in states.iter_mut().zip(inputs) {
+            for (s, inp) in state.iter_mut().zip(input.as_chunks::<8>().0) {
+                *s = u64::from_le_bytes(*inp);
             }
-            s
-        };
-        states[1] = {
-            let (chunks, _) = inputs[5].as_chunks::<8>();
-            for (i, inp) in chunks.iter().enumerate() {
-                s[i] = u64::from_le_bytes(*inp);
-            }
-            s
-        };
+            state[SHAKE_256_R_BYTES / size_of::<u64>() - 1] = 0x8000_0000_0000_0000;
+        }
 
-        sha3_keccak2of4_f1600(&mut states, &KECCAK_RC);
-        squeeze(&states[0], &mut outputs[4]);
-        squeeze(&states[1], &mut outputs[5]);
+        sha3_keccak6of8_f1600(&mut states, &KECCAK_RC);
 
-        fn squeeze(states: &[u64; 25], output: &mut [u8; 128]) {
-            debug_assert!(output.len() <= SHAKE_256_R_BYTES);
-            for (i, ch) in output.chunks_mut(8).enumerate() {
-                ch.copy_from_slice(&states[i].to_le_bytes());
+        for (state, output) in states.iter().zip(outputs.iter_mut()) {
+            for (ch, s) in output.as_chunks_mut::<8>().0.iter_mut().zip(state) {
+                *ch = s.to_le_bytes();
             }
         }
     }
