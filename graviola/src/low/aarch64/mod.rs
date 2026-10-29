@@ -80,6 +80,7 @@ pub(crate) mod sha256;
 pub(crate) mod sha3_keccak2_f1600;
 pub(crate) mod sha3_keccak2of4_f1600;
 pub(crate) mod sha3_keccak4_f1600_mux;
+pub(crate) mod sha3_keccak8_f1600_mux;
 pub(crate) mod sha3_keccak_f1600;
 pub(crate) mod sha3_keccak_f1600_alt;
 pub(crate) mod sha3_keccak_f1600_mux;
