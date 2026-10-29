@@ -126,6 +126,7 @@ cfg_if::cfg_if! {
         pub(crate) use x86_64::sha3_keccak_f1600::sha3_keccak_f1600;
         pub(crate) use x86_64::sha3_keccak4_f1600_shim::sha3_keccak4_f1600;
         pub(crate) use x86_64::sha3_keccak2of4_f1600::sha3_keccak2of4_f1600;
+        pub(crate) use x86_64::sha3_keccak8_f1600_mux::sha3_keccak8_f1600;
 
     } else if #[cfg(target_arch = "aarch64")] {
         mod aarch64;
@@ -205,6 +206,7 @@ cfg_if::cfg_if! {
         pub(crate) use aarch64::sha3_keccak_f1600_mux::sha3_keccak_f1600;
         pub(crate) use aarch64::sha3_keccak4_f1600_mux::sha3_keccak4_f1600;
         pub(crate) use aarch64::sha3_keccak2of4_f1600::sha3_keccak2of4_f1600;
+        pub(crate) use aarch64::sha3_keccak8_f1600_mux::sha3_keccak8_f1600;
 
         pub(crate) use aarch64::chacha20;
         pub(crate) use generic::sha512::sha512_compress_blocks;

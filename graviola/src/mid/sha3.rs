@@ -7,7 +7,9 @@
 
 use core::ops::Range;
 
-use crate::low::{Blockwise, sha3_keccak_f1600, sha3_keccak2of4_f1600, sha3_keccak4_f1600};
+use crate::low::{
+    Blockwise, sha3_keccak_f1600, sha3_keccak2of4_f1600, sha3_keccak4_f1600, sha3_keccak8_f1600,
+};
 
 /// A context for incremental computation of SHA3-256.
 pub struct Sha3_256Context {
@@ -102,6 +104,7 @@ impl Shake128 {
 
 pub(crate) type Shake128Sponge = Sponge<SHAKE_128_R_BYTES, SHAKE_PAD_BYTE>;
 pub(crate) type Shake128SqueezingSponge = SqueezingSponge<SHAKE_128_R_BYTES>;
+pub(crate) type Shake256Sponge = Sponge<SHAKE_256_R_BYTES, SHAKE_PAD_BYTE>;
 
 /// This is SHAKE256.
 ///
@@ -131,6 +134,53 @@ impl Shake256 {
     pub fn read(&mut self, output: &mut [u8]) {
         self.sponge
             .shake_read(output, &mut self.buffer, &mut self.buffer_offset);
+    }
+
+    /// Make a SHAKE256 instance from `sponge`, which has absorbed the whole message.
+    pub(crate) fn from_sponge(sponge: Shake256Sponge) -> Self {
+        Self {
+            sponge: sponge.absorb_final(),
+            buffer: [0u8; SHAKE_256_R_BYTES],
+            buffer_offset: SHAKE_256_R_BYTES,
+        }
+    }
+
+    /// Compute seven SHAKE256 outputs in one go, optionally starting an eighth.
+    ///
+    /// Each item of `inputs` has the same requirements as for [`Self::one_shot_sextet`].
+    ///
+    /// The eighth lane of the permutation is otherwise idle, so if `first_block` is
+    /// provided it is absorbed there.  The returned sponge can then absorb the rest of
+    /// that message.
+    pub(crate) fn one_shot_septet(
+        inputs: &[[u8; 40]; 7],
+        outputs: &mut [[u8; 128]; 7],
+        first_block: Option<&[u8; SHAKE_256_R_BYTES]>,
+    ) -> Option<Shake256Sponge> {
+        debug_assert!(inputs.iter().all(|inp| inp[33] == SHAKE_PAD_BYTE));
+
+        let mut states = [[0u64; 25]; 8];
+        for (state, input) in states.iter_mut().zip(inputs) {
+            for (s, inp) in state.iter_mut().zip(input.as_chunks::<8>().0) {
+                *s = u64::from_le_bytes(*inp);
+            }
+            state[SHAKE_256_R_BYTES / size_of::<u64>() - 1] = 0x8000_0000_0000_0000;
+        }
+        if let Some(block) = first_block {
+            for (s, b) in states[7].iter_mut().zip(block.as_chunks::<8>().0) {
+                *s = u64::from_le_bytes(*b);
+            }
+        }
+
+        sha3_keccak8_f1600(&mut states, &RC);
+
+        for (state, output) in states.iter().zip(outputs.iter_mut()) {
+            for (ch, s) in output.as_chunks_mut::<8>().0.iter_mut().zip(state) {
+                *ch = s.to_le_bytes();
+            }
+        }
+
+        first_block.map(|_| Shake256Sponge::from_state(states[7]))
     }
 
     /// Compute six SHAKE256 outputs in one go.
@@ -396,6 +446,14 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
         }
     }
 
+    /// Resume absorbing from `s`, the state after one or more whole blocks.
+    fn from_state(s: [u64; 25]) -> Self {
+        Self {
+            sponge: SqueezingSponge { s },
+            buffer: Blockwise::new(),
+        }
+    }
+
     pub(crate) fn new_for_message(message: &[&[u8]]) -> SqueezingSponge<R> {
         let mut s = Self::new();
         for m in message {
@@ -404,7 +462,7 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
         s.absorb_final()
     }
 
-    fn absorb(&mut self, bytes: &[u8]) {
+    pub(crate) fn absorb(&mut self, bytes: &[u8]) {
         let bytes = self.buffer.add_leading(bytes);
 
         if let Some(block) = self.buffer.take() {
@@ -478,7 +536,7 @@ const RC: [u64; 24] = [
 const R_ZEROES: [u8; SHAKE_128_R_BYTES] = [0; SHAKE_128_R_BYTES];
 
 pub(crate) const SHAKE_128_R_BYTES: usize = (1600 - 256) / 8;
-const SHAKE_256_R_BYTES: usize = (1600 - 512) / 8;
+pub(crate) const SHAKE_256_R_BYTES: usize = (1600 - 512) / 8;
 
 const SHA3_256_R_BYTES: usize = (1600 - 512) / 8;
 const SHA3_512_R_BYTES: usize = (1600 - 1024) / 8;
@@ -599,6 +657,42 @@ mod tests {
             Shake256::new(&[&inp[..33]]).read(&mut single);
             assert_eq!(batched[n], single);
         }
+    }
+
+    #[test]
+    fn one_shot_septet_matches_single() {
+        let mut inputs = [[0u8; 40]; 7];
+        for (n, inp) in inputs.iter_mut().enumerate() {
+            inp[..32].copy_from_slice(SEED);
+            inp[32] = n as u8;
+            inp[33] = SHAKE_PAD_BYTE;
+        }
+
+        // the eighth message spans several blocks, and isn't block-aligned.
+        let mut long = [0u8; 1120];
+        for (i, b) in long.iter_mut().enumerate() {
+            *b = i as u8;
+        }
+        let (first, rest) = long.split_at(SHAKE_256_R_BYTES);
+
+        let mut batched = [[0u8; 128]; 7];
+        assert!(Shake256::one_shot_septet(&inputs, &mut batched, None).is_none());
+        let mut sponge =
+            Shake256::one_shot_septet(&inputs, &mut batched, Some(first.try_into().unwrap()))
+                .unwrap();
+
+        for (n, inp) in inputs.iter().enumerate() {
+            let mut single = [0u8; 128];
+            Shake256::new(&[&inp[..33]]).read(&mut single);
+            assert_eq!(batched[n], single);
+        }
+
+        sponge.absorb(rest);
+        let mut eighth = [0u8; 32];
+        Shake256::from_sponge(sponge).read(&mut eighth);
+        let mut single = [0u8; 32];
+        Shake256::new(&[&long]).read(&mut single);
+        assert_eq!(eighth, single);
     }
 
     #[test]

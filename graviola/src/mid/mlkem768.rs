@@ -127,11 +127,24 @@ impl DecapKey {
         let r_prime = KpkeRandomness(r_prime.try_into().unwrap());
 
         // 7. K‾ <- J(z || c)
-        let mut k_bar = SharedSecret([0u8; 32]);
-        sha3::Shake256::new(&[&self.z, &c.0]).read(&mut k_bar.0);
+        //
+        // The first block of J's input is absorbed alongside the PRF invocations
+        // in step 8.
+        let (c_head, c_tail) = c.0.split_at(sha3::SHAKE_256_R_BYTES - 32);
+        let mut j_first_block = [0u8; sha3::SHAKE_256_R_BYTES];
+        j_first_block[..32].copy_from_slice(&self.z);
+        j_first_block[32..].copy_from_slice(c_head);
 
         // 8. c' <- K-PKE.Encrypt(ekPKE, m', r')
-        let c_prime = self.ek_pke.kpke_encrypt(m_prime, r_prime);
+        let (c_prime, j) = self
+            .ek_pke
+            .kpke_encrypt(m_prime, r_prime, Some(&j_first_block));
+
+        // 7. (continued)
+        let mut j = j.unwrap();
+        j.absorb(c_tail);
+        let mut k_bar = SharedSecret([0u8; 32]);
+        sha3::Shake256::from_sponge(j).read(&mut k_bar.0);
 
         // 9. - 11. if c != c' then K' <- K‾
         // 12. return K'
@@ -278,11 +291,18 @@ impl EncapKey {
         let r = KpkeRandomness(r.try_into().unwrap());
 
         // 2. c <- K-PKE.Encrypt(ek, m, r)
-        let c = self.kpke_encrypt(m, r);
+        let (c, _) = self.kpke_encrypt(m, r, None);
         (SharedSecret(k), c)
     }
 
-    fn kpke_encrypt(&self, m: Message, r: KpkeRandomness) -> Ciphertext {
+    /// `j_first_block` is optionally absorbed into a SHAKE256 sponge in passing,
+    /// which is returned.
+    fn kpke_encrypt(
+        &self,
+        m: Message,
+        r: KpkeRandomness,
+        j_first_block: Option<&[u8; sha3::SHAKE_256_R_BYTES]>,
+    ) -> (Ciphertext, Option<sha3::Shake256Sponge>) {
         // 2. t^ <- ByteDecode12(ekPKE[0 ∶ 384k])
         let t_hat = Coeffs::from_bytes(&self.t_hat);
 
@@ -292,13 +312,8 @@ impl EncapKey {
 
         // 9. - 12.
         // 13. - 16.
-        let (y, e_1) = Coeffs::sample_poly_cbd_dual(&r.0);
-
         // 17. e_2 <- SamplePolyCBD(PRF (r, N))
-        let mut buf = [0u8; 128];
-        sha3::Shake256::new(&[&r.0, &[K_BYTE * 2]]).read(&mut buf);
-        let mut e_2 = Coeffs::zero();
-        sample_cbd2(&buf, &mut e_2.0);
+        let (y, e_1, e_2, j) = Coeffs::sample_poly_cbd_triple(&r.0, j_first_block);
 
         // 18. y^ <- NTT(y)
         let y_hat = y.ntt();
@@ -321,7 +336,7 @@ impl EncapKey {
         v.compress_into_bytes_dv_4(c_2.try_into().unwrap());
 
         // 24. return c <- (c_1 || c_2)
-        c
+        (c, j)
     }
 }
 
@@ -668,6 +683,46 @@ impl Coeffs<{ K * N }, Normal> {
         }
 
         (a, b)
+    }
+
+    /// This is triple `SamplePolyCBD`, as required by `K-PKE.Encrypt`.
+    ///
+    /// It produces two noise vectors and one noise polynomial, diversifying the
+    /// seed `r` with indices from 0..=2K.  `j_first_block` is passed through to
+    /// [`sha3::Shake256::one_shot_septet`].
+    fn sample_poly_cbd_triple(
+        r: &[u8; 32],
+        j_first_block: Option<&[u8; sha3::SHAKE_256_R_BYTES]>,
+    ) -> (Self, Self, Coeffs<N, Normal>, Option<sha3::Shake256Sponge>) {
+        // We need 2 * K + 1 samples.
+        let mut samples = [[0; 128]; 7];
+
+        let mut buf = [0; 40];
+        buf[..32].copy_from_slice(r);
+        buf[33] = sha3::SHAKE_PAD_BYTE;
+        let inputs = core::array::from_fn(|i| {
+            let mut buf_i = buf;
+            buf_i[32] = i as u8;
+            buf_i
+        });
+
+        let j = sha3::Shake256::one_shot_septet(&inputs, &mut samples, j_first_block);
+
+        let mut a = Coeffs::zero();
+        let mut b = Coeffs::zero();
+        let mut c = Coeffs::zero();
+
+        for (sample, poly) in samples.iter().zip(
+            a.0.as_chunks_mut()
+                .0
+                .iter_mut()
+                .chain(b.0.as_chunks_mut().0.iter_mut())
+                .chain(c.0.as_chunks_mut().0.iter_mut()),
+        ) {
+            sample_cbd2(sample, poly);
+        }
+
+        (a, b, c, j)
     }
 
     /// K-wise NTT
