@@ -217,6 +217,21 @@ impl HaveAvx512ForMlKem {
     }
 }
 
+/// Token type reflecting the check for CPU features needed for AVX512 Keccak-f1600
+///
+/// A value of this type is proof that the CPU dynamic feature check has happened.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct HaveAvx512ForSha3(());
+
+impl HaveAvx512ForSha3 {
+    pub(crate) fn check() -> Option<Self> {
+        match have_cpu_feature!("avx512f") && have_cpu_feature!("avx512vl") {
+            true => Some(Self(())),
+            false => None,
+        }
+    }
+}
+
 /// Token type reflecting the check for CPU features needed for SHA256 using SHA-NI
 ///
 /// A value of this type is proof that the CPU dynamic feature check has happened.
