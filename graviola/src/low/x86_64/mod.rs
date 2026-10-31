@@ -88,5 +88,6 @@ pub(crate) mod sha3_keccak8_f1600_mux;
 pub(crate) mod sha3_keccak_f1600;
 pub(crate) mod sha3_keccak_f1600_avx512vl;
 pub(crate) mod sha3_keccak_f1600_mux;
+pub(crate) mod sha3_shake256_8x_one_block;
 pub(crate) mod sha512;
 pub(crate) mod sha512_mux;

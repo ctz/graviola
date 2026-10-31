@@ -9,7 +9,7 @@ use core::ops::Range;
 
 use crate::low::{
     Blockwise, KECCAK_RC, sha3_keccak_f1600, sha3_keccak4_f1600, sha3_keccak6of8_f1600,
-    sha3_keccak8_f1600,
+    sha3_keccak8_f1600, sha3_shake256_8x_one_block,
 };
 
 /// A context for incremental computation of SHA3-256.
@@ -149,7 +149,7 @@ impl Shake256 {
     /// Each item of `inputs` has the same requirements as for [`Self::one_shot_sextet`].
     ///
     /// The eighth lane of the permutation is otherwise idle, so if `first_block` is
-    /// provided it is absorbed there.  The returned sponge can then absorb the rest of
+    /// provided it is absorbed using that spare permutation.  The returned sponge can then absorb the rest of
     /// that message.
     pub(crate) fn one_shot_septet(
         inputs: &[[u8; 40]; 7],
@@ -158,28 +158,18 @@ impl Shake256 {
     ) -> Option<Shake256Sponge> {
         debug_assert!(inputs.iter().all(|inp| inp[33] == SHAKE_PAD_BYTE));
 
-        let mut states = [[0u64; 25]; 8];
-        for (state, input) in states.iter_mut().zip(inputs) {
-            for (s, inp) in state.iter_mut().zip(input.as_chunks::<8>().0) {
-                *s = u64::from_le_bytes(*inp);
-            }
-            state[SHAKE_256_R_BYTES / size_of::<u64>() - 1] = 0x8000_0000_0000_0000;
-        }
-        if let Some(block) = first_block {
-            for (s, b) in states[7].iter_mut().zip(block.as_chunks::<8>().0) {
-                *s = u64::from_le_bytes(*b);
-            }
-        }
-
-        sha3_keccak8_f1600(&mut states, &KECCAK_RC);
-
-        for (state, output) in states.iter().zip(outputs.iter_mut()) {
-            for (ch, s) in output.as_chunks_mut::<8>().0.iter_mut().zip(state) {
-                *ch = s.to_le_bytes();
-            }
-        }
-
-        first_block.map(|_| Shake256Sponge::from_state(states[7]))
+        let mut sponge = first_block.map(|block| {
+            let mut sponge = Shake256Sponge::new();
+            sponge.xor_block(block);
+            sponge
+        });
+        sha3_shake256_8x_one_block(
+            &inputs.each_ref(),
+            outputs,
+            sponge.as_mut().map(|sponge| &mut sponge.sponge.s),
+            Self::one_shot_fallback,
+        );
+        sponge
     }
 
     /// Compute six SHAKE256 outputs in one go.
@@ -190,6 +180,15 @@ impl Shake256 {
     pub(crate) fn one_shot_sextet(inputs: &[&[u8; 40]; 6], outputs: &mut [[u8; 128]; 6]) {
         debug_assert!(inputs.iter().all(|inp| inp[33] == SHAKE_PAD_BYTE));
 
+        sha3_shake256_8x_one_block(inputs, outputs, None, Self::one_shot_fallback);
+    }
+
+    /// Fallback for [`sha3_shake256_8x_one_block`], using the general-purpose keccak-f muxes.
+    fn one_shot_fallback<const N: usize>(
+        inputs: &[&[u8; 40]; N],
+        outputs: &mut [[u8; 128]; N],
+        spare_permute: Option<&mut [u64; 25]>,
+    ) {
         let mut states = [[0u64; 25]; 8];
         for (state, input) in states.iter_mut().zip(inputs) {
             for (s, inp) in state.iter_mut().zip(input.as_chunks::<8>().0) {
@@ -198,7 +197,15 @@ impl Shake256 {
             state[SHAKE_256_R_BYTES / size_of::<u64>() - 1] = 0x8000_0000_0000_0000;
         }
 
-        sha3_keccak6of8_f1600(&mut states, &KECCAK_RC);
+        match spare_permute {
+            Some(spare) => {
+                states[7] = *spare;
+                sha3_keccak8_f1600(&mut states, &KECCAK_RC);
+                *spare = states[7];
+            }
+            None if N <= 6 => sha3_keccak6of8_f1600(&mut states, &KECCAK_RC),
+            None => sha3_keccak8_f1600(&mut states, &KECCAK_RC),
+        }
 
         for (state, output) in states.iter().zip(outputs.iter_mut()) {
             for (ch, s) in output.as_chunks_mut::<8>().0.iter_mut().zip(state) {
@@ -377,14 +384,6 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
     const fn new() -> Self {
         Self {
             sponge: SqueezingSponge { s: [0; _] },
-            buffer: Blockwise::new(),
-        }
-    }
-
-    /// Resume absorbing from `s`, the state after one or more whole blocks.
-    fn from_state(s: [u64; 25]) -> Self {
-        Self {
-            sponge: SqueezingSponge { s },
             buffer: Blockwise::new(),
         }
     }
