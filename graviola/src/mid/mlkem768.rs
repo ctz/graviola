@@ -43,6 +43,7 @@ mod sample_ntt;
 /// An ML-KEM-768 decapsulation key.
 pub struct DecapKey {
     ek_pke: EncapKey,
+    transpose_a_hat: Coeffs<{ K * K * N }, Ntt>,
     dk_pke: [u8; K * 384],
     h_ek: [u8; 32],
     z: [u8; 32],
@@ -95,7 +96,7 @@ impl DecapKey {
 
         // 1. (ekPKE, dkPKE) <- K-PKE.KeyGen(d)
         // 2. ek <- ekPKE
-        let (ek_pke, dk_pke) = Self::kpke_keygen(&d);
+        let (ek_pke, transpose_a_hat, dk_pke) = Self::kpke_keygen(&d);
 
         // 3. dk <- (dkPKE || ek || H(ek) || z)
         // 4. return (ek, dk)
@@ -107,6 +108,7 @@ impl DecapKey {
         Self {
             dk_pke,
             ek_pke,
+            transpose_a_hat,
             h_ek,
             z,
         }
@@ -136,9 +138,12 @@ impl DecapKey {
         j_first_block[32..].copy_from_slice(c_head);
 
         // 8. c' <- K-PKE.Encrypt(ekPKE, m', r')
-        let (c_prime, j) = self
-            .ek_pke
-            .kpke_encrypt(m_prime, r_prime, Some(&j_first_block));
+        let (c_prime, j) = self.ek_pke.kpke_encrypt(
+            &self.transpose_a_hat,
+            m_prime,
+            r_prime,
+            Some(&j_first_block),
+        );
 
         // 7. (continued)
         let mut j = j.unwrap();
@@ -154,7 +159,9 @@ impl DecapKey {
     }
 
     /// This is Algorithm 13: K-PKE.KeyGen(d) -> (ek_PKE, dk_PKE)
-    fn kpke_keygen(d: &[u8; 32]) -> (EncapKey, [u8; K * 384]) {
+    ///
+    /// Additionally returns transpose(A^), for use in re-encryption during decapsulation.
+    fn kpke_keygen(d: &[u8; 32]) -> (EncapKey, Coeffs<{ K * K * N }, Ntt>, [u8; K * 384]) {
         // 1. (𝜌, 𝜎) <- G(d || k)
         let mut g = sha3::Sha3_512Context::new();
         g.update(d);
@@ -182,13 +189,12 @@ impl DecapKey {
         let encap = EncapKey {
             t_hat: t_hat.to_bytes(),
             rho,
-            transpose_a_hat: a_hat.transpose(),
         };
 
         s_hat.reduce_in_place();
         let decap = s_hat.to_bytes();
 
-        (encap, decap)
+        (encap, a_hat.transpose(), decap)
     }
 
     /// This is Algorithm 15: K-PKE.Decrypt(dk_PKE, c)
@@ -225,7 +231,6 @@ impl Drop for DecapKey {
 pub struct EncapKey {
     t_hat: [u8; K * 384],
     rho: [u8; 32],
-    transpose_a_hat: Coeffs<{ K * K * N }, Ntt>,
 }
 
 impl EncapKey {
@@ -245,13 +250,7 @@ impl EncapKey {
             return Err(Error::OutOfRange);
         }
 
-        let transpose_a_hat = Coeffs::sample_poly_transposed(&rho);
-
-        Ok(Self {
-            t_hat,
-            rho,
-            transpose_a_hat,
-        })
+        Ok(Self { t_hat, rho })
     }
 
     /// Encapsulate a random shared secret, returning the shared secret and a ciphertext.
@@ -291,14 +290,19 @@ impl EncapKey {
         let r = KpkeRandomness(r.try_into().unwrap());
 
         // 2. c <- K-PKE.Encrypt(ek, m, r)
-        let (c, _) = self.kpke_encrypt(m, r, None);
+        //  (steps 4. - 8. of K-PKE.Encrypt: expand transpose(A^) from 𝜌)
+        let transpose_a_hat = Coeffs::sample_poly_transposed(&self.rho);
+        let (c, _) = self.kpke_encrypt(&transpose_a_hat, m, r, None);
         (SharedSecret(k), c)
     }
 
     /// `j_first_block` is optionally absorbed into a SHAKE256 sponge in passing,
     /// which is returned.
+    ///
+    /// `transpose_a_hat` must be the matrix expanded from `self.rho`.
     fn kpke_encrypt(
         &self,
+        transpose_a_hat: &Coeffs<{ K * K * N }, Ntt>,
         m: Message,
         r: KpkeRandomness,
         j_first_block: Option<&[u8; sha3::SHAKE_256_R_BYTES]>,
@@ -308,7 +312,7 @@ impl EncapKey {
 
         // 3. 𝜌 <- ekPKE[384k ∶ 384k + 32]
         //  - only required for a_hat expansion
-        // 4. - 8. rolled into self.transpose_a_hat.
+        // 4. - 8. rolled into transpose_a_hat (supplied by caller).
 
         // 9. - 12.
         // 13. - 16.
@@ -319,7 +323,7 @@ impl EncapKey {
         let y_hat = y.ntt();
 
         // 19. u <- NTT^-1(transpose(A^) ∘ y^) + e_1
-        let u = self.transpose_a_hat.mul_and_inverse_ntt(&y_hat).add(&e_1);
+        let u = transpose_a_hat.mul_and_inverse_ntt(&y_hat).add(&e_1);
 
         // 20. µ <- Decompress_1(ByteDecode_1(m))
         let mu = Coeffs::from_message_bits(m);
