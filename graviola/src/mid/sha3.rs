@@ -245,8 +245,14 @@ impl<const R: usize> SqueezingSponge<R> {
     }
 
     fn squeeze_current(&mut self, output: &mut [u8]) {
-        for (i, ch) in output.chunks_mut(8).enumerate() {
-            ch.copy_from_slice(&self.s[i].to_le_bytes()[..ch.len()]);
+        // Whole words are written with fixed-size stores; only the final partial
+        // word (if any) needs a variable-length copy.
+        let (words, partial) = output.as_chunks_mut::<8>();
+        for (word, s) in words.iter_mut().zip(self.s.iter()) {
+            *word = s.to_le_bytes();
+        }
+        if !partial.is_empty() {
+            partial.copy_from_slice(&self.s[words.len()].to_le_bytes()[..partial.len()]);
         }
     }
 
