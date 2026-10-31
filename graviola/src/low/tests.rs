@@ -45,6 +45,24 @@ fn ct_equal() {
     }
 }
 
+#[test]
+fn ct_equal_unaligned() {
+    let a = [0u8; 64];
+    for offs in 0..8 {
+        for n in 0..(64 - offs) {
+            ct_equal_equiv(&a[offs..offs + n], &a[..n]);
+            for i in 0..n {
+                for bit in 0..8 {
+                    let mut b = [0u8; 64];
+                    b[offs + i] = 1 << bit;
+                    ct_equal_equiv(&a[offs..offs + n], &b[offs..offs + n]);
+                    ct_equal_equiv(&b[offs..offs + n], &a[..n]);
+                }
+            }
+        }
+    }
+}
+
 fn ct_equal_equiv(a: &[u8], b: &[u8]) {
     assert_eq!(a == b, super::ct_equal(a, b));
 }
