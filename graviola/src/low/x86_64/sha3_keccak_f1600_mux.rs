@@ -9,6 +9,13 @@ pub(crate) fn sha3_keccak_f1600(a: &mut [u64; 25], rc: &[u64; 24]) {
         Some(proof) => unsafe {
             super::sha3_keccak_f1600_avx512vl::sha3_keccak_f1600(a, rc, proof)
         },
-        None => super::sha3_keccak_f1600::sha3_keccak_f1600(a, rc),
+        None => sha3_keccak_f1600_scalar(a, rc),
     }
+}
+
+/// The scalar fallback is a single large `asm!` block, which LLVM would otherwise
+/// inline into every caller of the mux.
+#[inline(never)]
+fn sha3_keccak_f1600_scalar(a: &mut [u64; 25], rc: &[u64; 24]) {
+    super::sha3_keccak_f1600::sha3_keccak_f1600(a, rc)
 }

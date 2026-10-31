@@ -32,9 +32,8 @@ impl Sha3_256Context {
 
     /// Complete the SHA3-256 computation, returning the hash output.
     pub fn finish(self) -> [u8; Self::OUTPUT_SZ] {
-        let squeezing = self.sponge.absorb_final();
         let mut digest = [0u8; Self::OUTPUT_SZ];
-        squeezing.into_single_squeeze(&mut digest);
+        self.sponge.finish_into(&mut digest);
         digest
     }
 
@@ -62,9 +61,8 @@ impl Sha3_512Context {
 
     /// Complete the SHA3-512 computation, returning the hash output.
     pub fn finish(self) -> [u8; Self::OUTPUT_SZ] {
-        let sponge = self.sponge.absorb_final();
         let mut digest = [0u8; Self::OUTPUT_SZ];
-        sponge.into_single_squeeze(&mut digest);
+        self.sponge.finish_into(&mut digest);
         digest
     }
 
@@ -210,22 +208,32 @@ impl Shake256 {
     }
 }
 
+/// A sponge in the squeezing phase.
+///
+/// `s` is always owed a keccak-f before its next output, so squeezing
+/// never computes a permutation whose output goes unused.
 pub(crate) struct SqueezingSponge<const R: usize> {
     s: [u64; 25],
 }
 
 impl<const R: usize> SqueezingSponge<R> {
+    /// Resume squeezing from `s`, which is owed a keccak-f.
+    pub(crate) fn from_owed_state(s: [u64; 25]) -> Self {
+        Self { s }
+    }
+
     /// Squeeze into `output`.
     pub(crate) fn squeeze(&mut self, output: &mut [u8]) {
         for chunk in output.chunks_mut(R) {
-            self.squeeze_current(chunk);
             sha3_keccak_f1600(&mut self.s, &KECCAK_RC);
+            self.squeeze_current(chunk);
         }
     }
 
     /// Squeeze into `output`, which must be below `R` in length.
-    fn into_single_squeeze(mut self, output: &mut [u8]) {
+    fn single_squeeze(&mut self, output: &mut [u8]) {
         debug_assert!(output.len() < R);
+        sha3_keccak_f1600(&mut self.s, &KECCAK_RC);
         self.squeeze_current(output);
     }
 
@@ -321,12 +329,12 @@ impl SqueezingSponge4xShake128 {
     pub(crate) fn squeeze(
         mut self,
         output: &mut [[u8; SHAKE_128_R_BYTES * 3]; 4],
-    ) -> [SqueezingSpongeObligation<SHAKE_128_R_BYTES>; 4] {
+    ) -> [SqueezingSponge<SHAKE_128_R_BYTES>; 4] {
         // nb. we're doing three blocks.  The states are post-absorb, so the sequence should be:
         //
         // - squeeze, keccak-f, squeeze, keccak-f, squeeze
         //
-        // This leaves a trailing keccak-f owing; represented by `SqueezingSpongeObligation`.
+        // This leaves a trailing keccak-f owing, as `SqueezingSponge` expects.
 
         fn squeeze_rate(
             states: &[[u64; 25]; 4],
@@ -356,24 +364,7 @@ impl SqueezingSponge4xShake128 {
             SHAKE_128_R_BYTES * 2..SHAKE_128_R_BYTES * 3,
         );
 
-        let [s0, s1, s2, s3] = self.states;
-        [
-            SqueezingSpongeObligation(s0),
-            SqueezingSpongeObligation(s1),
-            SqueezingSpongeObligation(s2),
-            SqueezingSpongeObligation(s3),
-        ]
-    }
-}
-
-/// A [`SqueezingSponge`] to which we owe a keccak-f application prior to further use.
-pub(crate) struct SqueezingSpongeObligation<const R: usize>(pub(crate) [u64; 25]);
-
-impl<const R: usize> SqueezingSpongeObligation<R> {
-    /// Pay back the debt by applying keccak-f and return the underlying [`SqueezingSponge`]
-    pub(crate) fn restitute(mut self) -> SqueezingSponge<R> {
-        sha3_keccak_f1600(&mut self.0, &KECCAK_RC);
-        SqueezingSponge { s: self.0 }
+        self.states.map(SqueezingSponge::from_owed_state)
     }
 }
 
@@ -423,6 +414,23 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
 
     #[must_use]
     fn absorb_final(mut self) -> SqueezingSponge<R> {
+        self.pad_final();
+        self.sponge
+    }
+
+    /// Finish absorbing, then squeeze into `output`, which must be below `R` in length.
+    ///
+    /// Unlike `absorb_final()` this works in place: moving the state between
+    /// the final xor and its keccak-f defeats store-to-load forwarding.
+    fn finish_into(mut self, output: &mut [u8]) {
+        self.pad_final();
+        self.sponge.single_squeeze(output);
+    }
+
+    /// Absorb the final, padded, block.
+    ///
+    /// Its keccak-f is owed by `self.sponge`.
+    fn pad_final(&mut self) {
         match R - self.buffer.used() {
             1 => {
                 self.buffer.add_leading(&[PAD | 0x80]);
@@ -437,16 +445,19 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
             }
         }
         let padded = self.buffer.take().unwrap();
-        self.absorb_block(&padded);
-        self.sponge
+        self.xor_block(&padded);
     }
 
     fn absorb_block(&mut self, block: &[u8; R]) {
+        self.xor_block(block);
+        sha3_keccak_f1600(&mut self.sponge.s, &KECCAK_RC);
+    }
+
+    fn xor_block(&mut self, block: &[u8; R]) {
         let (chunks, _) = block.as_chunks::<8>();
         for (i, block) in chunks.iter().enumerate() {
             self.sponge.s[i] ^= u64::from_le_bytes(*block);
         }
-        sha3_keccak_f1600(&mut self.sponge.s, &KECCAK_RC);
     }
 }
 
@@ -624,14 +635,13 @@ mod tests {
             inp[34] = SHAKE_PAD_BYTE;
         }
 
-        // batched: three rate-blocks up front, then continue via the obligation.
+        // batched: three rate-blocks up front, then continue via the returned sponges.
         let mut batched = [[0u8; SHAKE_128_R_BYTES * 3]; 4];
-        let obligations =
-            SqueezingSponge4xShake128::new(&[inputs[0], inputs[1], inputs[2], inputs[3]])
-                .squeeze(&mut batched);
+        let sponges = SqueezingSponge4xShake128::new(&[inputs[0], inputs[1], inputs[2], inputs[3]])
+            .squeeze(&mut batched);
 
         const TAIL: usize = SHAKE_128_R_BYTES * 2;
-        for (n, (input, obligation)) in inputs.iter().zip(obligations).enumerate() {
+        for (n, (input, mut sponge)) in inputs.iter().zip(sponges).enumerate() {
             // single reference: absorb the 34-byte message, read the same total length.
             let mut single = [0u8; SHAKE_128_R_BYTES * 3 + TAIL];
             Shake128::new(&[&input[..34]]).read(&mut single);
@@ -639,9 +649,9 @@ mod tests {
             // the three eagerly-squeezed blocks must match
             assert_eq!(&batched[n][..], &single[..SHAKE_128_R_BYTES * 3]);
 
-            // and paying off the deferred keccak-f must continue the same stream
+            // and squeezing further must continue the same stream
             let mut tail = [0u8; TAIL];
-            obligation.restitute().squeeze(&mut tail);
+            sponge.squeeze(&mut tail);
             assert_eq!(&tail[..], &single[SHAKE_128_R_BYTES * 3..]);
         }
     }
