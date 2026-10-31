@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
 use super::{K, N, Q};
-use crate::{
-    low,
-    mid::sha3::{self, SqueezingSpongeObligation},
-};
+use crate::{low, mid::sha3};
 
 pub(super) fn sample_ntt(rho: &[u8; 32]) -> [i16; K * K * N] {
     sample_ntt_internal::<false>(rho)
@@ -93,7 +90,7 @@ fn sample_poly_ntt_8x_fallback(inputs: &[[u8; 40]; 8], outputs: &mut [i16; N * 8
             let tail = Shake128ForMlKem::sample(samples, output);
             if !tail.is_empty() {
                 Shake128ForMlKem {
-                    sponge: tail_sponge.restitute(),
+                    sponge: tail_sponge,
                 }
                 .tail_case(tail);
             }
@@ -103,7 +100,7 @@ fn sample_poly_ntt_8x_fallback(inputs: &[[u8; 40]; 8], outputs: &mut [i16; N * 8
 
 fn sample_poly_ntt_tail(tail_sponge: &mut [u64; 25], tail: &mut [i16]) {
     Shake128ForMlKem {
-        sponge: SqueezingSpongeObligation(*tail_sponge).restitute(),
+        sponge: sha3::Shake128SqueezingSponge::from_owed_state(*tail_sponge),
     }
     .tail_case(tail);
 }
