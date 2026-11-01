@@ -105,6 +105,9 @@ impl DerefMut for HashBlock {
 ///
 /// This exists so (eg.) HMAC may be generic.
 pub trait Hash {
+    /// Output size in bytes.
+    const OUTPUT_SZ: usize;
+
     /// The associated context type.
     type Context: HashContext;
 
@@ -143,6 +146,8 @@ pub trait HashContext: Clone {
 pub struct Sha256;
 
 impl Hash for Sha256 {
+    const OUTPUT_SZ: usize = sha2::Sha256Context::OUTPUT_SZ;
+
     type Context = Sha256Context;
 
     fn new() -> Self::Context {
@@ -184,6 +189,8 @@ impl HashContext for Sha256Context {
 pub struct Sha384;
 
 impl Hash for Sha384 {
+    const OUTPUT_SZ: usize = sha2::Sha384Context::OUTPUT_SZ;
+
     type Context = Sha384Context;
 
     fn new() -> Self::Context {
@@ -225,6 +232,8 @@ impl HashContext for Sha384Context {
 pub struct Sha512;
 
 impl Hash for Sha512 {
+    const OUTPUT_SZ: usize = sha2::Sha512Context::OUTPUT_SZ;
+
     type Context = Sha512Context;
 
     fn new() -> Self::Context {

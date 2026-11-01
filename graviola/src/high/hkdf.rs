@@ -91,7 +91,7 @@ pub fn expand<H: Hash>(prk: &Prk<'_>, info: &[u8], mut okm: &mut [u8]) {
         Prk::Provided(slice) => slice,
     };
     let l = okm.len();
-    let hash_len = H::zeroed_output().as_ref().len();
+    let hash_len = H::OUTPUT_SZ;
     assert!(
         l <= 255 * hash_len,
         "length of output keying material must be less than or equal to 255 times the length of the hash function output"
