@@ -52,8 +52,8 @@ fn test_rc_sha384(okm: &mut [u8]) {
 }
 
 fn test_graviola<H: graviola::hashing::Hash>(okm: &mut [u8]) {
-    let prk = graviola::hashing::hkdf::extract::<H>(Some(SALT), IKM);
-    graviola::hashing::hkdf::expand::<H>(&prk, INFO, okm);
+    let prk = graviola::hashing::hkdf::ExtractedPrk::<H>::extract(Some(SALT), IKM);
+    prk.into_expander().expand(&[INFO], okm).unwrap();
     black_box(okm);
 }
 

@@ -7,151 +7,234 @@
 //! # Examples
 //!
 //! ```
-//! use graviola::{
-//!     hashing::{Sha256, hkdf},
-//!     random,
-//! };
+//! use graviola::hashing::{Sha256, hkdf};
+//! use graviola::random;
 //!
-//! // Generate non-secret salt.
+//! // Generate a random salt.
 //! let mut salt = [0u8; 32];
 //! random::fill(&mut salt).unwrap();
 //!
 //! // Secret initial keying material.
-//! let mut ikm = b"\x00\x01\x02\x03"; // i.e., NOT this.
+//! let ikm = b"\x00\x01\x02\x03"; // i.e., NOT this.
 //!
 //! // Extract a pseudorandom key from IKM.
-//! let prk = hkdf::extract::<Sha256>(Some(&salt), ikm);
+//! let prk = hkdf::ExtractedPrk::<Sha256>::extract(Some(&salt), ikm);
 //!
-//! // Non-secret optional context and application specific information.
-//! let info = b"client key";
+//! let expander = prk.into_expander();
 //!
-//! let mut key = [0u8; 32];
-//! // Expand IKM into an OKM.
-//! hkdf::expand::<Sha256>(&prk, info, &mut key);
+//! // Expand the PRK into an OKM for each key. The non-secret optional
+//! // context and application specific information (`info`) differ
+//! // between keys.
+//! let mut client_key = [0u8; 32];
+//! expander.expand(&[b"client key"], &mut client_key).unwrap();
 //!
-//! // Use the derived key...
+//! let mut server_key = [0u8; 32];
+//! expander.expand(&[b"server key"], &mut server_key).unwrap();
+//!
+//! // Use the derived keys...
 //! ```
 //!
 //! [RFC 5869]: https://datatracker.ietf.org/doc/html/rfc5869
 
-#![warn(clippy::cast_possible_truncation)]
+use core::error::Error;
+use core::fmt;
+use core::marker::PhantomData;
 
-use core::cmp;
+use crate::hashing::{Hash, HashOutput};
+use crate::high::hmac::Hmac;
+use crate::low::{Entry, zeroise};
 
-use crate::{
-    hashing::{Hash, HashOutput},
-    high::hmac::Hmac,
-};
-
-/// The [HKDF-Extract] step.
+/// A pseudorandom key (the output from the [extract step]).
 ///
-/// Extracts a fixed-length [pseudorandom key](Prk) from the input keying
-/// material `ikm`.
-///
-/// If `salt` is not provided, it is set to a string of hash-length zeroes.
-///
-/// [HKDF-Extract]: https://datatracker.ietf.org/doc/html/rfc5869#section-2.2
-pub fn extract<H: Hash>(salt: Option<&[u8]>, ikm: &[u8]) -> Prk<'static> {
-    let mut hmac = match salt {
-        Some(salt) => Hmac::<H>::new(salt),
-        None => Hmac::<H>::new(H::zeroed_output()),
-    };
-    hmac.update(ikm);
-    let output = hmac.finish();
-    Prk::Extracted(output)
+/// [extract step]: ExtractedPrk::extract
+pub struct ExtractedPrk<H: Hash> {
+    key: HashOutput,
+    phantom: PhantomData<fn() -> H>,
 }
 
-/// The [HKDF-Expand] step.
-///
-/// Expands the pseudorandom key `prk` into an output keying material `okm`.
-///
-/// # Panics
-///
-/// This function will panic if the length of `okm` is greater than 255 times
-/// the length of the hash function output.
-///
-/// ```should_panic
-/// # use graviola::{hashing::{Hash, hkdf, sha2, Sha256}};
-/// #
-/// # const SHA256_OUTPUT_LEN: usize = sha2::Sha256Context::OUTPUT_SZ;
-/// # let salt = b"\x70\x1d\xfb\xe3\xf2\x2c\x13\x26\x8a\x04\x87\x1d\xbb\x97\x11\xf3\x71\xbd\x70\x2b\x2b\xb4\x1d\xba\x24\x40\x95\x78\xe6\x48\x1b\xc1";
-/// # let ikm = b"\xfe\xba\xf0\xce\x3a\x45\x2b\xda\xd4\x83\x38\xae\x25\x87\x75\xdb";
-/// # let prk = hkdf::extract::<Sha256>(Some(salt), ikm);
-/// #
-/// # let info = b"\x57\x2d\x90\xbc\x31\xfc\x1e\xdd";
-/// let mut okm = [0u8; 8161];
-/// assert!(okm.len() > 255 * SHA256_OUTPUT_LEN);
-/// let _ = hkdf::expand::<Sha256>(&prk, info, &mut okm);
-/// ```
-///
-/// [HKDF-Expand]: https://datatracker.ietf.org/doc/html/rfc5869#section-2.3
-pub fn expand<H: Hash>(prk: &Prk<'_>, info: &[u8], mut okm: &mut [u8]) {
-    let prk = match prk {
-        Prk::Extracted(hash_output) => hash_output.as_ref(),
-        Prk::Provided(slice) => slice,
-    };
-    let l = okm.len();
-    let hash_len = H::OUTPUT_SZ;
-    assert!(
-        l <= 255 * hash_len,
-        "length of output keying material must be less than or equal to 255 times the length of the hash function output"
-    );
-    #[expect(
-        clippy::cast_possible_truncation,
-        reason = "l <= 255 * hash_len <=> l / hash_len <= 255"
-    )]
-    let n = l.div_ceil(hash_len) as u8;
-
-    let hmac_key = Hmac::<H>::new(prk);
-    let mut hmac = hmac_key.clone();
-    for i in 1..=n {
-        hmac.update(info);
-        hmac.update([i]);
-        let t = hmac.finish();
-        let t = t.as_ref();
-        let len = cmp::min(okm.len(), t.len());
-        let (chunk, rest) = okm.split_at_mut(len);
-        chunk.copy_from_slice(&t[..len]);
-        okm = rest;
-        if okm.is_empty() {
-            return;
-        }
-
-        hmac = hmac_key.clone();
-        hmac.update(t);
+impl<H: Hash> fmt::Debug for ExtractedPrk<H> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ExtractedPrk").finish_non_exhaustive()
     }
 }
 
-/// A pseudorandom key (usually, the output from the [extract step](extract)).
-#[derive(Clone, Debug)]
-#[cfg_attr(test, derive(PartialEq))]
-#[non_exhaustive]
-pub enum Prk<'a> {
-    #[doc(hidden)]
-    Extracted(HashOutput),
-    #[doc(hidden)]
-    Provided(&'a [u8]),
+impl<H: Hash> Drop for ExtractedPrk<H> {
+    fn drop(&mut self) {
+        zeroise(self.key.as_mut());
+    }
 }
 
-impl<'a> Prk<'a> {
-    /// Constructs a new pseudorandom key from a uniformly random or
-    /// pseudorandom cryptographically strong key.
+impl<H: Hash> ExtractedPrk<H> {
+    /// The [HKDF-Extract] step.
+    ///
+    /// Extracts a fixed-length pseudorandom key from the input keying
+    /// material `ikm`.
+    ///
+    /// If `salt` is not provided, it is set to a string of hash-length zeroes.
+    ///
+    /// [HKDF-Extract]: https://datatracker.ietf.org/doc/html/rfc5869#section-2.2
+    pub fn extract(salt: Option<&[u8]>, ikm: &[u8]) -> Self {
+        let _entry = Entry::new_secret();
+
+        let mut hmac = match salt {
+            Some(salt) => Hmac::<H>::new(salt),
+            None => Hmac::<H>::new(H::zeroed_output()),
+        };
+        hmac.update(ikm);
+        let key = hmac.finish();
+        Self {
+            key,
+            phantom: PhantomData,
+        }
+    }
+
+    /// The raw bytes of the pseudorandom key.
     ///
     /// <div class="warning">
     ///
-    /// Read [Section 3.3 of RFC 5869] before using! Most common scenarios will
-    /// want to use [`hkdf::extract`] instead.
+    /// Read [Section 3.3 of RFC 5869] before using! It is not
+    /// recommended to use the PRK directly as the OKM. Most common
+    /// scenarios will want to turn the [`ExtractedPrk`] into an
+    /// [`Expander`] using [`into_expander()`] and then [expand].
     ///
     /// </div>
     ///
     /// [Section 3.3 of RFC 5869]: https://datatracker.ietf.org/doc/html/rfc5869#section-3.3
-    /// [`hkdf::extract`]: extract
-    pub fn new_less_safe(value: &'a [u8]) -> Self {
-        Self::Provided(value)
+    /// [`into_expander()`]: Self::into_expander
+    /// [expand]: Expander::expand
+    pub fn as_bytes(&self) -> &[u8] {
+        self.key.as_ref()
+    }
+
+    /// Turns the [`ExtractedPrk`] into an [`Expander`] that can be used
+    /// to [expand] the PRK repeatedly into OKMs.
+    ///
+    /// [expand]: Expander::expand
+    pub fn into_expander(self) -> Expander<H> {
+        let _entry = Entry::new_secret();
+
+        let hmac = Hmac::<H>::new(&self.key);
+        Expander { hmac }
     }
 }
 
+/// An [`Expander`] can be used to expand a pseudorandom key into
+/// several keys.
+///
+/// Each call to [expand] is independent: the same `info` always gives the
+/// same output, and a shorter output is a prefix of a longer one.
+///
+/// [expand]: Expander::expand
+pub struct Expander<H: Hash> {
+    hmac: Hmac<H>,
+}
+
+impl<H: Hash> fmt::Debug for Expander<H> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Expander").finish_non_exhaustive()
+    }
+}
+
+impl<H: Hash> Expander<H> {
+    /// Constructs an [`Expander`] from a uniformly random or
+    /// pseudorandom cryptographically strong key.
+    ///
+    /// <div class="warning">
+    ///
+    /// Read [Section 3.3 of RFC 5869] before using! Most common
+    /// scenarios will want to [extract] a PRK
+    /// then call [`ExtractedPrk::into_expander`] instead.
+    ///
+    /// </div>
+    ///
+    /// # Errors
+    ///
+    /// Returns [`PrkTooShortError`] if `prk` is shorter than the length of
+    /// the hash function output.
+    ///
+    /// [Section 3.3 of RFC 5869]: https://datatracker.ietf.org/doc/html/rfc5869#section-3.3
+    /// [extract]: ExtractedPrk::extract
+    pub fn new_less_safe(prk: impl AsRef<[u8]>) -> Result<Self, PrkTooShortError> {
+        let _entry = Entry::new_secret();
+
+        let prk = prk.as_ref();
+        if prk.len() < H::OUTPUT_SZ {
+            return Err(PrkTooShortError);
+        }
+        let hmac = Hmac::<H>::new(prk);
+        Ok(Self { hmac })
+    }
+
+    /// The [HKDF-Expand] step.
+    ///
+    /// Expands the pseudorandom key into an output keying material `okm`.
+    ///
+    /// The `info` slices are concatenated to form the single `info` string,
+    /// so `&[b"AB", b"CD"]` and `&[b"ABC", b"D"]` are equivalent.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`OkmTooLongError`] if `okm` is longer than 255 times the
+    /// length of the hash function output.
+    ///
+    /// [HKDF-Expand]: https://datatracker.ietf.org/doc/html/rfc5869#section-2.3
+    pub fn expand(&self, info: &[&[u8]], okm: &mut [u8]) -> Result<(), OkmTooLongError> {
+        let _entry = Entry::new_secret();
+
+        if okm.len() > const { 255 * H::OUTPUT_SZ } {
+            return Err(OkmTooLongError);
+        }
+
+        let mut t: Option<HashOutput> = None;
+        for (chunk, i) in okm.chunks_mut(H::OUTPUT_SZ).zip(1..=u8::MAX) {
+            let mut hmac = self.hmac.clone();
+            if let Some(t) = t.as_mut() {
+                hmac.update(t.as_ref());
+                zeroise(t.as_mut());
+            }
+            for info in info {
+                hmac.update(info);
+            }
+            hmac.update([i]);
+            let t = t.insert(hmac.finish());
+            chunk.copy_from_slice(&t.as_ref()[..chunk.len()]);
+        }
+        if let Some(t) = t.as_mut() {
+            zeroise(t.as_mut());
+        }
+
+        Ok(())
+    }
+}
+
+/// Error returned when the OKM buffer used in the expand step is
+/// longer than 255 times the length of the hash function output.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct OkmTooLongError;
+
+impl fmt::Display for OkmTooLongError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("output keying material is longer than 255 times the length of the hash function output")
+    }
+}
+
+impl Error for OkmTooLongError {}
+
+/// Error returned when a PRK buffer that would be used in the expand step is
+/// shorter than the length of the hash function output.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub struct PrkTooShortError;
+
+impl fmt::Display for PrkTooShortError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("pseudorandom key is shorter than the length of the hash function output")
+    }
+}
+
+impl Error for PrkTooShortError {}
+
 #[cfg(test)]
+#[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {
     use super::*;
     use crate::hashing::Sha256;
@@ -174,15 +257,15 @@ mod tests {
             expected_okm,
         } = params;
 
-        let prk = extract::<H>(Some(salt), ikm);
-        assert_eq!(prk, Prk::Extracted(expected_prk.clone()));
+        let prk = ExtractedPrk::<H>::extract(Some(salt), ikm);
+        assert!(expected_prk.ct_equal(prk.as_bytes()));
         let mut okm = [0; L];
-        expand::<H>(&prk, info, &mut okm);
+        prk.into_expander().expand(&[info], &mut okm).unwrap();
         assert_eq!(okm.as_ref(), expected_okm);
 
-        let prk = Prk::new_less_safe(expected_prk.as_ref());
+        let expander = Expander::<H>::new_less_safe(expected_prk.as_ref()).unwrap();
         let mut okm = [0; L];
-        expand::<H>(&prk, info, &mut okm);
+        expander.expand(&[info], &mut okm).unwrap();
         assert_eq!(okm.as_ref(), expected_okm);
     }
 

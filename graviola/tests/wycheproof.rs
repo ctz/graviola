@@ -5,9 +5,10 @@ use std::path::Path;
 
 use graviola::Error;
 use graviola::aead::{AesGcm, ChaCha20Poly1305, XChaCha20Poly1305};
+use graviola::hashing::hkdf::{ExtractedPrk, OkmTooLongError};
 use graviola::hashing::hmac::Hmac;
 
-use graviola::hashing::{Hash, Sha256, Sha384, Sha512, hkdf};
+use graviola::hashing::{Hash, Sha256, Sha384, Sha512};
 use graviola::key_agreement::{mlkem768, p256, p384, x25519};
 use graviola::signing::{ecdsa, eddsa, rsa};
 use serde::Deserialize;
@@ -165,19 +166,6 @@ impl Drop for Summary {
 }
 
 fn hkdf_tests<H: Hash>(path: impl AsRef<Path>) {
-    fn should_panic<F, R>(f: F, expected_msg: &'static str)
-    where
-        F: FnOnce() -> R + panic::UnwindSafe,
-    {
-        let Err(cause) = panic::catch_unwind(f) else {
-            panic!("test did not panic as expected");
-        };
-        if cause.downcast_ref::<&'static str>() == Some(&expected_msg) {
-            return;
-        }
-        panic::resume_unwind(cause);
-    }
-
     let path = Path::new("../thirdparty/wycheproof/testvectors_v1/").join(path);
     let Ok(data_file) = File::open(&path) else {
         panic!("failed to open data file at `{}`", path.display());
@@ -191,28 +179,25 @@ fn hkdf_tests<H: Hash>(path: impl AsRef<Path>) {
         for test in group.tests {
             summary.start(&test);
 
-            let f = || {
+            let result = {
                 let salt = if test.has_flag("EmptySalt") {
                     None
                 } else {
                     Some(test.salt.as_slice())
                 };
-                let prk = hkdf::extract::<H>(salt, &test.ikm);
+                let prk = ExtractedPrk::<H>::extract(salt, &test.ikm);
                 let mut okm = vec![0u8; test.size];
-                hkdf::expand::<H>(&prk, &test.info, &mut okm);
-                okm
+                prk.into_expander()
+                    .expand(&[test.info.as_slice()], &mut okm)
+                    .map(|()| okm)
             };
 
             match test.result {
                 ExpectedResult::Valid => {
-                    let okm = f();
-                    assert_eq!(okm, test.okm);
+                    assert_eq!(result.unwrap(), test.okm);
                 }
                 ExpectedResult::Invalid if test.has_flag("SizeTooLarge") => {
-                    should_panic(
-                        f,
-                        "length of output keying material must be less than or equal to 255 times the length of the hash function output",
-                    );
+                    let OkmTooLongError = result.unwrap_err();
                 }
                 _ => todo!(),
             }
