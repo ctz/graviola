@@ -129,30 +129,39 @@ pub(in crate::low) fn zero_bytes(ptr: *mut u8, len: usize) {
 /// # Safety
 /// The caller must ensure that there are `len` bytes readable at `a` and `b`,
 pub(in crate::low) unsafe fn ct_compare_bytes(a: *const u8, b: *const u8, len: usize) -> u8 {
-    // SAFETY: inline assembly.
+    let acc: u64;
+    // SAFETY: reads `len` bytes from `a` and `b`, which the caller guarantees
     unsafe {
-        let mut acc = 0u8;
         core::arch::asm!(
-            "   2: cmp  {len}, 0",
-            "      beq  3f",
-            "      ldrb {tmpa:w}, [{a}]",
-            "      ldrb {tmpb:w}, [{b}]",
-            "      eor  {tmpa:w}, {tmpa:w}, {tmpb:w}",
-            "      orr  {acc:w}, {acc:w}, {tmpa:w}",
-            "      add  {a}, {a}, 1",
-            "      add  {b}, {b}, 1",
-            "      sub  {len}, {len}, 1",
+            // by-8 loop
+            "   2: cmp  {len}, #8",
+            "      b.lo 3f",
+            "      ldr  {tmpa}, [{a}], #8",
+            "      ldr  {tmpb}, [{b}], #8",
+            "      eor  {tmpa}, {tmpa}, {tmpb}",
+            "      orr  {acc}, {acc}, {tmpa}",
+            "      sub  {len}, {len}, #8",
             "      b    2b",
-            "   3:  ",
+            // by-1 loop
+            "   3: cbz  {len}, 4f",
+            "      ldrb {tmpa:w}, [{a}], #1",
+            "      ldrb {tmpb:w}, [{b}], #1",
+            "      eor  {tmpa}, {tmpa}, {tmpb}",
+            "      orr  {acc}, {acc}, {tmpa}",
+            "      sub  {len}, {len}, #1",
+            "      b    3b",
+            // acc = (acc != 0) ? !0 : 0
+            "   4: cmp  {acc}, #0",
+            "      csetm {acc}, ne",
             a = inout(reg) a => _,
             b = inout(reg) b => _,
             len = inout(reg) len => _,
-            tmpa = inout(reg) 0u8 => _,
-            tmpb = inout(reg) 0u8 => _,
-            acc = inout(reg) acc,
+            tmpa = out(reg) _,
+            tmpb = out(reg) _,
+            acc = inout(reg) 0u64 => acc,
         );
-        acc
     }
+    acc as u8
 }
 
 /// This macro interdicts is_aarch64_feature_detected to allow testability.

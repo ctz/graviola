@@ -9,7 +9,7 @@ use core::ops::Range;
 
 use crate::low::{
     Blockwise, KECCAK_RC, sha3_keccak_f1600, sha3_keccak4_f1600, sha3_keccak6of8_f1600,
-    sha3_keccak8_f1600,
+    sha3_keccak8_f1600, sha3_shake256_8x_one_block,
 };
 
 /// A context for incremental computation of SHA3-256.
@@ -32,9 +32,8 @@ impl Sha3_256Context {
 
     /// Complete the SHA3-256 computation, returning the hash output.
     pub fn finish(self) -> [u8; Self::OUTPUT_SZ] {
-        let squeezing = self.sponge.absorb_final();
         let mut digest = [0u8; Self::OUTPUT_SZ];
-        squeezing.into_single_squeeze(&mut digest);
+        self.sponge.finish_into(&mut digest);
         digest
     }
 
@@ -62,9 +61,8 @@ impl Sha3_512Context {
 
     /// Complete the SHA3-512 computation, returning the hash output.
     pub fn finish(self) -> [u8; Self::OUTPUT_SZ] {
-        let sponge = self.sponge.absorb_final();
         let mut digest = [0u8; Self::OUTPUT_SZ];
-        sponge.into_single_squeeze(&mut digest);
+        self.sponge.finish_into(&mut digest);
         digest
     }
 
@@ -151,7 +149,7 @@ impl Shake256 {
     /// Each item of `inputs` has the same requirements as for [`Self::one_shot_sextet`].
     ///
     /// The eighth lane of the permutation is otherwise idle, so if `first_block` is
-    /// provided it is absorbed there.  The returned sponge can then absorb the rest of
+    /// provided it is absorbed using that spare permutation.  The returned sponge can then absorb the rest of
     /// that message.
     pub(crate) fn one_shot_septet(
         inputs: &[[u8; 40]; 7],
@@ -160,28 +158,18 @@ impl Shake256 {
     ) -> Option<Shake256Sponge> {
         debug_assert!(inputs.iter().all(|inp| inp[33] == SHAKE_PAD_BYTE));
 
-        let mut states = [[0u64; 25]; 8];
-        for (state, input) in states.iter_mut().zip(inputs) {
-            for (s, inp) in state.iter_mut().zip(input.as_chunks::<8>().0) {
-                *s = u64::from_le_bytes(*inp);
-            }
-            state[SHAKE_256_R_BYTES / size_of::<u64>() - 1] = 0x8000_0000_0000_0000;
-        }
-        if let Some(block) = first_block {
-            for (s, b) in states[7].iter_mut().zip(block.as_chunks::<8>().0) {
-                *s = u64::from_le_bytes(*b);
-            }
-        }
-
-        sha3_keccak8_f1600(&mut states, &KECCAK_RC);
-
-        for (state, output) in states.iter().zip(outputs.iter_mut()) {
-            for (ch, s) in output.as_chunks_mut::<8>().0.iter_mut().zip(state) {
-                *ch = s.to_le_bytes();
-            }
-        }
-
-        first_block.map(|_| Shake256Sponge::from_state(states[7]))
+        let mut sponge = first_block.map(|block| {
+            let mut sponge = Shake256Sponge::new();
+            sponge.xor_block(block);
+            sponge
+        });
+        sha3_shake256_8x_one_block(
+            &inputs.each_ref(),
+            outputs,
+            sponge.as_mut().map(|sponge| &mut sponge.sponge.s),
+            Self::one_shot_fallback,
+        );
+        sponge
     }
 
     /// Compute six SHAKE256 outputs in one go.
@@ -192,6 +180,15 @@ impl Shake256 {
     pub(crate) fn one_shot_sextet(inputs: &[&[u8; 40]; 6], outputs: &mut [[u8; 128]; 6]) {
         debug_assert!(inputs.iter().all(|inp| inp[33] == SHAKE_PAD_BYTE));
 
+        sha3_shake256_8x_one_block(inputs, outputs, None, Self::one_shot_fallback);
+    }
+
+    /// Fallback for [`sha3_shake256_8x_one_block`], using the general-purpose keccak-f muxes.
+    fn one_shot_fallback<const N: usize>(
+        inputs: &[&[u8; 40]; N],
+        outputs: &mut [[u8; 128]; N],
+        spare_permute: Option<&mut [u64; 25]>,
+    ) {
         let mut states = [[0u64; 25]; 8];
         for (state, input) in states.iter_mut().zip(inputs) {
             for (s, inp) in state.iter_mut().zip(input.as_chunks::<8>().0) {
@@ -200,7 +197,15 @@ impl Shake256 {
             state[SHAKE_256_R_BYTES / size_of::<u64>() - 1] = 0x8000_0000_0000_0000;
         }
 
-        sha3_keccak6of8_f1600(&mut states, &KECCAK_RC);
+        match spare_permute {
+            Some(spare) => {
+                states[7] = *spare;
+                sha3_keccak8_f1600(&mut states, &KECCAK_RC);
+                *spare = states[7];
+            }
+            None if N <= 6 => sha3_keccak6of8_f1600(&mut states, &KECCAK_RC),
+            None => sha3_keccak8_f1600(&mut states, &KECCAK_RC),
+        }
 
         for (state, output) in states.iter().zip(outputs.iter_mut()) {
             for (ch, s) in output.as_chunks_mut::<8>().0.iter_mut().zip(state) {
@@ -210,28 +215,44 @@ impl Shake256 {
     }
 }
 
+/// A sponge in the squeezing phase.
+///
+/// `s` is always owed a keccak-f before its next output, so squeezing
+/// never computes a permutation whose output goes unused.
 pub(crate) struct SqueezingSponge<const R: usize> {
     s: [u64; 25],
 }
 
 impl<const R: usize> SqueezingSponge<R> {
+    /// Resume squeezing from `s`, which is owed a keccak-f.
+    pub(crate) fn from_owed_state(s: [u64; 25]) -> Self {
+        Self { s }
+    }
+
     /// Squeeze into `output`.
     pub(crate) fn squeeze(&mut self, output: &mut [u8]) {
         for chunk in output.chunks_mut(R) {
-            self.squeeze_current(chunk);
             sha3_keccak_f1600(&mut self.s, &KECCAK_RC);
+            self.squeeze_current(chunk);
         }
     }
 
     /// Squeeze into `output`, which must be below `R` in length.
-    fn into_single_squeeze(mut self, output: &mut [u8]) {
+    fn single_squeeze(&mut self, output: &mut [u8]) {
         debug_assert!(output.len() < R);
+        sha3_keccak_f1600(&mut self.s, &KECCAK_RC);
         self.squeeze_current(output);
     }
 
     fn squeeze_current(&mut self, output: &mut [u8]) {
-        for (i, ch) in output.chunks_mut(8).enumerate() {
-            ch.copy_from_slice(&self.s[i].to_le_bytes()[..ch.len()]);
+        // Whole words are written with fixed-size stores; only the final partial
+        // word (if any) needs a variable-length copy.
+        let (words, partial) = output.as_chunks_mut::<8>();
+        for (word, s) in words.iter_mut().zip(self.s.iter()) {
+            *word = s.to_le_bytes();
+        }
+        if !partial.is_empty() {
+            partial.copy_from_slice(&self.s[words.len()].to_le_bytes()[..partial.len()]);
         }
     }
 
@@ -321,12 +342,12 @@ impl SqueezingSponge4xShake128 {
     pub(crate) fn squeeze(
         mut self,
         output: &mut [[u8; SHAKE_128_R_BYTES * 3]; 4],
-    ) -> [SqueezingSpongeObligation<SHAKE_128_R_BYTES>; 4] {
+    ) -> [SqueezingSponge<SHAKE_128_R_BYTES>; 4] {
         // nb. we're doing three blocks.  The states are post-absorb, so the sequence should be:
         //
         // - squeeze, keccak-f, squeeze, keccak-f, squeeze
         //
-        // This leaves a trailing keccak-f owing; represented by `SqueezingSpongeObligation`.
+        // This leaves a trailing keccak-f owing, as `SqueezingSponge` expects.
 
         fn squeeze_rate(
             states: &[[u64; 25]; 4],
@@ -356,24 +377,7 @@ impl SqueezingSponge4xShake128 {
             SHAKE_128_R_BYTES * 2..SHAKE_128_R_BYTES * 3,
         );
 
-        let [s0, s1, s2, s3] = self.states;
-        [
-            SqueezingSpongeObligation(s0),
-            SqueezingSpongeObligation(s1),
-            SqueezingSpongeObligation(s2),
-            SqueezingSpongeObligation(s3),
-        ]
-    }
-}
-
-/// A [`SqueezingSponge`] to which we owe a keccak-f application prior to further use.
-pub(crate) struct SqueezingSpongeObligation<const R: usize>(pub(crate) [u64; 25]);
-
-impl<const R: usize> SqueezingSpongeObligation<R> {
-    /// Pay back the debt by applying keccak-f and return the underlying [`SqueezingSponge`]
-    pub(crate) fn restitute(mut self) -> SqueezingSponge<R> {
-        sha3_keccak_f1600(&mut self.0, &KECCAK_RC);
-        SqueezingSponge { s: self.0 }
+        self.states.map(SqueezingSponge::from_owed_state)
     }
 }
 
@@ -386,14 +390,6 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
     const fn new() -> Self {
         Self {
             sponge: SqueezingSponge { s: [0; _] },
-            buffer: Blockwise::new(),
-        }
-    }
-
-    /// Resume absorbing from `s`, the state after one or more whole blocks.
-    fn from_state(s: [u64; 25]) -> Self {
-        Self {
-            sponge: SqueezingSponge { s },
             buffer: Blockwise::new(),
         }
     }
@@ -423,6 +419,23 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
 
     #[must_use]
     fn absorb_final(mut self) -> SqueezingSponge<R> {
+        self.pad_final();
+        self.sponge
+    }
+
+    /// Finish absorbing, then squeeze into `output`, which must be below `R` in length.
+    ///
+    /// Unlike `absorb_final()` this works in place: moving the state between
+    /// the final xor and its keccak-f defeats store-to-load forwarding.
+    fn finish_into(mut self, output: &mut [u8]) {
+        self.pad_final();
+        self.sponge.single_squeeze(output);
+    }
+
+    /// Absorb the final, padded, block.
+    ///
+    /// Its keccak-f is owed by `self.sponge`.
+    fn pad_final(&mut self) {
         match R - self.buffer.used() {
             1 => {
                 self.buffer.add_leading(&[PAD | 0x80]);
@@ -437,16 +450,19 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
             }
         }
         let padded = self.buffer.take().unwrap();
-        self.absorb_block(&padded);
-        self.sponge
+        self.xor_block(&padded);
     }
 
     fn absorb_block(&mut self, block: &[u8; R]) {
+        self.xor_block(block);
+        sha3_keccak_f1600(&mut self.sponge.s, &KECCAK_RC);
+    }
+
+    fn xor_block(&mut self, block: &[u8; R]) {
         let (chunks, _) = block.as_chunks::<8>();
         for (i, block) in chunks.iter().enumerate() {
             self.sponge.s[i] ^= u64::from_le_bytes(*block);
         }
-        sha3_keccak_f1600(&mut self.sponge.s, &KECCAK_RC);
     }
 }
 
@@ -624,14 +640,13 @@ mod tests {
             inp[34] = SHAKE_PAD_BYTE;
         }
 
-        // batched: three rate-blocks up front, then continue via the obligation.
+        // batched: three rate-blocks up front, then continue via the returned sponges.
         let mut batched = [[0u8; SHAKE_128_R_BYTES * 3]; 4];
-        let obligations =
-            SqueezingSponge4xShake128::new(&[inputs[0], inputs[1], inputs[2], inputs[3]])
-                .squeeze(&mut batched);
+        let sponges = SqueezingSponge4xShake128::new(&[inputs[0], inputs[1], inputs[2], inputs[3]])
+            .squeeze(&mut batched);
 
         const TAIL: usize = SHAKE_128_R_BYTES * 2;
-        for (n, (input, obligation)) in inputs.iter().zip(obligations).enumerate() {
+        for (n, (input, mut sponge)) in inputs.iter().zip(sponges).enumerate() {
             // single reference: absorb the 34-byte message, read the same total length.
             let mut single = [0u8; SHAKE_128_R_BYTES * 3 + TAIL];
             Shake128::new(&[&input[..34]]).read(&mut single);
@@ -639,9 +654,9 @@ mod tests {
             // the three eagerly-squeezed blocks must match
             assert_eq!(&batched[n][..], &single[..SHAKE_128_R_BYTES * 3]);
 
-            // and paying off the deferred keccak-f must continue the same stream
+            // and squeezing further must continue the same stream
             let mut tail = [0u8; TAIL];
-            obligation.restitute().squeeze(&mut tail);
+            sponge.squeeze(&mut tail);
             assert_eq!(&tail[..], &single[SHAKE_128_R_BYTES * 3..]);
         }
     }

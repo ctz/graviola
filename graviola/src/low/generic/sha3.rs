@@ -28,3 +28,9 @@ pub(crate) const KECCAK_RC: [u64; 24] = [
     0x00000000_80000001,
     0x80000000_80008008,
 ];
+
+/// A complete fallback implementation of [`sha3_shake256_8x_one_block`].
+///
+/// [`sha3_shake256_8x_one_block`]: crate::low::sha3_shake256_8x_one_block
+pub(crate) type Shake256x8FallbackFn<const N: usize> =
+    fn(&[&[u8; 40]; N], &mut [[u8; 128]; N], Option<&mut [u64; 25]>);

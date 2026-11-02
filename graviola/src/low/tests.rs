@@ -45,11 +45,100 @@ fn ct_equal() {
     }
 }
 
+#[test]
+fn ct_equal_unaligned() {
+    let a = [0u8; 64];
+    for offs in 0..8 {
+        for n in 0..(64 - offs) {
+            ct_equal_equiv(&a[offs..offs + n], &a[..n]);
+            for i in 0..n {
+                for bit in 0..8 {
+                    let mut b = [0u8; 64];
+                    b[offs + i] = 1 << bit;
+                    ct_equal_equiv(&a[offs..offs + n], &b[offs..offs + n]);
+                    ct_equal_equiv(&b[offs..offs + n], &a[..n]);
+                }
+            }
+        }
+    }
+}
+
 fn ct_equal_equiv(a: &[u8], b: &[u8]) {
     assert_eq!(a == b, super::ct_equal(a, b));
 }
 
+fn ct_compare_bytes_equiv(a: &[u8], b: &[u8]) {
+    assert_eq!(a.len(), b.len());
+    // SAFETY: `a` and `b` are both readable for `a.len()` bytes.
+    let real = unsafe { super::ct_compare_bytes(a.as_ptr(), b.as_ptr(), a.len()) };
+    let model = model::ct_compare_bytes(a, b);
+    assert_eq!(real, model, "a={a:02x?} b={b:02x?}");
+}
+
+#[test]
+fn ct_compare_bytes_exhaustive_single_bit() {
+    // every length/alignment/position/bit for one-bit differences
+    let a = [0u8; 80];
+    for offs in 0..8 {
+        for n in 0..(80 - offs) {
+            ct_compare_bytes_equiv(&a[offs..offs + n], &a[..n]);
+            for i in 0..n {
+                for bit in 0..8 {
+                    let mut b = [0u8; 80];
+                    b[offs + i] = 1 << bit;
+                    ct_compare_bytes_equiv(&a[offs..offs + n], &b[offs..offs + n]);
+                    ct_compare_bytes_equiv(&b[offs..offs + n], &a[offs..offs + n]);
+                }
+            }
+        }
+    }
+}
+
+mod ct_compare_bytes_prop {
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn proptest(
+            (a, b) in (0usize..300).prop_flat_map(|n| (
+                proptest::collection::vec(any::<u8>(), n),
+                proptest::collection::vec(any::<u8>(), n),
+            )),
+            diffs in proptest::collection::vec((any::<usize>(), any::<u8>()), 0..4),
+            offs in 0usize..8,
+        ) {
+            // `a` misaligned by `offs`
+            let mut buf = vec![0u8; offs];
+            buf.extend_from_slice(&a);
+            let a = &buf[offs..];
+
+            // unrelated random inputs
+            super::ct_compare_bytes_equiv(a, &b);
+
+            // mostly-equal inputs, with a few sparse differences
+            let mut b = a.to_vec();
+            if !b.is_empty() {
+                let n = b.len();
+                for (i, x) in diffs {
+                    b[i % n] ^= x;
+                }
+            }
+            super::ct_compare_bytes_equiv(a, &b);
+        }
+    }
+}
+
 mod model {
+    /// Pure-Rust model of `ct_compare_bytes`: 0x00 if `a == b`,
+    /// otherwise 0xff (on all architectures).
+    pub(super) fn ct_compare_bytes(a: &[u8], b: &[u8]) -> u8 {
+        assert_eq!(a.len(), b.len());
+        match a.iter().zip(b).fold(0, |acc, (x, y)| acc | (x ^ y)) {
+            0 => 0x00,
+            _ => 0xff,
+        }
+    }
+
     pub(super) fn bignum_mux(p: u64, z: &mut [u64], x_if_p: &[u64], y_if_not_p: &[u64]) {
         if p > 0 {
             z.copy_from_slice(x_if_p);

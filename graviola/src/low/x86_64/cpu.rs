@@ -91,28 +91,41 @@ unsafe fn _zero_bytes(ptr: *mut u8, len: usize) {
 /// # Safety
 /// The caller must ensure that there are `len` bytes readable at `a` and `b`,
 pub(in crate::low) unsafe fn ct_compare_bytes(a: *const u8, b: *const u8, len: usize) -> u8 {
-    let mut acc = 0u8;
+    let acc: u64;
     // SAFETY: reads `len` bytes from `a` and `b`, which the caller guarantees
     unsafe {
         core::arch::asm!(
-            "   2: cmp {len}, 0",
-            "      je  3f",
+            // by-8 loop
+            "   2: cmp {len}, 8",
+            "      jb  3f",
             "      mov {tmp}, [{a}]",
             "      xor {tmp}, [{b}]",
+            "      or  {acc}, {tmp}",
+            "      add {a}, 8",
+            "      add {b}, 8",
+            "      sub {len}, 8",
+            "      jmp 2b",
+            // by-1 loop
+            "   3: test {len}, {len}",
+            "      jz  4f",
+            "      movzx {tmp:e}, byte ptr [{a}]",
+            "      xor {tmp:l}, byte ptr [{b}]",
             "      or  {acc}, {tmp}",
             "      add {a}, 1",
             "      add {b}, 1",
             "      sub {len}, 1",
-            "      jmp 2b",
-            "   3:  ",
+            "      jmp 3b",
+            // acc = (acc != 0) ? !0 : 0
+            "   4: neg {acc}",
+            "      sbb {acc}, {acc}",
             a = inout(reg) a => _,
             b = inout(reg) b => _,
             len = inout(reg) len => _,
-            tmp = inout(reg_byte) 0u8 => _,
-            acc = inout(reg_byte) acc,
+            tmp = out(reg) _,
+            acc = inout(reg) 0u64 => acc,
         );
     }
-    acc
+    acc as u8
 }
 
 /// This macro interdicts is_x86_feature_detected to
@@ -198,6 +211,21 @@ impl HaveAvx512ForMlKem {
             && have_cpu_feature!("avx512vbmi")
             && have_cpu_feature!("avx512vbmi2")
         {
+            true => Some(Self(())),
+            false => None,
+        }
+    }
+}
+
+/// Token type reflecting the check for CPU features needed for AVX512 Keccak-f1600
+///
+/// A value of this type is proof that the CPU dynamic feature check has happened.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct HaveAvx512ForSha3(());
+
+impl HaveAvx512ForSha3 {
+    pub(crate) fn check() -> Option<Self> {
+        match have_cpu_feature!("avx512f") && have_cpu_feature!("avx512vl") {
             true => Some(Self(())),
             false => None,
         }
