@@ -202,3 +202,35 @@ impl Iterator for Shake128TwelveBitIterator {
         Some(item)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sample_poly_ntt_8x_matches_fallback() {
+        // About 1 in 120 polynomials needs the tail case, so this covers
+        // a good number of those, across every output position.
+        let mut seed = [0u8; 32];
+        for iter in 0..2000u32 {
+            seed[..4].copy_from_slice(&iter.to_le_bytes());
+            let mut rho = sha3::Shake128Sponge::new_for_message(&[&seed]);
+            let mut rho_bytes = [0u8; 32];
+            rho.squeeze(&mut rho_bytes);
+
+            let inputs: [[u8; 2]; 8] = core::array::from_fn(|i| [i as u8, (iter % 3) as u8]);
+            let mut got = [0i16; N * 8];
+            sample_poly_ntt_8x(&rho_bytes, &inputs, &mut got);
+
+            let mut expected = [0i16; N * 8];
+            for (ij, out) in inputs
+                .iter()
+                .zip(expected.as_chunks_mut::<N>().0.iter_mut())
+            {
+                Shake128ForMlKem::new(&[&rho_bytes, ij]).sample_into(out);
+            }
+
+            assert_eq!(got, expected, "mismatch for iteration {iter}");
+        }
+    }
+}
