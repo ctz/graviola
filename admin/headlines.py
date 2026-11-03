@@ -82,6 +82,7 @@ notes = {
         },
         "graviola": {
             "aes256-gcm": "Uses AVX512",
+            "mlkem768-combined": "Use AVX512",
         },
     }
 }
