@@ -198,20 +198,10 @@ macro_rules! have_cpu_feature {
     };
 }
 
-/// Token type reflecting the check for the SHA3 CPU feature
-///
-/// A value of this type is proof that the CPU dynamic feature check has happened.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct HaveSha3(());
-
-impl HaveSha3 {
-    pub(crate) fn check() -> Option<Self> {
-        match have_cpu_feature!("sha3") {
-            true => Some(Self(())),
-            false => None,
-        }
-    }
-}
+// Token type reflecting the check for the SHA3 CPU feature
+//
+// A value of this type is proof that the CPU dynamic feature check has happened.
+cpu_feature_token!(HaveSha3, "sha3");
 
 pub(crate) fn verify_cpu_features() {
     assert!(

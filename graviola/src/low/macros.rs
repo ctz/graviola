@@ -57,3 +57,25 @@ macro_rules! PageRef {
 macro_rules! PageOffRef {
     ($sym:literal) => { Q!( ":lo12:" "{" $sym "}" ) }
 }
+
+/// Macro to declare and implement a token type that can be instantiated if and only if
+/// a set of CPU features are all available
+///
+/// A value of this token type is proof that the CPU dynamic feature check has happened.
+#[allow(unused_macros)]
+macro_rules! cpu_feature_token {
+    ($type:ident, $($feature:tt),+) => {
+        #[derive(Clone, Copy, Debug)]
+        pub(crate) struct $type(());
+        impl $type {
+            pub(crate) fn check() -> Option<Self> {
+                $(
+                   if !have_cpu_feature!($feature) {
+                       return None;
+                   }
+                )*
+                Some(Self(()))
+            }
+        }
+    }
+}

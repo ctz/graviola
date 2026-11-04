@@ -178,89 +178,38 @@ macro_rules! have_cpu_feature {
     };
 }
 
-/// Token type reflecting the check for CPU features needed for AVX512-AES-GCM
-///
-/// A value of this type is proof that the CPU dynamic feature check has happened.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct HaveAvx512ForAesGcm(());
+// Token types reflecting the checks for CPU features needed for various functions
+// An instance of one of these types is proof that the CPU dynamic feature check
+// has happened successfully.
 
-impl HaveAvx512ForAesGcm {
-    pub(crate) fn check() -> Option<Self> {
-        match have_cpu_feature!("avx512f")
-            && have_cpu_feature!("avx512bw")
-            && have_cpu_feature!("avx512vl")
-            && have_cpu_feature!("vpclmulqdq")
-            && have_cpu_feature!("vaes")
-        {
-            true => Some(Self(())),
-            false => None,
-        }
-    }
-}
+// AVX512-AES-GCM
+cpu_feature_token!(
+    HaveAvx512ForAesGcm,
+    "avx512f",
+    "avx512bw",
+    "avx512vl",
+    "vpclmulqdq",
+    "vaes"
+);
 
-/// Token type reflecting the check for CPU features needed for AVX512-ML-KEM
-///
-/// A value of this type is proof that the CPU dynamic feature check has happened.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct HaveAvx512ForMlKem(());
+// AVX512-ML-KEM
+cpu_feature_token!(
+    HaveAvx512ForMlKem,
+    "avx512f",
+    "avx512bw",
+    "avx512vbmi",
+    "avx512vbmi2"
+);
 
-impl HaveAvx512ForMlKem {
-    pub(crate) fn check() -> Option<Self> {
-        match have_cpu_feature!("avx512f")
-            && have_cpu_feature!("avx512bw")
-            && have_cpu_feature!("avx512vbmi")
-            && have_cpu_feature!("avx512vbmi2")
-        {
-            true => Some(Self(())),
-            false => None,
-        }
-    }
-}
+// AVX512 Keccak-f1600
+cpu_feature_token!(HaveAvx512ForSha3, "avx512f", "avx512vl");
 
-/// Token type reflecting the check for CPU features needed for AVX512 Keccak-f1600
-///
-/// A value of this type is proof that the CPU dynamic feature check has happened.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct HaveAvx512ForSha3(());
+// SHA256 using SHA-NI
+cpu_feature_token!(HaveSha256, "sha");
 
-impl HaveAvx512ForSha3 {
-    pub(crate) fn check() -> Option<Self> {
-        match have_cpu_feature!("avx512f") && have_cpu_feature!("avx512vl") {
-            true => Some(Self(())),
-            false => None,
-        }
-    }
-}
+// BMI2, useful for accelerating SHA-512
+cpu_feature_token!(HaveBmi2, "bmi2");
 
-/// Token type reflecting the check for CPU features needed for SHA256 using SHA-NI
-///
-/// A value of this type is proof that the CPU dynamic feature check has happened.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct HaveSha256(());
-
-impl HaveSha256 {
-    pub(crate) fn check() -> Option<Self> {
-        match have_cpu_feature!("sha") {
-            true => Some(Self(())),
-            false => None,
-        }
-    }
-}
-
-/// Token type reflecting the check for the BMI2 CPU feature
-///
-/// A value of this type is proof that the CPU dynamic feature check has happened.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct HaveBmi2(());
-
-impl HaveBmi2 {
-    pub(crate) fn check() -> Option<Self> {
-        match have_cpu_feature!("bmi2") {
-            true => Some(Self(())),
-            false => None,
-        }
-    }
-}
 #[cfg(not(debug_assertions))]
 pub(crate) fn test_toggle(_id: &str, detected: bool) -> bool {
     detected
