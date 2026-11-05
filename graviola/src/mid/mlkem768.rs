@@ -172,7 +172,7 @@ impl DecapKey {
         let sigma = sigma.try_into().unwrap();
 
         // 3. - 7.
-        let a_hat = Coeffs::sample_poly(&rho);
+        let a_hat = Coeffs::sample_poly(&rho, None);
 
         // 8. - 15.
         let (s, e) = Coeffs::sample_poly_cbd_dual(sigma);
@@ -276,10 +276,17 @@ impl EncapKey {
     #[doc(hidden)]
     pub fn encaps_internal(self, m: Message) -> (SharedSecret, Ciphertext) {
         // 1. (K, r) <- G(m || H(ek))
-        let mut h = sha3::Sha3_256Context::new();
-        h.update(&self.t_hat);
-        h.update(&self.rho);
-        let h_ek = h.finish();
+        //
+        // The ninth polynomial of transpose(A^) (needed in step 2.) depends only
+        // on rho, so it is squeezed alongside the first three blocks of H(ek).
+        let mut h = sha3::Sha3_256Sponge::new();
+        let (h_blocks, _) = self.t_hat.as_chunks::<{ sha3::SHA3_256_R_BYTES }>();
+        let (first_blocks, _) = h_blocks.split_first_chunk::<3>().unwrap();
+        let ninth = sample_ntt::NinthPoly::squeeze_alongside(&self.rho, &mut h, first_blocks);
+        h.absorb(&self.t_hat[3 * sha3::SHA3_256_R_BYTES..]);
+        h.absorb(&self.rho);
+        let mut h_ek = [0u8; 32];
+        h.finish_into(&mut h_ek);
 
         let mut g = sha3::Sha3_512Context::new();
         g.update(&m.0);
@@ -291,7 +298,7 @@ impl EncapKey {
 
         // 2. c <- K-PKE.Encrypt(ek, m, r)
         //  (steps 4. - 8. of K-PKE.Encrypt: expand transpose(A^) from 𝜌)
-        let transpose_a_hat = Coeffs::sample_poly_transposed(&self.rho);
+        let transpose_a_hat = Coeffs::sample_poly_transposed(&self.rho, Some(ninth));
         let (c, _) = self.kpke_encrypt(&transpose_a_hat, m, r, None);
         (SharedSecret(k), c)
     }
@@ -430,14 +437,14 @@ impl<const C: usize, D: Domain> Coeffs<C, D> {
 }
 
 impl Coeffs<{ K * K * N }, Ntt> {
-    fn sample_poly(rho: &[u8; 32]) -> Self {
-        let mut r = Self(sample_ntt::sample_ntt(rho), PhantomData);
+    fn sample_poly(rho: &[u8; 32], ninth: Option<sample_ntt::NinthPoly>) -> Self {
+        let mut r = Self(sample_ntt::sample_ntt(rho, ninth), PhantomData);
         r.reorder();
         r
     }
 
-    fn sample_poly_transposed(rho: &[u8; 32]) -> Self {
-        let mut r = Self(sample_ntt::sample_ntt_transposed(rho), PhantomData);
+    fn sample_poly_transposed(rho: &[u8; 32], ninth: Option<sample_ntt::NinthPoly>) -> Self {
+        let mut r = Self(sample_ntt::sample_ntt_transposed(rho, ninth), PhantomData);
         r.reorder();
         r
     }
