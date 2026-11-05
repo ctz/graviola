@@ -102,6 +102,7 @@ impl Shake128 {
 }
 
 pub(crate) type Sha3_256Sponge = Sponge<SHA3_256_R_BYTES, SHA_PAD_BYTE>;
+pub(crate) type Sha3_512Sponge = Sponge<SHA3_512_R_BYTES, SHA_PAD_BYTE>;
 pub(crate) type Shake128Sponge = Sponge<SHAKE_128_R_BYTES, SHAKE_PAD_BYTE>;
 pub(crate) type Shake128SqueezingSponge = SqueezingSponge<SHAKE_128_R_BYTES>;
 pub(crate) type Shake256Sponge = Sponge<SHAKE_256_R_BYTES, SHAKE_PAD_BYTE>;
@@ -145,22 +146,21 @@ impl Shake256 {
         }
     }
 
-    /// Compute seven SHAKE256 outputs in one go, optionally starting an eighth.
+    /// Compute seven SHAKE256 outputs in one go, optionally progressing an eighth.
     ///
     /// Each item of `inputs` has the same requirements as for [`Self::one_shot_sextet`].
     ///
-    /// The eighth lane of the permutation is otherwise idle, so if `first_block` is
-    /// provided it is absorbed using that spare permutation.  The returned sponge can then absorb the rest of
-    /// that message.
+    /// If `spare` is provided, absorb its block using the eighth lane and return
+    /// the updated sponge. The sponge must be at a block boundary.
     pub(crate) fn one_shot_septet(
         inputs: &[[u8; 40]; 7],
         outputs: &mut [[u8; 128]; 7],
-        first_block: Option<&[u8; SHAKE_256_R_BYTES]>,
+        spare: Option<(Shake256Sponge, &[u8; SHAKE_256_R_BYTES])>,
     ) -> Option<Shake256Sponge> {
         debug_assert!(inputs.iter().all(|inp| inp[33] == SHAKE_PAD_BYTE));
 
-        let mut sponge = first_block.map(|block| {
-            let mut sponge = Shake256Sponge::new();
+        let mut sponge = spare.map(|(mut sponge, block)| {
+            debug_assert_eq!(sponge.buffer.used(), 0);
             sponge.xor_block(block);
             sponge
         });
@@ -726,26 +726,35 @@ mod tests {
         for (i, b) in long.iter_mut().enumerate() {
             *b = i as u8;
         }
-        let (first, rest) = long.split_at(SHAKE_256_R_BYTES);
+        let mut single = [0u8; 32];
+        Shake256::new(&[&long]).read(&mut single);
 
         let mut batched = [[0u8; 128]; 7];
         assert!(Shake256::one_shot_septet(&inputs, &mut batched, None).is_none());
-        let mut sponge =
-            Shake256::one_shot_septet(&inputs, &mut batched, Some(first.try_into().unwrap()))
-                .unwrap();
 
-        for (n, inp) in inputs.iter().enumerate() {
-            let mut single = [0u8; 128];
-            Shake256::new(&[&inp[..33]]).read(&mut single);
-            assert_eq!(batched[n], single);
+        // The spare lane can absorb the first block into a fresh sponge, or a
+        // later block into a sponge that has already absorbed some whole blocks.
+        for already_absorbed in [0, 1, 3] {
+            let (head, rest) = long.split_at(SHAKE_256_R_BYTES * already_absorbed);
+            let (block, rest) = rest.split_first_chunk::<SHAKE_256_R_BYTES>().unwrap();
+            let mut sponge = Shake256Sponge::new();
+            sponge.absorb(head);
+
+            let mut batched = [[0u8; 128]; 7];
+            let mut sponge =
+                Shake256::one_shot_septet(&inputs, &mut batched, Some((sponge, block))).unwrap();
+
+            for (n, inp) in inputs.iter().enumerate() {
+                let mut single = [0u8; 128];
+                Shake256::new(&[&inp[..33]]).read(&mut single);
+                assert_eq!(batched[n], single);
+            }
+
+            sponge.absorb(rest);
+            let mut eighth = [0u8; 32];
+            Shake256::from_sponge(sponge).read(&mut eighth);
+            assert_eq!(eighth, single, "already_absorbed = {already_absorbed}");
         }
-
-        sponge.absorb(rest);
-        let mut eighth = [0u8; 32];
-        Shake256::from_sponge(sponge).read(&mut eighth);
-        let mut single = [0u8; 32];
-        Shake256::new(&[&long]).read(&mut single);
-        assert_eq!(eighth, single);
     }
 
     #[test]
