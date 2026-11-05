@@ -43,6 +43,27 @@ impl NinthPoly {
         }
         Self { sponge, bytes }
     }
+
+    /// Squeeze the ninth polynomial's bytes, using `first_squeeze` for the first block.
+    ///
+    /// The callback must squeeze exactly one block into the supplied buffer.
+    /// Its return value is returned alongside `Self`.
+    pub(super) fn squeeze_first_with<T>(
+        rho: &[u8; 32],
+        first_squeeze: impl FnOnce(
+            &mut sha3::Shake128SqueezingSponge,
+            &mut [u8; sha3::SHAKE_128_R_BYTES],
+        ) -> T,
+    ) -> (Self, T) {
+        let mut sponge = sha3::Shake128Sponge::new_for_message(&[rho, &[2, 2]]);
+        let mut bytes = [0; _];
+        let (first, rest) = bytes
+            .split_first_chunk_mut::<{ sha3::SHAKE_128_R_BYTES }>()
+            .unwrap();
+        let t = first_squeeze(&mut sponge, first);
+        sponge.squeeze(rest);
+        (Self { sponge, bytes }, t)
+    }
 }
 
 fn sample_ntt_internal<const TRANSPOSED: bool>(
@@ -297,6 +318,14 @@ mod tests {
             if (low::mlkem_rej_uniform_vartime(&mut [0; N], &ninth.bytes) as usize) < N {
                 tail_cases += 1;
             }
+            assert_eq!(
+                sample_ntt(&rho, Some(ninth)),
+                expect,
+                "mismatch for iteration {iter}"
+            );
+
+            let (ninth, ()) =
+                NinthPoly::squeeze_first_with(&rho, |sponge, out| sponge.squeeze(out));
             assert_eq!(
                 sample_ntt(&rho, Some(ninth)),
                 expect,
