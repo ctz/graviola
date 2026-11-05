@@ -101,6 +101,7 @@ impl Shake128 {
     }
 }
 
+pub(crate) type Sha3_256Sponge = Sponge<SHA3_256_R_BYTES, SHA_PAD_BYTE>;
 pub(crate) type Shake128Sponge = Sponge<SHAKE_128_R_BYTES, SHAKE_PAD_BYTE>;
 pub(crate) type Shake128SqueezingSponge = SqueezingSponge<SHAKE_128_R_BYTES>;
 pub(crate) type Shake256Sponge = Sponge<SHAKE_256_R_BYTES, SHAKE_PAD_BYTE>;
@@ -387,7 +388,7 @@ pub(crate) struct Sponge<const R: usize, const PAD: u8> {
 }
 
 impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
-    const fn new() -> Self {
+    pub(crate) const fn new() -> Self {
         Self {
             sponge: SqueezingSponge { s: [0; _] },
             buffer: Blockwise::new(),
@@ -427,7 +428,7 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
     ///
     /// Unlike `absorb_final()` this works in place: moving the state between
     /// the final xor and its keccak-f defeats store-to-load forwarding.
-    fn finish_into(mut self, output: &mut [u8]) {
+    pub(crate) fn finish_into(mut self, output: &mut [u8]) {
         self.pad_final();
         self.sponge.single_squeeze(output);
     }
@@ -506,7 +507,7 @@ const R_ZEROES: [u8; SHAKE_128_R_BYTES] = [0; SHAKE_128_R_BYTES];
 pub(crate) const SHAKE_128_R_BYTES: usize = (1600 - 256) / 8;
 pub(crate) const SHAKE_256_R_BYTES: usize = (1600 - 512) / 8;
 
-const SHA3_256_R_BYTES: usize = (1600 - 512) / 8;
+pub(crate) const SHA3_256_R_BYTES: usize = (1600 - 512) / 8;
 const SHA3_512_R_BYTES: usize = (1600 - 1024) / 8;
 
 /// This is 0b01_1 in keccak bit ordering.

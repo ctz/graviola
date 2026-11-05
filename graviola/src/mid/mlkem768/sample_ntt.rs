@@ -4,15 +4,51 @@
 use super::{K, N, Q};
 use crate::{low, mid::sha3};
 
-pub(super) fn sample_ntt(rho: &[u8; 32]) -> [i16; K * K * N] {
-    sample_ntt_internal::<false>(rho)
+/// Sample A^ from `rho`.
+///
+/// `ninth` optionally supplies the ninth polynomial's bytes, squeezed ahead of time.
+pub(super) fn sample_ntt(rho: &[u8; 32], ninth: Option<NinthPoly>) -> [i16; K * K * N] {
+    sample_ntt_internal::<false>(rho, ninth)
 }
 
-pub(super) fn sample_ntt_transposed(rho: &[u8; 32]) -> [i16; K * K * N] {
-    sample_ntt_internal::<true>(rho)
+/// Sample transpose(A^) from `rho`.
+///
+/// `ninth` optionally supplies the ninth polynomial's bytes, squeezed ahead of time.
+pub(super) fn sample_ntt_transposed(rho: &[u8; 32], ninth: Option<NinthPoly>) -> [i16; K * K * N] {
+    sample_ntt_internal::<true>(rho, ninth)
 }
 
-fn sample_ntt_internal<const TRANSPOSED: bool>(rho: &[u8; 32]) -> [i16; K * K * N] {
+/// The ninth polynomial of A^, `A[2][2]`, with its SHAKE128 output squeezed ahead of time.
+///
+/// It is the same in A^ and transpose(A^).  Its three squeezes depend only on `rho`,
+/// so they can share keccak-f permutations with other work.
+pub(super) struct NinthPoly {
+    sponge: sha3::Shake128SqueezingSponge,
+    bytes: [u8; sha3::SHAKE_128_R_BYTES * 3],
+}
+
+impl NinthPoly {
+    /// Squeeze the ninth polynomial's bytes from `rho`, while `other` absorbs `other_blocks`.
+    ///
+    /// `other` must be at a block boundary.
+    pub(super) fn squeeze_alongside<const R: usize, const PAD: u8>(
+        rho: &[u8; 32],
+        other: &mut sha3::Sponge<R, PAD>,
+        other_blocks: &[[u8; R]; 3],
+    ) -> Self {
+        let mut sponge = sha3::Shake128Sponge::new_for_message(&[rho, &[2, 2]]);
+        let mut bytes = [0; _];
+        for (block, out) in other_blocks.iter().zip(bytes.as_chunks_mut().0) {
+            other.absorb_block_and_squeeze(block, &mut sponge, out);
+        }
+        Self { sponge, bytes }
+    }
+}
+
+fn sample_ntt_internal<const TRANSPOSED: bool>(
+    rho: &[u8; 32],
+    ninth: Option<NinthPoly>,
+) -> [i16; K * K * N] {
     let mut r = [0; _];
 
     // We have K * K polynomials to generate.  In this case, K := 3, so 9.
@@ -45,7 +81,13 @@ fn sample_ntt_internal<const TRANSPOSED: bool>(rho: &[u8; 32]) -> [i16; K * K * 
 
     sample_poly_ntt_8x(rho, inputs, output_8.try_into().unwrap());
 
-    Shake128ForMlKem::new(&[rho, &[2, 2]]).sample_into(output_tail.try_into().unwrap());
+    let output_tail = output_tail.try_into().unwrap();
+    match ninth {
+        Some(NinthPoly { sponge, bytes }) => {
+            Shake128ForMlKem { sponge }.sample_from(&bytes, output_tail)
+        }
+        None => Shake128ForMlKem::new(&[rho, &[2, 2]]).sample_into(output_tail),
+    }
 
     r
 }
@@ -125,8 +167,12 @@ impl Shake128ForMlKem {
         // so we get 336 candidate coefficients.
         let mut initial_bytes = [0; sha3::SHAKE_128_R_BYTES * 3];
         self.sponge.squeeze(&mut initial_bytes);
+        self.sample_from(&initial_bytes, output);
+    }
 
-        let tail = Self::sample(&initial_bytes, output);
+    /// As [`Self::sample_into`], but with the first three blocks already squeezed into `bytes`.
+    fn sample_from(self, bytes: &[u8; sha3::SHAKE_128_R_BYTES * 3], output: &mut [i16; 256]) {
+        let tail = Self::sample(bytes, output);
 
         // If we were unlucky, 336 candidate coeffients weren't enough.  That
         // happens with low but not negligible probability (1 in ~120).
@@ -232,5 +278,31 @@ mod tests {
 
             assert_eq!(got, expected, "mismatch for iteration {iter}");
         }
+    }
+
+    #[test]
+    fn ninth_poly_matches_unpaired() {
+        // About 1 in 120 ninth polynomials needs the tail case, which is
+        // sampled from the sponge left in `NinthPoly`.
+        let blocks = [[0x5a; sha3::SHA3_256_R_BYTES]; 3];
+        let mut tail_cases = 0;
+        for iter in 0..2000u32 {
+            let mut rho = [0u8; 32];
+            rho[..4].copy_from_slice(&iter.to_le_bytes());
+
+            let expect = sample_ntt(&rho, None);
+
+            let mut other = sha3::Sha3_256Sponge::new();
+            let ninth = NinthPoly::squeeze_alongside(&rho, &mut other, &blocks);
+            if (low::mlkem_rej_uniform_vartime(&mut [0; N], &ninth.bytes) as usize) < N {
+                tail_cases += 1;
+            }
+            assert_eq!(
+                sample_ntt(&rho, Some(ninth)),
+                expect,
+                "mismatch for iteration {iter}"
+            );
+        }
+        assert!(tail_cases > 0);
     }
 }
