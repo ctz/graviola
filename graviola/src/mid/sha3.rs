@@ -178,10 +178,29 @@ impl Shake256 {
     /// Each item of `inputs` shall be 40 bytes in length, which accommodates ML-KEM's `SamplePolyCBD`
     /// requirements of 33 bytes.  The 34th byte shall be `SHAKE_PAD_BYTE` and the remainder shall be
     /// zeroes.
-    pub(crate) fn one_shot_sextet(inputs: &[&[u8; 40]; 6], outputs: &mut [[u8; 128]; 6]) {
+    ///
+    /// The permutation has spare lanes, so if `spare` is provided then one of them is used
+    /// to squeeze one block from that SHAKE128 sponge into the accompanying buffer.
+    pub(crate) fn one_shot_sextet(
+        inputs: &[&[u8; 40]; 6],
+        outputs: &mut [[u8; 128]; 6],
+        spare: Option<(&mut Shake128SqueezingSponge, &mut [u8; SHAKE_128_R_BYTES])>,
+    ) {
         debug_assert!(inputs.iter().all(|inp| inp[33] == SHAKE_PAD_BYTE));
 
-        sha3_shake256_8x_one_block(inputs, outputs, None, Self::one_shot_fallback);
+        match spare {
+            Some((sponge, output)) => {
+                // `sponge` is owed a keccak-f, which the spare lane provides.
+                sha3_shake256_8x_one_block(
+                    inputs,
+                    outputs,
+                    Some(&mut sponge.s),
+                    Self::one_shot_fallback,
+                );
+                sponge.squeeze_current(output);
+            }
+            None => sha3_shake256_8x_one_block(inputs, outputs, None, Self::one_shot_fallback),
+        }
     }
 
     /// Fallback for [`sha3_shake256_8x_one_block`], using the general-purpose keccak-f muxes.
@@ -696,20 +715,32 @@ mod tests {
             inp[33] = SHAKE_PAD_BYTE;
         }
 
-        let mut batched = [[0u8; 128]; 6];
-        Shake256::one_shot_sextet(
-            &[
-                &inputs[0], &inputs[1], &inputs[2], &inputs[3], &inputs[4], &inputs[5],
-            ],
-            &mut batched,
-        );
+        let inputs = inputs.each_ref();
 
-        for (n, inp) in inputs.iter().enumerate() {
-            // the absorbed message is the 33 bytes preceding the pad byte
-            let mut single = [0u8; 128];
-            Shake256::new(&[&inp[..33]]).read(&mut single);
-            assert_eq!(batched[n], single);
+        // A SHAKE128 sponge for the spare lane, squeezed twice there and then once more.
+        let mut spare_sponge = Shake128Sponge::new_for_message(&[b"spare"]);
+        let mut spare_out = [[0u8; SHAKE_128_R_BYTES]; 3];
+
+        for spare in [None, Some(0), Some(1)] {
+            let mut batched = [[0u8; 128]; 6];
+            Shake256::one_shot_sextet(
+                &inputs,
+                &mut batched,
+                spare.map(|i| (&mut spare_sponge, &mut spare_out[i])),
+            );
+
+            for (n, inp) in inputs.iter().enumerate() {
+                // the absorbed message is the 33 bytes preceding the pad byte
+                let mut single = [0u8; 128];
+                Shake256::new(&[&inp[..33]]).read(&mut single);
+                assert_eq!(batched[n], single);
+            }
         }
+
+        spare_sponge.squeeze(&mut spare_out[2]);
+        let mut expect = [0u8; SHAKE_128_R_BYTES * 3];
+        Shake128::new(&[b"spare"]).read(&mut expect);
+        assert_eq!(spare_out.as_flattened(), &expect[..]);
     }
 
     #[test]

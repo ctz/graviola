@@ -177,11 +177,16 @@ impl DecapKey {
         let rho: [u8; 32] = rho.try_into().unwrap();
         let sigma = sigma.try_into().unwrap();
 
-        // 3. - 7.
-        let a_hat = Coeffs::sample_poly(&rho, None);
-
         // 8. - 15.
-        let (s, e) = Coeffs::sample_poly_cbd_dual(sigma);
+        //
+        // These come before steps 3. - 7., so that a spare lane of their keccak-f can
+        // provide the first squeeze of A^'s ninth polynomial.
+        let (ninth, (s, e)) = sample_ntt::NinthPoly::squeeze_first_with(&rho, |sponge, out| {
+            Coeffs::sample_poly_cbd_dual(sigma, Some((sponge, out)))
+        });
+
+        // 3. - 7.
+        let a_hat = Coeffs::sample_poly(&rho, Some(ninth));
 
         // 16. ŝ <- NTT(s)
         let mut s_hat = s.ntt();
@@ -663,7 +668,15 @@ impl Coeffs<{ K * N }, Normal> {
     ///
     /// In other words, it produces two noise vectors, diversifying the seed `sigma`
     /// with indices from 0..2K.
-    fn sample_poly_cbd_dual(sigma: &[u8; 32]) -> (Self, Self) {
+    ///
+    /// `spare` is passed through to [`sha3::Shake256::one_shot_sextet`].
+    fn sample_poly_cbd_dual(
+        sigma: &[u8; 32],
+        spare: Option<(
+            &mut sha3::Shake128SqueezingSponge,
+            &mut [u8; sha3::SHAKE_128_R_BYTES],
+        )>,
+    ) -> (Self, Self) {
         // We need 2 * K samples.
         let mut samples = [[0; 128]; 6];
 
@@ -685,7 +698,11 @@ impl Coeffs<{ K * N }, Normal> {
         buf4[32] = 4;
         buf5[32] = 5;
 
-        sha3::Shake256::one_shot_sextet(&[&buf0, &buf1, &buf2, &buf3, &buf4, &buf5], &mut samples);
+        sha3::Shake256::one_shot_sextet(
+            &[&buf0, &buf1, &buf2, &buf3, &buf4, &buf5],
+            &mut samples,
+            spare,
+        );
 
         let mut a = Coeffs::zero();
         let mut b = Coeffs::zero();
