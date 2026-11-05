@@ -8,8 +8,8 @@
 use core::ops::Range;
 
 use crate::low::{
-    Blockwise, KECCAK_RC, sha3_keccak_f1600, sha3_keccak4_f1600, sha3_keccak6of8_f1600,
-    sha3_keccak8_f1600, sha3_shake256_8x_one_block,
+    Blockwise, KECCAK_RC, sha3_keccak_f1600, sha3_keccak2_f1600, sha3_keccak4_f1600,
+    sha3_keccak6of8_f1600, sha3_keccak8_f1600, sha3_shake256_8x_one_block,
 };
 
 /// A context for incremental computation of SHA3-256.
@@ -458,6 +458,41 @@ impl<const R: usize, const PAD: u8> Sponge<R, PAD> {
         sha3_keccak_f1600(&mut self.sponge.s, &KECCAK_RC);
     }
 
+    /// Absorb `block` into `self`, while `other` squeezes its next block into `output`.
+    ///
+    /// The two share one two-way keccak-f.  `self` must be at a block boundary:
+    /// nothing may be buffered from a previous `absorb()`.
+    pub(crate) fn absorb_block_and_squeeze<const R2: usize>(
+        &mut self,
+        block: &[u8; R],
+        other: &mut SqueezingSponge<R2>,
+        output: &mut [u8; R2],
+    ) {
+        debug_assert_eq!(self.buffer.used(), 0);
+        self.xor_block(block);
+        sha3_keccak2_f1600(&mut self.sponge.s, &mut other.s, &KECCAK_RC);
+        other.squeeze_current(output);
+    }
+
+    /// Finish absorbing, then squeeze into `output`, which must be below `R` in length.
+    /// Meanwhile, `other` absorbs `block`.
+    ///
+    /// The two share one two-way keccak-f.  `other` must be at a block boundary:
+    /// nothing may be buffered from a previous `absorb()`.
+    pub(crate) fn finish_into_and_absorb_block<const R2: usize, const PAD2: u8>(
+        mut self,
+        output: &mut [u8],
+        other: &mut Sponge<R2, PAD2>,
+        block: &[u8; R2],
+    ) {
+        debug_assert!(output.len() < R);
+        debug_assert_eq!(other.buffer.used(), 0);
+        self.pad_final();
+        other.xor_block(block);
+        sha3_keccak2_f1600(&mut self.sponge.s, &mut other.sponge.s, &KECCAK_RC);
+        self.sponge.squeeze_current(output);
+    }
+
     fn xor_block(&mut self, block: &[u8; R]) {
         let (chunks, _) = block.as_chunks::<8>();
         for (i, block) in chunks.iter().enumerate() {
@@ -579,7 +614,7 @@ mod tests {
 
         for _ in 0..4 {
             let [a0, a1] = &mut pair;
-            crate::low::sha3_keccak2_f1600(a0, a1, &KECCAK_RC);
+            sha3_keccak2_f1600(a0, a1, &KECCAK_RC);
             for s in singles.iter_mut() {
                 sha3_keccak_f1600(s, &KECCAK_RC);
             }
@@ -588,9 +623,65 @@ mod tests {
 
         let mut zero = [[0u64; 25]; 2];
         let [z0, z1] = &mut zero;
-        crate::low::sha3_keccak2_f1600(z0, z1, &KECCAK_RC);
+        sha3_keccak2_f1600(z0, z1, &KECCAK_RC);
         assert_eq!(zero[0][0], ZERO_PERMUTED_0);
         assert_eq!(zero[0], zero[1]);
+    }
+
+    #[test]
+    fn absorb_block_and_squeeze_matches_single() {
+        // Shaped like ML-KEM encaps: H(ek) absorbs while SHAKE128(rho || 2 || 2) squeezes.
+        let ek: [u8; 1184] = core::array::from_fn(|i| (i * 7 + 3) as u8);
+        let rho = &ek[1152..];
+
+        let mut h = Sponge::<SHA3_256_R_BYTES, SHA_PAD_BYTE>::new();
+        let mut a22 = Shake128Sponge::new_for_message(&[rho, &[2, 2]]);
+        let mut a22_bytes = [[0u8; SHAKE_128_R_BYTES]; 4];
+
+        let (blocks, rest) = ek.as_chunks::<SHA3_256_R_BYTES>();
+        for (block, out) in blocks.iter().zip(a22_bytes[..3].iter_mut()) {
+            h.absorb_block_and_squeeze(block, &mut a22, out);
+        }
+        h.absorb(&ek[3 * SHA3_256_R_BYTES..blocks.len() * SHA3_256_R_BYTES]);
+        h.absorb(rest);
+        let mut h_ek = [0u8; 32];
+        h.finish_into(&mut h_ek);
+
+        // Check that squeezing continues from the updated state.
+        a22.squeeze(&mut a22_bytes[3]);
+
+        let mut ctx = Sha3_256Context::new();
+        ctx.update(&ek);
+        assert_eq!(h_ek, ctx.finish());
+
+        let mut expect = [0u8; SHAKE_128_R_BYTES * 4];
+        Shake128::new(&[rho, &[2, 2]]).read(&mut expect);
+        assert_eq!(a22_bytes.as_flattened(), &expect[..]);
+    }
+
+    #[test]
+    fn finish_into_and_absorb_block_matches_single() {
+        // Shaped like ML-KEM decaps: G(m' || h) finishes while J(z || c) absorbs its first block.
+        let m_h: [u8; 64] = core::array::from_fn(|i| (i * 5 + 1) as u8);
+        let z_c: [u8; 1120] = core::array::from_fn(|i| (i * 11 + 9) as u8);
+
+        let mut g = Sponge::<SHA3_512_R_BYTES, SHA_PAD_BYTE>::new();
+        g.absorb(&m_h);
+        let mut j = Shake256Sponge::new();
+        let (first, rest) = z_c.split_first_chunk::<SHAKE_256_R_BYTES>().unwrap();
+        let mut kr = [0u8; 64];
+        g.finish_into_and_absorb_block(&mut kr, &mut j, first);
+        j.absorb(rest);
+        let mut k_bar = [0u8; 32];
+        Shake256::from_sponge(j).read(&mut k_bar);
+
+        let mut ctx = Sha3_512Context::new();
+        ctx.update(&m_h);
+        assert_eq!(kr, ctx.finish());
+
+        let mut expect = [0u8; 32];
+        Shake256::new(&[&z_c]).read(&mut expect);
+        assert_eq!(k_bar, expect);
     }
 
     #[test]
