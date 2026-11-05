@@ -120,29 +120,35 @@ impl DecapKey {
         // 5. m' <- K-PKE.Decrypt(dkPKE, c)
         let m_prime = self.kpke_decrypt(c);
 
-        // 6. (K', r') <- G(m' || h)
-        let mut g = sha3::Sha3_512Context::new();
-        g.update(&m_prime.0);
-        g.update(&self.h_ek);
-        let kr_prime = g.finish();
-        let (k_prime, r_prime) = kr_prime.split_at(32);
-        let r_prime = KpkeRandomness(r_prime.try_into().unwrap());
-
         // 7. K‾ <- J(z || c)
         //
-        // The first block of J's input is absorbed alongside the PRF invocations
-        // in step 8.
-        let (c_head, c_tail) = c.0.split_at(sha3::SHAKE_256_R_BYTES - 32);
+        // J's input does not depend on m', so its first two blocks share keccak-f
+        // permutations with other work: the first with G in step 6., and the second
+        // with the PRF invocations in step 8.
+        let (c_head, c_rest) = c.0.split_at(sha3::SHAKE_256_R_BYTES - 32);
+        let (j_second_block, c_tail) = c_rest
+            .split_first_chunk::<{ sha3::SHAKE_256_R_BYTES }>()
+            .unwrap();
         let mut j_first_block = [0u8; sha3::SHAKE_256_R_BYTES];
         j_first_block[..32].copy_from_slice(&self.z);
         j_first_block[32..].copy_from_slice(c_head);
+        let mut j = sha3::Shake256Sponge::new();
+
+        // 6. (K', r') <- G(m' || h)
+        let mut g = sha3::Sha3_512Sponge::new();
+        g.absorb(&m_prime.0);
+        g.absorb(&self.h_ek);
+        let mut kr_prime = [0u8; 64];
+        g.finish_into_and_absorb_block(&mut kr_prime, &mut j, &j_first_block);
+        let (k_prime, r_prime) = kr_prime.split_at(32);
+        let r_prime = KpkeRandomness(r_prime.try_into().unwrap());
 
         // 8. c' <- K-PKE.Encrypt(ekPKE, m', r')
         let (c_prime, j) = self.ek_pke.kpke_encrypt(
             &self.transpose_a_hat,
             m_prime,
             r_prime,
-            Some(&j_first_block),
+            Some((j, j_second_block)),
         );
 
         // 7. (continued)
@@ -303,8 +309,8 @@ impl EncapKey {
         (SharedSecret(k), c)
     }
 
-    /// `j_first_block` is optionally absorbed into a SHAKE256 sponge in passing,
-    /// which is returned.
+    /// If `j_spare` is provided, absorb its block alongside the PRFs and return
+    /// the updated sponge.
     ///
     /// `transpose_a_hat` must be the matrix expanded from `self.rho`.
     fn kpke_encrypt(
@@ -312,7 +318,7 @@ impl EncapKey {
         transpose_a_hat: &Coeffs<{ K * K * N }, Ntt>,
         m: Message,
         r: KpkeRandomness,
-        j_first_block: Option<&[u8; sha3::SHAKE_256_R_BYTES]>,
+        j_spare: Option<(sha3::Shake256Sponge, &[u8; sha3::SHAKE_256_R_BYTES])>,
     ) -> (Ciphertext, Option<sha3::Shake256Sponge>) {
         // 2. t^ <- ByteDecode12(ekPKE[0 ∶ 384k])
         let t_hat = Coeffs::from_bytes(&self.t_hat);
@@ -324,7 +330,7 @@ impl EncapKey {
         // 9. - 12.
         // 13. - 16.
         // 17. e_2 <- SamplePolyCBD(PRF (r, N))
-        let (y, e_1, e_2, j) = Coeffs::sample_poly_cbd_triple(&r.0, j_first_block);
+        let (y, e_1, e_2, j) = Coeffs::sample_poly_cbd_triple(&r.0, j_spare);
 
         // 18. y^ <- NTT(y)
         let y_hat = y.ntt();
@@ -699,11 +705,11 @@ impl Coeffs<{ K * N }, Normal> {
     /// This is triple `SamplePolyCBD`, as required by `K-PKE.Encrypt`.
     ///
     /// It produces two noise vectors and one noise polynomial, diversifying the
-    /// seed `r` with indices from 0..=2K.  `j_first_block` is passed through to
+    /// seed `r` with indices from 0..=2K.  `j_spare` is passed through to
     /// [`sha3::Shake256::one_shot_septet`].
     fn sample_poly_cbd_triple(
         r: &[u8; 32],
-        j_first_block: Option<&[u8; sha3::SHAKE_256_R_BYTES]>,
+        j_spare: Option<(sha3::Shake256Sponge, &[u8; sha3::SHAKE_256_R_BYTES])>,
     ) -> (Self, Self, Coeffs<N, Normal>, Option<sha3::Shake256Sponge>) {
         // We need 2 * K + 1 samples.
         let mut samples = [[0; 128]; 7];
@@ -717,7 +723,7 @@ impl Coeffs<{ K * N }, Normal> {
             buf_i
         });
 
-        let j = sha3::Shake256::one_shot_septet(&inputs, &mut samples, j_first_block);
+        let j = sha3::Shake256::one_shot_septet(&inputs, &mut samples, j_spare);
 
         let mut a = Coeffs::zero();
         let mut b = Coeffs::zero();
