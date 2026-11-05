@@ -566,6 +566,34 @@ mod tests {
     }
 
     #[test]
+    fn keccak2_matches_single() {
+        // Keccak-f1600 of the all-zero state, from the Keccak team's KeccakF-1600-IntermediateValues.txt.
+        const ZERO_PERMUTED_0: u64 = 0xF1258F7940E1DDE7;
+
+        // Distinct, asymmetric states, so swapped or mixed lanes are detected.
+        let mut pair = [[0u64; 25]; 2];
+        for (i, w) in pair[1].iter_mut().enumerate() {
+            *w = (i as u64 + 1).wrapping_mul(0x9E37_79B9_7F4A_7C15);
+        }
+        let mut singles = pair;
+
+        for _ in 0..4 {
+            let [a0, a1] = &mut pair;
+            crate::low::sha3_keccak2_f1600(a0, a1, &KECCAK_RC);
+            for s in singles.iter_mut() {
+                sha3_keccak_f1600(s, &KECCAK_RC);
+            }
+            assert_eq!(pair, singles);
+        }
+
+        let mut zero = [[0u64; 25]; 2];
+        let [z0, z1] = &mut zero;
+        crate::low::sha3_keccak2_f1600(z0, z1, &KECCAK_RC);
+        assert_eq!(zero[0][0], ZERO_PERMUTED_0);
+        assert_eq!(zero[0], zero[1]);
+    }
+
+    #[test]
     fn one_shot_sextet_matches_single() {
         // build the six 40-byte inputs in the format `one_shot_sextet` requires:
         // SEED || index || SHAKE_PAD_BYTE || zeroes

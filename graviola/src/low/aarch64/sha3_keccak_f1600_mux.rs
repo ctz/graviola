@@ -9,3 +9,21 @@ pub(crate) fn sha3_keccak_f1600(a: &mut [u64; 25], rc: &[u64; 24]) {
         None => super::sha3_keccak_f1600::sha3_keccak_f1600(a, rc),
     }
 }
+
+/// Compute Keccak-f1600 on two independent states, `a0` and `a1`.
+#[inline]
+pub(crate) fn sha3_keccak2_f1600(a0: &mut [u64; 25], a1: &mut [u64; 25], rc: &[u64; 24]) {
+    match super::cpu::HaveSha3::check() {
+        // SAFETY: This branch is only called if the CPU has the SHA3 feature.
+        Some(_) => unsafe {
+            // The assembly needs the two states to be adjacent.
+            let mut a = [*a0, *a1];
+            super::sha3_keccak2_f1600::sha3_keccak2_f1600(&mut a, rc);
+            [*a0, *a1] = a;
+        },
+        None => {
+            super::sha3_keccak_f1600::sha3_keccak_f1600(a0, rc);
+            super::sha3_keccak_f1600::sha3_keccak_f1600(a1, rc);
+        }
+    }
+}

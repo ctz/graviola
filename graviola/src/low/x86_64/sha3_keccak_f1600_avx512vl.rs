@@ -19,6 +19,43 @@ pub(super) fn sha3_keccak_f1600(a: &mut [u64; 25], rc: &[u64; 24], _proof: HaveA
         *s = _mm_cvtsi64_si128(*a as i64);
     }
 
+    permute(&mut state, rc);
+
+    for (a, s) in a.iter_mut().zip(state) {
+        *a = _mm_cvtsi128_si64(s) as u64;
+    }
+}
+
+/// Compute Keccak-f1600 on two independent states.
+///
+/// Holds `a0` and `a1` in the low and high 64-bit halves of each XMM register.
+/// Separate arguments allow pairing nonadjacent states.
+///
+/// `_proof` guarantees a CPU feature check was done.
+#[target_feature(enable = "avx512f,avx512vl")]
+pub(super) fn sha3_keccak2_f1600(
+    a0: &mut [u64; 25],
+    a1: &mut [u64; 25],
+    rc: &[u64; 24],
+    _proof: HaveAvx512ForSha3,
+) {
+    let mut state = [_mm_setzero_si128(); 25];
+    for (s, (a0, a1)) in state.iter_mut().zip(a0.iter().zip(a1.iter())) {
+        *s = _mm_set_epi64x(*a1 as i64, *a0 as i64);
+    }
+
+    permute(&mut state, rc);
+
+    for (s, (a0, a1)) in state.iter().zip(a0.iter_mut().zip(a1.iter_mut())) {
+        *a0 = _mm_cvtsi128_si64(*s) as u64;
+        *a1 = _mm_extract_epi64::<1>(*s) as u64;
+    }
+}
+
+/// The Keccak-f1600 rounds, applied independently to both 64-bit lanes of `state`.
+#[inline]
+#[target_feature(enable = "avx512f,avx512vl")]
+fn permute(state: &mut [__m128i; 25], rc: &[u64; 24]) {
     for round_constant in rc {
         // Theta step.
         //
@@ -61,11 +98,7 @@ pub(super) fn sha3_keccak_f1600(a: &mut [u64; 25], rc: &[u64; 24], _proof: HaveA
         }
 
         // Iota step.
-        state[0] = xor(state[0], _mm_cvtsi64_si128(*round_constant as i64));
-    }
-
-    for (a, s) in a.iter_mut().zip(state) {
-        *a = _mm_cvtsi128_si64(s) as u64;
+        state[0] = xor(state[0], _mm_set1_epi64x(*round_constant as i64));
     }
 }
 
