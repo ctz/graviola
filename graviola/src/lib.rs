@@ -187,3 +187,8 @@ pub mod random {
         SystemRandom.fill(out)
     }
 }
+
+/// Utility functions
+pub mod util {
+    pub use crate::high::util::is_cpu_supported;
+}

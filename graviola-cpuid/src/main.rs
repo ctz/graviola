@@ -5,6 +5,8 @@ fn main() {
 
 #[cfg(target_arch = "x86_64")]
 fn main() {
+    use graviola::util::is_cpu_supported;
+
     let aes = is_x86_feature_detected!("aes");
     let pclmulqdq = is_x86_feature_detected!("pclmulqdq");
     let bmi1 = is_x86_feature_detected!("bmi1");
@@ -21,7 +23,7 @@ fn main() {
     let vaes = is_x86_feature_detected!("vaes");
     let vpclmulqdq = is_x86_feature_detected!("vpclmulqdq");
 
-    let compatible = aes && pclmulqdq && bmi1 && bmi2 && adx && avx && avx2 && ssse3;
+    let compatible = is_cpu_supported();
     let avx512_aes_gcm = avx512f && avx512bw && avx512vl && vaes && vpclmulqdq;
 
     println!(
@@ -53,6 +55,8 @@ fn main() {
 fn main() {
     use std::arch::is_aarch64_feature_detected;
 
+    use graviola::util::is_cpu_supported;
+
     let aes = is_aarch64_feature_detected!("aes");
     let dit = is_aarch64_feature_detected!("dit");
     let neon = is_aarch64_feature_detected!("neon");
@@ -60,7 +64,7 @@ fn main() {
     let sha2 = is_aarch64_feature_detected!("sha2");
     let sha3 = is_aarch64_feature_detected!("sha3");
 
-    let compatible = aes && neon && pmull && sha2;
+    let compatible = is_cpu_supported();
 
     println!(
         "{{ \"cpuid\": {{ \"aes\": {}, \"dit\": {}, \"neon\": {}, \"pmull\": {}, \
