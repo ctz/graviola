@@ -226,44 +226,24 @@ pub(crate) fn test_toggle(id: &str, detected: bool) -> bool {
 }
 
 pub(crate) fn verify_cpu_features() {
+    assert!(
+        is_cpu_supported(),
+        "graviola requires adx, aes, avx, avx2, bmi1, and pclmulqdq CPU support. \
+        (rebuild with VALGRIND_BUG_494162 for valgrind compatibility)"
+    );
+}
+
+pub(crate) fn is_cpu_supported() -> bool {
     // these are the cpu features we require unconditionally.
     // this limits the library to x86_64 processors released after approx 2013.
-
-    // mandatory feature requirements
-    // our aes-gcm
-    assert!(
-        have_cpu_feature!("aes"),
-        "graviola requires aes CPU support"
-    );
-    assert!(
-        have_cpu_feature!("pclmulqdq"),
-        "graviola requires pclmulqdq CPU support"
-    );
-
-    // s2n-bignum non _alt versions
-    assert!(
-        have_cpu_feature!("bmi1"),
-        "graviola requires bmi1 CPU support"
-    );
-
-    // see this valgrind bug: https://bugs.kde.org/show_bug.cgi?id=494162
-    assert!(
-        have_cpu_feature!("adx") || option_env!("VALGRIND_BUG_494162").is_some(),
-        "graviola requires adx CPU support (rebuild with VALGRIND_BUG_494162 for valgrind compatibility)"
-    );
-
-    // assorted intrinsic code
-    assert!(
-        is_x86_feature_detected!("avx"),
-        "graviola requires avx CPU support"
-    );
-    assert!(
-        have_cpu_feature!("avx2"),
-        "graviola requires avx2 CPU support"
-    );
-
     // there are more features required, but (eg)
     // ssse3 is implied by avx.
+    have_cpu_feature!("aes")
+        && have_cpu_feature!("pclmulqdq")
+        && have_cpu_feature!("bmi1")
+        && (have_cpu_feature!("adx") || option_env!("VALGRIND_BUG_494162").is_some())
+        && is_x86_feature_detected!("avx")
+        && have_cpu_feature!("avx2")
 }
 
 // --- Safe abstractions over common intrinsics operations ---

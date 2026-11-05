@@ -205,21 +205,16 @@ cpu_feature_token!(HaveSha3, "sha3");
 
 pub(crate) fn verify_cpu_features() {
     assert!(
-        have_cpu_feature!("neon"),
-        "graviola requires neon CPU support"
+        is_cpu_supported(),
+        "graviola requires aes, neon, pmull, and sha2 CPU support"
     );
-    assert!(
-        have_cpu_feature!("aes"),
-        "graviola requires aes CPU support"
-    );
-    assert!(
-        have_cpu_feature!("pmull"),
-        "graviola requires pmull CPU support"
-    );
-    assert!(
-        have_cpu_feature!("sha2"),
-        "graviola requires sha2 CPU support"
-    );
+}
+
+pub(crate) fn is_cpu_supported() -> bool {
+    have_cpu_feature!("neon")
+        && have_cpu_feature!("aes")
+        && have_cpu_feature!("pmull")
+        && have_cpu_feature!("sha2")
 }
 
 mod dit {
