@@ -1,10 +1,13 @@
 use std::fs::File;
 use std::io::BufReader;
+use std::panic;
+use std::path::Path;
 
 use graviola::Error;
 use graviola::aead::{AesGcm, ChaCha20Poly1305, XChaCha20Poly1305};
+use graviola::hashing::hkdf::{ExtractedPrk, OkmTooLongError};
 use graviola::hashing::hmac::Hmac;
-use graviola::hashing::{Sha256, Sha384, Sha512};
+use graviola::hashing::{Hash, Sha256, Sha384, Sha512};
 use graviola::key_agreement::{mlkem768, p256, p384, x25519};
 use graviola::signing::{ecdsa, eddsa, rsa};
 use serde::Deserialize;
@@ -50,6 +53,16 @@ struct Test {
     comment: Option<String>,
     #[serde(default)]
     flags: Vec<String>,
+    #[serde(default, with = "hex::serde")]
+    ikm: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    salt: Vec<u8>,
+    #[serde(default, with = "hex::serde")]
+    info: Vec<u8>,
+    #[serde(default)]
+    size: usize,
+    #[serde(default, with = "hex::serde")]
+    okm: Vec<u8>,
     #[serde(default, with = "hex::serde", alias = "K")]
     key: Vec<u8>,
     #[serde(default, with = "hex::serde")]
@@ -149,6 +162,60 @@ impl Drop for Summary {
         );
         assert_ne!(self.started, self.skipped, "all tests were skipped");
     }
+}
+
+fn hkdf_tests<H: Hash>(path: impl AsRef<Path>) {
+    let path = Path::new("../thirdparty/wycheproof/testvectors_v1/").join(path);
+    let Ok(data_file) = File::open(&path) else {
+        panic!("failed to open data file at `{}`", path.display());
+    };
+
+    let tests: TestFile = serde_json::from_reader(data_file).expect("invalid test JSON");
+    let mut summary = Summary::new();
+
+    for group in tests.groups {
+        summary.group(&group);
+        for test in group.tests {
+            summary.start(&test);
+
+            let result = {
+                let salt = if test.has_flag("EmptySalt") {
+                    None
+                } else {
+                    Some(test.salt.as_slice())
+                };
+                let prk = ExtractedPrk::<H>::extract(salt, &test.ikm);
+                let mut okm = vec![0u8; test.size];
+                prk.into_expander()
+                    .expand(&[test.info.as_slice()], &mut okm)
+                    .map(|()| okm)
+            };
+
+            match test.result {
+                ExpectedResult::Valid => {
+                    assert_eq!(result.unwrap(), test.okm);
+                }
+                ExpectedResult::Invalid if test.has_flag("SizeTooLarge") => {
+                    let OkmTooLongError = result.unwrap_err();
+                }
+                _ => todo!(),
+            }
+        }
+    }
+}
+
+#[test]
+fn hkdf_sha256_tests() {
+    hkdf_tests::<Sha256>("hkdf_sha256_test.json");
+}
+#[test]
+fn hkdf_sha384_tests() {
+    hkdf_tests::<Sha384>("hkdf_sha384_test.json");
+}
+
+#[test]
+fn hkdf_sha512_tests() {
+    hkdf_tests::<Sha512>("hkdf_sha512_test.json");
 }
 
 #[test]

@@ -9,10 +9,21 @@ use super::hash::{Hash, HashContext, HashOutput};
 use crate::Error;
 
 /// An in-progress HMAC computation, using hash function `H`.
-#[derive(Clone)]
 pub struct Hmac<H: Hash> {
     inner: H::Context,
     outer: H::Context,
+}
+
+impl<H: Hash> Clone for Hmac<H>
+where
+    H::Context: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+            outer: self.outer.clone(),
+        }
+    }
 }
 
 impl<H: Hash> Hmac<H> {

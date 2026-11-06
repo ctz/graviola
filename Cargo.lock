@@ -1100,6 +1100,7 @@ dependencies = [
  "getrandom 0.4.3",
  "graviola",
  "hex",
+ "hkdf",
  "hmac",
  "libcrux-ml-kem",
  "ml-kem",

@@ -100,6 +100,7 @@ We are grateful to:
 - [x] SHA384 & SHA512
 - [x] SHA3-256, SHA3-512, SHAKE128, and SHAKE256
 - [x] HMAC
+- [x] HKDF
 - [x] HMAC-DRBG
 
 ### Key exchange
