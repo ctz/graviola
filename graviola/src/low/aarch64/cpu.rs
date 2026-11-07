@@ -203,6 +203,15 @@ macro_rules! have_cpu_feature {
 // A value of this type is proof that the CPU dynamic feature check has happened.
 cpu_feature_token!(HaveSha3, "sha3");
 
+// Token type reflecting the check for the SHA512 CPU feature
+//
+// A value of this type is proof that the CPU dynamic feature check has happened.
+//
+// Note: it is sufficient to make `HaveSha512` depend on just "sha3" because
+// `have_cpu_feature!("sha3")` checks for the presence of `FEAT_SHA512 & FEAT_SHA3`:
+// https://doc.rust-lang.org/stable/std/arch/macro.is_aarch64_feature_detected.html
+cpu_feature_token!(HaveSha512, "sha3");
+
 pub(crate) fn verify_cpu_features() {
     assert!(
         is_cpu_supported(),
