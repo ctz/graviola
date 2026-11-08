@@ -28,15 +28,21 @@ pub(crate) struct RsaPrivateKey {
 
 impl RsaPrivateKey {
     pub(crate) fn new(
-        p: RsaPosIntModP,
-        q: RsaPosIntModP,
+        mut p: RsaPosIntModP,
+        mut q: RsaPosIntModP,
         d: RsaPosIntD,
-        dp: RsaPosIntModP,
-        dq: RsaPosIntModP,
-        iqmp: RsaPosIntModP,
+        mut dp: RsaPosIntModP,
+        mut dq: RsaPosIntModP,
+        mut iqmp: RsaPosIntModP,
         n: RsaPosIntModN,
         e: u32,
     ) -> Result<Self, Error> {
+        if p.less_than(&q) {
+            core::mem::swap(&mut p, &mut q);
+            core::mem::swap(&mut dp, &mut dq);
+            iqmp = q.mod_inverse(&p);
+        }
+
         let p_len = p.len_bytes();
         if p.is_even()
             || q.is_even()
