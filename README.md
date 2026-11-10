@@ -44,6 +44,8 @@ but there is also a public API for general-purpose use.
 - `x86_64` requires `aes`, `ssse3`, `avx`, `avx2`, `adx`, `bmi2`, and `pclmulqdq` CPU features.
   (This is most x86_64 CPUs made since around ~2014.)
 
+Other platforms provide a much-reduced API, and at a lower level of assurance.
+
 ## Building and Testing
 
 Compile:
