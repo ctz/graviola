@@ -1,3 +1,5 @@
+#![cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+
 use aws_lc_rs::{rsa::KeyPair, signature::Ed25519KeyPair};
 use graviola::signing::{
     eddsa::Ed25519SigningKey,

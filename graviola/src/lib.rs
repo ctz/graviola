@@ -26,6 +26,19 @@
 )]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
 
+/// Wraps items that are only available on platforms with full
+/// assembly support (currently x86_64 and aarch64).
+///
+/// Other platforms get a reduced API.
+macro_rules! full_platform {
+    ($($item:item)*) => {
+        $(
+            #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+            $item
+        )*
+    };
+}
+
 /// Low level operations.
 ///
 /// `unsafe` is allowed only here.
@@ -55,6 +68,7 @@ mod test;
 // vvv Public API
 pub use error::Error;
 
+full_platform! {
 /// Non-API documentation
 #[cfg(doc)]
 pub mod doc {
@@ -163,15 +177,19 @@ pub mod signing {
         pub use crate::high::ed25519::{Ed25519SigningKey, Ed25519VerifyingKey};
     }
 }
+}
 
 /// Cryptographic hash functions.
 pub mod hashing {
     pub use super::high::hash::{Hash, HashContext, HashOutput, Sha256, Sha384, Sha512};
     pub use super::high::hmac;
     pub use super::mid::sha2;
-    pub use super::mid::sha3;
+    full_platform! {
+        pub use super::mid::sha3;
+    }
 }
 
+full_platform! {
 /// Authenticated encryption.
 pub mod aead {
     pub use super::mid::aes_gcm::AesGcm;
@@ -191,4 +209,5 @@ pub mod random {
 /// Utility functions
 pub mod util {
     pub use crate::high::util::is_cpu_supported;
+}
 }

@@ -40,7 +40,10 @@
 //!     been zeroised upon drop, even if the value was a `Key::Key128`
 //!     that only initialized half of that space.
 
-#![cfg(any(target_os = "linux", target_os = "macos"))]
+#![cfg(all(
+    any(target_os = "linux", target_os = "macos"),
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
 
 use core::mem::size_of;
 use core::ops::Deref;
