@@ -634,6 +634,20 @@ mod tests {
     }
 
     #[test]
+    fn smaller_prime_first_key_signs_and_verifies() {
+        let private_key =
+            SigningKey::from_pkcs8_der(include_bytes!("rsa/rsa2048-smaller-prime-first.pkcs8.der"))
+                .unwrap();
+        let public_key = private_key.public_key();
+
+        let mut buf = [0u8; 256];
+        let sig = private_key
+            .sign_pkcs1_sha256(&mut buf, b"message 20")
+            .unwrap();
+        public_key.verify_pkcs1_sha256(sig, b"message 20").unwrap();
+    }
+
+    #[test]
     fn pairwise_rsa3072_sign_verify() {
         let private_key = SigningKey::from_pkcs1_der(include_bytes!("rsa/rsa3072.der")).unwrap();
 
