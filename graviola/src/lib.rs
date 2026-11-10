@@ -25,6 +25,7 @@
     unused_qualifications
 )]
 #![cfg_attr(coverage_nightly, feature(coverage_attribute))]
+#![cfg_attr(graviola_docsrs, feature(doc_cfg))]
 
 /// Wraps items that are only available on platforms with full
 /// assembly support (currently x86_64 and aarch64).
@@ -34,6 +35,7 @@ macro_rules! full_platform {
     ($($item:item)*) => {
         $(
             #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+            #[cfg_attr(graviola_docsrs, doc(cfg(any(target_arch = "x86_64", target_arch = "aarch64"))))]
             $item
         )*
     };
