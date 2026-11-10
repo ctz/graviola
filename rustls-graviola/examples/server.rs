@@ -21,6 +21,12 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use tokio::net::TcpListener;
 use tokio_rustls::TlsAcceptor;
 
+#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+fn main() {
+    println!("only for x86_64 and aarch64 architectures");
+}
+
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn main() {
     // Serve an echo service over HTTPS, with proper error handling.
     if let Err(e) = run_server() {
@@ -29,10 +35,12 @@ fn main() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn error(err: String) -> io::Error {
     io::Error::other(err)
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[tokio::main]
 async fn run_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     // Set a process wide default crypto provider.
@@ -96,6 +104,7 @@ async fn run_server() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
 // Custom echo service, handling two different routes and a
 // catch-all 404 responder.
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 async fn echo(req: Request<Incoming>) -> Result<Response<Full<Bytes>>, hyper::Error> {
     let mut response = Response::new(Full::default());
     match (req.method(), req.uri().path()) {

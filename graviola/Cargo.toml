@@ -19,12 +19,14 @@ getrandom = "0.4"
 crabgrind = { version = "0.4", optional = true }
 
 [dev-dependencies]
-aws-lc-rs = { version = "1.16", default-features = false, features = ["alloc", "prebuilt-nasm", "non-fips"] }
 hex = { version = "0.4", features = ["serde"] }
 proptest = "1.5.0"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tempfile = "3.24.0"
+
+[target.'cfg(any(target_arch = "x86_64", target_arch = "aarch64"))'.dev-dependencies]
+aws-lc-rs = { version = "1.16", default-features = false, features = ["alloc", "prebuilt-nasm", "non-fips"] }
 
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = ["cfg(coverage_nightly)", "cfg(graviola_docsrs)"] }

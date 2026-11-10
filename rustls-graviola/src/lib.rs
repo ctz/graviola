@@ -1,3 +1,5 @@
+#![cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
+
 //! <h1 align="center">Graviola</h1>
 //! <img width="40%" align="right" src="https://raw.githubusercontent.com/ctz/graviola/main/admin/picture.png">
 //!

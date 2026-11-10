@@ -1,13 +1,14 @@
-#![cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
-
 use std::fs::File;
 use std::io::BufReader;
 
 use graviola::Error;
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 use graviola::aead::{AesGcm, ChaCha20Poly1305, XChaCha20Poly1305};
 use graviola::hashing::hmac::Hmac;
 use graviola::hashing::{Sha256, Sha384, Sha512};
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 use graviola::key_agreement::{mlkem768, p256, p384, x25519};
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 use graviola::signing::{ecdsa, eddsa, rsa};
 use serde::Deserialize;
 
@@ -256,6 +257,7 @@ fn hmac_sha512_tests() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_verify_ecdsa_p256() {
     for file in [
@@ -311,6 +313,7 @@ fn test_verify_ecdsa_p256() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_verify_ecdsa_p384() {
     for file in [
@@ -370,6 +373,7 @@ fn test_verify_ecdsa_p384() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_ecdh_p256() {
     let data_file =
@@ -409,6 +413,7 @@ fn test_ecdh_p256() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_ecdh_p384() {
     let data_file =
@@ -448,6 +453,7 @@ fn test_ecdh_p384() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_ecdh_x25519() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/x25519_test.json")
@@ -478,6 +484,7 @@ fn test_ecdh_x25519() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_aes_gcm() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/aes_gcm_test.json")
@@ -533,6 +540,7 @@ fn test_aes_gcm() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_aes_gmac() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/aes_gmac_test.json")
@@ -583,6 +591,7 @@ fn test_aes_gmac() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_rsa_pkcs1_verify() {
     for file in &[
@@ -636,6 +645,7 @@ fn test_rsa_pkcs1_verify() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_rsa_pss_verify() {
     for file in &[
@@ -697,6 +707,7 @@ fn test_rsa_pss_verify() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_ed25519_verify() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/ed25519_test.json")
@@ -730,6 +741,7 @@ fn test_ed25519_verify() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_chacha20poly1305() {
     let data_file =
@@ -780,6 +792,7 @@ fn test_chacha20poly1305() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_xchacha20poly1305() {
     let data_file =
@@ -830,6 +843,7 @@ fn test_xchacha20poly1305() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_mlkem768_keygen() {
     let data_file =
@@ -855,6 +869,7 @@ fn test_mlkem768_keygen() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_mlkem768_encaps() {
     let data_file =
@@ -902,6 +917,7 @@ fn test_mlkem768_encaps() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[test]
 fn test_mlkem768() {
     let data_file = File::open("../thirdparty/wycheproof/testvectors_v1/mlkem_768_test.json")

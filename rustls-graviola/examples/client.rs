@@ -15,6 +15,12 @@ use rustls::RootCertStore;
 use rustls::pki_types::CertificateDer;
 use rustls::pki_types::pem::PemObject;
 
+#[cfg(not(any(target_arch = "x86_64", target_arch = "aarch64")))]
+fn main() {
+    println!("only for x86_64 and aarch64 architectures");
+}
+
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn main() {
     // Send GET request and inspect result, with proper error handling.
     if let Err(e) = run_client() {
@@ -23,10 +29,12 @@ fn main() {
     }
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 fn error(err: String) -> io::Error {
     io::Error::other(err)
 }
 
+#[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
 #[tokio::main]
 async fn run_client() -> Result<(), Box<dyn std::error::Error>> {
     // Set a process wide default crypto provider.
