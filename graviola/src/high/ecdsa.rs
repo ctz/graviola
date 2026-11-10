@@ -531,7 +531,7 @@ mod tests {
             .public_key_encode_uncompressed(&mut public_key_buf)
             .unwrap();
         let verify = VerifyingKey::<curve::P256> {
-            public_key: <curve::P256 as curve::Curve>::PublicKey::from_x962_uncompressed(
+            public_key: <curve::P256 as Curve>::PublicKey::from_x962_uncompressed(
                 public_key_buf,
             )
             .unwrap(),
@@ -582,7 +582,7 @@ mod tests {
             .unwrap();
         let k = SigningKey::<curve::P256> { private_key };
         let v = VerifyingKey::<curve::P256> {
-            public_key: <curve::P256 as curve::Curve>::PublicKey::from_x962_uncompressed(
+            public_key: <curve::P256 as Curve>::PublicKey::from_x962_uncompressed(
                 public_key,
             )
             .unwrap(),

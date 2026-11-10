@@ -4,13 +4,16 @@
 #![deny(unsafe_code)]
 
 pub(super) mod asn1;
-pub(super) mod curve;
-pub(super) mod ecdsa;
-pub(super) mod ed25519;
 pub(super) mod hash;
 pub mod hmac;
-pub(super) mod hmac_drbg;
-pub(super) mod pkcs1;
 pub(super) mod pkcs8;
-pub(super) mod rsa;
-pub(super) mod util;
+
+full_platform! {
+    pub(super) mod curve;
+    pub(super) mod ecdsa;
+    pub(super) mod ed25519;
+    pub(super) mod hmac_drbg;
+    pub(super) mod pkcs1;
+    pub(super) mod rsa;
+    pub(super) mod util;
+}
