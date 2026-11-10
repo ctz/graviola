@@ -13,7 +13,7 @@ use crate::low::Blockwise;
 pub struct Sha256Context {
     h: [u32; 8],
     blockwise: Blockwise<{ Self::BLOCK_SZ }>,
-    nblocks: usize,
+    nblocks: u64,
 }
 
 impl Sha256Context {
@@ -54,19 +54,13 @@ impl Sha256Context {
 
     /// Complete the SHA256 computation, returning the hash output.
     pub fn finish(mut self) -> [u8; Self::OUTPUT_SZ] {
-        let bytes = self
+        let bits = self
             .nblocks
-            .checked_mul(Self::BLOCK_SZ)
-            .and_then(|bytes| bytes.checked_add(self.blockwise.used()))
-            .unwrap();
-
-        let bits = bytes
-            .checked_mul(8)
+            .checked_mul(Self::BLOCK_SZ as u64 * 8)
+            .and_then(|bits| bits.checked_add(self.blockwise.used() as u64 * 8))
             .expect("excess data processed by hash function");
 
-        let last_blocks = self
-            .blockwise
-            .md_pad_with_length(&(bits as u64).to_be_bytes());
+        let last_blocks = self.blockwise.md_pad_with_length(&bits.to_be_bytes());
         self.update_blocks(last_blocks.as_ref());
 
         let mut r = [0u8; Self::OUTPUT_SZ];
@@ -81,7 +75,9 @@ impl Sha256Context {
         debug_assert!(blocks.len().is_multiple_of(Self::BLOCK_SZ));
         if !blocks.is_empty() {
             crate::low::sha256_compress_blocks(&mut self.h, blocks);
-            self.nblocks = self.nblocks.saturating_add(blocks.len() / Self::BLOCK_SZ);
+            self.nblocks = self
+                .nblocks
+                .saturating_add((blocks.len() / Self::BLOCK_SZ) as u64);
         }
     }
 
@@ -140,7 +136,7 @@ impl Sha384Context {
 pub struct Sha512Context {
     h: [u64; 8],
     blockwise: Blockwise<{ Self::BLOCK_SZ }>,
-    nblocks: usize,
+    nblocks: u64,
 }
 
 impl Sha512Context {
@@ -187,15 +183,9 @@ impl Sha512Context {
 
     /// Complete the SHA512 computation, returning the hash output.
     pub fn finish(mut self) -> [u8; Self::OUTPUT_SZ] {
-        let bytes = self
-            .nblocks
-            .checked_mul(Self::BLOCK_SZ)
-            .and_then(|bytes| bytes.checked_add(self.blockwise.used()))
-            .unwrap();
-
-        let bits = (bytes as u128)
-            .checked_mul(8)
-            .expect("excess data processed by hash function");
+        // cannot overflow: nblocks < 2**64, so bits < 2**75
+        let bits = (self.nblocks as u128) * (Self::BLOCK_SZ as u128 * 8)
+            + (self.blockwise.used() as u128 * 8);
 
         let last_blocks = self.blockwise.md_pad_with_length(&bits.to_be_bytes());
         self.update_blocks(last_blocks.as_ref());
@@ -212,7 +202,9 @@ impl Sha512Context {
         debug_assert!(blocks.len().is_multiple_of(Self::BLOCK_SZ));
         if !blocks.is_empty() {
             crate::low::sha512_compress_blocks(&mut self.h, blocks);
-            self.nblocks = self.nblocks.saturating_add(blocks.len() / Self::BLOCK_SZ);
+            self.nblocks = self
+                .nblocks
+                .saturating_add((blocks.len() / Self::BLOCK_SZ) as u64);
         }
     }
 
@@ -294,5 +286,30 @@ mod tests {
 
         assert_eq!(&outer.finish(),
                    b"\x61\x20\x81\x2e\xd5\x0c\xc3\x11\x67\x04\x3f\x1f\x06\x9d\xcd\x4a\xd8\x83\x23\xd9\x96\x53\xd9\x67\x38\x2c\xc3\x44\x25\x69\x53\x1c\xd0\x3d\xe4\x79\x0a\x71\xde\x88\x45\x44\x66\x80\xb8\xc5\x90\xb3\x07\xc8\xae\x52\x57\x67\xf9\x28\xf8\xda\x9e\x9e\x80\xc9\x35\x5e");
+    }
+
+    #[test]
+    fn sha256_length_beyond_32_bits() {
+        // 2**33 bytes: overflowed a `usize` length on 32-bit targets
+        let mut ctx = Sha256Context::new();
+        ctx.nblocks = 1 << 27;
+        ctx.update(b"abc");
+        let _ = ctx.finish();
+    }
+
+    #[test]
+    #[should_panic(expected = "excess data processed by hash function")]
+    fn sha256_length_beyond_64_bits() {
+        let mut ctx = Sha256Context::new();
+        ctx.nblocks = (u64::MAX >> 9) + 1;
+        let _ = ctx.finish();
+    }
+
+    #[test]
+    fn sha512_length_beyond_64_bits() {
+        let mut ctx = Sha512Context::new();
+        ctx.nblocks = u64::MAX;
+        ctx.update(b"abc");
+        let _ = ctx.finish();
     }
 }
