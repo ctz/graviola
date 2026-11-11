@@ -105,7 +105,9 @@ pub(crate) fn sha512_compress_blocks(state: &mut [u64; 8], blocks: &[u8]) {
     }
 }
 
-static K: [u64; 80] = [
+// Constants used by SHA-512
+// pub(crate) so arch-specific implementations can use the same table to avoid duplication
+pub(crate) static K: [u64; 80] = [
     0x428a2f98d728ae22,
     0x7137449123ef65cd,
     0xb5c0fbcfec4d3b2f,

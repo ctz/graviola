@@ -184,7 +184,7 @@ SHA256 has straightforward implementations using hashing intrinsics
 on x86_64 to a pure Rust version if needed.
 
 SHA384/SHA512 on x86_64 has an AVX2 by-4 implementation, plus an AVX2 interleaved
-single block implementation.
+single block implementation. SHA384/SHA512 on aarch64 uses the "sha512" extension where available, with runtime fallback to a pure Rust version if needed.
 
 AES and GHASH always use intrinsics (there are no fallbacks).
 
