@@ -20,6 +20,8 @@ pub(crate) mod bignum_demont_p256;
 pub(crate) mod bignum_demont_p384;
 pub(crate) mod bignum_digitsize;
 pub(crate) mod bignum_emontredc_8n;
+pub(crate) mod bignum_emontredc_8n_cdiff;
+pub(crate) mod bignum_emontredc_8n_mux;
 pub(crate) mod bignum_eq;
 pub(crate) mod bignum_inv_p256;
 pub(crate) mod bignum_inv_p384;
