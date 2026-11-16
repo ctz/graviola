@@ -355,13 +355,17 @@ impl RecordEncrypter for GcmTls13Cipher {
 
         let nonce = Nonce::new(&self.1, seq).to_array()?;
         let aad = make_tls13_aad(typ, record.version.encode(), total_len);
-        let start = out.len();
-        record.payload.copy_to_vec(out);
-        out.extend_from_slice(&record.typ.to_array());
+        let inner_typ = record.typ.to_array();
 
-        let mut tag = [0u8; AESGCM_TAG];
-        self.0.encrypt(&nonce, &aad, &mut out[start..], &mut tag);
-        out.extend_from_slice(&tag);
+        self.0.encrypt_copy(
+            &nonce,
+            &aad,
+            record
+                .payload
+                .chunks()
+                .chain(core::iter::once(&inner_typ[..])),
+            out,
+        );
         Ok(())
     }
 
