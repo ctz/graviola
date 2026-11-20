@@ -3,10 +3,10 @@
 // Originally from cifra
 
 use core::arch::aarch64::{
-    uint8x16_t, uint32x4_t, vaddq_u32, vdupq_n_u32, veorq_u32, vorrq_u32, vqtbl1q_u8,
-    vreinterpretq_u8_u32, vreinterpretq_u16_u32, vreinterpretq_u32_u8, vreinterpretq_u32_u16,
-    vreinterpretq_u32_u64, vreinterpretq_u64_u32, vrev32q_u16, vshlq_n_u32, vshrq_n_u32,
-    vzip1q_u32, vzip1q_u64, vzip2q_u32, vzip2q_u64,
+    uint8x16_t, uint32x4_t, vaddq_u32, vdupq_n_u32, veorq_u32, vqtbl1q_u8, vreinterpretq_u8_u32,
+    vreinterpretq_u16_u32, vreinterpretq_u32_u8, vreinterpretq_u32_u16, vreinterpretq_u32_u64,
+    vreinterpretq_u64_u32, vrev32q_u16, vshrq_n_u32, vsliq_n_u32, vzip1q_u32, vzip1q_u64,
+    vzip2q_u32, vzip2q_u64,
 };
 use core::mem;
 
@@ -94,7 +94,7 @@ macro_rules! rotate_left {
         vreinterpretq_u32_u16(vrev32q_u16(vreinterpretq_u16_u32($reg)))
     };
     ($reg:expr, $rot:literal) => {
-        vorrq_u32(vshlq_n_u32($reg, $rot), vshrq_n_u32($reg, 32 - $rot))
+        vsliq_n_u32(vshrq_n_u32($reg, 32 - $rot), $reg, $rot)
     };
 }
 
