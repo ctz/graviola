@@ -11,6 +11,12 @@ pub(crate) fn enter_cpu_state() -> u32 {
 }
 
 pub(crate) fn leave_cpu_state(_old: u32) {
+    static HAVE_AVX512F: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    if *HAVE_AVX512F.get_or_init(|| test_toggle("avx512f", is_x86_feature_detected!("avx512f"))) {
+        // SAFETY: the feature check confirms AVX-512F is available.
+        unsafe { clear_avx512_registers() };
+    }
+
     // zeroise simd registers
 
     // SAFETY: this crate requires the `avx` cpu feature.
@@ -20,7 +26,6 @@ pub(crate) fn leave_cpu_state(_old: u32) {
             // clear z/y/xmm0-15
             "   vzeroall",
 
-            // TODO: add zmm16-31 here if/when we use AVX512
             out("ymm0") _,
             out("ymm1") _,
             out("ymm2") _,
@@ -38,6 +43,47 @@ pub(crate) fn leave_cpu_state(_old: u32) {
             out("ymm14") _,
             out("ymm15") _,
         )
+    }
+}
+
+#[target_feature(enable = "avx512f")]
+unsafe fn clear_avx512_registers() {
+    // SAFETY: all registers written by the instructions are listed as clobbers.
+    unsafe {
+        core::arch::asm!(
+            "vpxord zmm16, zmm16, zmm16",
+            "vpxord zmm17, zmm17, zmm17",
+            "vpxord zmm18, zmm18, zmm18",
+            "vpxord zmm19, zmm19, zmm19",
+            "vpxord zmm20, zmm20, zmm20",
+            "vpxord zmm21, zmm21, zmm21",
+            "vpxord zmm22, zmm22, zmm22",
+            "vpxord zmm23, zmm23, zmm23",
+            "vpxord zmm24, zmm24, zmm24",
+            "vpxord zmm25, zmm25, zmm25",
+            "vpxord zmm26, zmm26, zmm26",
+            "vpxord zmm27, zmm27, zmm27",
+            "vpxord zmm28, zmm28, zmm28",
+            "vpxord zmm29, zmm29, zmm29",
+            "vpxord zmm30, zmm30, zmm30",
+            "vpxord zmm31, zmm31, zmm31",
+            out("zmm16") _,
+            out("zmm17") _,
+            out("zmm18") _,
+            out("zmm19") _,
+            out("zmm20") _,
+            out("zmm21") _,
+            out("zmm22") _,
+            out("zmm23") _,
+            out("zmm24") _,
+            out("zmm25") _,
+            out("zmm26") _,
+            out("zmm27") _,
+            out("zmm28") _,
+            out("zmm29") _,
+            out("zmm30") _,
+            out("zmm31") _,
+        );
     }
 }
 
@@ -259,5 +305,73 @@ pub(crate) fn prefetch<T>(table: &[T], stride: usize) {
     unsafe {
         _mm_prefetch(table.as_ptr().cast(), _MM_HINT_T0);
         _mm_prefetch(table.as_ptr().add(stride).cast(), _MM_HINT_T0);
+    }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn leave_clears_high_zmm_registers() {
+        if !is_x86_feature_detected!("avx512f") {
+            return;
+        }
+        // SAFETY: AVX-512F was detected above.
+        unsafe { check_high_zmm_registers() };
+    }
+
+    #[inline(never)]
+    extern "C" fn leave_for_test() {
+        leave_cpu_state(0);
+    }
+
+    #[target_feature(enable = "avx512f")]
+    unsafe fn check_high_zmm_registers() {
+        let mut registers = [[0xffu8; 64]; 16];
+        // SAFETY: the buffer is writable, the called function follows the C register
+        // convention on this platform, and all caller-saved registers are clobbered.
+        unsafe {
+            core::arch::asm!(
+                "vpternlogd zmm16, zmm16, zmm16, 0xff",
+                "vpternlogd zmm17, zmm17, zmm17, 0xff",
+                "vpternlogd zmm18, zmm18, zmm18, 0xff",
+                "vpternlogd zmm19, zmm19, zmm19, 0xff",
+                "vpternlogd zmm20, zmm20, zmm20, 0xff",
+                "vpternlogd zmm21, zmm21, zmm21, 0xff",
+                "vpternlogd zmm22, zmm22, zmm22, 0xff",
+                "vpternlogd zmm23, zmm23, zmm23, 0xff",
+                "vpternlogd zmm24, zmm24, zmm24, 0xff",
+                "vpternlogd zmm25, zmm25, zmm25, 0xff",
+                "vpternlogd zmm26, zmm26, zmm26, 0xff",
+                "vpternlogd zmm27, zmm27, zmm27, 0xff",
+                "vpternlogd zmm28, zmm28, zmm28, 0xff",
+                "vpternlogd zmm29, zmm29, zmm29, 0xff",
+                "vpternlogd zmm30, zmm30, zmm30, 0xff",
+                "vpternlogd zmm31, zmm31, zmm31, 0xff",
+                "xor edi, edi",
+                "call {leave}",
+                "vmovdqu64 [r12 + 0], zmm16",
+                "vmovdqu64 [r12 + 64], zmm17",
+                "vmovdqu64 [r12 + 128], zmm18",
+                "vmovdqu64 [r12 + 192], zmm19",
+                "vmovdqu64 [r12 + 256], zmm20",
+                "vmovdqu64 [r12 + 320], zmm21",
+                "vmovdqu64 [r12 + 384], zmm22",
+                "vmovdqu64 [r12 + 448], zmm23",
+                "vmovdqu64 [r12 + 512], zmm24",
+                "vmovdqu64 [r12 + 576], zmm25",
+                "vmovdqu64 [r12 + 640], zmm26",
+                "vmovdqu64 [r12 + 704], zmm27",
+                "vmovdqu64 [r12 + 768], zmm28",
+                "vmovdqu64 [r12 + 832], zmm29",
+                "vmovdqu64 [r12 + 896], zmm30",
+                "vmovdqu64 [r12 + 960], zmm31",
+                leave = sym leave_for_test,
+                in("r12") registers.as_mut_ptr(),
+                clobber_abi("C"),
+            );
+        }
+        assert_eq!(registers, [[0u8; 64]; 16]);
     }
 }
