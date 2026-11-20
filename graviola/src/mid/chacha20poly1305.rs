@@ -4,7 +4,7 @@
 use crate::Error;
 use crate::low::chacha20::ChaCha20;
 use crate::low::poly1305::Poly1305;
-use crate::low::{Entry, ct_equal, zeroise};
+use crate::low::{Entry, ct, ct_equal, zeroise};
 
 /// A ChaCha20Poly1305 key.
 ///
@@ -16,7 +16,9 @@ pub struct ChaCha20Poly1305 {
 impl ChaCha20Poly1305 {
     /// Create a new [`ChaCha20Poly1305`] from 32 bytes of key material.
     pub fn new(key: [u8; 32]) -> Self {
-        Self { key }
+        let result = Self { key };
+        ct::mark_secret(&result.key);
+        result
     }
 
     /// Encrypt the given message.
@@ -78,8 +80,11 @@ impl ChaCha20Poly1305 {
         tag_out: &mut [u8; 16],
         encrypt: bool,
     ) {
+        let nonce = ct::CT::new(nonce);
+        let mut cipher_inout = ct::CTSliceMut::new(cipher_inout);
+        let mut tag_out = ct::CTMut::new(tag_out);
         let mut full_nonce = [0u8; 16];
-        full_nonce[4..16].copy_from_slice(nonce);
+        full_nonce[4..16].copy_from_slice(&*nonce);
 
         // First, generate the Poly1305 key by running ChaCha20 with the
         // given key and a zero counter.  The first half of the
@@ -105,11 +110,11 @@ impl ChaCha20Poly1305 {
         pad(&mut poly, aad.len());
 
         if encrypt {
-            chacha.cipher(cipher_inout);
-            poly.add_bytes(cipher_inout);
+            chacha.cipher(&mut cipher_inout);
+            poly.add_bytes(&cipher_inout);
         } else {
-            poly.add_bytes(cipher_inout);
-            chacha.cipher(cipher_inout);
+            poly.add_bytes(&cipher_inout);
+            chacha.cipher(&mut cipher_inout);
         }
         pad(&mut poly, cipher_inout.len());
 
@@ -122,6 +127,7 @@ impl ChaCha20Poly1305 {
 
 impl Drop for ChaCha20Poly1305 {
     fn drop(&mut self) {
+        ct::mark_public(&self.key);
         zeroise(&mut self.key);
     }
 }

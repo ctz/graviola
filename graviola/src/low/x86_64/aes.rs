@@ -8,6 +8,7 @@
 use core::arch::x86_64::*;
 
 use crate::low;
+use crate::low::ct;
 
 pub(crate) enum AesKey {
     Aes128(AesKey128),
@@ -19,9 +20,10 @@ impl AesKey {
     ///
     /// `key` must be 16 or 32 bytes in length (AES-192 not supported).
     pub(crate) fn new(key: &[u8]) -> Self {
+        let key = ct::CTSlice::new(key);
         match key.len() {
-            16 => Self::Aes128(AesKey128::new(key.try_into().unwrap())),
-            32 => Self::Aes256(AesKey256::new(key.try_into().unwrap())),
+            16 => Self::Aes128(AesKey128::new((*key).try_into().unwrap())),
+            32 => Self::Aes256(AesKey256::new((*key).try_into().unwrap())),
             24 => panic!("aes-192 not supported"),
             _ => panic!("invalid aes key size"),
         }
