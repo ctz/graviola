@@ -119,9 +119,12 @@ fn mul(h: &mut [u64; 3], r: &[u64; 2]) {
     //  * h uses at most 131 bits, and thus h[2] uses at most 3 bits
     //  * r[0] uses at most 60 bits
     //  * r[1] uses at most 60 bits
-    debug_assert!(h[2] < 1 << 3);
-    debug_assert!(r[0] < 1 << 60);
-    debug_assert!(r[1] < 1 << 60);
+    #[cfg(not(feature = "__ctgrind"))]
+    {
+        debug_assert!(h[2] < 1 << 3);
+        debug_assert!(r[0] < 1 << 60);
+        debug_assert!(r[1] < 1 << 60);
+    }
 
     //         h[2] h[1] h[0]
     // x                 r[0]
@@ -133,10 +136,10 @@ fn mul(h: &mut [u64; 3], r: &[u64; 2]) {
     //          e2   e1   e0
     let (d0, d1) = mul64(r[0], h[0]);
     let (d2, d3) = mul64(r[0], h[1]);
-    let d4 = r[0] * h[2];
+    let d4 = r[0].wrapping_mul(h[2]);
     let e0 = d0;
     let (e1, carry) = d1.overflowing_add(d2);
-    let e2 = d3 + d4 + (carry as u64);
+    let e2 = d3.wrapping_add(d4).wrapping_add(carry as u64);
 
     //         h[2] h[1] h[0]
     // x            r[1]
@@ -148,10 +151,10 @@ fn mul(h: &mut [u64; 3], r: &[u64; 2]) {
     //     s5   e4   e3
     let (d0, d1) = mul64(r[1], h[0]);
     let (d2, d3) = mul64(r[1], h[1]);
-    let d4 = r[1] * h[2];
+    let d4 = r[1].wrapping_mul(h[2]);
     let e3 = d0;
     let (e4, carry) = d1.overflowing_add(d2);
-    let e5 = d3 + d4 + (carry as u64);
+    let e5 = d3.wrapping_add(d4).wrapping_add(carry as u64);
 
     //          e2   e1   e0
     // +   e5   e4   e3
@@ -161,7 +164,8 @@ fn mul(h: &mut [u64; 3], r: &[u64; 2]) {
     let (f1, carry) = e1.overflowing_add(e3);
     let (f2, carry1) = e2.overflowing_add(carry as u64);
     let (f2, carry2) = f2.overflowing_add(e4);
-    let f3 = e5 + ((carry1 | carry2) as u64);
+    let f3 = e5.wrapping_add((carry1 | carry2) as u64);
+    #[cfg(not(feature = "__ctgrind"))]
     debug_assert!(f3 < 1u64 << 63);
 
     // Partially reduce the result so it fits within 131 bits
@@ -169,15 +173,19 @@ fn mul(h: &mut [u64; 3], r: &[u64; 2]) {
     (h[0], carry1) = f0.overflowing_add(f2 & !0x03);
     (h[0], carry2) = h[0].overflowing_add((f3 << 62) | (f2 >> 2));
     let carry3: bool;
-    (h[1], carry3) = f1.overflowing_add(f3 + (f3 >> 2) + carry1 as u64 + carry2 as u64);
-    h[2] = (f2 & 0x03) + carry3 as u64;
+    (h[1], carry3) = f1.overflowing_add(
+        f3.wrapping_add(f3 >> 2)
+            .wrapping_add(carry1 as u64)
+            .wrapping_add(carry2 as u64),
+    );
+    h[2] = (f2 & 0x03).wrapping_add(carry3 as u64);
 }
 
 fn full_reduce(h: &mut [u64; 3]) {
     let (g0, carry0) = h[0].overflowing_sub(0u64.wrapping_sub(5));
     let (g1, carry1a) = h[1].overflowing_sub(carry0 as u64);
     let (g1, carry1b) = g1.overflowing_sub(0u64.wrapping_sub(1));
-    let (g2, carry2a) = h[2].overflowing_sub(carry1a as u64 + carry1b as u64);
+    let (g2, carry2a) = h[2].overflowing_sub((carry1a as u64).wrapping_add(carry1b as u64));
     let (g2, carry2b) = g2.overflowing_sub(3);
 
     let positive_mask = ((carry2a | carry2b) as u64).wrapping_sub(1);
