@@ -19,6 +19,10 @@ jobs:
             build: ""
           - os: ubuntu-latest
             build: --release
+          - os: ubuntu-24.04-arm
+            build: ""
+          - os: ubuntu-24.04-arm
+            build: --release
 
     runs-on: ${{ matrix.os }}
     steps:
