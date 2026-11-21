@@ -3,7 +3,7 @@
 
 use crate::Error;
 use crate::low::ghash::{Ghash, GhashTable};
-use crate::low::{AesKey, Entry, aes_gcm, ct_equal};
+use crate::low::{AesKey, Entry, aes_gcm, ct, ct_equal};
 
 /// An AES-GCM key.
 ///
@@ -55,16 +55,19 @@ impl AesGcm {
         tag_out: &mut [u8; 16],
     ) {
         let _entry = Entry::new_secret();
+        let nonce = ct::CT::new(nonce);
+        let mut cipher_inout = ct::CTSliceMut::new(cipher_inout);
+        let mut tag_out = ct::CTMut::new(tag_out);
         let mut ghash = Ghash::new(&self.gh);
 
-        let counter = self.nonce_to_y0(nonce);
+        let counter = self.nonce_to_y0(&nonce);
 
         let mut e_y0 = counter;
         self.key.encrypt_block(&mut e_y0);
 
         // give low-level code opportunity to stitch gf128 and aes
         // computations. see low::generic::aes_gcm for model version.
-        aes_gcm::encrypt(&self.key, &mut ghash, &counter, aad, cipher_inout);
+        aes_gcm::encrypt(&self.key, &mut ghash, &counter, aad, &mut cipher_inout);
 
         let mut lengths = [0u8; 16];
         lengths[..8].copy_from_slice(&((aad.len() * 8) as u64).to_be_bytes());
@@ -98,14 +101,17 @@ impl AesGcm {
         tag: &[u8],
     ) -> Result<(), Error> {
         let _entry = Entry::new_secret();
+        let nonce = ct::CT::new(nonce);
+        let mut cipher_inout = ct::CTSliceMut::new(cipher_inout);
+        let tag = ct::CTSlice::new(tag);
         let mut ghash = Ghash::new(&self.gh);
 
-        let counter = self.nonce_to_y0(nonce);
+        let counter = self.nonce_to_y0(&nonce);
 
         let mut e_y0 = counter;
         self.key.encrypt_block(&mut e_y0);
 
-        aes_gcm::decrypt(&self.key, &mut ghash, &counter, aad, cipher_inout);
+        aes_gcm::decrypt(&self.key, &mut ghash, &counter, aad, &mut cipher_inout);
 
         let mut lengths = [0u8; 16];
         lengths[..8].copy_from_slice(&((aad.len() * 8) as u64).to_be_bytes());
@@ -117,7 +123,8 @@ impl AesGcm {
             *out ^= *e;
         }
 
-        if ct_equal(&actual_tag, tag) {
+        let valid_tag = ct_equal(&actual_tag, &tag);
+        if ct::into_public(valid_tag) {
             Ok(())
         } else {
             // avoid unauthenticated plaintext leak
