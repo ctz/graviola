@@ -3,10 +3,10 @@
 // Originally from cifra
 
 use core::arch::aarch64::{
-    uint8x16_t, uint32x4_t, vaddq_u32, vdupq_n_u32, veorq_u32, vorrq_u32, vqtbl1q_u8,
-    vreinterpretq_u8_u32, vreinterpretq_u16_u32, vreinterpretq_u32_u8, vreinterpretq_u32_u16,
-    vreinterpretq_u32_u64, vreinterpretq_u64_u32, vrev32q_u16, vshlq_n_u32, vshrq_n_u32,
-    vzip1q_u32, vzip1q_u64, vzip2q_u32, vzip2q_u64,
+    uint8x16_t, uint32x4_t, vaddq_u32, vdupq_n_u32, veorq_u32, vqtbl1q_u8, vreinterpretq_u8_u32,
+    vreinterpretq_u16_u32, vreinterpretq_u32_u8, vreinterpretq_u32_u16, vreinterpretq_u32_u64,
+    vreinterpretq_u64_u32, vrev32q_u16, vshrq_n_u32, vzip1q_u32, vzip1q_u64, vzip2q_u32,
+    vzip2q_u64,
 };
 use core::mem;
 
@@ -78,6 +78,25 @@ impl XChaCha20 {
     }
 }
 
+/// Temporary substitute for `core::arch::aarch64::vsliq_n_u32` which depends on an
+/// LLVM intrinsic not yet supported in the Cranelift code generator:
+/// https://github.com/rust-lang/rustc_codegen_cranelift/issues/171
+/// FIXME: switch to the core `vsliq_n_u32` intrinsic once Cranelift supports it.
+#[target_feature(enable = "neon")]
+fn vsliq_n_u32_tmp<const N: i32>(a: uint32x4_t, b: uint32x4_t) -> uint32x4_t {
+    let mut result: uint32x4_t;
+    // SAFETY: this crate depends on the `neon` cpu feature.
+    unsafe {
+        core::arch::asm!(
+            "sli {a:v}.4s, {b:v}.4s, #{n}",
+            a = inout(vreg) a => result,
+            b = in(vreg) b,
+            n = const N,
+        );
+        result
+    }
+}
+
 // Rotate each element of a uint32x4_t left by a specified number of bits.
 macro_rules! rotate_left {
     ($reg:expr, 8) => {{
@@ -94,7 +113,7 @@ macro_rules! rotate_left {
         vreinterpretq_u32_u16(vrev32q_u16(vreinterpretq_u16_u32($reg)))
     };
     ($reg:expr, $rot:literal) => {
-        vorrq_u32(vshlq_n_u32($reg, $rot), vshrq_n_u32($reg, 32 - $rot))
+        vsliq_n_u32_tmp::<$rot>(vshrq_n_u32($reg, 32 - $rot), $reg)
     };
 }
 
