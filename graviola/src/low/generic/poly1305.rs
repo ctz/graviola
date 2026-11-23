@@ -187,6 +187,23 @@ fn full_reduce(h: &mut [u64; 3]) {
     h[2] = (h[2] & negative_mask) | (g2 & positive_mask);
 }
 
+pub(crate) trait StitchedMac {
+    fn add_bytes(&mut self, bytes: &[u8]);
+}
+
+impl StitchedMac for Poly1305 {
+    fn add_bytes(&mut self, bytes: &[u8]) {
+        self.add_bytes(bytes);
+    }
+}
+
+/// Implementation of StitchedMac that doesn't do any processing.
+pub(crate) struct DummyMac;
+
+impl StitchedMac for DummyMac {
+    fn add_bytes(&mut self, _bytes: &[u8]) {}
+}
+
 #[cfg(test)]
 #[cfg_attr(coverage_nightly, coverage(off))]
 mod tests {

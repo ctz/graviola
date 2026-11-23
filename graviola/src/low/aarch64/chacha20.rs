@@ -10,6 +10,8 @@ use core::arch::aarch64::{
 };
 use core::mem;
 
+use crate::low::poly1305::{DummyMac, StitchedMac};
+
 pub(crate) struct ChaCha20 {
     key0: [u32; 4],
     key1: [u32; 4],
@@ -35,19 +37,44 @@ impl ChaCha20 {
     }
 
     pub(crate) fn cipher(&mut self, buffer: &mut [u8]) {
+        let mut mac = DummyMac;
+        self._cipher::<true, DummyMac>(buffer, &mut mac);
+    }
+
+    pub(crate) fn encrypt<MAC: StitchedMac>(&mut self, buffer: &mut [u8], mac: &mut MAC) {
+        self._cipher::<true, MAC>(buffer, mac);
+    }
+
+    pub(crate) fn decrypt<MAC: StitchedMac>(&mut self, buffer: &mut [u8], mac: &mut MAC) {
+        self._cipher::<false, MAC>(buffer, mac);
+    }
+
+    fn _cipher<const ENC: bool, MAC: StitchedMac>(&mut self, buffer: &mut [u8], mac: &mut MAC) {
         let (by4, remainder) = buffer.as_chunks_mut::<256>();
         for block_x4 in by4 {
+            if !ENC {
+                mac.add_bytes(block_x4);
+            }
             // SAFETY: this crate depends on the `neon` cpu feature.
             unsafe { core_x4(&self.key0, &self.key1, &self.nonce, block_x4) };
             self.nonce[0] = self.nonce[0].wrapping_add(4);
+            if ENC {
+                mac.add_bytes(block_x4);
+            }
         }
         for block in remainder.chunks_mut(64) {
+            if !ENC {
+                mac.add_bytes(block);
+            }
             let mut stream = [0u8; 64];
             core(&self.key0, &self.key1, &self.nonce, &mut stream);
             for (out, key) in block.iter_mut().zip(stream.iter()) {
                 *out ^= *key;
             }
             self.nonce[0] = self.nonce[0].wrapping_add(1);
+            if ENC {
+                mac.add_bytes(block);
+            }
         }
     }
 }

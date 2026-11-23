@@ -105,11 +105,9 @@ impl ChaCha20Poly1305 {
         pad(&mut poly, aad.len());
 
         if encrypt {
-            chacha.cipher(cipher_inout);
-            poly.add_bytes(cipher_inout);
+            chacha.encrypt(cipher_inout, &mut poly);
         } else {
-            poly.add_bytes(cipher_inout);
-            chacha.cipher(cipher_inout);
+            chacha.decrypt(cipher_inout, &mut poly);
         }
         pad(&mut poly, cipher_inout.len());
 
