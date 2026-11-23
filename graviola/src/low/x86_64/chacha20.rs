@@ -4,6 +4,8 @@
 
 use core::arch::x86_64::*;
 
+use crate::low::poly1305::{DummyMac, StitchedMac};
+
 pub(crate) struct ChaCha20 {
     z07: __m256i,
     z8f: __m256i,
@@ -16,19 +18,44 @@ impl ChaCha20 {
     }
 
     pub(crate) fn cipher(&mut self, buffer: &mut [u8]) {
+        let mut mac = DummyMac;
+        self._cipher::<true, DummyMac>(buffer, &mut mac);
+    }
+
+    pub(crate) fn encrypt<MAC: StitchedMac>(&mut self, buffer: &mut [u8], mac: &mut MAC) {
+        self._cipher::<true, MAC>(buffer, mac);
+    }
+
+    pub(crate) fn decrypt<MAC: StitchedMac>(&mut self, buffer: &mut [u8], mac: &mut MAC) {
+        self._cipher::<false, MAC>(buffer, mac);
+    }
+
+    fn _cipher<const ENC: bool, MAC: StitchedMac>(&mut self, buffer: &mut [u8], mac: &mut MAC) {
         let (by8, remainder) = buffer.as_chunks_mut::<512>();
 
         for block in by8 {
+            if !ENC {
+                mac.add_bytes(block);
+            }
             // SAFETY: this crate requires the `avx2` cpu feature
             unsafe {
                 core_8x(self.z07, &mut self.z8f, block);
             }
+            if ENC {
+                mac.add_bytes(block);
+            }
         }
 
         for block in remainder.chunks_mut(128) {
+            if !ENC {
+                mac.add_bytes(block);
+            }
             // SAFETY: this crate requires the `avx2` cpu feature
             unsafe {
                 core_2x(self.z07, &mut self.z8f, block);
+            }
+            if ENC {
+                mac.add_bytes(block);
             }
         }
     }
