@@ -41,6 +41,12 @@ impl RsaPrivateKey {
         if p.is_even()
             || q.is_even()
             || !(MIN_PRIVATE_MODULUS_BYTES..=MAX_PRIVATE_MODULUS_BYTES).contains(&p_len)
+            || dp.is_zero()
+            || dq.is_zero()
+            || iqmp.is_zero()
+            || !dp.less_than(&p)
+            || !dq.less_than(&q)
+            || !iqmp.less_than(&p)
         {
             return Err(Error::OutOfRange);
         }
