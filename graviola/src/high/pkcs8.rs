@@ -26,8 +26,7 @@ impl<'a> Key<'a> {
         algorithm: &asn1::ObjectId,
         parameters: Option<asn1::Any<'_>>,
     ) -> Result<Self, Error> {
-        let oak = pkix::OneAsymmetricKey::parse(&mut asn1::Parser::new(slice))
-            .map_err(Error::Asn1Error)?;
+        let oak = pkix::OneAsymmetricKey::from_bytes(slice).map_err(Error::Asn1Error)?;
 
         match (oak.version, oak.publicKey.inner()) {
             (pkix::Pkcs8Version::Pkcs8v1, None) => {}
@@ -141,6 +140,16 @@ mod tests {
         let mut buffer = vec![0; bytes.len()];
         let buffer = k.encode(&mut buffer).unwrap();
         assert_eq!(buffer, bytes);
+    }
+
+    #[test]
+    fn rejects_trailing_data() {
+        let mut bytes = include_bytes!("asn1/testdata/ed25519-p8v2.bin").to_vec();
+        bytes.extend_from_slice(&[0x05, 0x00]);
+        assert_eq!(
+            Some(Error::Asn1Error(asn1::Error::UnexpectedTrailingData)),
+            Key::decode(&bytes, &oid::id_ed25519, None).err(),
+        );
     }
 
     #[test]
