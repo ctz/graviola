@@ -59,10 +59,9 @@ impl Poly1305 {
         full_reduce(&mut self.h);
 
         // add s with carry
-        let prev = self.h[0];
-        self.h[0] = self.h[0].wrapping_add(self.s[0]);
-        let carry = (self.h[0] < prev) as u64;
-        self.h[1] = self.h[1].wrapping_add(self.s[1]).wrapping_add(carry);
+        let carry;
+        (self.h[0], carry) = self.h[0].overflowing_add(self.s[0]);
+        (self.h[1], _) = self.h[1].carrying_add(self.s[1], carry);
 
         let mut r = [0u8; 16];
         r[0..8].copy_from_slice(&self.h[0].to_le_bytes());
@@ -97,14 +96,10 @@ fn read64(bytes: &[u8]) -> u64 {
 fn add(h: &mut [u64; 3], x: &[u64; 3]) {
     // Add h += x, with carry. The generated code is a little less efficient
     // than hand-written assembly, but this is portable.
-    // FIXME: try u64::carrying_add once the Graviola MSRV >= 1.91
-    let carry: bool;
+    let mut carry: bool;
     (h[0], carry) = h[0].overflowing_add(x[0]);
-    let (carry1, carry2): (bool, bool);
-    (h[1], carry1) = h[1].overflowing_add(carry as u64);
-    (h[1], carry2) = h[1].overflowing_add(x[1]);
-    h[2] = h[2].wrapping_add((carry1 | carry2) as u64);
-    h[2] = h[2].wrapping_add(x[2]);
+    (h[1], carry) = h[1].carrying_add(x[1], carry);
+    (h[2], _) = h[2].carrying_add(x[2], carry);
 }
 
 fn mul(h: &mut [u64; 3], r: &[u64; 2]) {
@@ -133,10 +128,10 @@ fn mul(h: &mut [u64; 3], r: &[u64; 2]) {
     //          e2   e1   e0
     let (d0, d1) = mul64(r[0], h[0]);
     let (d2, d3) = mul64(r[0], h[1]);
-    let d4 = r[0] * h[2];
+    let d4 = r[0].wrapping_mul(h[2]);
     let e0 = d0;
     let (e1, carry) = d1.overflowing_add(d2);
-    let e2 = d3 + d4 + (carry as u64);
+    let (e2, _) = d3.carrying_add(d4, carry);
 
     //         h[2] h[1] h[0]
     // x            r[1]
@@ -148,10 +143,10 @@ fn mul(h: &mut [u64; 3], r: &[u64; 2]) {
     //     s5   e4   e3
     let (d0, d1) = mul64(r[1], h[0]);
     let (d2, d3) = mul64(r[1], h[1]);
-    let d4 = r[1] * h[2];
+    let d4 = r[1].wrapping_mul(h[2]);
     let e3 = d0;
     let (e4, carry) = d1.overflowing_add(d2);
-    let e5 = d3 + d4 + (carry as u64);
+    let (e5, _) = d3.carrying_add(d4, carry);
 
     //          e2   e1   e0
     // +   e5   e4   e3
@@ -159,28 +154,27 @@ fn mul(h: &mut [u64; 3], r: &[u64; 2]) {
     //     f3   f2   f1   f0
     let f0 = e0;
     let (f1, carry) = e1.overflowing_add(e3);
-    let (f2, carry1) = e2.overflowing_add(carry as u64);
-    let (f2, carry2) = f2.overflowing_add(e4);
-    let f3 = e5 + ((carry1 | carry2) as u64);
+    let (f2, carry) = e2.carrying_add(e4, carry);
+    let (f3, _) = e5.carrying_add(0, carry);
     debug_assert!(f3 < 1u64 << 63);
 
     // Partially reduce the result so it fits within 131 bits
-    let (carry1, carry2): (bool, bool);
-    (h[0], carry1) = f0.overflowing_add(f2 & !0x03);
-    (h[0], carry2) = h[0].overflowing_add((f3 << 62) | (f2 >> 2));
-    let carry3: bool;
-    (h[1], carry3) = f1.overflowing_add(f3 + (f3 >> 2) + carry1 as u64 + carry2 as u64);
-    h[2] = (f2 & 0x03) + carry3 as u64;
+    let mut carry;
+    (h[0], carry) = f0.overflowing_add(f2 & !0x03);
+    (h[1], carry) = f1.carrying_add(f3.wrapping_add(f3 >> 2), carry);
+    (h[2], _) = (f2 & 0x03).carrying_add(0, carry);
+    (h[0], carry) = h[0].overflowing_add((f3 << 62) | (f2 >> 2));
+    (h[1], carry) = h[1].carrying_add(0, carry);
+    (h[2], _) = h[2].carrying_add(0, carry);
 }
 
 fn full_reduce(h: &mut [u64; 3]) {
-    let (g0, carry0) = h[0].overflowing_sub(0u64.wrapping_sub(5));
-    let (g1, carry1a) = h[1].overflowing_sub(carry0 as u64);
-    let (g1, carry1b) = g1.overflowing_sub(0u64.wrapping_sub(1));
-    let (g2, carry2a) = h[2].overflowing_sub(carry1a as u64 + carry1b as u64);
-    let (g2, carry2b) = g2.overflowing_sub(3);
+    let (g0, g1, g2, mut carry);
+    (g0, carry) = h[0].overflowing_sub(0u64.wrapping_sub(5));
+    (g1, carry) = h[1].borrowing_sub(0u64.wrapping_sub(1), carry);
+    (g2, carry) = h[2].borrowing_sub(3, carry);
 
-    let positive_mask = ((carry2a | carry2b) as u64).wrapping_sub(1);
+    let positive_mask = (carry as u64).wrapping_sub(1);
     let negative_mask = !positive_mask;
     h[0] = (h[0] & negative_mask) | (g0 & positive_mask);
     h[1] = (h[1] & negative_mask) | (g1 & positive_mask);
