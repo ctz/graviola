@@ -3,10 +3,10 @@
 // Originally from cifra
 
 use core::arch::aarch64::{
-    uint8x16_t, uint32x4_t, vaddq_u32, vdupq_n_u32, veorq_u32, vorrq_u32, vqtbl1q_u8,
-    vreinterpretq_u8_u32, vreinterpretq_u16_u32, vreinterpretq_u32_u8, vreinterpretq_u32_u16,
-    vreinterpretq_u32_u64, vreinterpretq_u64_u32, vrev32q_u16, vshlq_n_u32, vshrq_n_u32,
-    vzip1q_u32, vzip1q_u64, vzip2q_u32, vzip2q_u64,
+    uint8x16_t, uint32x4_t, uint32x4x4_t, vaddq_u32, vdupq_n_u32, veorq_u32, vld1q_u32_x4,
+    vorrq_u32, vqtbl1q_u8, vreinterpretq_u8_u32, vreinterpretq_u16_u32, vreinterpretq_u32_u8,
+    vreinterpretq_u32_u16, vreinterpretq_u32_u64, vreinterpretq_u64_u32, vrev32q_u16, vshlq_n_u32,
+    vshrq_n_u32, vst1q_u32_x4, vzip1q_u32, vzip1q_u64, vzip2q_u32, vzip2q_u64,
 };
 use core::mem;
 
@@ -232,23 +232,6 @@ fn core_x4(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 25
     let mut col_d_2 = vdupq_n_u32(nonce[2]);
     let mut col_d_3 = vdupq_n_u32(nonce[3]);
 
-    let col_a_0_initial = col_a_0;
-    let col_a_1_initial = col_a_1;
-    let col_a_2_initial = col_a_2;
-    let col_a_3_initial = col_a_3;
-    let col_b_0_initial = col_b_0;
-    let col_b_1_initial = col_b_1;
-    let col_b_2_initial = col_b_2;
-    let col_b_3_initial = col_b_3;
-    let col_c_0_initial = col_c_0;
-    let col_c_1_initial = col_c_1;
-    let col_c_2_initial = col_c_2;
-    let col_c_3_initial = col_c_3;
-    let col_d_0_initial = col_d_0;
-    let col_d_1_initial = col_d_1;
-    let col_d_2_initial = col_d_2;
-    let col_d_3_initial = col_d_3;
-
     macro_rules! quarter_column {
         ($a:ident, $b:ident, $c:ident, $d:ident) => {
             $a = vaddq_u32($a, $b);
@@ -275,38 +258,29 @@ fn core_x4(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 25
         quarter_column!(col_a_3, col_b_0, col_c_1, col_d_2);
     }
 
-    col_a_0 = vaddq_u32(col_a_0, col_a_0_initial);
-    col_a_1 = vaddq_u32(col_a_1, col_a_1_initial);
-    col_a_2 = vaddq_u32(col_a_2, col_a_2_initial);
-    col_a_3 = vaddq_u32(col_a_3, col_a_3_initial);
-    col_b_0 = vaddq_u32(col_b_0, col_b_0_initial);
-    col_b_1 = vaddq_u32(col_b_1, col_b_1_initial);
-    col_b_2 = vaddq_u32(col_b_2, col_b_2_initial);
-    col_b_3 = vaddq_u32(col_b_3, col_b_3_initial);
-    col_c_0 = vaddq_u32(col_c_0, col_c_0_initial);
-    col_c_1 = vaddq_u32(col_c_1, col_c_1_initial);
-    col_c_2 = vaddq_u32(col_c_2, col_c_2_initial);
-    col_c_3 = vaddq_u32(col_c_3, col_c_3_initial);
-    col_d_0 = vaddq_u32(col_d_0, col_d_0_initial);
-    col_d_1 = vaddq_u32(col_d_1, col_d_1_initial);
-    col_d_2 = vaddq_u32(col_d_2, col_d_2_initial);
-    col_d_3 = vaddq_u32(col_d_3, col_d_3_initial);
-
-    fn xor(value: uint32x4_t, dst: &mut [u8; 16]) {
-        // SAFETY: the memory layout of `uint32x4_t` is compatible with `u128`.
-        let value128: u128 = unsafe { mem::transmute(value) };
-        let current = u128::from_le_bytes(*dst);
-        let result = value128 ^ current;
-        dst.copy_from_slice(&result.to_le_bytes());
+    #[target_feature(enable = "neon")]
+    fn xor4(values: uint32x4x4_t, dst: &mut [u8; 64]) {
+        // SAFETY: `vld1q_u32_x4` reads 64 bytes unaligned, and `dst` points to 64 readable bytes.
+        let current = unsafe { vld1q_u32_x4(dst.as_ptr().cast()) };
+        let result = uint32x4x4_t(
+            veorq_u32(values.0, current.0),
+            veorq_u32(values.1, current.1),
+            veorq_u32(values.2, current.2),
+            veorq_u32(values.3, current.3),
+        );
+        // SAFETY: `vld1q_u32_x4` writes 64 bytes unaligned, and `dst` points to 64 writable bytes.
+        unsafe { vst1q_u32_x4(dst.as_mut_ptr().cast(), result) };
     }
 
-    // Transpose four adjacent column vectors into row vectors.
+    // Transpose four adjacent column vectors into row vectors and add the initial value
+    // to each row.
     #[target_feature(enable = "neon")]
     fn cols_to_rows(
         c0: uint32x4_t,
         c1: uint32x4_t,
         c2: uint32x4_t,
         c3: uint32x4_t,
+        initial: uint32x4_t,
     ) -> (uint32x4_t, uint32x4_t, uint32x4_t, uint32x4_t) {
         let zip0 = vzip1q_u32(c0, c1);
         let zip1 = vzip1q_u32(c2, c3);
@@ -314,10 +288,12 @@ fn core_x4(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 25
             vreinterpretq_u64_u32(zip0),
             vreinterpretq_u64_u32(zip1),
         ));
+        let row0 = vaddq_u32(row0, initial);
         let row1 = vreinterpretq_u32_u64(vzip2q_u64(
             vreinterpretq_u64_u32(zip0),
             vreinterpretq_u64_u32(zip1),
         ));
+        let row1 = vaddq_u32(row1, initial);
 
         let zip0 = vzip2q_u32(c0, c1);
         let zip1 = vzip2q_u32(c2, c3);
@@ -325,39 +301,67 @@ fn core_x4(key0: &[u32; 4], key1: &[u32; 4], nonce: &[u32; 4], out: &mut [u8; 25
             vreinterpretq_u64_u32(zip0),
             vreinterpretq_u64_u32(zip1),
         ));
+        let row2 = vaddq_u32(row2, initial);
         let row3 = vreinterpretq_u32_u64(vzip2q_u64(
             vreinterpretq_u64_u32(zip0),
             vreinterpretq_u64_u32(zip1),
         ));
+        let row3 = vaddq_u32(row3, initial);
         (row0, row1, row2, row3)
     }
 
     // The column vectors now contain the result of the ChaCha20 computation on
     // four successive blocks. We transpose them into rows to XOR the result onto
     // the output buffer.
-    let (row0, row1, row2, row3) = cols_to_rows(col_a_0, col_a_1, col_a_2, col_a_3);
-    xor(row0, (&mut out[0..16]).try_into().unwrap());
-    xor(row1, (&mut out[64..80]).try_into().unwrap());
-    xor(row2, (&mut out[128..144]).try_into().unwrap());
-    xor(row3, (&mut out[192..208]).try_into().unwrap());
+    let (row0, row4, row8, row12) = cols_to_rows(
+        col_a_0,
+        col_a_1,
+        col_a_2,
+        col_a_3,
+        u32_slice_to_uint32x4_t(&SIGMA),
+    );
+    let (row1, row5, row9, row13) = cols_to_rows(
+        col_b_0,
+        col_b_1,
+        col_b_2,
+        col_b_3,
+        u32_slice_to_uint32x4_t(key0),
+    );
+    let (row2, row6, row10, row14) = cols_to_rows(
+        col_c_0,
+        col_c_1,
+        col_c_2,
+        col_c_3,
+        u32_slice_to_uint32x4_t(key1),
+    );
+    let (row3, row7, row11, row15) = cols_to_rows(
+        col_d_0,
+        col_d_1,
+        col_d_2,
+        col_d_3,
+        u32_slice_to_uint32x4_t(nonce),
+    );
+    // Fix the sequence number field.
+    let row7 = vaddq_u32(row7, u32_slice_to_uint32x4_t(&[1, 0, 0, 0]));
+    let row11 = vaddq_u32(row11, u32_slice_to_uint32x4_t(&[2, 0, 0, 0]));
+    let row15 = vaddq_u32(row15, u32_slice_to_uint32x4_t(&[3, 0, 0, 0]));
 
-    let (row0, row1, row2, row3) = cols_to_rows(col_b_0, col_b_1, col_b_2, col_b_3);
-    xor(row0, (&mut out[16..32]).try_into().unwrap());
-    xor(row1, (&mut out[80..96]).try_into().unwrap());
-    xor(row2, (&mut out[144..160]).try_into().unwrap());
-    xor(row3, (&mut out[208..224]).try_into().unwrap());
-
-    let (row0, row1, row2, row3) = cols_to_rows(col_c_0, col_c_1, col_c_2, col_c_3);
-    xor(row0, (&mut out[32..48]).try_into().unwrap());
-    xor(row1, (&mut out[96..112]).try_into().unwrap());
-    xor(row2, (&mut out[160..176]).try_into().unwrap());
-    xor(row3, (&mut out[224..240]).try_into().unwrap());
-
-    let (row0, row1, row2, row3) = cols_to_rows(col_d_0, col_d_1, col_d_2, col_d_3);
-    xor(row0, (&mut out[48..64]).try_into().unwrap());
-    xor(row1, (&mut out[112..128]).try_into().unwrap());
-    xor(row2, (&mut out[176..192]).try_into().unwrap());
-    xor(row3, (&mut out[240..256]).try_into().unwrap());
+    xor4(
+        uint32x4x4_t(row0, row1, row2, row3),
+        (&mut out[0..64]).try_into().unwrap(),
+    );
+    xor4(
+        uint32x4x4_t(row4, row5, row6, row7),
+        (&mut out[64..128]).try_into().unwrap(),
+    );
+    xor4(
+        uint32x4x4_t(row8, row9, row10, row11),
+        (&mut out[128..192]).try_into().unwrap(),
+    );
+    xor4(
+        uint32x4x4_t(row12, row13, row14, row15),
+        (&mut out[192..256]).try_into().unwrap(),
+    );
 }
 
 fn hchacha(key0: &mut [u32; 4], key1: &mut [u32; 4], nonce: &[u32; 4]) {
