@@ -217,6 +217,17 @@ pub(crate) fn is_cpu_supported() -> bool {
         && have_cpu_feature!("sha2")
 }
 
+pub(crate) fn verify_aes_gcm_cpu_features() {
+    assert!(
+        is_aes_gcm_cpu_supported(),
+        "graviola AES-GCM requires aes, neon, and pmull CPU support"
+    );
+}
+
+pub(crate) fn is_aes_gcm_cpu_supported() -> bool {
+    have_cpu_feature!("neon") && have_cpu_feature!("aes") && have_cpu_feature!("pmull")
+}
+
 mod dit {
     pub(super) fn maybe_enable() -> u32 {
         if have_cpu_feature!("dit") {

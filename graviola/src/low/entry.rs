@@ -1,7 +1,7 @@
 // Written for Graviola by Joe Birr-Pixton, 2024.
 // SPDX-License-Identifier: Apache-2.0 OR ISC OR MIT-0
 
-use super::{enter_cpu_state, leave_cpu_state, verify_cpu_features};
+use super::{enter_cpu_state, leave_cpu_state, verify_aes_gcm_cpu_features, verify_cpu_features};
 
 /// One of these should be made at library entry points: every `pub` function.
 ///
@@ -33,6 +33,18 @@ impl Entry {
     #[must_use]
     pub(crate) fn new_secret() -> Self {
         verify_cpu_features();
+        let cpu_state = enter_cpu_state();
+
+        Self {
+            secret: true,
+            cpu_state,
+        }
+    }
+
+    /// Enter an AES-GCM operation, checking only the features it uses.
+    #[must_use]
+    pub(crate) fn new_aes_gcm() -> Self {
+        verify_aes_gcm_cpu_features();
         let cpu_state = enter_cpu_state();
 
         Self {

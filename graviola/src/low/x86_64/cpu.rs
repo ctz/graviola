@@ -134,6 +134,9 @@ macro_rules! have_cpu_feature {
     ("aes") => {
         crate::low::x86_64::cpu::test_toggle("aes", is_x86_feature_detected!("aes"))
     };
+    ("ssse3") => {
+        crate::low::x86_64::cpu::test_toggle("ssse3", is_x86_feature_detected!("ssse3"))
+    };
     ("vaes") => {
         crate::low::x86_64::cpu::test_toggle("vaes", is_x86_feature_detected!("vaes"))
     };
@@ -243,6 +246,23 @@ pub(crate) fn is_cpu_supported() -> bool {
         && have_cpu_feature!("bmi1")
         && (have_cpu_feature!("adx") || option_env!("VALGRIND_BUG_494162").is_some())
         && is_x86_feature_detected!("avx")
+        && have_cpu_feature!("avx2")
+}
+
+pub(crate) fn verify_aes_gcm_cpu_features() {
+    assert!(
+        is_aes_gcm_cpu_supported(),
+        "graviola AES-GCM requires aes, ssse3, avx, avx2, and pclmulqdq CPU support"
+    );
+}
+
+pub(crate) fn is_aes_gcm_cpu_supported() -> bool {
+    // AES-GCM does not use the ADX or BMI instructions needed by other algorithms.
+    // AVX2 is still required by the key and GHASH table zeroisation routines.
+    have_cpu_feature!("aes")
+        && have_cpu_feature!("ssse3")
+        && have_cpu_feature!("pclmulqdq")
+        && have_cpu_feature!("avx")
         && have_cpu_feature!("avx2")
 }
 

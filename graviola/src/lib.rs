@@ -210,6 +210,6 @@ pub mod random {
 
 /// Utility functions
 pub mod util {
-    pub use crate::high::util::is_cpu_supported;
+    pub use crate::high::util::{CpuFeature, is_cpu_feature_supported, is_cpu_supported};
 }
 }
