@@ -46,6 +46,13 @@ but there is also a public API for general-purpose use.
 
 Other platforms provide a much-reduced API, and at a lower level of assurance.
 
+These are the requirements for the full API, checked by `util::is_cpu_supported()`.
+Applications using a subset can query cryptographic capabilities with
+`util::is_cpu_feature_supported(util::CpuFeature::AesGcm)`, combining capabilities
+with `|` when needed. AES-GCM does not require ADX or BMI on x86_64, or SHA-2 on
+aarch64. On x86_64 it still requires AES-NI, SSSE3, PCLMULQDQ, AVX, and AVX2;
+on aarch64 it requires AES, PMULL, and NEON.
+
 ## Building and Testing
 
 Compile:

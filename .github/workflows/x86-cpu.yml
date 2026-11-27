@@ -44,6 +44,13 @@ jobs:
       - name: Build (release)
         run: cargo build --release --tests
 
+      - name: Check AES-GCM on Haswell
+        run: |
+          cargo test --release -p graviola --lib mid::aes_gcm::tests
+          cargo test --release -p graviola --test cpu_features
+        env:
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUNNER: "sde -hsw --"
+
       - name: Check Skylake
         run: cargo test --release
         env:
